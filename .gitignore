@@ -1,0 +1,27 @@
+.DS_Store
+
+# build / simulation outputs
+obj_dir/
+build/
+output/
+tmp/
+*.o
+*.vcd
+*.fst
+*.log
+
+# generated / binary / audio / ROM-like files
+*.wav
+*.bin
+*.rom
+*.iso
+*.cue
+*.chd
+*.sav
+*.sram
+*.bak
+
+# editor
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
