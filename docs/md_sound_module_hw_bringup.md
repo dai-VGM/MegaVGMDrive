@@ -1760,3 +1760,57 @@ Change the VGM hardware baseline to:
 4. Keep sound RTL in the repository but out of the active hardware build.
 5. Reconnect `mister_vgm_md_top` only after the video-only baseline passes on
    real hardware.
+
+## 2026-06-04: InputTest-Based Player Status Baseline
+
+The InputTest-style MiSTer shell was tested on real hardware with
+`mister_vgm_md_top` instantiated inside `emu.sv`, while keeping `AUDIO_L/R`
+muted to zero.
+
+Observed result:
+
+- The screen changed to white.
+- White means `audio_seen_latched` became active.
+- Therefore `mister_vgm_md_top.audio_sample_valid` is being generated on the
+  real MiSTer FPGA.
+- The monitor kept a valid video signal.
+- The MiSTer menu could still be opened and returned from.
+
+This confirms that the InputTest-derived video/HPS shell is stable enough, and
+that the fixed-region player and sound clock path are alive on hardware. The
+remaining step is routing the generated audio samples to MiSTer audio output.
+
+## 2026-06-04: First Real Audio Connection
+
+`rtl/emu.sv` now connects the signed 16-bit output from `mister_vgm_md_top` to
+MiSTer audio:
+
+```systemverilog
+wire signed [15:0] md_audio_l;
+wire signed [15:0] md_audio_r;
+wire signed [15:0] audio_l_safe = md_audio_l >>> 2;
+wire signed [15:0] audio_r_safe = md_audio_r >>> 2;
+
+assign AUDIO_S = 1'b1;
+assign AUDIO_L = audio_l_safe;
+assign AUDIO_R = audio_r_safe;
+assign AUDIO_MIX = 2'b00;
+```
+
+The `>>> 2` shift is intentional for the first hardware audio test. It keeps
+the output at a conservative level, roughly one quarter of the internal sample
+amplitude, so the first `.rbf` is less likely to clip or produce an unexpectedly
+loud signal.
+
+The debug color screen remains active:
+
+- green: idle/running baseline
+- red: `player_busy`
+- blue: `player_done` latched
+- white: `audio_sample_valid` seen
+
+The sound core itself was not changed. `md_sound_module`, JT12, JT89,
+`vgm_region_player`, and `mister_vgm_md_top` remain the same. If audio is
+audible but too quiet, the next safe experiment is changing the shift from
+`>>> 2` to `>>> 1`. If audio is distorted or too loud, keep `>>> 2` or reduce
+further.

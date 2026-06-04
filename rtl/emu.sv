@@ -159,9 +159,14 @@ module emu
     assign HDMI_FREEZE = 1'b0;
     assign HDMI_BLACKOUT = 1'b0;
 
+    wire signed [15:0] md_audio_l;
+    wire signed [15:0] md_audio_r;
+    wire signed [15:0] audio_l_safe = md_audio_l >>> 2;
+    wire signed [15:0] audio_r_safe = md_audio_r >>> 2;
+
     assign AUDIO_S = 1'b1;
-    assign AUDIO_L = 16'd0;
-    assign AUDIO_R = 16'd0;
+    assign AUDIO_L = audio_l_safe;
+    assign AUDIO_R = audio_r_safe;
     assign AUDIO_MIX = 2'b00;
 
     assign LED_DISK = 2'b00;
@@ -314,8 +319,6 @@ module emu
 
     wire reset = RESET | status[0] | !pll_locked;
 
-    wire signed [15:0] md_audio_l;
-    wire signed [15:0] md_audio_r;
     wire               audio_sample_valid;
     wire               player_busy;
     wire               player_done;
@@ -388,7 +391,8 @@ module emu
     // audio_seen_latched      : white
     //
     // audio_seen has highest priority because it proves md_sound_module is
-    // producing sample ticks. AUDIO_L/R still remain tied to zero externally.
+    // producing sample ticks. AUDIO_L/R are now connected at a conservative
+    // -12 dB style level by shifting md_audio_* right by two bits.
     wire [7:0] red =
         audio_seen_latched ? 8'hff :
         done_latched       ? 8'h00 :
@@ -467,8 +471,6 @@ module emu
         ps2_mouse_ext,
         timestamp,
         ce_2,
-        md_audio_l,
-        md_audio_r,
         player_pc_debug,
         player_last_cmd_debug,
         HDMI_WIDTH,
