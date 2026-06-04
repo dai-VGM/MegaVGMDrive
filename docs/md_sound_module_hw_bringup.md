@@ -1454,3 +1454,218 @@ FAIL:
 ```
 
 Only after PASS should `mister_vgm_md_top` be reconnected to `emu.sv`.
+
+## InputTest_MiSTer Reference Analysis
+
+Reference core:
+
+```text
+/Users/daizo/Projects/InputTest_MiSTer
+```
+
+This core is a known-good MiSTer Utility core on the target hardware. Its `.rbf`
+boots, keeps video sync, shows a core/menu, and can return to the MiSTer menu.
+
+Important structural difference from the current VGM baseline:
+
+```text
+InputTest_MiSTer uses its own known-working sys/ framework copy and an explicit
+emu port list in InputTest.sv.
+```
+
+InputTest active project structure:
+
+```text
+InputTest.qsf
+  -> source sys/sys.tcl
+  -> source sys/sys_analog.tcl
+  -> source files.qip
+
+files.qip
+  -> InputTest.sv
+  -> sys/sys.qip
+  -> core RTL dependencies
+```
+
+By contrast, the VGM baseline was using a newer Template_MiSTer `sys/` copy and
+an `emu.sv` using:
+
+```systemverilog
+module emu (
+    `include "sys/emu_ports.vh"
+);
+```
+
+That version can compile, but still fails on hardware with no video signal.
+Since InputTest is proven on the same hardware, the next step is to align the
+VGM baseline with InputTest's outer shell instead of continuing to debug the
+newer/custom shell.
+
+### sys_top / emu Port Shape
+
+InputTest `emu` uses an explicit port list:
+
+```text
+CLK_50M
+RESET
+HPS_BUS[48:0]
+CLK_VIDEO
+CE_PIXEL
+VIDEO_ARX/VIDEO_ARY
+VGA_R/G/B
+VGA_HS/VGA_VS/VGA_DE
+VGA_F1/VGA_SL/VGA_SCALER/VGA_DISABLE
+HDMI_WIDTH/HDMI_HEIGHT
+HDMI_FREEZE/HDMI_BLACKOUT
+AUDIO_L/AUDIO_R/AUDIO_S/AUDIO_MIX
+ADC/SD/DDR/SDRAM/UART/USER/OSD_STATUS
+```
+
+The newer Template_MiSTer `emu_ports.vh` copy in the VGM project used a
+different framework shape, including `HPS_BUS[45:0]` and some newer ports.
+For this hardware test, matching the proven InputTest port shape is safer than
+mixing framework generations.
+
+### CONF_STR / Core Name / OSD
+
+InputTest:
+
+```text
+localparam CONF_STR = {
+    "InputTest;;",
+    ...
+    "R0,Reset;",
+    ...
+    "V,v",`BUILD_DATE
+};
+```
+
+For the VGM baseline, the equivalent should be:
+
+```text
+"VGM_MD;;"
+```
+
+plus minimal reset/menu entries. The key point is that `hps_io` must be wired
+like InputTest so the core name and menu path are visible.
+
+### hps_io
+
+InputTest connects many `hps_io` outputs even if the core does not use all of
+them:
+
+```text
+buttons
+status
+status_menumask({direct_video})
+forced_scandoubler
+video_rotated
+direct_video
+ioctl_* signals
+joystick_* signals
+analog/paddle/spinner
+ps2_key/ps2_mouse
+TIMESTAMP
+```
+
+The VGM baseline should copy this style for video-only bring-up. It can leave
+most signals unused internally, but the `hps_io` instance should look like the
+known-good core rather than a minimal partial connection.
+
+### Video
+
+InputTest video path:
+
+```text
+pll -> clk_sys
+jtframe_cen24 -> ce_pix
+system core -> RGB + HBlank/VBlank/HSync/VSync
+arcade_video -> final MiSTer-facing VGA_* signals
+```
+
+For VGM video-only baseline, the internal `system` can be replaced by a simple
+fixed-color raster, but the external contract should stay close:
+
+```text
+CLK_VIDEO = clk_sys
+CE_PIXEL = ce_pix
+VGA_DE = active video
+VGA_HS/VGA_VS = stable sync
+VGA_R/G/B = fixed color
+```
+
+### Clock
+
+InputTest:
+
+```systemverilog
+pll pll (
+    .refclk(CLK_50M),
+    .rst(0),
+    .outclk_0(clk_sys)
+);
+
+jtframe_cen24 divider (
+    .clk(clk_sys),
+    .cen6(ce_pix),
+    .cen2(...)
+);
+
+assign CLK_VIDEO = clk_sys;
+```
+
+The key part is that `CLK_VIDEO` comes from the core PLL output, not raw
+`CLK_50M`.
+
+### Audio
+
+InputTest sets:
+
+```text
+AUDIO_S = 1
+AUDIO_MIX = 0
+```
+
+and lets its internal `system` drive `AUDIO_L/R`.
+
+For VGM video-only baseline:
+
+```text
+AUDIO_L = 0
+AUDIO_R = 0
+AUDIO_S = 1
+AUDIO_MIX = 0
+```
+
+Audio remains intentionally disabled until video/menu pass.
+
+### Reset
+
+InputTest reset:
+
+```systemverilog
+wire reset = RESET | status[0] | rom_download;
+```
+
+For video-only VGM:
+
+```systemverilog
+wire reset = RESET | status[0] | !pll_locked;
+```
+
+No sound block reset is relevant in this phase.
+
+### Action From Analysis
+
+Change the VGM hardware baseline to:
+
+1. Use the proven InputTest `sys/` framework copy.
+2. Use an InputTest-style explicit `emu` port list instead of `sys/emu_ports.vh`.
+3. Keep `files.qip` minimal for video-only:
+   - `rtl/emu.sv`
+   - `sys/sys.qip`
+   - `rtl/pll.qip`
+   - a tiny clock-enable helper if needed
+4. Keep sound RTL in the repository but out of the active hardware build.
+5. Reconnect `mister_vgm_md_top` only after the video-only baseline passes on
+   real hardware.

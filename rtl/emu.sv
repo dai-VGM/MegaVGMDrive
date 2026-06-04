@@ -1,19 +1,122 @@
-// Video-only MiSTer baseline for VGM MD bring-up.
+// VGM MD video-only baseline using the proven InputTest_MiSTer outer shape.
 //
-// This file intentionally stays close to the official Template_MiSTer emu
-// shape. The current goal is not sound yet; it is only to prove that the
-// Template_MiSTer outer shell boots on real MiSTer hardware:
-//
-// - monitor keeps video sync
-// - fixed color video appears
-// - core name appears
-// - MiSTer menu can return
-//
-// md_sound_module / JT12 / JT89 / vgm_region_player are not instantiated here.
-// They remain available for the next phase after video-only baseline passes.
+// This module intentionally mirrors InputTest_MiSTer's explicit emu port list
+// and hps_io style. The sound module is not instantiated in this baseline.
 
-module emu (
-    `include "sys/emu_ports.vh"
+module emu
+(
+    input         CLK_50M,
+    input         RESET,
+
+    inout  [48:0] HPS_BUS,
+
+    output        CLK_VIDEO,
+    output        CE_PIXEL,
+
+    output [12:0] VIDEO_ARX,
+    output [12:0] VIDEO_ARY,
+
+    output  [7:0] VGA_R,
+    output  [7:0] VGA_G,
+    output  [7:0] VGA_B,
+    output        VGA_HS,
+    output        VGA_VS,
+    output        VGA_DE,
+    output        VGA_F1,
+    output [1:0]  VGA_SL,
+    output        VGA_SCALER,
+    output        VGA_DISABLE,
+
+    input  [11:0] HDMI_WIDTH,
+    input  [11:0] HDMI_HEIGHT,
+    output        HDMI_FREEZE,
+    output        HDMI_BLACKOUT,
+
+`ifdef MISTER_FB
+    output        FB_EN,
+    output  [4:0] FB_FORMAT,
+    output [11:0] FB_WIDTH,
+    output [11:0] FB_HEIGHT,
+    output [31:0] FB_BASE,
+    output [13:0] FB_STRIDE,
+    input         FB_VBL,
+    input         FB_LL,
+    output        FB_FORCE_BLANK,
+
+`ifdef MISTER_FB_PALETTE
+    output        FB_PAL_CLK,
+    output  [7:0] FB_PAL_ADDR,
+    output [23:0] FB_PAL_DOUT,
+    input  [23:0] FB_PAL_DIN,
+    output        FB_PAL_WR,
+`endif
+`endif
+
+    output        LED_USER,
+    output  [1:0] LED_POWER,
+    output  [1:0] LED_DISK,
+    output  [1:0] BUTTONS,
+
+    input         CLK_AUDIO,
+    output [15:0] AUDIO_L,
+    output [15:0] AUDIO_R,
+    output        AUDIO_S,
+    output  [1:0] AUDIO_MIX,
+
+    inout   [3:0] ADC_BUS,
+
+    output        SD_SCK,
+    output        SD_MOSI,
+    input         SD_MISO,
+    output        SD_CS,
+    input         SD_CD,
+
+    output        DDRAM_CLK,
+    input         DDRAM_BUSY,
+    output  [7:0] DDRAM_BURSTCNT,
+    output [28:0] DDRAM_ADDR,
+    input  [63:0] DDRAM_DOUT,
+    input         DDRAM_DOUT_READY,
+    output        DDRAM_RD,
+    output [63:0] DDRAM_DIN,
+    output  [7:0] DDRAM_BE,
+    output        DDRAM_WE,
+
+    output        SDRAM_CLK,
+    output        SDRAM_CKE,
+    output [12:0] SDRAM_A,
+    output  [1:0] SDRAM_BA,
+    inout  [15:0] SDRAM_DQ,
+    output        SDRAM_DQML,
+    output        SDRAM_DQMH,
+    output        SDRAM_nCS,
+    output        SDRAM_nCAS,
+    output        SDRAM_nRAS,
+    output        SDRAM_nWE,
+
+`ifdef MISTER_DUAL_SDRAM
+    input         SDRAM2_EN,
+    output        SDRAM2_CLK,
+    output [12:0] SDRAM2_A,
+    output  [1:0] SDRAM2_BA,
+    inout  [15:0] SDRAM2_DQ,
+    output        SDRAM2_nCS,
+    output        SDRAM2_nCAS,
+    output        SDRAM2_nRAS,
+    output        SDRAM2_nWE,
+`endif
+
+    input         UART_CTS,
+    output        UART_RTS,
+    input         UART_RXD,
+    output        UART_TXD,
+    output        UART_DTR,
+    input         UART_DSR,
+
+    input   [6:0] USER_IN,
+    output  [6:0] USER_OUT,
+
+    input         OSD_STATUS
 );
 
     ///////// Default values for ports not used in this baseline /////////
@@ -49,17 +152,16 @@ module emu (
 `endif
 `endif
 
-    assign VGA_SL = 2'b00;
     assign VGA_F1 = 1'b0;
+    assign VGA_SL = 2'b00;
     assign VGA_SCALER = 1'b0;
     assign VGA_DISABLE = 1'b0;
     assign HDMI_FREEZE = 1'b0;
     assign HDMI_BLACKOUT = 1'b0;
-    assign HDMI_BOB_DEINT = 1'b0;
 
     assign AUDIO_S = 1'b1;
-    assign AUDIO_L = 16'sd0;
-    assign AUDIO_R = 16'sd0;
+    assign AUDIO_L = 16'd0;
+    assign AUDIO_R = 16'd0;
     assign AUDIO_MIX = 2'b00;
 
     assign LED_DISK = 2'b00;
@@ -68,111 +170,195 @@ module emu (
 
     //////////////////////////////////////////////////////////////////
 
+    assign VIDEO_ARX = 13'd4;
+    assign VIDEO_ARY = 13'd3;
+
+    `include "build_id.v"
     localparam CONF_STR = {
         "VGM_MD;;",
         "-;",
-        "T0,Reset;",
-        "R0,Reset and close OSD;",
-        "v,2;"
+        "R0,Reset;",
+        "V,v",`BUILD_DATE
     };
 
+    wire [31:0] status;
+    wire  [1:0] buttons;
     wire        forced_scandoubler;
-    wire [1:0]  buttons;
-    wire [127:0] status;
+    wire        video_rotated;
+    wire        direct_video;
+    wire [21:0] gamma_bus;
+
+    wire        ioctl_download;
+    wire        ioctl_wr;
+    wire [24:0] ioctl_addr;
+    wire  [7:0] ioctl_dout;
+    wire  [7:0] ioctl_index;
+
+    wire [31:0] joystick_0;
+    wire [31:0] joystick_1;
+    wire [31:0] joystick_2;
+    wire [31:0] joystick_3;
+    wire [31:0] joystick_4;
+    wire [31:0] joystick_5;
+    wire [15:0] joystick_l_analog_0;
+    wire [15:0] joystick_l_analog_1;
+    wire [15:0] joystick_l_analog_2;
+    wire [15:0] joystick_l_analog_3;
+    wire [15:0] joystick_l_analog_4;
+    wire [15:0] joystick_l_analog_5;
+    wire [15:0] joystick_r_analog_0;
+    wire [15:0] joystick_r_analog_1;
+    wire [15:0] joystick_r_analog_2;
+    wire [15:0] joystick_r_analog_3;
+    wire [15:0] joystick_r_analog_4;
+    wire [15:0] joystick_r_analog_5;
+    wire  [7:0] paddle_0;
+    wire  [7:0] paddle_1;
+    wire  [7:0] paddle_2;
+    wire  [7:0] paddle_3;
+    wire  [7:0] paddle_4;
+    wire  [7:0] paddle_5;
+    wire  [8:0] spinner_0;
+    wire  [8:0] spinner_1;
+    wire  [8:0] spinner_2;
+    wire  [8:0] spinner_3;
+    wire  [8:0] spinner_4;
+    wire  [8:0] spinner_5;
     wire [10:0] ps2_key;
+    wire [24:0] ps2_mouse;
+    wire [15:0] ps2_mouse_ext;
+    wire [32:0] timestamp;
 
     hps_io #(.CONF_STR(CONF_STR)) hps_io (
-        .clk_sys            (clk_sys),
-        .HPS_BUS            (HPS_BUS),
-        .EXT_BUS            (),
-        .gamma_bus          (),
-        .forced_scandoubler (forced_scandoubler),
-        .buttons            (buttons),
-        .status             (status),
-        .status_menumask    (16'd0),
-        .ps2_key            (ps2_key)
+        .clk_sys(clk_sys),
+        .HPS_BUS(HPS_BUS),
+        .buttons(buttons),
+        .status(status),
+        .status_menumask({direct_video}),
+        .forced_scandoubler(forced_scandoubler),
+        .video_rotated(video_rotated),
+        .direct_video(direct_video),
+
+        .ioctl_download(ioctl_download),
+        .ioctl_wr(ioctl_wr),
+        .ioctl_addr(ioctl_addr),
+        .ioctl_dout(ioctl_dout),
+        .ioctl_index(ioctl_index),
+
+        .joystick_0(joystick_0),
+        .joystick_1(joystick_1),
+        .joystick_2(joystick_2),
+        .joystick_3(joystick_3),
+        .joystick_4(joystick_4),
+        .joystick_5(joystick_5),
+
+        .joystick_l_analog_0(joystick_l_analog_0),
+        .joystick_l_analog_1(joystick_l_analog_1),
+        .joystick_l_analog_2(joystick_l_analog_2),
+        .joystick_l_analog_3(joystick_l_analog_3),
+        .joystick_l_analog_4(joystick_l_analog_4),
+        .joystick_l_analog_5(joystick_l_analog_5),
+
+        .joystick_r_analog_0(joystick_r_analog_0),
+        .joystick_r_analog_1(joystick_r_analog_1),
+        .joystick_r_analog_2(joystick_r_analog_2),
+        .joystick_r_analog_3(joystick_r_analog_3),
+        .joystick_r_analog_4(joystick_r_analog_4),
+        .joystick_r_analog_5(joystick_r_analog_5),
+
+        .paddle_0(paddle_0),
+        .paddle_1(paddle_1),
+        .paddle_2(paddle_2),
+        .paddle_3(paddle_3),
+        .paddle_4(paddle_4),
+        .paddle_5(paddle_5),
+
+        .spinner_0(spinner_0),
+        .spinner_1(spinner_1),
+        .spinner_2(spinner_2),
+        .spinner_3(spinner_3),
+        .spinner_4(spinner_4),
+        .spinner_5(spinner_5),
+
+        .ps2_key(ps2_key),
+        .ps2_mouse(ps2_mouse),
+        .ps2_mouse_ext(ps2_mouse_ext),
+
+        .TIMESTAMP(timestamp)
     );
 
-    ///////////////////////   CLOCKS   ///////////////////////////////
+    ////////////////////   CLOCKS   ///////////////////
 
-    // Keep Template_MiSTer's pattern: CLK_VIDEO is generated from the core PLL.
-    // sys_top routes CLK_VIDEO to video clock select blocks where this must be
-    // a PLL output, not raw CLK_50M.
     wire clk_sys;
     wire pll_locked;
 
     pll pll (
-        .refclk   (CLK_50M),
-        .rst      (1'b0),
-        .outclk_0 (clk_sys),
-        .locked   (pll_locked)
+        .refclk(CLK_50M),
+        .rst(1'b0),
+        .outclk_0(clk_sys),
+        .locked(pll_locked)
     );
 
-    wire reset = RESET | status[0] | buttons[1] | !pll_locked;
+    ///////////////////   CLOCK DIVIDER   ////////////////////
 
-    ///////////////////////   VIDEO   ////////////////////////////////
+    wire ce_pix;
+    wire ce_2;
 
-    // Simple 640x480-style debug raster. This replaces Template's mycore with
-    // a fixed color generator, while keeping the Template emu/sys_top boundary.
-    reg       ce_pix;
-    reg [9:0] h_count;
-    reg [9:0] v_count;
-    reg [7:0] post_reset_frames;
+    jtframe_cen24 divider (
+        .clk(clk_sys),
+        .cen6(ce_pix),
+        .cen2(ce_2)
+    );
+
+    ///////////////////   VIDEO   ////////////////////
+
+    wire reset = RESET | status[0] | !pll_locked;
+
+    reg [8:0] h_count;
+    reg [8:0] v_count;
+    reg [7:0] frame_count;
 
     always @(posedge clk_sys) begin
         if (reset) begin
-            ce_pix <= 1'b0;
-            h_count <= 10'd0;
-            v_count <= 10'd0;
-            post_reset_frames <= 8'd0;
-        end else begin
-            ce_pix <= ~ce_pix;
-
-            if (ce_pix) begin
-                if (h_count == 10'd799) begin
-                    h_count <= 10'd0;
-
-                    if (v_count == 10'd524) begin
-                        v_count <= 10'd0;
-                        if (post_reset_frames != 8'hff) begin
-                            post_reset_frames <= post_reset_frames + 8'd1;
-                        end
-                    end else begin
-                        v_count <= v_count + 10'd1;
+            h_count <= 9'd0;
+            v_count <= 9'd0;
+            frame_count <= 8'd0;
+        end else if (ce_pix) begin
+            if (h_count == 9'd383) begin
+                h_count <= 9'd0;
+                if (v_count == 9'd263) begin
+                    v_count <= 9'd0;
+                    if (frame_count != 8'hff) begin
+                        frame_count <= frame_count + 8'd1;
                     end
                 end else begin
-                    h_count <= h_count + 10'd1;
+                    v_count <= v_count + 9'd1;
                 end
+            end else begin
+                h_count <= h_count + 9'd1;
             end
         end
     end
 
-    wire hblank = (h_count >= 10'd640);
-    wire vblank = (v_count >= 10'd480);
+    wire hblank = (h_count >= 9'd320);
+    wire vblank = (v_count >= 9'd240);
     wire active = !hblank && !vblank;
 
-    wire hsync = ~((h_count >= 10'd656) && (h_count < 10'd752));
-    wire vsync = ~((v_count >= 10'd490) && (v_count < 10'd492));
+    wire hsync = ~((h_count >= 9'd336) && (h_count < 9'd368));
+    wire vsync = ~((v_count >= 9'd244) && (v_count < 9'd248));
 
-    // reset: black
-    // first frames after reset: blue
-    // stable running: teal/green, easy to distinguish from a black/no-signal
-    wire [7:0] dbg_r = reset ? 8'h00 : (post_reset_frames < 8'd8 ? 8'h10 : 8'h00);
-    wire [7:0] dbg_g = reset ? 8'h00 : (post_reset_frames < 8'd8 ? 8'h30 : 8'hb0);
-    wire [7:0] dbg_b = reset ? 8'h00 : (post_reset_frames < 8'd8 ? 8'hc0 : 8'h80);
+    wire [7:0] red   = (frame_count < 8'd8) ? 8'h20 : 8'h00;
+    wire [7:0] green = (frame_count < 8'd8) ? 8'h40 : 8'hb0;
+    wire [7:0] blue  = (frame_count < 8'd8) ? 8'hd0 : 8'h90;
 
     assign CLK_VIDEO = clk_sys;
     assign CE_PIXEL = ce_pix;
-
     assign VGA_DE = active;
     assign VGA_HS = hsync;
     assign VGA_VS = vsync;
-    assign VGA_R  = active ? dbg_r : 8'd0;
-    assign VGA_G  = active ? dbg_g : 8'd0;
-    assign VGA_B  = active ? dbg_b : 8'd0;
-
-    assign VIDEO_ARX = 13'd4;
-    assign VIDEO_ARY = 13'd3;
+    assign VGA_R = active ? red : 8'd0;
+    assign VGA_G = active ? green : 8'd0;
+    assign VGA_B = active ? blue : 8'd0;
 
     reg [26:0] act_cnt;
     always @(posedge clk_sys) begin
@@ -183,8 +369,48 @@ module emu (
 
     wire unused_inputs = ^{
         forced_scandoubler,
-        status,
+        video_rotated,
+        gamma_bus,
+        ioctl_download,
+        ioctl_wr,
+        ioctl_addr,
+        ioctl_dout,
+        ioctl_index,
+        joystick_0,
+        joystick_1,
+        joystick_2,
+        joystick_3,
+        joystick_4,
+        joystick_5,
+        joystick_l_analog_0,
+        joystick_l_analog_1,
+        joystick_l_analog_2,
+        joystick_l_analog_3,
+        joystick_l_analog_4,
+        joystick_l_analog_5,
+        joystick_r_analog_0,
+        joystick_r_analog_1,
+        joystick_r_analog_2,
+        joystick_r_analog_3,
+        joystick_r_analog_4,
+        joystick_r_analog_5,
+        paddle_0,
+        paddle_1,
+        paddle_2,
+        paddle_3,
+        paddle_4,
+        paddle_5,
+        spinner_0,
+        spinner_1,
+        spinner_2,
+        spinner_3,
+        spinner_4,
+        spinner_5,
         ps2_key,
+        ps2_mouse,
+        ps2_mouse_ext,
+        timestamp,
+        ce_2,
         HDMI_WIDTH,
         HDMI_HEIGHT,
         CLK_AUDIO,

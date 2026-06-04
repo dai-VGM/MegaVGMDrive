@@ -1,9 +1,8 @@
-# Video-only baseline.
+# InputTest_MiSTer-style video-only baseline.
 #
-# Keep the active MiSTer build as small as possible until the Template_MiSTer
-# outer shell is proven on hardware. Sound RTL remains in the repository and is
-# still covered by its direct simulation testbenches, but is intentionally not
-# part of this first hardware baseline.
+# The active hardware build intentionally excludes MD sound RTL until the
+# proven InputTest-style outer shell passes on real MiSTer hardware.
 
-set_global_assignment -name SDC_FILE VGM_MD_MiSTer.sdc
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/emu.sv
+set_global_assignment -name QIP_FILE sys/sys.qip
+set_global_assignment -name VERILOG_FILE rtl/JTFRAME/jtframe_cen24.v
