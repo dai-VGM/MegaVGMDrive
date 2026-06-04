@@ -1814,3 +1814,51 @@ The sound core itself was not changed. `md_sound_module`, JT12, JT89,
 audible but too quiet, the next safe experiment is changing the shift from
 `>>> 2` to `>>> 1`. If audio is distorted or too loud, keep `>>> 2` or reduce
 further.
+
+## 2026-06-04: First MiSTer Audio Output Success
+
+The first real-audio `.rbf` was tested on MiSTer hardware.
+
+Observed result:
+
+- The screen became white, so `audio_seen_latched` still works.
+- A continuous tone was audible from MiSTer audio output.
+- The MiSTer menu could still be opened and returned from.
+- Therefore both `mister_vgm_md_top.audio_sample_valid` and the `AUDIO_L/R`
+  connection are working on real hardware.
+
+This is the first confirmed hardware audio output from the fixed-region Mega
+Drive sound path.
+
+## 2026-06-04: Fixed-Region Silence At End
+
+The first audio build kept producing sound after the fixed region ended. For
+bring-up, the safest first fix is to stop the sound sources inside the fixed
+region itself rather than changing JT12, JT89, or `md_sound_module`.
+
+`rtl/vgm_region_player.sv` now appends an explicit silence sequence before
+`0x66 end`:
+
+```text
+52 28 00   YM key off for ch1
+52 2A 00   YM DAC data = 0
+52 2B 00   YM DAC disable
+50 9F      PSG ch0 mute
+50 BF      PSG ch1 mute
+50 DF      PSG ch2 mute
+50 FF      PSG noise mute
+61 00 04   short settle wait
+66         end
+```
+
+The debug color screen and conservative `AUDIO_L/R >>> 2` level are unchanged.
+The sound core RTL remains unchanged:
+
+- `rtl/md_sound_module.sv`
+- JT12/JT89 files under `rtl/genesis_audio/`
+- `rtl/mister_vgm_md_top.sv`
+
+Alternative considered: gate `AUDIO_L/R` to zero after `player_done_latched`.
+That is still a useful emergency mute for future bring-up, but the current
+change keeps the player behavior closer to real VGM command playback by sending
+explicit chip writes.

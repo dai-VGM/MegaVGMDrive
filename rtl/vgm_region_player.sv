@@ -149,9 +149,20 @@ module vgm_region_player (
             10'd119: rom_byte = 8'h84;
             10'd120: rom_byte = 8'h52; 10'd121: rom_byte = 8'h2B; 10'd122: rom_byte = 8'h00;
 
-            // Let the final sound decay a little, then stop.
-            10'd123: rom_byte = 8'h61; 10'd124: rom_byte = 8'h00; 10'd125: rom_byte = 8'h08;
-            10'd126: rom_byte = 8'h66;
+            // Explicit silence sequence for hardware bring-up:
+            // key off FM ch1, clear DAC data, keep DAC disabled, mute all PSG
+            // channels, then wait briefly before reporting end.
+            10'd123: rom_byte = 8'h52; 10'd124: rom_byte = 8'h28; 10'd125: rom_byte = 8'h00;
+            10'd126: rom_byte = 8'h52; 10'd127: rom_byte = 8'h2A; 10'd128: rom_byte = 8'h00;
+            10'd129: rom_byte = 8'h52; 10'd130: rom_byte = 8'h2B; 10'd131: rom_byte = 8'h00;
+            10'd132: rom_byte = 8'h50; 10'd133: rom_byte = 8'h9F;
+            10'd134: rom_byte = 8'h50; 10'd135: rom_byte = 8'hBF;
+            10'd136: rom_byte = 8'h50; 10'd137: rom_byte = 8'hDF;
+            10'd138: rom_byte = 8'h50; 10'd139: rom_byte = 8'hFF;
+
+            // Let the silence writes settle, then stop.
+            10'd140: rom_byte = 8'h61; 10'd141: rom_byte = 8'h00; 10'd142: rom_byte = 8'h04;
+            10'd143: rom_byte = 8'h66;
 
             default: rom_byte = 8'h66;
         endcase
