@@ -1172,3 +1172,90 @@ Both still compile with the same existing JT12/timescale/Icarus warnings.
 Do not use Icarus as the final checker for Template_MiSTer `hps_io.sv`.
 `hps_io.sv` uses SystemVerilog constructs that Icarus does not elaborate cleanly
 in this local check, while the framework is intended for Quartus.
+
+## Quartus Warning: Missing rtl/pll.qip
+
+After switching to the Template_MiSTer framework, Quartus reported:
+
+```text
+Warning (125092): Tcl Script File rtl/pll.qip not found
+Info (125063): set_global_assignment -name QIP_FILE rtl/pll.qip -qip sys/pll_q17.qip
+```
+
+Cause:
+
+```text
+sys/sys.tcl selects sys/pll_q17.qip for Quartus 17.
+sys/pll_q17.qip references rtl/pll.qip.
+rtl/pll.qip had not been copied from Template_MiSTer.
+```
+
+The missing file was not in `VGM_MD_MiSTer.qsf` directly. It was pulled in
+through the Template_MiSTer framework path:
+
+```text
+VGM_MD_MiSTer.qsf
+  -> source sys/sys.tcl
+     -> set_global_assignment -name QIP_FILE sys/sys.qip
+     -> set_global_assignment -name QIP_FILE sys/pll_q17.qip
+        -> set_global_assignment -name QIP_FILE rtl/pll.qip
+```
+
+Fix:
+
+```text
+Copied Template_MiSTer rtl PLL files into this project:
+
+rtl/pll.qip
+rtl/pll.v
+rtl/pll/pll_0002.qip
+rtl/pll/pll_0002.v
+rtl/pll/pll_0002_q13.qip
+```
+
+Current `.qip` files present:
+
+```text
+files.qip
+rtl/pll.qip
+rtl/pll/pll_0002.qip
+rtl/pll/pll_0002_q13.qip
+sys/pll.13.qip
+sys/pll_audio.13.qip
+sys/pll_audio.qip
+sys/pll_audio/pll_audio_0002.qip
+sys/pll_cfg.qip
+sys/pll_hdmi.13.qip
+sys/pll_hdmi.qip
+sys/pll_hdmi/pll_hdmi_0002.qip
+sys/pll_q13.qip
+sys/pll_q17.qip
+sys/sys.qip
+```
+
+Clock path status after this fix:
+
+```text
+sys/sys_top.v remains the Quartus TOP_LEVEL_ENTITY.
+sys/sys_top.v instantiates emu.
+rtl/emu.sv currently uses CLK_50M directly as clk_sys.
+rtl/emu.sv drives CLK_VIDEO = clk_sys and CE_PIXEL as a divided pixel enable.
+```
+
+Important note:
+
+```text
+The missing rtl/pll.qip warning must be fixed first because it means the
+Template_MiSTer framework PLL dependency set was incomplete.
+```
+
+If video still fails after this fix, the next things to check are:
+
+- Whether Quartus reports any remaining missing `.qip`, `.v`, or `.sv` files.
+- Whether `sys/sys_top.v` is definitely the compiled top.
+- Whether `rtl/emu.sv` should instantiate the Template core PLL, like
+  `Template.sv`, instead of using `CLK_50M` directly.
+- Whether debug video timing from `rtl/emu.sv` is accepted by the MiSTer video
+  mixer path.
+
+For the current step, no sound RTL was changed.
