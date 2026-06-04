@@ -587,3 +587,207 @@ Recommended next action:
 - DAC Stream Control `0x90`-`0x95`.
 - A real hardware VGM parser for arbitrary songs.
 - Clock-domain crossing or FIFO buffering for external command sources.
+
+## Added Minimal emu Wrapper
+
+The first MiSTer-facing core wrapper has been added:
+
+```text
+rtl/emu.sv
+```
+
+This file is still a bring-up wrapper, not a complete polished MiSTer core.
+It instantiates:
+
+```text
+emu
+  -> mister_vgm_md_top
+     -> md_sound_fixed_region_test
+        -> vgm_region_player
+        -> md_sound_module
+```
+
+Current behavior:
+
+- Uses `CLK_50M` directly as `clk_sys`.
+- Synchronizes the MiSTer `RESET` input and passes active-low reset to
+  `mister_vgm_md_top`.
+- Routes `mister_vgm_md_top.audio_l` / `audio_r` to `AUDIO_L` / `AUDIO_R`.
+- Sets `AUDIO_S=1` for signed samples.
+- Sets `AUDIO_MIX=2'b00` so stereo is not forced to mono.
+- Generates a simple blank 640x480-style video signal using a 25 MHz pixel
+  enable derived from `CLK_50M`.
+- Leaves HPS, SD, OSD, SDRAM, DDRAM, UART, and user ports idle.
+
+Debug/status mapping:
+
+```text
+LED_USER       <- player_busy || player_done
+LED_DISK[0]    <- audio_sample_valid
+player_pc_debug / player_last_cmd_debug are internal for now
+```
+
+The debug signals are intentionally not exposed through HPS or OSD yet. They
+can be routed to spare LEDs or SignalTap later if hardware bring-up needs more
+visibility.
+
+Important TODO before a production `.rbf`:
+
+- Replace the direct `CLK_50M` clock use with the PLL/clocking style from the
+  selected MiSTer template.
+- Make sure `rtl/emu.sv` port names exactly match the copied template's
+  `sys_top` instantiation.
+- Decide whether the blank video generator is sufficient or whether to copy the
+  template's video helper path.
+- Add `hps_io` only when OSD or file loading becomes necessary.
+
+## emu.sv Syntax Check
+
+The new wrapper was checked with Icarus Verilog:
+
+```sh
+iverilog -g2012 -Wall -DSIMULATION -s emu \
+  -o /tmp/emu_check.vvp \
+  rtl/emu.sv \
+  rtl/mister_vgm_md_top.sv \
+  rtl/vgm_region_player.sv \
+  rtl/md_sound_module.sv \
+  rtl/genesis_audio/**/*.v
+```
+
+Result:
+
+```text
+compile passed
+```
+
+Remaining warnings are the already-known JT12/Icarus warnings:
+
+- implicit `op_result_hd` warning in `jt12_top.v`
+- LUT sensitivity warnings in `jt12_pm.v`
+- `jt12_comb.v` simulation out-of-bounds warning
+- `unique case` ignored by Icarus warnings
+
+No new compile error was introduced by `rtl/emu.sv`.
+
+## Quartus Project Skeleton Plan
+
+This repository still does not contain a real MiSTer `sys_top` framework or a
+Quartus project. The next practical step is to copy a known-working MiSTer
+template/core skeleton and then add this project's RTL.
+
+Minimum project-level files:
+
+```text
+VGM_MD_MiSTer.qpf
+VGM_MD_MiSTer.qsf
+VGM_MD_MiSTer.sdc
+sys/                  copied from a known MiSTer template/core
+rtl/emu.sv            added in this project
+rtl/mister_vgm_md_top.sv
+rtl/vgm_region_player.sv
+rtl/md_sound_module.sv
+rtl/genesis_audio/...
+```
+
+Recommended `VGM_MD_MiSTer.qpf` skeleton:
+
+```text
+PROJECT_REVISION = "VGM_MD_MiSTer"
+```
+
+Recommended `VGM_MD_MiSTer.qsf` skeleton:
+
+```text
+set_global_assignment -name FAMILY "Cyclone V"
+set_global_assignment -name DEVICE <copy DE10-Nano device from template>
+set_global_assignment -name TOP_LEVEL_ENTITY sys_top
+set_global_assignment -name SDC_FILE VGM_MD_MiSTer.sdc
+
+# Include the template's sys_top/sys framework files here.
+# Keep these copied from a known working MiSTer template rather than
+# hand-writing DE10-Nano pin assignments.
+```
+
+Then add this project's RTL file list below.
+
+## QSF RTL File List
+
+Register these files in the `.qsf`. The order below keeps wrappers first and
+then lists all JT12/JT89/filter dependencies explicitly so they are not missed.
+
+```text
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/emu.sv
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/mister_vgm_md_top.sv
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/vgm_region_player.sv
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/md_sound_module.sv
+
+set_global_assignment -name VERILOG_FILE rtl/genesis_audio/filters/audio_iir_filter.v
+set_global_assignment -name VERILOG_FILE rtl/genesis_audio/filters/genesis_lpf.v
+
+set_global_assignment -name VERILOG_FILE rtl/genesis_audio/jt12/adpcm/jt10_adpcm_div.v
+set_global_assignment -name VERILOG_FILE rtl/genesis_audio/jt12/jt12.v
+set_global_assignment -name VERILOG_FILE rtl/genesis_audio/jt12/jt12_acc.v
+set_global_assignment -name VERILOG_FILE rtl/genesis_audio/jt12/jt12_csr.v
+set_global_assignment -name VERILOG_FILE rtl/genesis_audio/jt12/jt12_div.v
+set_global_assignment -name VERILOG_FILE rtl/genesis_audio/jt12/jt12_dout.v
+set_global_assignment -name VERILOG_FILE rtl/genesis_audio/jt12/jt12_eg.v
+set_global_assignment -name VERILOG_FILE rtl/genesis_audio/jt12/jt12_eg_cnt.v
+set_global_assignment -name VERILOG_FILE rtl/genesis_audio/jt12/jt12_eg_comb.v
+set_global_assignment -name VERILOG_FILE rtl/genesis_audio/jt12/jt12_eg_ctrl.v
+set_global_assignment -name VERILOG_FILE rtl/genesis_audio/jt12/jt12_eg_final.v
+set_global_assignment -name VERILOG_FILE rtl/genesis_audio/jt12/jt12_eg_pure.v
+set_global_assignment -name VERILOG_FILE rtl/genesis_audio/jt12/jt12_eg_step.v
+set_global_assignment -name VERILOG_FILE rtl/genesis_audio/jt12/jt12_exprom.v
+set_global_assignment -name VERILOG_FILE rtl/genesis_audio/jt12/jt12_kon.v
+set_global_assignment -name VERILOG_FILE rtl/genesis_audio/jt12/jt12_lfo.v
+set_global_assignment -name VERILOG_FILE rtl/genesis_audio/jt12/jt12_logsin.v
+set_global_assignment -name VERILOG_FILE rtl/genesis_audio/jt12/jt12_mmr.v
+set_global_assignment -name VERILOG_FILE rtl/genesis_audio/jt12/jt12_mod.v
+set_global_assignment -name VERILOG_FILE rtl/genesis_audio/jt12/jt12_op.v
+set_global_assignment -name VERILOG_FILE rtl/genesis_audio/jt12/jt12_pcm_interpol.v
+set_global_assignment -name VERILOG_FILE rtl/genesis_audio/jt12/jt12_pg.v
+set_global_assignment -name VERILOG_FILE rtl/genesis_audio/jt12/jt12_pg_comb.v
+set_global_assignment -name VERILOG_FILE rtl/genesis_audio/jt12/jt12_pg_dt.v
+set_global_assignment -name VERILOG_FILE rtl/genesis_audio/jt12/jt12_pg_inc.v
+set_global_assignment -name VERILOG_FILE rtl/genesis_audio/jt12/jt12_pg_sum.v
+set_global_assignment -name VERILOG_FILE rtl/genesis_audio/jt12/jt12_pm.v
+set_global_assignment -name VERILOG_FILE rtl/genesis_audio/jt12/jt12_reg.v
+set_global_assignment -name VERILOG_FILE rtl/genesis_audio/jt12/jt12_rst.v
+set_global_assignment -name VERILOG_FILE rtl/genesis_audio/jt12/jt12_sh.v
+set_global_assignment -name VERILOG_FILE rtl/genesis_audio/jt12/jt12_sh24.v
+set_global_assignment -name VERILOG_FILE rtl/genesis_audio/jt12/jt12_sh_rst.v
+set_global_assignment -name VERILOG_FILE rtl/genesis_audio/jt12/jt12_single_acc.v
+set_global_assignment -name VERILOG_FILE rtl/genesis_audio/jt12/jt12_sumch.v
+set_global_assignment -name VERILOG_FILE rtl/genesis_audio/jt12/jt12_timers.v
+set_global_assignment -name VERILOG_FILE rtl/genesis_audio/jt12/jt12_top.v
+
+set_global_assignment -name VERILOG_FILE rtl/genesis_audio/jt12/mixer/jt12_comb.v
+set_global_assignment -name VERILOG_FILE rtl/genesis_audio/jt12/mixer/jt12_decim.v
+set_global_assignment -name VERILOG_FILE rtl/genesis_audio/jt12/mixer/jt12_fm_uprate.v
+set_global_assignment -name VERILOG_FILE rtl/genesis_audio/jt12/mixer/jt12_genmix.v
+set_global_assignment -name VERILOG_FILE rtl/genesis_audio/jt12/mixer/jt12_interpol.v
+
+set_global_assignment -name VERILOG_FILE rtl/genesis_audio/jt89/jt89.v
+set_global_assignment -name VERILOG_FILE rtl/genesis_audio/jt89/jt89_mixer.v
+set_global_assignment -name VERILOG_FILE rtl/genesis_audio/jt89/jt89_noise.v
+set_global_assignment -name VERILOG_FILE rtl/genesis_audio/jt89/jt89_tone.v
+set_global_assignment -name VERILOG_FILE rtl/genesis_audio/jt89/jt89_vol.v
+```
+
+## SDC Plan
+
+Start from the template's `.sdc` / `sys_top.sdc`.
+
+For this minimal bring-up, the important clocking assumptions are:
+
+```text
+CLK_50M enters sys_top from the DE10-Nano board.
+sys_top/template normally creates the clocks expected by emu.
+emu currently uses CLK_50M directly as clk_sys.
+```
+
+When a PLL is added, the PLL instance name and generated clock names should be
+kept compatible with the copied MiSTer template's constraints. Do not invent
+new DE10-Nano pin or timing constraints until the template has been copied and
+the expected names are known.
