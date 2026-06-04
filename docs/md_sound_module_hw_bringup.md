@@ -1259,3 +1259,99 @@ If video still fails after this fix, the next things to check are:
   mixer path.
 
 For the current step, no sound RTL was changed.
+
+## Quartus Error 15836: Raw CLK_50M Drove Video Clock Select
+
+Quartus Full Compilation later failed with:
+
+```text
+Error (15836): inclk[3] port of Clock Select Block "hdmi_clk_sw" is driven by FPGA_CLK2_50~input, but must be driven by a PLL's output clock; clock pins should be moved to inclk[0] or inclk[1]
+Error (15836): inclk[3] port of Clock Select Block "vga_clk_sw" is driven by FPGA_CLK2_50~input, but must be driven by a PLL's output clock; clock pins should be moved to inclk[0] or inclk[1]
+```
+
+Cause:
+
+```text
+sys/sys_top.v uses cyclonev_clkselect for HDMI/VGA clocks:
+
+  .inclk({clk_vid, hdmi_clk_out, 2'b00})
+
+That means clk_vid is connected to inclk[3].
+Quartus requires inclk[3] of this clock select block to be a PLL output.
+```
+
+The previous `rtl/emu.sv` had:
+
+```systemverilog
+wire clk_sys = CLK_50M;
+assign CLK_VIDEO = clk_sys;
+```
+
+So the path became:
+
+```text
+FPGA_CLK2_50 raw input
+  -> emu.CLK_50M
+  -> emu.CLK_VIDEO
+  -> sys_top clk_vid
+  -> hdmi_clk_sw/vga_clk_sw inclk[3]
+```
+
+That violates the Cyclone V clock select rule and explains Error 15836.
+
+Fix:
+
+`rtl/emu.sv` now follows the Template_MiSTer pattern and instantiates the core
+PLL:
+
+```systemverilog
+wire clk_sys;
+wire pll_locked;
+
+pll pll (
+    .refclk   (CLK_50M),
+    .rst      (1'b0),
+    .outclk_0 (clk_sys),
+    .locked   (pll_locked)
+);
+
+wire reset = RESET | status[0] | buttons[1] | !pll_locked;
+assign CLK_VIDEO = clk_sys;
+```
+
+Now the video clock path is:
+
+```text
+FPGA_CLK2_50 raw input
+  -> emu pll
+  -> pll outclk_0
+  -> emu.CLK_VIDEO
+  -> sys_top clk_vid
+  -> hdmi_clk_sw/vga_clk_sw inclk[3]
+```
+
+This should satisfy Quartus because `inclk[3]` is now driven by a PLL output.
+
+No sound RTL was changed:
+
+```text
+rtl/md_sound_module.sv unchanged
+rtl/vgm_region_player.sv unchanged
+rtl/mister_vgm_md_top.sv unchanged
+rtl/genesis_audio/ unchanged
+```
+
+Rebuild:
+
+```sh
+quartus_sh --flow compile VGM_MD_MiSTer
+```
+
+First pass/fail target:
+
+```text
+Error (15836) should disappear.
+Monitor should keep a valid video signal.
+Debug fixed color should appear.
+MiSTer menu/core name should be reachable.
+```

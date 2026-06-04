@@ -24,10 +24,20 @@ module emu (
         "v,1;"
     };
 
-    // First debug build: use CLK_50M directly. The official Template_MiSTer
-    // normally instantiates a PLL in emu; this can be added once video/menu
-    // sanity is confirmed on hardware.
-    wire clk_sys = CLK_50M;
+    // Template_MiSTer's sys_top routes CLK_VIDEO into clock select blocks as
+    // inclk[3]. Quartus requires that path to be driven by a PLL output, not a
+    // raw FPGA clock pin. Keep the same basic pattern as Template.sv: generate
+    // the core/video clock with the core PLL and return that clock as
+    // CLK_VIDEO.
+    wire clk_sys;
+    wire pll_locked;
+
+    pll pll (
+        .refclk   (CLK_50M),
+        .rst      (1'b0),
+        .outclk_0 (clk_sys),
+        .locked   (pll_locked)
+    );
 
     // ---------------------------------------------------------------------
     // MiSTer framework / HPS menu basics.
@@ -52,7 +62,7 @@ module emu (
     // Clock/reset.
     // ---------------------------------------------------------------------
 
-    wire reset   = RESET | status[0] | buttons[1];
+    wire reset   = RESET | status[0] | buttons[1] | !pll_locked;
 
     // ---------------------------------------------------------------------
     // Fixed-region MD sound experiment.
