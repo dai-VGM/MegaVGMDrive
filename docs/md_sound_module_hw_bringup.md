@@ -147,6 +147,60 @@ iverilog -g2012 -Wall -DSIMULATION -s md_sound_fixed_region_test \
 Both checks passed. Remaining warnings are the existing JT12/timescale style
 warnings already seen in earlier simulation work.
 
+## Fixed Region Wrapper Simulation
+
+Before moving to MiSTer hardware, the hardware wrapper can be exercised in a
+small simulation testbench:
+
+```text
+tb/tb_md_sound_fixed_region_test.sv
+```
+
+This testbench instantiates `md_sound_fixed_region_test`, pulses `start`, waits
+for `audio_sample_valid` rising edges, and writes 5000 stereo samples to:
+
+```text
+/tmp/md_sound_fixed_region_test_5k.txt
+```
+
+Build/run:
+
+```sh
+iverilog -g2012 -Wall -DSIMULATION -s tb_md_sound_fixed_region_test \
+  -o /tmp/tb_md_sound_fixed_region_test.vvp \
+  tb/tb_md_sound_fixed_region_test.sv \
+  rtl/vgm_region_player.sv \
+  rtl/md_sound_module.sv \
+  rtl/genesis_audio/**/*.v
+
+vvp /tmp/tb_md_sound_fixed_region_test.vvp \
+  > /tmp/tb_md_sound_fixed_region_test.log
+```
+
+WAV conversion:
+
+```sh
+python3 tools/audio_txt_to_wav/audio_txt_to_wav.py \
+  /tmp/md_sound_fixed_region_test_5k.txt \
+  /tmp/md_sound_fixed_region_test_5k.wav \
+  --gain 2
+```
+
+Successful 5k result:
+
+```text
+wav_written_samples=5000
+audio_sample_valid_edges=5000
+pc=126
+last_cmd=66
+samples=5000
+min=-2513
+max=6022
+nonzero=9916
+rms=1856.53
+clip_count=0
+```
+
 ## MiSTer Bring-up Notes
 
 - Feed `clk` with the same master-clock style expected by `md_sound_module`.
