@@ -272,6 +272,69 @@ iverilog -g2012 -Wall -DSIMULATION -s mister_vgm_md_top \
 This check passed. The remaining warnings are the same existing JT12/Icarus
 simulation warnings seen in previous checks.
 
+## Minimal Top Wrapper Simulation
+
+Before connecting `mister_vgm_md_top` to a MiSTer skeleton, it can be simulated
+directly with:
+
+```text
+tb/tb_mister_vgm_md_top.sv
+```
+
+This testbench:
+
+- Instantiates `mister_vgm_md_top`.
+- Generates `clk`.
+- Holds `reset_n` low, then releases it.
+- Relies on `mister_vgm_md_top` to auto-start the fixed region.
+- Dumps 5000 stereo samples on `audio_sample_valid` rising edges.
+- Writes the dump to:
+
+```text
+/tmp/mister_vgm_md_top_5k.txt
+```
+
+Build/run:
+
+```sh
+iverilog -g2012 -Wall -DSIMULATION -s tb_mister_vgm_md_top \
+  -o /tmp/tb_mister_vgm_md_top.vvp \
+  tb/tb_mister_vgm_md_top.sv \
+  rtl/mister_vgm_md_top.sv \
+  rtl/vgm_region_player.sv \
+  rtl/md_sound_module.sv \
+  rtl/genesis_audio/**/*.v
+
+vvp /tmp/tb_mister_vgm_md_top.vvp \
+  > /tmp/tb_mister_vgm_md_top.log
+```
+
+WAV conversion:
+
+```sh
+python3 tools/audio_txt_to_wav/audio_txt_to_wav.py \
+  /tmp/mister_vgm_md_top_5k.txt \
+  /tmp/mister_vgm_md_top_5k.wav \
+  --gain 2
+```
+
+Successful result:
+
+```text
+wav_written_samples=5000
+audio_sample_valid_edges=5000
+pc=126
+last_cmd=66
+busy=0
+done=0
+samples=5000
+min=-2513
+max=6022
+nonzero=9916
+rms=1856.18
+clip_count=0
+```
+
 ## Next MiSTer Core Skeleton Step
 
 To build an `.rbf`, a real MiSTer/Quartus skeleton still needs to be added.
