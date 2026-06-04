@@ -1355,3 +1355,102 @@ Monitor should keep a valid video signal.
 Debug fixed color should appear.
 MiSTer menu/core name should be reachable.
 ```
+
+## Strategy Change: Video-only Template Baseline First
+
+After the custom/minimal bring-up attempts, Quartus Full Compilation could pass
+but the MiSTer hardware still behaved like this:
+
+```text
+core loads
+monitor loses signal
+screen remains black
+core name is not visible
+MiSTer menu cannot be opened/returned to
+```
+
+New conclusion:
+
+```text
+Do not continue debugging this as an audio problem.
+Do not keep adding fixes to a custom sys_top.
+First prove the Template_MiSTer outer shell on hardware.
+```
+
+New staged plan:
+
+1. Use the Template_MiSTer `sys/` framework as-is as much as possible.
+2. Build a video-only `emu.sv` baseline.
+3. Confirm on hardware:
+   - monitor keeps sync
+   - fixed color appears
+   - core name appears
+   - MiSTer menu can return
+4. Only after that, connect `mister_vgm_md_top` inside `emu.sv`.
+5. Then restore the sound RTL file list into `files.qip`.
+
+Active video-only baseline:
+
+```text
+sys/sys_top.v       Template_MiSTer hardware top
+rtl/emu.sv          video-only core wrapper
+files.qip           only registers rtl/emu.sv plus local SDC
+```
+
+`rtl/emu.sv` currently:
+
+- uses `module emu ( \`include "sys/emu_ports.vh" );`
+- instantiates `hps_io`
+- instantiates Template core `pll`
+- drives `CLK_VIDEO` from PLL output `clk_sys`
+- generates a simple fixed-color 640x480-style raster
+- drives audio as zero:
+
+```systemverilog
+assign AUDIO_L = 16'sd0;
+assign AUDIO_R = 16'sd0;
+```
+
+`files.qip` is intentionally reduced to:
+
+```text
+set_global_assignment -name SDC_FILE VGM_MD_MiSTer.sdc
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/emu.sv
+```
+
+The sound RTL is not deleted. It is only excluded from the active MiSTer
+hardware baseline until video/menu is proven.
+
+Sound files intentionally unchanged:
+
+```text
+rtl/mister_vgm_md_top.sv
+rtl/vgm_region_player.sv
+rtl/md_sound_module.sv
+rtl/genesis_audio/
+```
+
+Existing simulation checks still compile because they instantiate the sound
+subtops directly and do not depend on `files.qip`:
+
+```sh
+iverilog -g2012 -Wall -DSIMULATION -s tb_mister_vgm_md_top ...
+iverilog -g2012 -Wall -DSIMULATION -s tb_md_sound_fixed_region_test ...
+```
+
+Hardware pass/fail for this phase:
+
+```text
+PASS:
+  fixed color visible
+  monitor does not lose signal
+  MiSTer menu opens/returns
+  core name VGM_MD appears
+
+FAIL:
+  black/no-signal
+  menu cannot return
+  core name missing
+```
+
+Only after PASS should `mister_vgm_md_top` be reconnected to `emu.sv`.
