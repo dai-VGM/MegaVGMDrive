@@ -935,3 +935,240 @@ When moving from this minimal compile skeleton to an actual MiSTer core:
 4. Merge the `VGM_MD_MiSTer.qsf` RTL file list into the template `.qsf`.
 5. Re-run Quartus.
 6. Only after the fixed-region audio works on hardware, add HPS/OSD/SD loading.
+
+## Hardware Symptom: Minimal sys_top Failed On MiSTer
+
+The first `.rbf` built from the hand-written minimal `sys/sys_top.sv` did not
+behave like a valid MiSTer core on hardware.
+
+Observed symptom:
+
+```text
+VGM_MD_MiSTer.rbf starts
+monitor loses video signal / goes to no-signal state
+screen remains black
+core name does not appear
+MiSTer menu cannot be opened or returned to
+```
+
+Conclusion:
+
+```text
+This is a sys_top / MiSTer framework / video problem before it is an audio problem.
+```
+
+The old hand-written `sys/sys_top.sv` was only useful as a temporary Quartus
+entry point. It did not provide the real MiSTer framework behavior needed for:
+
+- HDMI/video output handling
+- HPS bus communication
+- OSD/menu handling
+- core configuration string visibility
+- normal MiSTer menu return
+
+Therefore it must not be used as the real hardware top.
+
+## Template_MiSTer Framework Import
+
+The project has been switched to the official Template_MiSTer style structure.
+
+Reference source:
+
+```text
+https://github.com/MiSTer-devel/Template_MiSTer
+```
+
+Imported framework:
+
+```text
+sys/
+  sys_top.v
+  sys.qip
+  sys.tcl
+  sys_analog.tcl
+  emu_ports.vh
+  hps_io.sv
+  osd.v
+  video_mixer.sv
+  audio_out.sv
+  ...other Template_MiSTer sys files
+```
+
+The old hand-written `sys/sys_top.sv` has been removed from the active project.
+The real Quartus top is now:
+
+```text
+sys/sys_top.v
+```
+
+The core wrapper is:
+
+```text
+rtl/emu.sv
+```
+
+and it now uses:
+
+```systemverilog
+module emu (
+    `include "sys/emu_ports.vh"
+);
+```
+
+This matches the Template_MiSTer pattern where `sys_top` instantiates a
+core-provided `emu` module.
+
+## Current Hardware Debug Video
+
+The updated `rtl/emu.sv` prioritizes video/framework sanity before audio.
+
+It instantiates `hps_io` only for basic MiSTer menu/config/reset support:
+
+```text
+hps_io
+  -> CONF_STR / core name
+  -> status reset bit
+  -> buttons
+  -> forced_scandoubler
+```
+
+No SD card loading, OSD file selection, or VGM file browsing is implemented.
+
+Debug colors:
+
+```text
+reset               black
+running             blue
+audio_seen_latched  red
+player_done_latched green
+```
+
+Priority:
+
+```text
+reset > player_done_latched > audio_seen_latched > running
+```
+
+Expected first hardware result:
+
+- monitor keeps video sync
+- a fixed color screen appears
+- MiSTer menu can open/return
+- core name `VGM_MD` appears
+- after the fixed region finishes, the screen should become green
+
+Audio is still connected, but it is not the primary pass/fail condition for
+this step.
+
+## Active Quartus Project Files
+
+The active project files now follow Template_MiSTer style:
+
+```text
+VGM_MD_MiSTer.qpf
+VGM_MD_MiSTer.qsf
+VGM_MD_MiSTer.sdc
+files.qip
+sys/sys_top.v
+rtl/emu.sv
+```
+
+`VGM_MD_MiSTer.qsf` now uses:
+
+```text
+source sys/sys.tcl
+source sys/sys_analog.tcl
+source files.qip
+```
+
+`files.qip` contains only this project's local RTL:
+
+```text
+rtl/emu.sv
+rtl/mister_vgm_md_top.sv
+rtl/vgm_region_player.sv
+rtl/md_sound_module.sv
+rtl/genesis_audio/filters/*
+rtl/genesis_audio/jt12/*
+rtl/genesis_audio/jt12/mixer/*
+rtl/genesis_audio/jt12/adpcm/*
+rtl/genesis_audio/jt89/*
+```
+
+The Template_MiSTer framework files are registered through `sys/sys.qip`, which
+is sourced by `sys/sys.tcl`.
+
+## Rebuild Command After Template Import
+
+Run from the project root:
+
+```sh
+quartus_sh --flow compile VGM_MD_MiSTer
+```
+
+If building step-by-step:
+
+```sh
+quartus_map VGM_MD_MiSTer
+quartus_fit VGM_MD_MiSTer
+quartus_asm VGM_MD_MiSTer
+quartus_sta VGM_MD_MiSTer
+```
+
+Expected `.rbf`:
+
+```text
+output_files/VGM_MD_MiSTer.rbf
+```
+
+This local environment still does not have `quartus_sh` in `PATH`, so the
+Quartus build was not run here.
+
+## Log Checks For Video/Menu Bring-up
+
+After Quartus build failure, check:
+
+```text
+output_files/VGM_MD_MiSTer.map.rpt
+output_files/VGM_MD_MiSTer.fit.rpt
+output_files/VGM_MD_MiSTer.asm.rpt
+output_files/VGM_MD_MiSTer.sta.rpt
+```
+
+Useful searches:
+
+```sh
+grep -R "Error" output_files
+grep -R "Critical Warning" output_files
+grep -R "Can't find" output_files
+grep -R "Can't elaborate" output_files
+grep -R "Timing requirements not met" output_files
+```
+
+For this specific bring-up, focus first on:
+
+- `sys/sys_top.v` is the `TOP_LEVEL_ENTITY`
+- `sys/sys.tcl` and `sys/sys.qip` are sourced
+- `rtl/emu.sv` compiles with `sys/emu_ports.vh`
+- `hps_io.sv` is included through `sys/sys.qip`
+- `files.qip` includes all local MD sound RTL
+- no old `sys/sys_top.sv` is being used as hardware top
+
+## Simulation Notes After Template Import
+
+The existing sound simulations still build because they instantiate
+`mister_vgm_md_top` or `md_sound_fixed_region_test` directly and do not depend
+on MiSTer `sys_top`.
+
+Checked:
+
+```sh
+iverilog -g2012 -Wall -DSIMULATION -s tb_mister_vgm_md_top ...
+iverilog -g2012 -Wall -DSIMULATION -s tb_md_sound_fixed_region_test ...
+```
+
+Both still compile with the same existing JT12/timescale/Icarus warnings.
+
+Do not use Icarus as the final checker for Template_MiSTer `hps_io.sv`.
+`hps_io.sv` uses SystemVerilog constructs that Icarus does not elaborate cleanly
+in this local check, while the framework is intended for Quartus.
