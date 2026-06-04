@@ -210,6 +210,107 @@ clip_count=0
 - Route `audio_l` / `audio_r` to the MiSTer audio path using the same signed
   sample convention expected by the surrounding top-level.
 
+## Minimal MiSTer Top Wrapper
+
+The project does not currently include a Quartus or MiSTer project skeleton:
+
+```text
+no .qpf
+no .qsf
+no .sdc
+no MiSTer emu top-level yet
+```
+
+The first hardware-facing wrapper is:
+
+```text
+rtl/mister_vgm_md_top.sv
+```
+
+It instantiates:
+
+```text
+md_sound_fixed_region_test
+  -> vgm_region_player
+  -> md_sound_module
+  -> JT12 / JT89 / mixer
+```
+
+Top-level ports:
+
+```text
+input  clk
+input  reset_n
+output signed [15:0] audio_l
+output signed [15:0] audio_r
+output audio_sample_valid
+output player_busy
+output player_done
+output [9:0] player_pc_debug
+output [7:0] player_last_cmd_debug
+```
+
+Behavior:
+
+- `reset_n` is synchronized and converted to the active-high internal reset.
+- After reset is released, the wrapper generates a one-clock `start` pulse.
+- The fixed region plays once.
+- `player_done` indicates that the built-in region has ended.
+- No SD card, OSD, HPS bridge, or VGM file selection exists yet.
+
+Syntax check:
+
+```sh
+iverilog -g2012 -Wall -DSIMULATION -s mister_vgm_md_top \
+  -o /tmp/mister_vgm_md_top_check.vvp \
+  rtl/mister_vgm_md_top.sv \
+  rtl/vgm_region_player.sv \
+  rtl/md_sound_module.sv \
+  rtl/genesis_audio/**/*.v
+```
+
+This check passed. The remaining warnings are the same existing JT12/Icarus
+simulation warnings seen in previous checks.
+
+## Next MiSTer Core Skeleton Step
+
+To build an `.rbf`, a real MiSTer/Quartus skeleton still needs to be added.
+The minimum next pieces are:
+
+```text
+MiSTer top-level, usually emu.sv or a core-specific top
+Quartus .qpf
+Quartus .qsf
+pin assignments / platform constraints from a known MiSTer template
+clock/reset wiring
+audio output wiring
+file list including rtl/mister_vgm_md_top.sv and all Genesis audio dependencies
+```
+
+At the MiSTer skeleton boundary, connect roughly:
+
+```text
+MiSTer/core clock      -> mister_vgm_md_top.clk
+MiSTer reset signal    -> mister_vgm_md_top.reset_n
+mister_vgm_md_top.audio_l -> MiSTer AUDIO_L path
+mister_vgm_md_top.audio_r -> MiSTer AUDIO_R path
+```
+
+The exact MiSTer audio port names depend on the skeleton being used. Common
+MiSTer cores expose 16-bit signed or wider mixed audio paths, so verify the
+target skeleton's expected width and sign convention before wiring directly.
+
+Recommended next workflow:
+
+1. Start from a small known-working MiSTer core template.
+2. Add `rtl/mister_vgm_md_top.sv`.
+3. Add `rtl/vgm_region_player.sv`.
+4. Add `rtl/md_sound_module.sv`.
+5. Add all files under `rtl/genesis_audio/`.
+6. Wire clock/reset/audio in the skeleton top.
+7. Build in Quartus.
+8. If the build succeeds, load the `.rbf` and listen for the fixed region.
+
 ## Not Yet Implemented
 
 - SD card / HPS VGM loading.
