@@ -374,6 +374,210 @@ Recommended next workflow:
 7. Build in Quartus.
 8. If the build succeeds, load the `.rbf` and listen for the fixed region.
 
+## MiSTer Core Skeleton Proposal
+
+Current local project state:
+
+```text
+no .qpf
+no .qsf
+no .sdc
+no sys/ framework directory
+no emu.sv wrapper
+```
+
+According to the MiSTer developer documentation, a normal MiSTer core is not
+built by making the user core module the direct Quartus top. Quartus uses the
+MiSTer `sys/sys_top` wrapper, and that wrapper calls a core-provided module
+named `emu`. The MiSTer documentation also shows that `emu` exposes MiSTer
+framework ports such as `CLK_50M`, `RESET`, `HPS_BUS`, video signals, and
+`AUDIO_L` / `AUDIO_R`.
+
+References:
+
+```text
+https://mister-devel.github.io/MkDocs_MiSTer/developer/emu/
+https://mister-devel.github.io/MkDocs_MiSTer/developer/porting/
+https://mister-devel.github.io/MkDocs_MiSTer/developer/hps_io/
+```
+
+Therefore the recommended structure is:
+
+```text
+mister-vgm-work/
+  VGM_MD_MiSTer.qpf
+  VGM_MD_MiSTer.qsf
+  VGM_MD_MiSTer.sdc
+  sys/                         copied from a known MiSTer template/core
+  rtl/
+    emu.sv                     new MiSTer-facing core wrapper
+    mister_vgm_md_top.sv       existing fixed-region sound top
+    vgm_region_player.sv
+    md_sound_module.sv
+    genesis_audio/
+      ...
+```
+
+For the first hardware test, `emu.sv` should be a very small wrapper:
+
+```text
+MiSTer sys_top
+  -> emu
+     -> PLL / clock generation
+     -> reset/status handling
+     -> minimal video placeholder
+     -> mister_vgm_md_top
+        -> md_sound_fixed_region_test
+        -> audio_l/audio_r
+```
+
+`mister_vgm_md_top` should remain the sound experiment sub-top. It should not
+replace `emu` or `sys_top`.
+
+## Minimal emu.sv Connection Plan
+
+For the first no-OSD/no-file test, `emu.sv` only needs enough wiring for MiSTer
+to build and expose audio.
+
+Important MiSTer-side signals:
+
+```text
+CLK_50M       master input clock from the MiSTer framework
+RESET         framework reset
+HPS_BUS       pass to hps_io if the skeleton requires it
+AUDIO_L       16-bit audio output
+AUDIO_R       16-bit audio output
+AUDIO_S       signed/unsigned selector
+AUDIO_MIX     MiSTer mono mix selector
+CLK_VIDEO     video clock, even for a blank test screen
+CE_PIXEL      video pixel clock enable
+VGA_R/G/B     video color outputs
+VGA_HS/VGA_VS sync outputs
+VGA_DE        active video
+VIDEO_ARX/Y   aspect ratio
+LED_USER      optional debug
+```
+
+For this fixed-region audio-only bring-up:
+
+```text
+mister_vgm_md_top.clk      <- clk_sys from PLL
+mister_vgm_md_top.reset_n  <- ~(RESET | soft_reset)
+AUDIO_L                    <- mister_vgm_md_top.audio_l
+AUDIO_R                    <- mister_vgm_md_top.audio_r
+AUDIO_S                    <- 1'b1, signed audio
+AUDIO_MIX                  <- 2'b00, no forced mono mix
+```
+
+Video can be a placeholder at first, but MiSTer still expects valid video-style
+signals. Use a known template's simple video path, or output a blank active
+frame with stable timing if the selected skeleton supports that.
+
+## Proposed Quartus Files
+
+Use a known MiSTer template/core as the base. Do not hand-write a DE10-Nano
+pinout from scratch unless absolutely necessary.
+
+`VGM_MD_MiSTer.qpf`:
+
+```text
+PROJECT_REVISION = "VGM_MD_MiSTer"
+```
+
+`VGM_MD_MiSTer.qsf` should:
+
+```text
+set_global_assignment -name FAMILY "Cyclone V"
+set_global_assignment -name DEVICE <DE10-Nano device from template>
+set_global_assignment -name TOP_LEVEL_ENTITY sys_top
+include or list sys/ framework files from the template
+list rtl/emu.sv
+list rtl/mister_vgm_md_top.sv
+list rtl/vgm_region_player.sv
+list rtl/md_sound_module.sv
+list all rtl/genesis_audio/**/*.v dependencies
+```
+
+`VGM_MD_MiSTer.sdc` should start from the template/sys timing constraints.
+The important point from the MiSTer docs is that the PLL naming and instance
+used by the framework should match what `sys_top.sdc` expects.
+
+## Minimal emu.sv Sketch
+
+This is a connection sketch, not yet a committed source file:
+
+```systemverilog
+module emu (
+    input         CLK_50M,
+    input         RESET,
+    inout  [48:0] HPS_BUS,
+
+    output        CLK_VIDEO,
+    output        CE_PIXEL,
+    output [12:0] VIDEO_ARX,
+    output [12:0] VIDEO_ARY,
+    output  [7:0] VGA_R,
+    output  [7:0] VGA_G,
+    output  [7:0] VGA_B,
+    output        VGA_HS,
+    output        VGA_VS,
+    output        VGA_DE,
+
+    input         CLK_AUDIO,
+    output [15:0] AUDIO_L,
+    output [15:0] AUDIO_R,
+    output        AUDIO_S,
+    output  [1:0] AUDIO_MIX
+    // plus the remaining ports required by the selected template
+);
+
+    wire clk_sys;
+    wire pll_locked;
+
+    pll pll (
+        .refclk   (CLK_50M),
+        .rst      (1'b0),
+        .outclk_0 (clk_sys),
+        .locked   (pll_locked)
+    );
+
+    wire signed [15:0] md_audio_l;
+    wire signed [15:0] md_audio_r;
+
+    mister_vgm_md_top md_test (
+        .clk       (clk_sys),
+        .reset_n   (pll_locked && !RESET),
+        .audio_l   (md_audio_l),
+        .audio_r   (md_audio_r)
+        // debug outputs can be left open or routed to LEDs
+    );
+
+    assign AUDIO_L   = md_audio_l;
+    assign AUDIO_R   = md_audio_r;
+    assign AUDIO_S   = 1'b1;
+    assign AUDIO_MIX = 2'b00;
+
+    // TODO: supply valid blank/video timing from the chosen template.
+endmodule
+```
+
+The real `emu.sv` must match the exact port list expected by the copied MiSTer
+template's `sys_top`.
+
+## Practical Next Step
+
+Recommended next action:
+
+1. Copy a current minimal MiSTer template repository into this project, or start
+   a sibling project from the template and copy this `rtl/` tree into it.
+2. Keep the template's `sys/`, `.qsf`, `.qpf`, and `.sdc`.
+3. Rename the project/revision.
+4. Add `rtl/mister_vgm_md_top.sv` and all MD sound files to the `.qsf`.
+5. Create `rtl/emu.sv` using the template's exact port list.
+6. Wire only clock/reset/audio first.
+7. Build once in Quartus.
+8. If Quartus succeeds, then iterate on audio/video polish.
+
 ## Not Yet Implemented
 
 - SD card / HPS VGM loading.
