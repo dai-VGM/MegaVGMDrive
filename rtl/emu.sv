@@ -314,15 +314,39 @@ module emu
 
     wire reset = RESET | status[0] | !pll_locked;
 
+    wire signed [15:0] md_audio_l;
+    wire signed [15:0] md_audio_r;
+    wire               audio_sample_valid;
+    wire               player_busy;
+    wire               player_done;
+    wire         [9:0] player_pc_debug;
+    wire         [7:0] player_last_cmd_debug;
+
+    mister_vgm_md_top md_sound (
+        .clk                   (clk_sys),
+        .reset_n               (!reset),
+        .audio_l               (md_audio_l),
+        .audio_r               (md_audio_r),
+        .audio_sample_valid    (audio_sample_valid),
+        .player_busy           (player_busy),
+        .player_done           (player_done),
+        .player_pc_debug       (player_pc_debug),
+        .player_last_cmd_debug (player_last_cmd_debug)
+    );
+
     reg [8:0] h_count;
     reg [8:0] v_count;
     reg [7:0] frame_count;
+    reg       done_latched;
+    reg       audio_seen_latched;
 
     always @(posedge clk_sys) begin
         if (reset) begin
             h_count <= 9'd0;
             v_count <= 9'd0;
             frame_count <= 8'd0;
+            done_latched <= 1'b0;
+            audio_seen_latched <= 1'b0;
         end else if (ce_pix) begin
             if (h_count == 9'd383) begin
                 h_count <= 9'd0;
@@ -338,6 +362,16 @@ module emu
                 h_count <= h_count + 9'd1;
             end
         end
+
+        if (!reset) begin
+            if (player_done) begin
+                done_latched <= 1'b1;
+            end
+
+            if (audio_sample_valid) begin
+                audio_seen_latched <= 1'b1;
+            end
+        end
     end
 
     wire hblank = (h_count >= 9'd320);
@@ -347,9 +381,31 @@ module emu
     wire hsync = ~((h_count >= 9'd336) && (h_count < 9'd368));
     wire vsync = ~((v_count >= 9'd244) && (v_count < 9'd248));
 
-    wire [7:0] red   = (frame_count < 8'd8) ? 8'h20 : 8'h00;
-    wire [7:0] green = (frame_count < 8'd8) ? 8'h40 : 8'hb0;
-    wire [7:0] blue  = (frame_count < 8'd8) ? 8'hd0 : 8'h90;
+    // State colors:
+    // idle/running background : green
+    // player_busy             : red
+    // done_latched            : blue
+    // audio_seen_latched      : white
+    //
+    // audio_seen has highest priority because it proves md_sound_module is
+    // producing sample ticks. AUDIO_L/R still remain tied to zero externally.
+    wire [7:0] red =
+        audio_seen_latched ? 8'hff :
+        done_latched       ? 8'h00 :
+        player_busy        ? 8'hd0 :
+                             8'h00;
+
+    wire [7:0] green =
+        audio_seen_latched ? 8'hff :
+        done_latched       ? 8'h20 :
+        player_busy        ? 8'h00 :
+                             8'hb0;
+
+    wire [7:0] blue =
+        audio_seen_latched ? 8'hff :
+        done_latched       ? 8'hd0 :
+        player_busy        ? 8'h00 :
+                             8'h40;
 
     assign CLK_VIDEO = clk_sys;
     assign CE_PIXEL = ce_pix;
@@ -365,7 +421,7 @@ module emu
         act_cnt <= reset ? 27'd0 : act_cnt + 27'd1;
     end
 
-    assign LED_USER = act_cnt[25];
+    assign LED_USER = player_busy | done_latched | audio_seen_latched | act_cnt[25];
 
     wire unused_inputs = ^{
         forced_scandoubler,
@@ -411,6 +467,10 @@ module emu
         ps2_mouse_ext,
         timestamp,
         ce_2,
+        md_audio_l,
+        md_audio_r,
+        player_pc_debug,
+        player_last_cmd_debug,
         HDMI_WIDTH,
         HDMI_HEIGHT,
         CLK_AUDIO,

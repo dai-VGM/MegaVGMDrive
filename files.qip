@@ -1,8 +1,65 @@
-# InputTest_MiSTer-style video-only baseline.
+# InputTest_MiSTer-style player-debug baseline.
 #
-# The active hardware build intentionally excludes MD sound RTL until the
-# proven InputTest-style outer shell passes on real MiSTer hardware.
+# The active hardware build instantiates mister_vgm_md_top for debug/status
+# only. AUDIO_L/R remain tied to zero in rtl/emu.sv until the video/player
+# state path is confirmed on hardware.
 
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/emu.sv
 set_global_assignment -name QIP_FILE sys/sys.qip
 set_global_assignment -name VERILOG_FILE rtl/JTFRAME/jtframe_cen24.v
+
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/mister_vgm_md_top.sv
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/vgm_region_player.sv
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/md_sound_module.sv
+
+set_global_assignment -name VERILOG_FILE rtl/genesis_audio/filters/audio_iir_filter.v
+set_global_assignment -name VERILOG_FILE rtl/genesis_audio/filters/genesis_lpf.v
+
+set_global_assignment -name VERILOG_FILE rtl/genesis_audio/jt12/adpcm/jt10_adpcm_div.v
+set_global_assignment -name VERILOG_FILE rtl/genesis_audio/jt12/jt12.v
+set_global_assignment -name VERILOG_FILE rtl/genesis_audio/jt12/jt12_acc.v
+set_global_assignment -name VERILOG_FILE rtl/genesis_audio/jt12/jt12_csr.v
+set_global_assignment -name VERILOG_FILE rtl/genesis_audio/jt12/jt12_div.v
+set_global_assignment -name VERILOG_FILE rtl/genesis_audio/jt12/jt12_dout.v
+set_global_assignment -name VERILOG_FILE rtl/genesis_audio/jt12/jt12_eg.v
+set_global_assignment -name VERILOG_FILE rtl/genesis_audio/jt12/jt12_eg_cnt.v
+set_global_assignment -name VERILOG_FILE rtl/genesis_audio/jt12/jt12_eg_comb.v
+set_global_assignment -name VERILOG_FILE rtl/genesis_audio/jt12/jt12_eg_ctrl.v
+set_global_assignment -name VERILOG_FILE rtl/genesis_audio/jt12/jt12_eg_final.v
+set_global_assignment -name VERILOG_FILE rtl/genesis_audio/jt12/jt12_eg_pure.v
+set_global_assignment -name VERILOG_FILE rtl/genesis_audio/jt12/jt12_eg_step.v
+set_global_assignment -name VERILOG_FILE rtl/genesis_audio/jt12/jt12_exprom.v
+set_global_assignment -name VERILOG_FILE rtl/genesis_audio/jt12/jt12_kon.v
+set_global_assignment -name VERILOG_FILE rtl/genesis_audio/jt12/jt12_lfo.v
+set_global_assignment -name VERILOG_FILE rtl/genesis_audio/jt12/jt12_logsin.v
+set_global_assignment -name VERILOG_FILE rtl/genesis_audio/jt12/jt12_mmr.v
+set_global_assignment -name VERILOG_FILE rtl/genesis_audio/jt12/jt12_mod.v
+set_global_assignment -name VERILOG_FILE rtl/genesis_audio/jt12/jt12_op.v
+set_global_assignment -name VERILOG_FILE rtl/genesis_audio/jt12/jt12_pcm_interpol.v
+set_global_assignment -name VERILOG_FILE rtl/genesis_audio/jt12/jt12_pg.v
+set_global_assignment -name VERILOG_FILE rtl/genesis_audio/jt12/jt12_pg_comb.v
+set_global_assignment -name VERILOG_FILE rtl/genesis_audio/jt12/jt12_pg_dt.v
+set_global_assignment -name VERILOG_FILE rtl/genesis_audio/jt12/jt12_pg_inc.v
+set_global_assignment -name VERILOG_FILE rtl/genesis_audio/jt12/jt12_pg_sum.v
+set_global_assignment -name VERILOG_FILE rtl/genesis_audio/jt12/jt12_pm.v
+set_global_assignment -name VERILOG_FILE rtl/genesis_audio/jt12/jt12_reg.v
+set_global_assignment -name VERILOG_FILE rtl/genesis_audio/jt12/jt12_rst.v
+set_global_assignment -name VERILOG_FILE rtl/genesis_audio/jt12/jt12_sh.v
+set_global_assignment -name VERILOG_FILE rtl/genesis_audio/jt12/jt12_sh24.v
+set_global_assignment -name VERILOG_FILE rtl/genesis_audio/jt12/jt12_sh_rst.v
+set_global_assignment -name VERILOG_FILE rtl/genesis_audio/jt12/jt12_single_acc.v
+set_global_assignment -name VERILOG_FILE rtl/genesis_audio/jt12/jt12_sumch.v
+set_global_assignment -name VERILOG_FILE rtl/genesis_audio/jt12/jt12_timers.v
+set_global_assignment -name VERILOG_FILE rtl/genesis_audio/jt12/jt12_top.v
+
+set_global_assignment -name VERILOG_FILE rtl/genesis_audio/jt12/mixer/jt12_comb.v
+set_global_assignment -name VERILOG_FILE rtl/genesis_audio/jt12/mixer/jt12_decim.v
+set_global_assignment -name VERILOG_FILE rtl/genesis_audio/jt12/mixer/jt12_fm_uprate.v
+set_global_assignment -name VERILOG_FILE rtl/genesis_audio/jt12/mixer/jt12_genmix.v
+set_global_assignment -name VERILOG_FILE rtl/genesis_audio/jt12/mixer/jt12_interpol.v
+
+set_global_assignment -name VERILOG_FILE rtl/genesis_audio/jt89/jt89.v
+set_global_assignment -name VERILOG_FILE rtl/genesis_audio/jt89/jt89_mixer.v
+set_global_assignment -name VERILOG_FILE rtl/genesis_audio/jt89/jt89_noise.v
+set_global_assignment -name VERILOG_FILE rtl/genesis_audio/jt89/jt89_tone.v
+set_global_assignment -name VERILOG_FILE rtl/genesis_audio/jt89/jt89_vol.v

@@ -1455,6 +1455,97 @@ FAIL:
 
 Only after PASS should `mister_vgm_md_top` be reconnected to `emu.sv`.
 
+## Video-only Baseline Passed On Hardware
+
+The InputTest-style video-only baseline was tested on MiSTer hardware and
+passed.
+
+Confirmed:
+
+```text
+green background displayed
+monitor did not lose signal
+MiSTer menu could be opened/returned to
+```
+
+This proves the current InputTest-derived outer shell is fundamentally valid:
+
+```text
+sys/sys_top.v
+rtl/emu.sv
+hps_io
+PLL/video clock path
+MiSTer menu path
+```
+
+At this point, the project can safely move one step forward: instantiate
+`mister_vgm_md_top` inside `emu.sv`, but keep external audio muted.
+
+## Player-status Baseline
+
+Current hardware baseline:
+
+```text
+InputTest-style outer shell
+  -> rtl/emu.sv
+     -> mister_vgm_md_top
+```
+
+Still muted externally:
+
+```systemverilog
+assign AUDIO_L = 16'd0;
+assign AUDIO_R = 16'd0;
+```
+
+The goal is only to prove that `mister_vgm_md_top` runs on hardware and exposes
+player status without breaking video/menu.
+
+Signals observed from `mister_vgm_md_top`:
+
+```text
+player_busy
+player_done
+audio_sample_valid
+player_pc_debug
+player_last_cmd_debug
+```
+
+Latched signals:
+
+```text
+done_latched       <= player_done
+audio_seen_latched <= audio_sample_valid
+```
+
+Debug colors:
+
+```text
+idle/running background : green
+player_busy             : red
+done_latched            : blue
+audio_seen_latched      : white
+```
+
+Priority:
+
+```text
+audio_seen_latched > done_latched > player_busy > idle
+```
+
+Expected hardware behavior:
+
+```text
+green  : outer shell and video are alive, player idle/not visibly active
+red    : fixed region player is busy
+blue   : fixed region reached done
+white  : md_sound_module produced audio_sample_valid at least once
+```
+
+Audio should still be silent in this phase. If video/menu fails now, the issue
+is likely the reintroduced sound/player logic causing a hardware-side problem,
+not the MiSTer outer shell.
+
 ## InputTest_MiSTer Reference Analysis
 
 Reference core:
