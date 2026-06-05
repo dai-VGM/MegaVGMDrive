@@ -12,6 +12,10 @@
 // OSD, file loading, or VGM selection is implemented here.
 
 module mister_vgm_md_top #(
+    // Internal reset hold after FPGA configuration or external core reset.
+    // With a 50 MHz clk_sys, 25,000,000 cycles is about 0.5 seconds.
+    parameter logic [31:0] POWER_ON_RESET_CYCLES = 32'd25_000_000,
+
     // Hardware bring-up delay before the fixed VGM region starts.
     // With a 50 MHz clk_sys, 25,000,000 cycles is about 0.5 seconds.
     parameter logic [31:0] START_DELAY_CYCLES = 32'd25_000_000
@@ -34,11 +38,19 @@ module mister_vgm_md_top #(
     output logic              player_busy,
     output logic              player_done,
     output logic        [9:0] player_pc_debug,
-    output logic        [7:0] player_last_cmd_debug
+    output logic        [7:0] player_last_cmd_debug,
+
+    // Startup/debug status for MiSTer bring-up color checks.
+    output logic              startup_reset_active,
+    output logic              startup_waiting,
+    output logic              startup_done
 );
 
-    logic [2:0] reset_sync;
-    logic       reset;
+    logic [2:0]  reset_sync = 3'b111;
+    logic        external_reset;
+    logic        reset;
+    logic [31:0] power_on_reset_count = 32'd0;
+    logic        power_on_reset_active = 1'b1;
 
     always_ff @(posedge clk or negedge reset_n) begin
         if (!reset_n) begin
@@ -48,7 +60,25 @@ module mister_vgm_md_top #(
         end
     end
 
-    assign reset = reset_sync[2];
+    assign external_reset = reset_sync[2];
+
+    always_ff @(posedge clk or negedge reset_n) begin
+        if (!reset_n) begin
+            power_on_reset_active <= 1'b1;
+            power_on_reset_count <= 32'd0;
+        end else if (external_reset) begin
+            power_on_reset_active <= 1'b1;
+            power_on_reset_count <= 32'd0;
+        end else if (power_on_reset_active) begin
+            if (power_on_reset_count >= POWER_ON_RESET_CYCLES) begin
+                power_on_reset_active <= 1'b0;
+            end else begin
+                power_on_reset_count <= power_on_reset_count + 32'd1;
+            end
+        end
+    end
+
+    assign reset = external_reset | power_on_reset_active;
 
     typedef enum logic [1:0] {
         START_WAIT_RESET,
@@ -59,6 +89,10 @@ module mister_vgm_md_top #(
     start_state_t start_state;
     logic         start_pulse;
     logic [31:0]  start_delay_count;
+
+    assign startup_reset_active = power_on_reset_active;
+    assign startup_waiting = !reset && (start_state == START_WAIT_RESET);
+    assign startup_done = !reset && (start_state == START_DONE);
 
     always_ff @(posedge clk) begin
         if (reset) begin

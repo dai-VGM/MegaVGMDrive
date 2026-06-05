@@ -328,6 +328,9 @@ module emu
     wire               player_done;
     wire         [9:0] player_pc_debug;
     wire         [7:0] player_last_cmd_debug;
+    wire               startup_reset_active;
+    wire               startup_waiting;
+    wire               startup_done;
 
     mister_vgm_md_top md_sound (
         .clk                   (clk_sys),
@@ -338,7 +341,10 @@ module emu
         .player_busy           (player_busy),
         .player_done           (player_done),
         .player_pc_debug       (player_pc_debug),
-        .player_last_cmd_debug (player_last_cmd_debug)
+        .player_last_cmd_debug (player_last_cmd_debug),
+        .startup_reset_active  (startup_reset_active),
+        .startup_waiting       (startup_waiting),
+        .startup_done          (startup_done)
     );
 
     reg [8:0] h_count;
@@ -352,8 +358,6 @@ module emu
             h_count <= 9'd0;
             v_count <= 9'd0;
             frame_count <= 8'd0;
-            done_latched <= 1'b0;
-            audio_seen_latched <= 1'b0;
         end else if (ce_pix) begin
             if (h_count == 9'd383) begin
                 h_count <= 9'd0;
@@ -370,7 +374,10 @@ module emu
             end
         end
 
-        if (!reset) begin
+        if (reset || startup_reset_active) begin
+            done_latched <= 1'b0;
+            audio_seen_latched <= 1'b0;
+        end else begin
             if (player_done) begin
                 done_latched <= 1'b1;
             end
@@ -390,6 +397,8 @@ module emu
 
     // State colors:
     // idle/running background : green
+    // internal power-on reset : yellow
+    // start delay waiting     : magenta
     // player_busy             : red
     // done_latched            : blue
     // audio_seen_latched      : cyan
@@ -399,18 +408,24 @@ module emu
     // -12 dB style level by shifting md_audio_* right by two bits.
     wire [7:0] red =
         audio_seen_latched ? 8'h00 :
+        startup_reset_active ? 8'hff :
+        startup_waiting    ? 8'hff :
         done_latched       ? 8'h00 :
         player_busy        ? 8'hd0 :
                              8'h00;
 
     wire [7:0] green =
         audio_seen_latched ? 8'hff :
+        startup_reset_active ? 8'hff :
+        startup_waiting    ? 8'h00 :
         done_latched       ? 8'h20 :
         player_busy        ? 8'h00 :
                              8'hb0;
 
     wire [7:0] blue =
         audio_seen_latched ? 8'hff :
+        startup_reset_active ? 8'h00 :
+        startup_waiting    ? 8'hff :
         done_latched       ? 8'hd0 :
         player_busy        ? 8'h00 :
                              8'h40;

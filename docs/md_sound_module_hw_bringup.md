@@ -2356,3 +2356,77 @@ overrides this to a smaller value so simulation remains fast:
 Only the auto-start timing was changed. `emu.sv` debug latches/colors,
 `AUDIO_L/R`, output `>>> 2` scaling, `md_sound_module`, JT12/JT89, and
 `vgm_region_player` were not changed for this step.
+
+## 2026-06-06: Internal Power-On Reset Sequencer
+
+`START_DELAY_CYCLES=25_000_000` alone did not fix the real-hardware symptom:
+after loading the core, the fixed snippet still stayed silent until a MiSTer
+core reset was issued. Since the same design plays after manual core reset, the
+audio path and player path are still considered good. The likely issue is that
+the first auto-start sequence after FPGA configuration begins before all local
+reset/startup state is in a known condition.
+
+`rtl/mister_vgm_md_top.sv` now has a separate internal power-on reset sequencer:
+
+```systemverilog
+parameter logic [31:0] POWER_ON_RESET_CYCLES = 32'd25_000_000;
+parameter logic [31:0] START_DELAY_CYCLES    = 32'd25_000_000;
+```
+
+The internal reset is asserted while either condition is true:
+
+```text
+external reset_n is low / synchronizer reset is active
+OR
+internal power-on reset counter is still active
+```
+
+After the internal reset period completes, the existing start-delay counter
+runs. Only after that does `mister_vgm_md_top` emit the one-clock `start_pulse`
+to `md_sound_fixed_region_test`. A later MiSTer core reset drives the same
+sequence again, so manual reset and core-load startup now use the same path.
+
+Additional debug outputs were added from `mister_vgm_md_top` to `emu.sv`:
+
+```text
+startup_reset_active  internal power-on reset is being held
+startup_waiting       reset is released and the start-delay counter is running
+startup_done          start pulse has already been issued
+```
+
+The hardware debug colors now distinguish the startup phases:
+
+```text
+yellow   internal power-on reset active
+magenta  waiting before start pulse
+cyan     audio_sample_valid has been observed
+blue     player_done latched
+red      player_busy
+green    idle/running baseline
+```
+
+`audio_seen_latched` and `done_latched` are cleared during the internal
+power-on reset window, so the color state should not contain stale startup
+information.
+
+Simulation keeps the real hardware defaults out of the slow path by overriding
+the counters in `tb/tb_mister_vgm_md_top.sv`:
+
+```systemverilog
+.POWER_ON_RESET_CYCLES(32'd2048),
+.START_DELAY_CYCLES(32'd1024)
+```
+
+The top-level smoke test completed with the delayed startup sequence:
+
+```text
+MISTER_VGM_MD_TOP_TEST_DONE
+wav_written_samples=5000
+audio_sample_valid_edges=5000
+startup_reset=0
+startup_waiting=0
+startup_done=1
+```
+
+`AUDIO_L/R`, output `>>> 2` scaling, `md_sound_module`, JT12/JT89, and
+`vgm_region_player` were not changed for this step.
