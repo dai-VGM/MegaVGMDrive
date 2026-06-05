@@ -1898,3 +1898,31 @@ This gives a clear hardware checklist:
 
 `AUDIO_L/R` scaling remains conservative at `>>> 2`. `emu.sv`,
 `mister_vgm_md_top.sv`, `md_sound_module.sv`, JT12, and JT89 were not changed.
+
+## 2026-06-05: Longer Bring-Up Tone Hardware Pass
+
+The longer fixed-region hardware bring-up was tested on a real MiSTer.
+
+Observed result:
+
+- The white debug screen appears.
+- The MiSTer menu can still be opened and returned from.
+- Audio is audible from the real hardware output.
+- The sequence plays as intended:
+  - FM tone for about two seconds
+  - PSG tone for about two seconds
+  - silence
+  - end
+- The final silence sequence stops the sound.
+
+This confirms that the current InputTest-based MiSTer shell, fixed-region
+player, `mister_vgm_md_top`, `md_sound_module`, JT12, JT89, and `AUDIO_L/R`
+connection are working together on hardware for the basic bring-up path.
+
+Current hardware pass condition:
+
+1. Video stays locked.
+2. MiSTer menu remains usable.
+3. `audio_seen_latched` reaches the white debug screen.
+4. FM and PSG test tones are audible.
+5. Audio becomes silent after the explicit stop sequence.
