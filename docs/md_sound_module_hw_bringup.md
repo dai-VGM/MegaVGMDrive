@@ -2105,3 +2105,40 @@ The intended hardware snippet build selection remains:
 ```tcl
 set_global_assignment -name VERILOG_MACRO "FIXED_REGION_MODE=1"
 ```
+
+## 2026-06-05: VGM Snippet First Hardware Sound
+
+After fixing the region-mode propagation and reusing the known-good YM
+initialization sequence, `FIXED_REGION_MODE=1` was tested again on real MiSTer
+hardware.
+
+Observed result:
+
+- White debug screen appeared.
+- MiSTer menu return worked.
+- The real audio output produced a clear FM tone.
+
+This confirms that the VGM_SNIPPET path can produce hardware audio too. The
+issue was not the MiSTer shell or `AUDIO_L/R`; the snippet needed a known-good
+startup sequence and reliable region-mode selection.
+
+The snippet has now been changed from a single sustained tone to a short,
+listenably distinct sequence:
+
+```text
+known-good YM init/timbre/frequency/pan/key-on
+FM note 1   wait 22050 samples, about 0.5 seconds
+FM note 2   write A4/A0 frequency, wait 22050 samples
+FM note 3   write A4/A0 frequency, wait 22050 samples
+FM key-off / DAC zero / DAC off
+short settle wait
+PSG ch0 tone setup and volume unmute
+PSG tone    wait 22050 samples
+FM key-off / DAC zero / DAC off / PSG mute
+short settle wait
+66 end
+```
+
+Only `REGION_MODE=1` was changed for this step. The proven BRINGUP_TONE region,
+`emu.sv`, `mister_vgm_md_top.sv`, `md_sound_module.sv`, JT12/JT89, and
+`AUDIO_L/R >>> 2` scaling remain unchanged.
