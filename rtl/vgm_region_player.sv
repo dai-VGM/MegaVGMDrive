@@ -15,12 +15,17 @@
 // Default region mode:
 //   0 = proven hardware bring-up tone
 //   1 = short VGM-style snippet for the next hardware check
+//
+// Temporary hardware-source check:
+//   Default to 1 without depending on a QSF VERILOG_MACRO. If the real MiSTer
+//   build still behaves like BRINGUP_TONE, Quartus is likely using an older
+//   source tree or an older RBF.
 `ifndef FIXED_REGION_MODE
-`define FIXED_REGION_MODE 0
+`define FIXED_REGION_MODE 1
 `endif
 
 module vgm_region_player #(
-    parameter int REGION_MODE = `FIXED_REGION_MODE
+    parameter int REGION_MODE = 1
 ) (
     input  logic       clk,
     input  logic       reset,
@@ -442,7 +447,7 @@ endmodule
 // audio_l/audio_r to the platform audio output. For a larger design, instantiate
 // vgm_region_player and md_sound_module separately and keep the same wiring.
 module md_sound_fixed_region_test #(
-    parameter int REGION_MODE = `FIXED_REGION_MODE
+    parameter int REGION_MODE = 1
 ) (
     input  logic              clk,
     input  logic              reset,

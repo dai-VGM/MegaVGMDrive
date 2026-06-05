@@ -2245,3 +2245,30 @@ Expected interpretation on real hardware:
   `emu.sv`, so the VGM_SNIPPET build selection is active.
 - White screen after audio starts: the build is still using the default region,
   or the Quartus macro/source synchronization needs to be checked.
+
+## 2026-06-05: Source-Forced Snippet and Cyan Check
+
+The first cyan-check RBF still showed a white screen and the audible result did
+not change. The Mac-side source had already been pushed up to commit
+`8fbcfde` (`Show cyan for fixed VGM snippet mode`), so the likely suspects are:
+
+- the Quartus `VERILOG_MACRO` assignment is not being applied as expected, or
+- the Windows/Quartus build is using an older source directory or an older RBF.
+
+For the next isolation build, the QSF macro dependency was intentionally removed
+from the hardware-identification path:
+
+- `emu.sv` now shows cyan after `audio_seen_latched` unconditionally.
+- `vgm_region_player.sv` now defaults `REGION_MODE` to `1` in source.
+- `md_sound_fixed_region_test` also defaults `REGION_MODE` to `1` in source.
+
+The BRINGUP_TONE ROM is still present and can be selected explicitly by setting
+the parameter to `0`, but the normal no-override hardware path should now use
+VGM_SNIPPET without relying on `FIXED_REGION_MODE`.
+
+Expected interpretation on real hardware:
+
+- Cyan screen: the new `emu.sv` source is in the RBF.
+- Cyan plus PSG snippet behavior: the new `vgm_region_player.sv` source is also
+  in the RBF.
+- White screen: Quartus or MiSTer is still using an old source/RBF path.

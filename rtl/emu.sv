@@ -392,16 +392,13 @@ module emu
     // idle/running background : green
     // player_busy             : red
     // done_latched            : blue
-    // audio_seen_latched      : white
-    // audio_seen_latched with FIXED_REGION_MODE=1 : cyan
+    // audio_seen_latched      : cyan
     //
     // audio_seen has highest priority because it proves md_sound_module is
     // producing sample ticks. AUDIO_L/R are now connected at a conservative
     // -12 dB style level by shifting md_audio_* right by two bits.
-    localparam bit DEBUG_FIXED_REGION_MODE_1 = (`FIXED_REGION_MODE == 1);
-
     wire [7:0] red =
-        audio_seen_latched ? (DEBUG_FIXED_REGION_MODE_1 ? 8'h00 : 8'hff) :
+        audio_seen_latched ? 8'h00 :
         done_latched       ? 8'h00 :
         player_busy        ? 8'hd0 :
                              8'h00;
