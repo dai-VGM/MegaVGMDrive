@@ -2178,3 +2178,46 @@ short settle wait
 The purpose is to make command progression and VGM wait handling audible with
 three clearly different PSG pitches before returning to more complex FM/VGM
 snippets. BRINGUP_TONE remains unchanged.
+
+Follow-up hardware observation:
+
+- `FIXED_REGION_MODE=1` was present in the `.qsf`.
+- The source on the Windows build side also contained the PSG ch0 note entries.
+- The real hardware still sounded like a rising `ぷーー〜〜` rather than three
+  separated PSG tones.
+
+For the next isolation build, the PSG tone period bytes were kept explicit as
+individual VGM `0x50` PSG writes, and the inter-note mute gaps were lengthened:
+
+```text
+period 0x100:
+  50 80
+  50 10
+  50 90
+  wait 22050
+  50 9F
+  wait 8820
+
+period 0x080:
+  50 80
+  50 08
+  50 90
+  wait 22050
+  50 9F
+  wait 8820
+
+period 0x040:
+  50 80
+  50 04
+  50 90
+  wait 22050
+```
+
+The important point is that VGM command `0x50` sends exactly one byte to
+SN76489/JT89. The 10-bit PSG tone period is therefore split across a latch byte
+and a following data byte; it is not stored as a raw multi-byte integer in the
+VGM command stream.
+
+Changing the debug screen from white to cyan for `REGION_MODE=1` requires a
+small `emu.sv` video-color change. That was intentionally not done in this step
+because the requested constraint also said to leave `emu.sv` unchanged.

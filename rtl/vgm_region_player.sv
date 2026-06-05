@@ -199,7 +199,8 @@ module vgm_region_player #(
             10'd24: vgm_snippet_rom_byte = 8'h50; 10'd25: vgm_snippet_rom_byte = 8'h90;
             10'd26: vgm_snippet_rom_byte = 8'h61; 10'd27: vgm_snippet_rom_byte = 8'h22; 10'd28: vgm_snippet_rom_byte = 8'h56;
             10'd29: vgm_snippet_rom_byte = 8'h50; 10'd30: vgm_snippet_rom_byte = 8'h9F;
-            10'd31: vgm_snippet_rom_byte = 8'h61; 10'd32: vgm_snippet_rom_byte = 8'h00; 10'd33: vgm_snippet_rom_byte = 8'h04;
+            // Gap after mute: 8820 samples, about 0.2s.
+            10'd31: vgm_snippet_rom_byte = 8'h61; 10'd32: vgm_snippet_rom_byte = 8'h74; 10'd33: vgm_snippet_rom_byte = 8'h22;
 
             // PSG ch0 note 2: tone period 0x080, full volume, about 0.5s.
             10'd34: vgm_snippet_rom_byte = 8'h50; 10'd35: vgm_snippet_rom_byte = 8'h80;
@@ -207,7 +208,8 @@ module vgm_region_player #(
             10'd38: vgm_snippet_rom_byte = 8'h50; 10'd39: vgm_snippet_rom_byte = 8'h90;
             10'd40: vgm_snippet_rom_byte = 8'h61; 10'd41: vgm_snippet_rom_byte = 8'h22; 10'd42: vgm_snippet_rom_byte = 8'h56;
             10'd43: vgm_snippet_rom_byte = 8'h50; 10'd44: vgm_snippet_rom_byte = 8'h9F;
-            10'd45: vgm_snippet_rom_byte = 8'h61; 10'd46: vgm_snippet_rom_byte = 8'h00; 10'd47: vgm_snippet_rom_byte = 8'h04;
+            // Gap after mute: 8820 samples, about 0.2s.
+            10'd45: vgm_snippet_rom_byte = 8'h61; 10'd46: vgm_snippet_rom_byte = 8'h74; 10'd47: vgm_snippet_rom_byte = 8'h22;
 
             // PSG ch0 note 3: tone period 0x040, full volume, about 0.5s.
             10'd48: vgm_snippet_rom_byte = 8'h50; 10'd49: vgm_snippet_rom_byte = 8'h80;
