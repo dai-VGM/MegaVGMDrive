@@ -11,8 +11,17 @@
 //
 // Wait commands count audio_sample_valid rising edges, so the timing is tied
 // to the same sample strobe used by the simulation WAV dumper.
+//
+// Default region mode:
+//   0 = proven hardware bring-up tone
+//   1 = short VGM-style snippet for the next hardware check
+`ifndef FIXED_REGION_MODE
+`define FIXED_REGION_MODE 0
+`endif
 
-module vgm_region_player (
+module vgm_region_player #(
+    parameter int REGION_MODE = `FIXED_REGION_MODE
+) (
     input  logic       clk,
     input  logic       reset,
 
@@ -67,6 +76,9 @@ module vgm_region_player (
 
     assign pc_debug = pc;
 
+    localparam int REGION_MODE_BRINGUP_TONE = 0;
+    localparam int REGION_MODE_VGM_SNIPPET  = 1;
+
     // Small fixed command ROM.
     //
     // Supported opcodes in this bring-up ROM:
@@ -82,89 +94,150 @@ module vgm_region_player (
     // successful TEST_YM_TONE setup. For real hardware bring-up, the ROM keeps
     // the FM tone audible for about two seconds, silences it, then plays a PSG
     // tone for about two seconds before the final silence/end sequence.
-    function automatic logic [7:0] rom_byte(input logic [9:0] addr);
+    function automatic logic [7:0] bringup_tone_rom_byte(input logic [9:0] addr);
         unique case (addr)
             // YM setup: LFO/timer/DAC off/key off.
-            10'd0:   rom_byte = 8'h52; 10'd1:   rom_byte = 8'h28; 10'd2:   rom_byte = 8'h00;
-            10'd3:   rom_byte = 8'h52; 10'd4:   rom_byte = 8'h22; 10'd5:   rom_byte = 8'h00;
-            10'd6:   rom_byte = 8'h52; 10'd7:   rom_byte = 8'h27; 10'd8:   rom_byte = 8'h00;
-            10'd9:   rom_byte = 8'h52; 10'd10:  rom_byte = 8'h2B; 10'd11:  rom_byte = 8'h00;
+            10'd0:   bringup_tone_rom_byte = 8'h52; 10'd1:   bringup_tone_rom_byte = 8'h28; 10'd2:   bringup_tone_rom_byte = 8'h00;
+            10'd3:   bringup_tone_rom_byte = 8'h52; 10'd4:   bringup_tone_rom_byte = 8'h22; 10'd5:   bringup_tone_rom_byte = 8'h00;
+            10'd6:   bringup_tone_rom_byte = 8'h52; 10'd7:   bringup_tone_rom_byte = 8'h27; 10'd8:   bringup_tone_rom_byte = 8'h00;
+            10'd9:   bringup_tone_rom_byte = 8'h52; 10'd10:  bringup_tone_rom_byte = 8'h2B; 10'd11:  bringup_tone_rom_byte = 8'h00;
 
             // Detune/multiple.
-            10'd12:  rom_byte = 8'h52; 10'd13:  rom_byte = 8'h30; 10'd14:  rom_byte = 8'h01;
-            10'd15:  rom_byte = 8'h52; 10'd16:  rom_byte = 8'h34; 10'd17:  rom_byte = 8'h01;
-            10'd18:  rom_byte = 8'h52; 10'd19:  rom_byte = 8'h38; 10'd20:  rom_byte = 8'h01;
-            10'd21:  rom_byte = 8'h52; 10'd22:  rom_byte = 8'h3C; 10'd23:  rom_byte = 8'h01;
+            10'd12:  bringup_tone_rom_byte = 8'h52; 10'd13:  bringup_tone_rom_byte = 8'h30; 10'd14:  bringup_tone_rom_byte = 8'h01;
+            10'd15:  bringup_tone_rom_byte = 8'h52; 10'd16:  bringup_tone_rom_byte = 8'h34; 10'd17:  bringup_tone_rom_byte = 8'h01;
+            10'd18:  bringup_tone_rom_byte = 8'h52; 10'd19:  bringup_tone_rom_byte = 8'h38; 10'd20:  bringup_tone_rom_byte = 8'h01;
+            10'd21:  bringup_tone_rom_byte = 8'h52; 10'd22:  bringup_tone_rom_byte = 8'h3C; 10'd23:  bringup_tone_rom_byte = 8'h01;
 
             // Total level.
-            10'd24:  rom_byte = 8'h52; 10'd25:  rom_byte = 8'h40; 10'd26:  rom_byte = 8'h28;
-            10'd27:  rom_byte = 8'h52; 10'd28:  rom_byte = 8'h44; 10'd29:  rom_byte = 8'h28;
-            10'd30:  rom_byte = 8'h52; 10'd31:  rom_byte = 8'h48; 10'd32:  rom_byte = 8'h28;
-            10'd33:  rom_byte = 8'h52; 10'd34:  rom_byte = 8'h4C; 10'd35:  rom_byte = 8'h28;
+            10'd24:  bringup_tone_rom_byte = 8'h52; 10'd25:  bringup_tone_rom_byte = 8'h40; 10'd26:  bringup_tone_rom_byte = 8'h28;
+            10'd27:  bringup_tone_rom_byte = 8'h52; 10'd28:  bringup_tone_rom_byte = 8'h44; 10'd29:  bringup_tone_rom_byte = 8'h28;
+            10'd30:  bringup_tone_rom_byte = 8'h52; 10'd31:  bringup_tone_rom_byte = 8'h48; 10'd32:  bringup_tone_rom_byte = 8'h28;
+            10'd33:  bringup_tone_rom_byte = 8'h52; 10'd34:  bringup_tone_rom_byte = 8'h4C; 10'd35:  bringup_tone_rom_byte = 8'h28;
 
             // Attack rate.
-            10'd36:  rom_byte = 8'h52; 10'd37:  rom_byte = 8'h50; 10'd38:  rom_byte = 8'h1F;
-            10'd39:  rom_byte = 8'h52; 10'd40:  rom_byte = 8'h54; 10'd41:  rom_byte = 8'h1F;
-            10'd42:  rom_byte = 8'h52; 10'd43:  rom_byte = 8'h58; 10'd44:  rom_byte = 8'h1F;
-            10'd45:  rom_byte = 8'h52; 10'd46:  rom_byte = 8'h5C; 10'd47:  rom_byte = 8'h1F;
+            10'd36:  bringup_tone_rom_byte = 8'h52; 10'd37:  bringup_tone_rom_byte = 8'h50; 10'd38:  bringup_tone_rom_byte = 8'h1F;
+            10'd39:  bringup_tone_rom_byte = 8'h52; 10'd40:  bringup_tone_rom_byte = 8'h54; 10'd41:  bringup_tone_rom_byte = 8'h1F;
+            10'd42:  bringup_tone_rom_byte = 8'h52; 10'd43:  bringup_tone_rom_byte = 8'h58; 10'd44:  bringup_tone_rom_byte = 8'h1F;
+            10'd45:  bringup_tone_rom_byte = 8'h52; 10'd46:  bringup_tone_rom_byte = 8'h5C; 10'd47:  bringup_tone_rom_byte = 8'h1F;
 
             // Decay/sustain/release.
-            10'd48:  rom_byte = 8'h52; 10'd49:  rom_byte = 8'h60; 10'd50:  rom_byte = 8'h00;
-            10'd51:  rom_byte = 8'h52; 10'd52:  rom_byte = 8'h64; 10'd53:  rom_byte = 8'h00;
-            10'd54:  rom_byte = 8'h52; 10'd55:  rom_byte = 8'h68; 10'd56:  rom_byte = 8'h00;
-            10'd57:  rom_byte = 8'h52; 10'd58:  rom_byte = 8'h6C; 10'd59:  rom_byte = 8'h00;
-            10'd60:  rom_byte = 8'h52; 10'd61:  rom_byte = 8'h80; 10'd62:  rom_byte = 8'h0F;
-            10'd63:  rom_byte = 8'h52; 10'd64:  rom_byte = 8'h84; 10'd65:  rom_byte = 8'h0F;
-            10'd66:  rom_byte = 8'h52; 10'd67:  rom_byte = 8'h88; 10'd68:  rom_byte = 8'h0F;
-            10'd69:  rom_byte = 8'h52; 10'd70:  rom_byte = 8'h8C; 10'd71:  rom_byte = 8'h0F;
+            10'd48:  bringup_tone_rom_byte = 8'h52; 10'd49:  bringup_tone_rom_byte = 8'h60; 10'd50:  bringup_tone_rom_byte = 8'h00;
+            10'd51:  bringup_tone_rom_byte = 8'h52; 10'd52:  bringup_tone_rom_byte = 8'h64; 10'd53:  bringup_tone_rom_byte = 8'h00;
+            10'd54:  bringup_tone_rom_byte = 8'h52; 10'd55:  bringup_tone_rom_byte = 8'h68; 10'd56:  bringup_tone_rom_byte = 8'h00;
+            10'd57:  bringup_tone_rom_byte = 8'h52; 10'd58:  bringup_tone_rom_byte = 8'h6C; 10'd59:  bringup_tone_rom_byte = 8'h00;
+            10'd60:  bringup_tone_rom_byte = 8'h52; 10'd61:  bringup_tone_rom_byte = 8'h80; 10'd62:  bringup_tone_rom_byte = 8'h0F;
+            10'd63:  bringup_tone_rom_byte = 8'h52; 10'd64:  bringup_tone_rom_byte = 8'h84; 10'd65:  bringup_tone_rom_byte = 8'h0F;
+            10'd66:  bringup_tone_rom_byte = 8'h52; 10'd67:  bringup_tone_rom_byte = 8'h88; 10'd68:  bringup_tone_rom_byte = 8'h0F;
+            10'd69:  bringup_tone_rom_byte = 8'h52; 10'd70:  bringup_tone_rom_byte = 8'h8C; 10'd71:  bringup_tone_rom_byte = 8'h0F;
 
             // Frequency, algorithm, pan, key on.
-            10'd72:  rom_byte = 8'h52; 10'd73:  rom_byte = 8'hA4; 10'd74:  rom_byte = 8'h22;
-            10'd75:  rom_byte = 8'h52; 10'd76:  rom_byte = 8'hA0; 10'd77:  rom_byte = 8'h69;
-            10'd78:  rom_byte = 8'h52; 10'd79:  rom_byte = 8'hB0; 10'd80:  rom_byte = 8'h07;
-            10'd81:  rom_byte = 8'h52; 10'd82:  rom_byte = 8'hB4; 10'd83:  rom_byte = 8'hC0;
-            10'd84:  rom_byte = 8'h52; 10'd85:  rom_byte = 8'h28; 10'd86:  rom_byte = 8'hF0;
+            10'd72:  bringup_tone_rom_byte = 8'h52; 10'd73:  bringup_tone_rom_byte = 8'hA4; 10'd74:  bringup_tone_rom_byte = 8'h22;
+            10'd75:  bringup_tone_rom_byte = 8'h52; 10'd76:  bringup_tone_rom_byte = 8'hA0; 10'd77:  bringup_tone_rom_byte = 8'h69;
+            10'd78:  bringup_tone_rom_byte = 8'h52; 10'd79:  bringup_tone_rom_byte = 8'hB0; 10'd80:  bringup_tone_rom_byte = 8'h07;
+            10'd81:  bringup_tone_rom_byte = 8'h52; 10'd82:  bringup_tone_rom_byte = 8'hB4; 10'd83:  bringup_tone_rom_byte = 8'hC0;
+            10'd84:  bringup_tone_rom_byte = 8'h52; 10'd85:  bringup_tone_rom_byte = 8'h28; 10'd86:  bringup_tone_rom_byte = 8'hF0;
 
             // FM tone hold: two 44100-sample waits, about two seconds total.
-            10'd87:  rom_byte = 8'h61; 10'd88:  rom_byte = 8'h44; 10'd89:  rom_byte = 8'hAC;
-            10'd90:  rom_byte = 8'h61; 10'd91:  rom_byte = 8'h44; 10'd92:  rom_byte = 8'hAC;
+            10'd87:  bringup_tone_rom_byte = 8'h61; 10'd88:  bringup_tone_rom_byte = 8'h44; 10'd89:  bringup_tone_rom_byte = 8'hAC;
+            10'd90:  bringup_tone_rom_byte = 8'h61; 10'd91:  bringup_tone_rom_byte = 8'h44; 10'd92:  bringup_tone_rom_byte = 8'hAC;
 
             // Silence FM and keep DAC safely off before the PSG-only section.
-            10'd93:  rom_byte = 8'h52; 10'd94:  rom_byte = 8'h28; 10'd95:  rom_byte = 8'h00;
-            10'd96:  rom_byte = 8'h52; 10'd97:  rom_byte = 8'h2A; 10'd98:  rom_byte = 8'h00;
-            10'd99:  rom_byte = 8'h52; 10'd100: rom_byte = 8'h2B; 10'd101: rom_byte = 8'h00;
-            10'd102: rom_byte = 8'h61; 10'd103: rom_byte = 8'h00; 10'd104: rom_byte = 8'h04;
+            10'd93:  bringup_tone_rom_byte = 8'h52; 10'd94:  bringup_tone_rom_byte = 8'h28; 10'd95:  bringup_tone_rom_byte = 8'h00;
+            10'd96:  bringup_tone_rom_byte = 8'h52; 10'd97:  bringup_tone_rom_byte = 8'h2A; 10'd98:  bringup_tone_rom_byte = 8'h00;
+            10'd99:  bringup_tone_rom_byte = 8'h52; 10'd100: bringup_tone_rom_byte = 8'h2B; 10'd101: bringup_tone_rom_byte = 8'h00;
+            10'd102: bringup_tone_rom_byte = 8'h61; 10'd103: bringup_tone_rom_byte = 8'h00; 10'd104: bringup_tone_rom_byte = 8'h04;
 
             // PSG tone, same basic command shape as TEST_PSG_TONE. Other PSG
             // channels stay muted so the bring-up tone is easy to identify.
-            10'd105: rom_byte = 8'h50; 10'd106: rom_byte = 8'hBF;
-            10'd107: rom_byte = 8'h50; 10'd108: rom_byte = 8'hDF;
-            10'd109: rom_byte = 8'h50; 10'd110: rom_byte = 8'hFF;
-            10'd111: rom_byte = 8'h50; 10'd112: rom_byte = 8'h80;
-            10'd113: rom_byte = 8'h50; 10'd114: rom_byte = 8'h10;
-            10'd115: rom_byte = 8'h50; 10'd116: rom_byte = 8'h90;
+            10'd105: bringup_tone_rom_byte = 8'h50; 10'd106: bringup_tone_rom_byte = 8'hBF;
+            10'd107: bringup_tone_rom_byte = 8'h50; 10'd108: bringup_tone_rom_byte = 8'hDF;
+            10'd109: bringup_tone_rom_byte = 8'h50; 10'd110: bringup_tone_rom_byte = 8'hFF;
+            10'd111: bringup_tone_rom_byte = 8'h50; 10'd112: bringup_tone_rom_byte = 8'h80;
+            10'd113: bringup_tone_rom_byte = 8'h50; 10'd114: bringup_tone_rom_byte = 8'h10;
+            10'd115: bringup_tone_rom_byte = 8'h50; 10'd116: bringup_tone_rom_byte = 8'h90;
 
             // PSG tone hold: two 44100-sample waits, about two seconds total.
-            10'd117: rom_byte = 8'h61; 10'd118: rom_byte = 8'h44; 10'd119: rom_byte = 8'hAC;
-            10'd120: rom_byte = 8'h61; 10'd121: rom_byte = 8'h44; 10'd122: rom_byte = 8'hAC;
+            10'd117: bringup_tone_rom_byte = 8'h61; 10'd118: bringup_tone_rom_byte = 8'h44; 10'd119: bringup_tone_rom_byte = 8'hAC;
+            10'd120: bringup_tone_rom_byte = 8'h61; 10'd121: bringup_tone_rom_byte = 8'h44; 10'd122: bringup_tone_rom_byte = 8'hAC;
 
             // Explicit final silence sequence for hardware bring-up:
             // key off FM ch1, clear DAC data, keep DAC disabled, mute all PSG
             // channels, then wait briefly before reporting end.
-            10'd123: rom_byte = 8'h52; 10'd124: rom_byte = 8'h28; 10'd125: rom_byte = 8'h00;
-            10'd126: rom_byte = 8'h52; 10'd127: rom_byte = 8'h2A; 10'd128: rom_byte = 8'h00;
-            10'd129: rom_byte = 8'h52; 10'd130: rom_byte = 8'h2B; 10'd131: rom_byte = 8'h00;
-            10'd132: rom_byte = 8'h50; 10'd133: rom_byte = 8'h9F;
-            10'd134: rom_byte = 8'h50; 10'd135: rom_byte = 8'hBF;
-            10'd136: rom_byte = 8'h50; 10'd137: rom_byte = 8'hDF;
-            10'd138: rom_byte = 8'h50; 10'd139: rom_byte = 8'hFF;
+            10'd123: bringup_tone_rom_byte = 8'h52; 10'd124: bringup_tone_rom_byte = 8'h28; 10'd125: bringup_tone_rom_byte = 8'h00;
+            10'd126: bringup_tone_rom_byte = 8'h52; 10'd127: bringup_tone_rom_byte = 8'h2A; 10'd128: bringup_tone_rom_byte = 8'h00;
+            10'd129: bringup_tone_rom_byte = 8'h52; 10'd130: bringup_tone_rom_byte = 8'h2B; 10'd131: bringup_tone_rom_byte = 8'h00;
+            10'd132: bringup_tone_rom_byte = 8'h50; 10'd133: bringup_tone_rom_byte = 8'h9F;
+            10'd134: bringup_tone_rom_byte = 8'h50; 10'd135: bringup_tone_rom_byte = 8'hBF;
+            10'd136: bringup_tone_rom_byte = 8'h50; 10'd137: bringup_tone_rom_byte = 8'hDF;
+            10'd138: bringup_tone_rom_byte = 8'h50; 10'd139: bringup_tone_rom_byte = 8'hFF;
 
             // Let the silence writes settle, then stop.
-            10'd140: rom_byte = 8'h61; 10'd141: rom_byte = 8'h00; 10'd142: rom_byte = 8'h04;
-            10'd143: rom_byte = 8'h66;
+            10'd140: bringup_tone_rom_byte = 8'h61; 10'd141: bringup_tone_rom_byte = 8'h00; 10'd142: bringup_tone_rom_byte = 8'h04;
+            10'd143: bringup_tone_rom_byte = 8'h66;
 
-            default: rom_byte = 8'h66;
+            default: bringup_tone_rom_byte = 8'h66;
         endcase
+    endfunction
+
+    function automatic logic [7:0] vgm_snippet_rom_byte(input logic [9:0] addr);
+        unique case (addr)
+            // Compact VGM-format MD command snippet, no DAC/PCM stream yet.
+            // It uses normal 0x52 YM2612 writes and 0x50 PSG writes, then
+            // explicitly silences all active sources before 0x66 end.
+            10'd0:   vgm_snippet_rom_byte = 8'h52; 10'd1:   vgm_snippet_rom_byte = 8'h28; 10'd2:   vgm_snippet_rom_byte = 8'h00;
+            10'd3:   vgm_snippet_rom_byte = 8'h52; 10'd4:   vgm_snippet_rom_byte = 8'h22; 10'd5:   vgm_snippet_rom_byte = 8'h00;
+            10'd6:   vgm_snippet_rom_byte = 8'h52; 10'd7:   vgm_snippet_rom_byte = 8'h2B; 10'd8:   vgm_snippet_rom_byte = 8'h00;
+            10'd9:   vgm_snippet_rom_byte = 8'h52; 10'd10:  vgm_snippet_rom_byte = 8'h30; 10'd11:  vgm_snippet_rom_byte = 8'h01;
+            10'd12:  vgm_snippet_rom_byte = 8'h52; 10'd13:  vgm_snippet_rom_byte = 8'h34; 10'd14:  vgm_snippet_rom_byte = 8'h01;
+            10'd15:  vgm_snippet_rom_byte = 8'h52; 10'd16:  vgm_snippet_rom_byte = 8'h38; 10'd17:  vgm_snippet_rom_byte = 8'h01;
+            10'd18:  vgm_snippet_rom_byte = 8'h52; 10'd19:  vgm_snippet_rom_byte = 8'h3C; 10'd20:  vgm_snippet_rom_byte = 8'h01;
+            10'd21:  vgm_snippet_rom_byte = 8'h52; 10'd22:  vgm_snippet_rom_byte = 8'h40; 10'd23:  vgm_snippet_rom_byte = 8'h24;
+            10'd24:  vgm_snippet_rom_byte = 8'h52; 10'd25:  vgm_snippet_rom_byte = 8'h44; 10'd26:  vgm_snippet_rom_byte = 8'h28;
+            10'd27:  vgm_snippet_rom_byte = 8'h52; 10'd28:  vgm_snippet_rom_byte = 8'h48; 10'd29:  vgm_snippet_rom_byte = 8'h2C;
+            10'd30:  vgm_snippet_rom_byte = 8'h52; 10'd31:  vgm_snippet_rom_byte = 8'h4C; 10'd32:  vgm_snippet_rom_byte = 8'h20;
+            10'd33:  vgm_snippet_rom_byte = 8'h52; 10'd34:  vgm_snippet_rom_byte = 8'h50; 10'd35:  vgm_snippet_rom_byte = 8'h1F;
+            10'd36:  vgm_snippet_rom_byte = 8'h52; 10'd37:  vgm_snippet_rom_byte = 8'h54; 10'd38:  vgm_snippet_rom_byte = 8'h1F;
+            10'd39:  vgm_snippet_rom_byte = 8'h52; 10'd40:  vgm_snippet_rom_byte = 8'h58; 10'd41:  vgm_snippet_rom_byte = 8'h1F;
+            10'd42:  vgm_snippet_rom_byte = 8'h52; 10'd43:  vgm_snippet_rom_byte = 8'h5C; 10'd44:  vgm_snippet_rom_byte = 8'h1F;
+            10'd45:  vgm_snippet_rom_byte = 8'h52; 10'd46:  vgm_snippet_rom_byte = 8'h80; 10'd47:  vgm_snippet_rom_byte = 8'h0F;
+            10'd48:  vgm_snippet_rom_byte = 8'h52; 10'd49:  vgm_snippet_rom_byte = 8'h84; 10'd50:  vgm_snippet_rom_byte = 8'h0F;
+            10'd51:  vgm_snippet_rom_byte = 8'h52; 10'd52:  vgm_snippet_rom_byte = 8'h88; 10'd53:  vgm_snippet_rom_byte = 8'h0F;
+            10'd54:  vgm_snippet_rom_byte = 8'h52; 10'd55:  vgm_snippet_rom_byte = 8'h8C; 10'd56:  vgm_snippet_rom_byte = 8'h0F;
+            10'd57:  vgm_snippet_rom_byte = 8'h52; 10'd58:  vgm_snippet_rom_byte = 8'hA4; 10'd59:  vgm_snippet_rom_byte = 8'h22;
+            10'd60:  vgm_snippet_rom_byte = 8'h52; 10'd61:  vgm_snippet_rom_byte = 8'hA0; 10'd62:  vgm_snippet_rom_byte = 8'h40;
+            10'd63:  vgm_snippet_rom_byte = 8'h52; 10'd64:  vgm_snippet_rom_byte = 8'hB0; 10'd65:  vgm_snippet_rom_byte = 8'h07;
+            10'd66:  vgm_snippet_rom_byte = 8'h52; 10'd67:  vgm_snippet_rom_byte = 8'hB4; 10'd68:  vgm_snippet_rom_byte = 8'hC0;
+            10'd69:  vgm_snippet_rom_byte = 8'h52; 10'd70:  vgm_snippet_rom_byte = 8'h28; 10'd71:  vgm_snippet_rom_byte = 8'hF0;
+            10'd72:  vgm_snippet_rom_byte = 8'h61; 10'd73:  vgm_snippet_rom_byte = 8'h00; 10'd74:  vgm_snippet_rom_byte = 8'h04;
+            10'd75:  vgm_snippet_rom_byte = 8'h52; 10'd76:  vgm_snippet_rom_byte = 8'hA0; 10'd77:  vgm_snippet_rom_byte = 8'h69;
+            10'd78:  vgm_snippet_rom_byte = 8'h61; 10'd79:  vgm_snippet_rom_byte = 8'h00; 10'd80:  vgm_snippet_rom_byte = 8'h04;
+            10'd81:  vgm_snippet_rom_byte = 8'h50; 10'd82:  vgm_snippet_rom_byte = 8'hBF;
+            10'd83:  vgm_snippet_rom_byte = 8'h50; 10'd84:  vgm_snippet_rom_byte = 8'hDF;
+            10'd85:  vgm_snippet_rom_byte = 8'h50; 10'd86:  vgm_snippet_rom_byte = 8'hFF;
+            10'd87:  vgm_snippet_rom_byte = 8'h50; 10'd88:  vgm_snippet_rom_byte = 8'h80;
+            10'd89:  vgm_snippet_rom_byte = 8'h50; 10'd90:  vgm_snippet_rom_byte = 8'h10;
+            10'd91:  vgm_snippet_rom_byte = 8'h50; 10'd92:  vgm_snippet_rom_byte = 8'h90;
+            10'd93:  vgm_snippet_rom_byte = 8'h61; 10'd94:  vgm_snippet_rom_byte = 8'h00; 10'd95:  vgm_snippet_rom_byte = 8'h04;
+            10'd96:  vgm_snippet_rom_byte = 8'h52; 10'd97:  vgm_snippet_rom_byte = 8'h28; 10'd98:  vgm_snippet_rom_byte = 8'h00;
+            10'd99:  vgm_snippet_rom_byte = 8'h52; 10'd100: vgm_snippet_rom_byte = 8'h2A; 10'd101: vgm_snippet_rom_byte = 8'h00;
+            10'd102: vgm_snippet_rom_byte = 8'h52; 10'd103: vgm_snippet_rom_byte = 8'h2B; 10'd104: vgm_snippet_rom_byte = 8'h00;
+            10'd105: vgm_snippet_rom_byte = 8'h50; 10'd106: vgm_snippet_rom_byte = 8'h9F;
+            10'd107: vgm_snippet_rom_byte = 8'h50; 10'd108: vgm_snippet_rom_byte = 8'hBF;
+            10'd109: vgm_snippet_rom_byte = 8'h50; 10'd110: vgm_snippet_rom_byte = 8'hDF;
+            10'd111: vgm_snippet_rom_byte = 8'h50; 10'd112: vgm_snippet_rom_byte = 8'hFF;
+            10'd113: vgm_snippet_rom_byte = 8'h61; 10'd114: vgm_snippet_rom_byte = 8'h00; 10'd115: vgm_snippet_rom_byte = 8'h02;
+            10'd116: vgm_snippet_rom_byte = 8'h66;
+
+            default: vgm_snippet_rom_byte = 8'h66;
+        endcase
+    endfunction
+
+    function automatic logic [7:0] rom_byte(input logic [9:0] addr);
+        if (REGION_MODE == REGION_MODE_VGM_SNIPPET) begin
+            rom_byte = vgm_snippet_rom_byte(addr);
+        end else begin
+            rom_byte = bringup_tone_rom_byte(addr);
+        end
     endfunction
 
     function automatic logic [7:0] pcm_byte(input logic [9:0] index);
@@ -368,7 +441,9 @@ endmodule
 // A MiSTer/top-level experiment can instantiate this wrapper directly and route
 // audio_l/audio_r to the platform audio output. For a larger design, instantiate
 // vgm_region_player and md_sound_module separately and keep the same wiring.
-module md_sound_fixed_region_test (
+module md_sound_fixed_region_test #(
+    parameter int REGION_MODE = 0
+) (
     input  logic              clk,
     input  logic              reset,
     input  logic              start,
@@ -392,7 +467,9 @@ module md_sound_fixed_region_test (
     logic       ym_cmd_ready;
     logic       psg_cmd_ready;
 
-    vgm_region_player player (
+    vgm_region_player #(
+        .REGION_MODE (REGION_MODE)
+    ) player (
         .clk                   (clk),
         .reset                 (reset),
         .start                 (start),

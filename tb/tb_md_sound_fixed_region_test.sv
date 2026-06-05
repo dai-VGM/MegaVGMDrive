@@ -3,6 +3,11 @@
 module tb_md_sound_fixed_region_test;
 
     localparam int AUDIO_DUMP_SAMPLE_COUNT = 5000;
+`ifdef TEST_FIXED_VGM_SNIPPET
+    localparam int REGION_MODE = 1;
+`else
+    localparam int REGION_MODE = 0;
+`endif
 
     logic clk = 1'b0;
     logic reset = 1'b1;
@@ -23,7 +28,9 @@ module tb_md_sound_fixed_region_test;
     integer watchdog_clk_count = 0;
     bit     audio_sample_valid_prev = 1'b0;
 
-    md_sound_fixed_region_test dut (
+    md_sound_fixed_region_test #(
+        .REGION_MODE (REGION_MODE)
+    ) dut (
         .clk                   (clk),
         .reset                 (reset),
         .start                 (start),
@@ -55,7 +62,7 @@ module tb_md_sound_fixed_region_test;
         @(posedge clk);
         start <= 1'b0;
 
-        $display("FIXED_REGION_TEST_START samples=%0d", AUDIO_DUMP_SAMPLE_COUNT);
+        $display("FIXED_REGION_TEST_START samples=%0d region_mode=%0d", AUDIO_DUMP_SAMPLE_COUNT, REGION_MODE);
 
         while (audio_dump_count < AUDIO_DUMP_SAMPLE_COUNT) begin
             @(posedge clk);

@@ -1926,3 +1926,78 @@ Current hardware pass condition:
 3. `audio_seen_latched` reaches the white debug screen.
 4. FM and PSG test tones are audible.
 5. Audio becomes silent after the explicit stop sequence.
+
+## 2026-06-05: Short VGM Snippet Region
+
+After the fixed bring-up tone passed on real MiSTer hardware, the next step is
+to move from a hand-written long test tone toward a short VGM-style command
+region.
+
+`rtl/vgm_region_player.sv` now has two selectable fixed regions:
+
+```text
+REGION_MODE = 0   BRINGUP_TONE, default and proven on hardware
+REGION_MODE = 1   VGM_SNIPPET, short YM/PSG VGM-style command sequence
+```
+
+The default remains `REGION_MODE=0`, so the proven hardware bring-up tone is not
+changed unless the build explicitly selects the snippet mode.
+
+The VGM snippet currently includes:
+
+- YM2612 port 0 writes using VGM opcode `0x52`
+- SN76489 writes using VGM opcode `0x50`
+- VGM waits using `0x61`
+- no DAC stream or PCM block yet
+- an explicit final silence sequence:
+  - YM key off
+  - DAC data zero
+  - DAC disable
+  - PSG mute for all channels
+  - short wait
+  - `0x66 end`
+
+Simulation command for the default bring-up tone:
+
+```sh
+iverilog -g2012 -Wall -DSIMULATION -s tb_md_sound_fixed_region_test \
+  -o /tmp/tb_md_sound_fixed_region_check.vvp \
+  tb/tb_md_sound_fixed_region_test.sv \
+  rtl/vgm_region_player.sv \
+  rtl/md_sound_module.sv \
+  rtl/genesis_audio/**/*.v
+vvp /tmp/tb_md_sound_fixed_region_check.vvp
+```
+
+Simulation command for the VGM snippet:
+
+```sh
+iverilog -g2012 -Wall -DSIMULATION -DTEST_FIXED_VGM_SNIPPET \
+  -s tb_md_sound_fixed_region_test \
+  -o /tmp/tb_md_sound_fixed_region_vgm_snippet_check.vvp \
+  tb/tb_md_sound_fixed_region_test.sv \
+  rtl/vgm_region_player.sv \
+  rtl/md_sound_module.sv \
+  rtl/genesis_audio/**/*.v
+vvp /tmp/tb_md_sound_fixed_region_vgm_snippet_check.vvp
+```
+
+Observed VGM snippet smoke result:
+
+```text
+FIXED_REGION_TEST_START samples=5000 region_mode=1
+FIXED_REGION_TEST_DONE wav_written_samples=5000 audio_sample_valid_edges=5000 pc=116 last_cmd=66 busy=0 done=0
+```
+
+For a hardware `.rbf`, `mister_vgm_md_top` still uses the default mode unless a
+compile-time macro overrides it. To build the snippet without changing
+`emu.sv`, `mister_vgm_md_top.sv`, or `md_sound_module.sv`, set the Verilog macro
+`FIXED_REGION_MODE=1` in the Quartus build. For example, add this temporarily to
+the project assignments:
+
+```tcl
+set_global_assignment -name VERILOG_MACRO "FIXED_REGION_MODE=1"
+```
+
+Remove that assignment, or set it back to `0`, to return to the proven
+BRINGUP_TONE region.
