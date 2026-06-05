@@ -2272,3 +2272,37 @@ Expected interpretation on real hardware:
 - Cyan plus PSG snippet behavior: the new `vgm_region_player.sv` source is also
   in the RBF.
 - White screen: Quartus or MiSTer is still using an old source/RBF path.
+
+## 2026-06-05: Add Known-Good FM Before PSG Snippet
+
+The source-forced build reached real MiSTer hardware: the debug screen became
+cyan, proving that the latest `emu.sv` and the `REGION_MODE=1` path were present
+in the RBF. However, the PSG-focused snippet still did not produce the expected
+three-tone sound. The only audible result was a short `ブッ` at core reset.
+
+For the next isolation build, only the `REGION_MODE=1` VGM_SNIPPET ROM was
+changed. The snippet now starts with the known-good FM/YM sequence that already
+played successfully on hardware:
+
+```text
+known-good YM init/timbre/frequency/pan/key-on
+FM tone wait 44100 samples, about 1 second
+FM key-off
+DAC zero / DAC off
+wait 8820 samples, about 0.2 seconds
+PSG ch0 three-tone test
+final silence sequence
+66 end
+```
+
+This separates the next hardware result into two questions:
+
+- If the first FM tone is audible, JT12/FM writes still work in the forced
+  snippet path.
+- If FM is audible but the PSG section is still silent, the remaining issue is
+  specific to the PSG command sequence, PSG write timing, or mixer path during
+  this snippet.
+
+The cyan debug screen and source-forced `REGION_MODE=1` default remain in place
+for this check. `emu.sv`, `AUDIO_L/R`, output `>>> 2` scaling,
+`mister_vgm_md_top`, `md_sound_module`, JT12, and JT89 were not changed.

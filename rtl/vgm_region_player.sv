@@ -185,56 +185,64 @@ module vgm_region_player #(
     endfunction
 
     function automatic logic [7:0] vgm_snippet_rom_byte(input logic [9:0] addr);
-        unique case (addr)
-            // PSG-focused snippet for hardware command/wait bring-up:
-            // silence YM/DAC first, mute unused PSG channels, then play three
-            // clearly different ch0 tone periods with short gaps.
-            10'd0:  vgm_snippet_rom_byte = 8'h52; 10'd1:  vgm_snippet_rom_byte = 8'h28; 10'd2:  vgm_snippet_rom_byte = 8'h00;
-            10'd3:  vgm_snippet_rom_byte = 8'h52; 10'd4:  vgm_snippet_rom_byte = 8'h2A; 10'd5:  vgm_snippet_rom_byte = 8'h00;
-            10'd6:  vgm_snippet_rom_byte = 8'h52; 10'd7:  vgm_snippet_rom_byte = 8'h2B; 10'd8:  vgm_snippet_rom_byte = 8'h00;
-            10'd9:  vgm_snippet_rom_byte = 8'h50; 10'd10: vgm_snippet_rom_byte = 8'h9F;
-            10'd11: vgm_snippet_rom_byte = 8'h50; 10'd12: vgm_snippet_rom_byte = 8'hBF;
-            10'd13: vgm_snippet_rom_byte = 8'h50; 10'd14: vgm_snippet_rom_byte = 8'hDF;
-            10'd15: vgm_snippet_rom_byte = 8'h50; 10'd16: vgm_snippet_rom_byte = 8'hFF;
-            10'd17: vgm_snippet_rom_byte = 8'h61; 10'd18: vgm_snippet_rom_byte = 8'h00; 10'd19: vgm_snippet_rom_byte = 8'h04;
+        if (addr <= 10'd86) begin
+            // Reuse the exact YM init/timbre/frequency/pan/key-on sequence
+            // that already produced sound on MiSTer hardware.
+            vgm_snippet_rom_byte = bringup_tone_rom_byte(addr);
+        end else begin
+            unique case (addr)
+                // Known-good FM tone hold: 44100 samples, about one second.
+                10'd87:  vgm_snippet_rom_byte = 8'h61; 10'd88:  vgm_snippet_rom_byte = 8'h44; 10'd89:  vgm_snippet_rom_byte = 8'hAC;
 
-            // PSG ch0 note 1: tone period 0x100, full volume, about 0.5s.
-            10'd20: vgm_snippet_rom_byte = 8'h50; 10'd21: vgm_snippet_rom_byte = 8'h80;
-            10'd22: vgm_snippet_rom_byte = 8'h50; 10'd23: vgm_snippet_rom_byte = 8'h10;
-            10'd24: vgm_snippet_rom_byte = 8'h50; 10'd25: vgm_snippet_rom_byte = 8'h90;
-            10'd26: vgm_snippet_rom_byte = 8'h61; 10'd27: vgm_snippet_rom_byte = 8'h22; 10'd28: vgm_snippet_rom_byte = 8'h56;
-            10'd29: vgm_snippet_rom_byte = 8'h50; 10'd30: vgm_snippet_rom_byte = 8'h9F;
-            // Gap after mute: 8820 samples, about 0.2s.
-            10'd31: vgm_snippet_rom_byte = 8'h61; 10'd32: vgm_snippet_rom_byte = 8'h74; 10'd33: vgm_snippet_rom_byte = 8'h22;
+                // Key off FM and keep DAC safely disabled before PSG testing.
+                10'd90:  vgm_snippet_rom_byte = 8'h52; 10'd91:  vgm_snippet_rom_byte = 8'h28; 10'd92:  vgm_snippet_rom_byte = 8'h00;
+                10'd93:  vgm_snippet_rom_byte = 8'h52; 10'd94:  vgm_snippet_rom_byte = 8'h2A; 10'd95:  vgm_snippet_rom_byte = 8'h00;
+                10'd96:  vgm_snippet_rom_byte = 8'h52; 10'd97:  vgm_snippet_rom_byte = 8'h2B; 10'd98:  vgm_snippet_rom_byte = 8'h00;
+                10'd99:  vgm_snippet_rom_byte = 8'h61; 10'd100: vgm_snippet_rom_byte = 8'h74; 10'd101: vgm_snippet_rom_byte = 8'h22;
 
-            // PSG ch0 note 2: tone period 0x080, full volume, about 0.5s.
-            10'd34: vgm_snippet_rom_byte = 8'h50; 10'd35: vgm_snippet_rom_byte = 8'h80;
-            10'd36: vgm_snippet_rom_byte = 8'h50; 10'd37: vgm_snippet_rom_byte = 8'h08;
-            10'd38: vgm_snippet_rom_byte = 8'h50; 10'd39: vgm_snippet_rom_byte = 8'h90;
-            10'd40: vgm_snippet_rom_byte = 8'h61; 10'd41: vgm_snippet_rom_byte = 8'h22; 10'd42: vgm_snippet_rom_byte = 8'h56;
-            10'd43: vgm_snippet_rom_byte = 8'h50; 10'd44: vgm_snippet_rom_byte = 8'h9F;
-            // Gap after mute: 8820 samples, about 0.2s.
-            10'd45: vgm_snippet_rom_byte = 8'h61; 10'd46: vgm_snippet_rom_byte = 8'h74; 10'd47: vgm_snippet_rom_byte = 8'h22;
+                // Mute unused PSG channels before the three-tone test.
+                10'd102: vgm_snippet_rom_byte = 8'h50; 10'd103: vgm_snippet_rom_byte = 8'h9F;
+                10'd104: vgm_snippet_rom_byte = 8'h50; 10'd105: vgm_snippet_rom_byte = 8'hBF;
+                10'd106: vgm_snippet_rom_byte = 8'h50; 10'd107: vgm_snippet_rom_byte = 8'hDF;
+                10'd108: vgm_snippet_rom_byte = 8'h50; 10'd109: vgm_snippet_rom_byte = 8'hFF;
+                10'd110: vgm_snippet_rom_byte = 8'h61; 10'd111: vgm_snippet_rom_byte = 8'h00; 10'd112: vgm_snippet_rom_byte = 8'h04;
 
-            // PSG ch0 note 3: tone period 0x040, full volume, about 0.5s.
-            10'd48: vgm_snippet_rom_byte = 8'h50; 10'd49: vgm_snippet_rom_byte = 8'h80;
-            10'd50: vgm_snippet_rom_byte = 8'h50; 10'd51: vgm_snippet_rom_byte = 8'h04;
-            10'd52: vgm_snippet_rom_byte = 8'h50; 10'd53: vgm_snippet_rom_byte = 8'h90;
-            10'd54: vgm_snippet_rom_byte = 8'h61; 10'd55: vgm_snippet_rom_byte = 8'h22; 10'd56: vgm_snippet_rom_byte = 8'h56;
+                // PSG ch0 note 1: tone period 0x100, full volume, about 0.5s.
+                10'd113: vgm_snippet_rom_byte = 8'h50; 10'd114: vgm_snippet_rom_byte = 8'h80;
+                10'd115: vgm_snippet_rom_byte = 8'h50; 10'd116: vgm_snippet_rom_byte = 8'h10;
+                10'd117: vgm_snippet_rom_byte = 8'h50; 10'd118: vgm_snippet_rom_byte = 8'h90;
+                10'd119: vgm_snippet_rom_byte = 8'h61; 10'd120: vgm_snippet_rom_byte = 8'h22; 10'd121: vgm_snippet_rom_byte = 8'h56;
+                10'd122: vgm_snippet_rom_byte = 8'h50; 10'd123: vgm_snippet_rom_byte = 8'h9F;
+                10'd124: vgm_snippet_rom_byte = 8'h61; 10'd125: vgm_snippet_rom_byte = 8'h74; 10'd126: vgm_snippet_rom_byte = 8'h22;
 
-            // Explicit final silence sequence.
-            10'd57: vgm_snippet_rom_byte = 8'h50; 10'd58: vgm_snippet_rom_byte = 8'h9F;
-            10'd59: vgm_snippet_rom_byte = 8'h50; 10'd60: vgm_snippet_rom_byte = 8'hBF;
-            10'd61: vgm_snippet_rom_byte = 8'h50; 10'd62: vgm_snippet_rom_byte = 8'hDF;
-            10'd63: vgm_snippet_rom_byte = 8'h50; 10'd64: vgm_snippet_rom_byte = 8'hFF;
-            10'd65: vgm_snippet_rom_byte = 8'h52; 10'd66: vgm_snippet_rom_byte = 8'h28; 10'd67: vgm_snippet_rom_byte = 8'h00;
-            10'd68: vgm_snippet_rom_byte = 8'h52; 10'd69: vgm_snippet_rom_byte = 8'h2A; 10'd70: vgm_snippet_rom_byte = 8'h00;
-            10'd71: vgm_snippet_rom_byte = 8'h52; 10'd72: vgm_snippet_rom_byte = 8'h2B; 10'd73: vgm_snippet_rom_byte = 8'h00;
-            10'd74: vgm_snippet_rom_byte = 8'h61; 10'd75: vgm_snippet_rom_byte = 8'h00; 10'd76: vgm_snippet_rom_byte = 8'h04;
-            10'd77: vgm_snippet_rom_byte = 8'h66;
+                // PSG ch0 note 2: tone period 0x080, full volume, about 0.5s.
+                10'd127: vgm_snippet_rom_byte = 8'h50; 10'd128: vgm_snippet_rom_byte = 8'h80;
+                10'd129: vgm_snippet_rom_byte = 8'h50; 10'd130: vgm_snippet_rom_byte = 8'h08;
+                10'd131: vgm_snippet_rom_byte = 8'h50; 10'd132: vgm_snippet_rom_byte = 8'h90;
+                10'd133: vgm_snippet_rom_byte = 8'h61; 10'd134: vgm_snippet_rom_byte = 8'h22; 10'd135: vgm_snippet_rom_byte = 8'h56;
+                10'd136: vgm_snippet_rom_byte = 8'h50; 10'd137: vgm_snippet_rom_byte = 8'h9F;
+                10'd138: vgm_snippet_rom_byte = 8'h61; 10'd139: vgm_snippet_rom_byte = 8'h74; 10'd140: vgm_snippet_rom_byte = 8'h22;
 
-            default: vgm_snippet_rom_byte = 8'h66;
-        endcase
+                // PSG ch0 note 3: tone period 0x040, full volume, about 0.5s.
+                10'd141: vgm_snippet_rom_byte = 8'h50; 10'd142: vgm_snippet_rom_byte = 8'h80;
+                10'd143: vgm_snippet_rom_byte = 8'h50; 10'd144: vgm_snippet_rom_byte = 8'h04;
+                10'd145: vgm_snippet_rom_byte = 8'h50; 10'd146: vgm_snippet_rom_byte = 8'h90;
+                10'd147: vgm_snippet_rom_byte = 8'h61; 10'd148: vgm_snippet_rom_byte = 8'h22; 10'd149: vgm_snippet_rom_byte = 8'h56;
+
+                // Explicit final silence sequence.
+                10'd150: vgm_snippet_rom_byte = 8'h50; 10'd151: vgm_snippet_rom_byte = 8'h9F;
+                10'd152: vgm_snippet_rom_byte = 8'h50; 10'd153: vgm_snippet_rom_byte = 8'hBF;
+                10'd154: vgm_snippet_rom_byte = 8'h50; 10'd155: vgm_snippet_rom_byte = 8'hDF;
+                10'd156: vgm_snippet_rom_byte = 8'h50; 10'd157: vgm_snippet_rom_byte = 8'hFF;
+                10'd158: vgm_snippet_rom_byte = 8'h52; 10'd159: vgm_snippet_rom_byte = 8'h28; 10'd160: vgm_snippet_rom_byte = 8'h00;
+                10'd161: vgm_snippet_rom_byte = 8'h52; 10'd162: vgm_snippet_rom_byte = 8'h2A; 10'd163: vgm_snippet_rom_byte = 8'h00;
+                10'd164: vgm_snippet_rom_byte = 8'h52; 10'd165: vgm_snippet_rom_byte = 8'h2B; 10'd166: vgm_snippet_rom_byte = 8'h00;
+                10'd167: vgm_snippet_rom_byte = 8'h61; 10'd168: vgm_snippet_rom_byte = 8'h00; 10'd169: vgm_snippet_rom_byte = 8'h04;
+                10'd170: vgm_snippet_rom_byte = 8'h66;
+
+                default: vgm_snippet_rom_byte = 8'h66;
+            endcase
+        end
     endfunction
 
     function automatic logic [7:0] rom_byte(input logic [9:0] addr);
