@@ -2221,3 +2221,27 @@ VGM command stream.
 Changing the debug screen from white to cyan for `REGION_MODE=1` requires a
 small `emu.sv` video-color change. That was intentionally not done in this step
 because the requested constraint also said to leave `emu.sv` unchanged.
+
+## 2026-06-05: Cyan Screen Check for FIXED_REGION_MODE=1
+
+The PSG three-tone snippet still did not sound like three separated notes on
+real MiSTer hardware. The audible result was closer to a sustained rising
+`ぶーーー〜〜` sound, so the next question is whether the Quartus build is truly
+using the `FIXED_REGION_MODE=1` region.
+
+For this hardware build check, the debug color path in `emu.sv` was minimally
+changed:
+
+- If `FIXED_REGION_MODE` is undefined or `0`, `audio_seen_latched` remains white.
+- If `FIXED_REGION_MODE=1`, `audio_seen_latched` becomes cyan.
+
+This is only a visual build-selection check. `AUDIO_L/R`, the `>>> 2` output
+scaling, `mister_vgm_md_top`, `md_sound_module`, JT12/JT89, and
+`vgm_region_player` were not changed for this step.
+
+Expected interpretation on real hardware:
+
+- Cyan screen after audio starts: the `FIXED_REGION_MODE=1` build reached
+  `emu.sv`, so the VGM_SNIPPET build selection is active.
+- White screen after audio starts: the build is still using the default region,
+  or the Quartus macro/source synchronization needs to be checked.

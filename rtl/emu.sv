@@ -3,6 +3,10 @@
 // This module intentionally mirrors InputTest_MiSTer's explicit emu port list
 // and hps_io style. The sound module is not instantiated in this baseline.
 
+`ifndef FIXED_REGION_MODE
+`define FIXED_REGION_MODE 0
+`endif
+
 module emu
 (
     input         CLK_50M,
@@ -389,12 +393,15 @@ module emu
     // player_busy             : red
     // done_latched            : blue
     // audio_seen_latched      : white
+    // audio_seen_latched with FIXED_REGION_MODE=1 : cyan
     //
     // audio_seen has highest priority because it proves md_sound_module is
     // producing sample ticks. AUDIO_L/R are now connected at a conservative
     // -12 dB style level by shifting md_audio_* right by two bits.
+    localparam bit DEBUG_FIXED_REGION_MODE_1 = (`FIXED_REGION_MODE == 1);
+
     wire [7:0] red =
-        audio_seen_latched ? 8'hff :
+        audio_seen_latched ? (DEBUG_FIXED_REGION_MODE_1 ? 8'h00 : 8'hff) :
         done_latched       ? 8'h00 :
         player_busy        ? 8'hd0 :
                              8'h00;
