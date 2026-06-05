@@ -2142,3 +2142,39 @@ short settle wait
 Only `REGION_MODE=1` was changed for this step. The proven BRINGUP_TONE region,
 `emu.sv`, `mister_vgm_md_top.sv`, `md_sound_module.sv`, JT12/JT89, and
 `AUDIO_L/R >>> 2` scaling remain unchanged.
+
+## 2026-06-05: VGM Snippet PSG Three-Tone Isolation
+
+The `REGION_MODE=1` VGM_SNIPPET build was tested on real MiSTer hardware after
+the first-audio fix.
+
+Observed result:
+
+- White debug screen appeared.
+- MiSTer menu return worked.
+- The real audio output produced a sound described as `ぷーー〜〜`.
+- The sound grew in volume and ended.
+
+This confirms that the `REGION_MODE=1` selection and the real MiSTer audio path
+are working, but the previous FM-focused snippet did not sound like the expected
+FM three-note plus PSG sequence. For the next isolation step, `REGION_MODE=1`
+has been changed to a PSG-focused three-tone test:
+
+```text
+YM key-off / DAC zero / DAC off
+PSG all channels mute
+short settle wait
+PSG ch0 tone period 0x100, volume unmute, wait 22050 samples
+PSG ch0 mute, short wait
+PSG ch0 tone period 0x080, volume unmute, wait 22050 samples
+PSG ch0 mute, short wait
+PSG ch0 tone period 0x040, volume unmute, wait 22050 samples
+PSG all channels mute
+YM key-off / DAC zero / DAC off
+short settle wait
+66 end
+```
+
+The purpose is to make command progression and VGM wait handling audible with
+three clearly different PSG pitches before returning to more complex FM/VGM
+snippets. BRINGUP_TONE remains unchanged.
