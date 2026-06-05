@@ -2496,3 +2496,65 @@ startup_done=1
 
 `emu.sv`, `AUDIO_L/R`, output `>>> 2` scaling, `md_sound_module`, JT12/JT89,
 and `vgm_region_player` were not changed for this step.
+
+## 2026-06-06: Hold VGM Top Reset Until PLL Locked
+
+The cold-load test on real MiSTer hardware still did not start audio, while a
+manual MiSTer core reset did. During manual reset the screen briefly became
+yellow, proving that the `mister_vgm_md_top` startup reset sequence runs when a
+valid reset is delivered to it. The next suspicion is that, during cold core
+load, relying only on internal initial values is not enough and the sound top
+needs a reset explicitly tied to the MiSTer/PLL startup state.
+
+`rtl/emu.sv` already had the InputTest-derived PLL `locked` signal:
+
+```systemverilog
+wire pll_locked;
+```
+
+The raw core reset condition remains:
+
+```systemverilog
+RESET | status[0] | !pll_locked
+```
+
+For the VGM sound top, a dedicated reset stretcher was added. It keeps
+`mister_vgm_md_top.reset_n` low while any reset request is active:
+
+```text
+MiSTer RESET
+OR OSD/status reset, status[0]
+OR PLL not locked
+```
+
+After those reset requests are released, it keeps reset asserted for an
+additional 24-bit counter window before allowing `mister_vgm_md_top` to run.
+At a 50 MHz clock this is about 0.33 seconds. After that, the existing internal
+`POWER_ON_RESET_CYCLES` and `START_DELAY_CYCLES` sequence inside
+`mister_vgm_md_top` still runs normally.
+
+The intended startup order is now:
+
+```text
+PLL not locked
+  -> vgm_reset_n held low
+PLL locked
+  -> emu-side reset stretcher holds vgm_reset_n low a little longer
+vgm_reset_n released
+  -> mister_vgm_md_top internal POR
+  -> mister_vgm_md_top start delay
+  -> one-clock start pulse
+  -> audio_sample_valid observed
+```
+
+Debug colors are unchanged:
+
+```text
+yellow   mister_vgm_md_top startup reset active
+magenta  start delay waiting
+cyan     audio_sample_valid observed
+```
+
+`AUDIO_L/R`, output `>>> 2` scaling, `md_sound_module`, JT12/JT89, and
+`vgm_region_player` were not changed. The `tb_mister_vgm_md_top` smoke test
+still completed with 5000 audio sample edges after this change.

@@ -322,6 +322,25 @@ module emu
     ///////////////////   VIDEO   ////////////////////
 
     wire reset = RESET | status[0] | !pll_locked;
+    wire vgm_reset_req = RESET | status[0] | !pll_locked;
+    reg [23:0] vgm_reset_hold_count = 24'd0;
+    reg        vgm_reset_hold_active = 1'b1;
+
+    always @(posedge clk_sys) begin
+        if (vgm_reset_req) begin
+            vgm_reset_hold_count <= 24'd0;
+            vgm_reset_hold_active <= 1'b1;
+        end else if (vgm_reset_hold_active) begin
+            if (&vgm_reset_hold_count) begin
+                vgm_reset_hold_active <= 1'b0;
+            end else begin
+                vgm_reset_hold_count <= vgm_reset_hold_count + 24'd1;
+            end
+        end
+    end
+
+    wire vgm_reset = vgm_reset_req | vgm_reset_hold_active;
+    wire vgm_reset_n = !vgm_reset;
 
     wire               audio_sample_valid;
     wire               player_busy;
@@ -334,7 +353,7 @@ module emu
 
     mister_vgm_md_top md_sound (
         .clk                   (clk_sys),
-        .reset_n               (!reset),
+        .reset_n               (vgm_reset_n),
         .audio_l               (md_audio_l),
         .audio_r               (md_audio_r),
         .audio_sample_valid    (audio_sample_valid),
