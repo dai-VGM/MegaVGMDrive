@@ -7,7 +7,7 @@ module tb_mister_vgm_md_top;
     localparam logic [31:0] TB_START_DELAY_CYCLES = 32'd1024;
 
     logic clk = 1'b0;
-    logic reset_n = 1'b0;
+    logic reset_n = 1'b1;
 
     wire signed [15:0] audio_l;
     wire signed [15:0] audio_r;
@@ -57,9 +57,8 @@ module tb_mister_vgm_md_top;
         end
 
         repeat (64) @(posedge clk);
-        reset_n <= 1'b1;
 
-        $display("MISTER_VGM_MD_TOP_TEST_START samples=%0d power_on_reset_cycles=%0d start_delay_cycles=%0d",
+        $display("MISTER_VGM_MD_TOP_TEST_START cold_start_reset_n_initial_high=1 samples=%0d power_on_reset_cycles=%0d start_delay_cycles=%0d",
                  AUDIO_DUMP_SAMPLE_COUNT,
                  TB_POWER_ON_RESET_CYCLES,
                  TB_START_DELAY_CYCLES);

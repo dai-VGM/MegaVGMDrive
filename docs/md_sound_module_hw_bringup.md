@@ -2430,3 +2430,69 @@ startup_done=1
 
 `AUDIO_L/R`, output `>>> 2` scaling, `md_sound_module`, JT12/JT89, and
 `vgm_region_player` were not changed for this step.
+
+## 2026-06-06: Cold-Load Startup Registers Made Edge-Independent
+
+The internal power-on reset from the previous step was visible on real hardware
+when the MiSTer core reset button was pressed: the screen briefly became
+yellow, then the fixed snippet played. However, a cold core load / cold boot
+still did not start audio. This means the reset path after a manual reset is
+good, but the configuration-time startup state may not have been entering the
+same known sequence.
+
+`rtl/mister_vgm_md_top.sv` was adjusted so the startup sequence no longer
+depends on seeing a `reset_n` rising edge. The startup-related registers now
+have explicit synthesizable initial values:
+
+```systemverilog
+reset_sync          = 3'b111
+por_counter         = 32'd0
+por_done            = 1'b0
+start_delay_counter = 32'd0
+start_sent          = 1'b0
+start_pulse         = 1'b0
+```
+
+With these values, even if `reset_n` is already high immediately after FPGA
+configuration, the module starts in this state:
+
+```text
+POR not done
+start not sent
+internal reset asserted
+```
+
+The sequence is now:
+
+```text
+configuration/cold load initial state
+  -> POR counter runs
+  -> por_done becomes 1
+  -> START_DELAY counter runs
+  -> one-clock start_pulse
+  -> start_sent remains 1
+```
+
+If external `reset_n` is driven low later, the same registers are returned to
+the initial startup state, so a MiSTer core reset and a cold load should follow
+the same playback path.
+
+`tb/tb_mister_vgm_md_top.sv` was changed to keep `reset_n` high from time zero
+instead of creating an initial reset pulse. This simulates the important
+failure case: startup must work from register initial values, not only after a
+reset release edge.
+
+The cold-start-style TB completed:
+
+```text
+MISTER_VGM_MD_TOP_TEST_START cold_start_reset_n_initial_high=1
+MISTER_VGM_MD_TOP_TEST_DONE
+wav_written_samples=5000
+audio_sample_valid_edges=5000
+startup_reset=0
+startup_waiting=0
+startup_done=1
+```
+
+`emu.sv`, `AUDIO_L/R`, output `>>> 2` scaling, `md_sound_module`, JT12/JT89,
+and `vgm_region_player` were not changed for this step.

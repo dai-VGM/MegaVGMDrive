@@ -46,11 +46,19 @@ module mister_vgm_md_top #(
     output logic              startup_done
 );
 
+    logic        reset;
     logic [2:0]  reset_sync = 3'b111;
     logic        external_reset;
-    logic        reset;
-    logic [31:0] power_on_reset_count = 32'd0;
-    logic        power_on_reset_active = 1'b1;
+
+    // These initialization values are intentional for hardware bring-up:
+    // when reset_n is already high at FPGA configuration completion, the
+    // startup sequence still begins from a known "POR not done / not started"
+    // state without waiting for a reset_n edge.
+    logic [31:0] por_counter = 32'd0;
+    logic        por_done = 1'b0;
+    logic [31:0] start_delay_counter = 32'd0;
+    logic        start_sent = 1'b0;
+    logic        start_pulse = 1'b0;
 
     always_ff @(posedge clk or negedge reset_n) begin
         if (!reset_n) begin
@@ -62,68 +70,39 @@ module mister_vgm_md_top #(
 
     assign external_reset = reset_sync[2];
 
-    always_ff @(posedge clk or negedge reset_n) begin
-        if (!reset_n) begin
-            power_on_reset_active <= 1'b1;
-            power_on_reset_count <= 32'd0;
-        end else if (external_reset) begin
-            power_on_reset_active <= 1'b1;
-            power_on_reset_count <= 32'd0;
-        end else if (power_on_reset_active) begin
-            if (power_on_reset_count >= POWER_ON_RESET_CYCLES) begin
-                power_on_reset_active <= 1'b0;
-            end else begin
-                power_on_reset_count <= power_on_reset_count + 32'd1;
-            end
-        end
-    end
+    assign reset = external_reset | !por_done;
 
-    assign reset = external_reset | power_on_reset_active;
-
-    typedef enum logic [1:0] {
-        START_WAIT_RESET,
-        START_PULSE,
-        START_DONE
-    } start_state_t;
-
-    start_state_t start_state;
-    logic         start_pulse;
-    logic [31:0]  start_delay_count;
-
-    assign startup_reset_active = power_on_reset_active;
-    assign startup_waiting = !reset && (start_state == START_WAIT_RESET);
-    assign startup_done = !reset && (start_state == START_DONE);
+    assign startup_reset_active = !por_done;
+    assign startup_waiting = por_done && !start_sent;
+    assign startup_done = por_done && start_sent;
 
     always_ff @(posedge clk) begin
-        if (reset) begin
-            start_state <= START_WAIT_RESET;
+        if (external_reset) begin
+            por_counter <= 32'd0;
+            por_done <= 1'b0;
+            start_delay_counter <= 32'd0;
+            start_sent <= 1'b0;
             start_pulse <= 1'b0;
-            start_delay_count <= 32'd0;
         end else begin
             start_pulse <= 1'b0;
 
-            unique case (start_state)
-                START_WAIT_RESET: begin
-                    if (start_delay_count >= START_DELAY_CYCLES) begin
-                        start_state <= START_PULSE;
-                    end else begin
-                        start_delay_count <= start_delay_count + 32'd1;
-                    end
-                end
+            if (!por_done) begin
+                start_delay_counter <= 32'd0;
+                start_sent <= 1'b0;
 
-                START_PULSE: begin
+                if (por_counter >= POWER_ON_RESET_CYCLES) begin
+                    por_done <= 1'b1;
+                end else begin
+                    por_counter <= por_counter + 32'd1;
+                end
+            end else if (!start_sent) begin
+                if (start_delay_counter >= START_DELAY_CYCLES) begin
                     start_pulse <= 1'b1;
-                    start_state <= START_DONE;
+                    start_sent <= 1'b1;
+                end else begin
+                    start_delay_counter <= start_delay_counter + 32'd1;
                 end
-
-                START_DONE: begin
-                    start_state <= START_DONE;
-                end
-
-                default: begin
-                    start_state <= START_DONE;
-                end
-            endcase
+            end
         end
     end
 
