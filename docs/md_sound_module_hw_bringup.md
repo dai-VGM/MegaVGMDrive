@@ -2325,3 +2325,34 @@ Conclusion:
 - The forced VGM_SNIPPET path is active on hardware.
 - JT12/FM writes still work in the forced snippet path.
 - The remaining bring-up focus is now the PSG section after the FM lead-in.
+
+## 2026-06-06: Auto-Start Delay After Core Load
+
+The forced VGM_SNIPPET hardware build was confirmed further:
+
+- The screen became cyan.
+- The FM lead-in tone was audible.
+- The sound stopped at the end.
+- MiSTer menu return worked.
+
+However, the sound did not start immediately after loading the core. It started
+only after issuing a MiSTer core reset. This points to the fixed-region
+auto-start pulse being too early during initial core load, before the PLL,
+audio path, JT12/JT89, or reset synchronizers are fully settled.
+
+`mister_vgm_md_top.sv` now delays the one-shot start pulse after reset release:
+
+```systemverilog
+parameter logic [31:0] START_DELAY_CYCLES = 32'd25_000_000
+```
+
+At a 50 MHz `clk_sys`, the default delay is about 0.5 seconds. The testbench
+overrides this to a smaller value so simulation remains fast:
+
+```systemverilog
+.START_DELAY_CYCLES(32'd1024)
+```
+
+Only the auto-start timing was changed. `emu.sv` debug latches/colors,
+`AUDIO_L/R`, output `>>> 2` scaling, `md_sound_module`, JT12/JT89, and
+`vgm_region_player` were not changed for this step.

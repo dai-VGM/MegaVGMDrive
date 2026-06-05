@@ -3,6 +3,7 @@
 module tb_mister_vgm_md_top;
 
     localparam int AUDIO_DUMP_SAMPLE_COUNT = 5000;
+    localparam logic [31:0] TB_START_DELAY_CYCLES = 32'd1024;
 
     logic clk = 1'b0;
     logic reset_n = 1'b0;
@@ -22,7 +23,9 @@ module tb_mister_vgm_md_top;
     integer watchdog_clk_count = 0;
     bit     audio_sample_valid_prev = 1'b0;
 
-    mister_vgm_md_top dut (
+    mister_vgm_md_top #(
+        .START_DELAY_CYCLES    (TB_START_DELAY_CYCLES)
+    ) dut (
         .clk                   (clk),
         .reset_n               (reset_n),
         .audio_l               (audio_l),
@@ -48,7 +51,9 @@ module tb_mister_vgm_md_top;
         repeat (64) @(posedge clk);
         reset_n <= 1'b1;
 
-        $display("MISTER_VGM_MD_TOP_TEST_START samples=%0d", AUDIO_DUMP_SAMPLE_COUNT);
+        $display("MISTER_VGM_MD_TOP_TEST_START samples=%0d start_delay_cycles=%0d",
+                 AUDIO_DUMP_SAMPLE_COUNT,
+                 TB_START_DELAY_CYCLES);
 
         while (audio_dump_count < AUDIO_DUMP_SAMPLE_COUNT) begin
             @(posedge clk);

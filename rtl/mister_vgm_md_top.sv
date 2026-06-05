@@ -11,7 +11,11 @@
 // The fixed region auto-starts once after reset is released. No SD card, HPS,
 // OSD, file loading, or VGM selection is implemented here.
 
-module mister_vgm_md_top (
+module mister_vgm_md_top #(
+    // Hardware bring-up delay before the fixed VGM region starts.
+    // With a 50 MHz clk_sys, 25,000,000 cycles is about 0.5 seconds.
+    parameter logic [31:0] START_DELAY_CYCLES = 32'd25_000_000
+) (
     input  logic              clk,
 
     // Active-low reset is convenient for many board/top-level wrappers. It is
@@ -54,17 +58,23 @@ module mister_vgm_md_top (
 
     start_state_t start_state;
     logic         start_pulse;
+    logic [31:0]  start_delay_count;
 
     always_ff @(posedge clk) begin
         if (reset) begin
             start_state <= START_WAIT_RESET;
             start_pulse <= 1'b0;
+            start_delay_count <= 32'd0;
         end else begin
             start_pulse <= 1'b0;
 
             unique case (start_state)
                 START_WAIT_RESET: begin
-                    start_state <= START_PULSE;
+                    if (start_delay_count >= START_DELAY_CYCLES) begin
+                        start_state <= START_PULSE;
+                    end else begin
+                        start_delay_count <= start_delay_count + 32'd1;
+                    end
                 end
 
                 START_PULSE: begin
