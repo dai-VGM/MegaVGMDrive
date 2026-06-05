@@ -1862,3 +1862,39 @@ Alternative considered: gate `AUDIO_L/R` to zero after `player_done_latched`.
 That is still a useful emergency mute for future bring-up, but the current
 change keeps the player behavior closer to real VGM command playback by sending
 explicit chip writes.
+
+## 2026-06-05: Longer Hardware Bring-Up Tone
+
+After adding the first silence sequence, the real MiSTer build still reached
+the white debug screen and the menu remained usable, but audio was only a short
+pop at reset. Before the silence sequence was added, the same path produced a
+continuous tone. This strongly suggests that the fixed region was ending and
+silencing the chips before the test tone was comfortably audible on real
+hardware.
+
+For bring-up, `rtl/vgm_region_player.sv` was changed from a very short sound
+snippet to an intentionally long audible test:
+
+```text
+FM ch1 key-on
+61 44 AC   wait 44100 samples, about 1 second
+61 44 AC   wait 44100 samples, about 1 second
+FM key-off / DAC zero / DAC off
+short settle wait
+PSG ch0 tone on
+61 44 AC   wait 44100 samples, about 1 second
+61 44 AC   wait 44100 samples, about 1 second
+FM key-off / DAC zero / DAC off / PSG mute
+short settle wait
+66 end
+```
+
+This gives a clear hardware checklist:
+
+1. Hear an FM tone for about two seconds.
+2. Hear a PSG tone for about two seconds.
+3. Confirm the output becomes silent after the final silence sequence.
+4. Confirm the white debug screen and MiSTer menu behavior remain stable.
+
+`AUDIO_L/R` scaling remains conservative at `>>> 2`. `emu.sv`,
+`mister_vgm_md_top.sv`, `md_sound_module.sv`, JT12, and JT89 were not changed.

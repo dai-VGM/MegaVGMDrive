@@ -79,7 +79,9 @@ module vgm_region_player (
     //   0x66             end
     //
     // The YM register sequence is a compact channel-1 tone based on the
-    // successful TEST_YM_TONE setup, plus a short PSG tone and tiny DAC blip.
+    // successful TEST_YM_TONE setup. For real hardware bring-up, the ROM keeps
+    // the FM tone audible for about two seconds, silences it, then plays a PSG
+    // tone for about two seconds before the final silence/end sequence.
     function automatic logic [7:0] rom_byte(input logic [9:0] addr);
         unique case (addr)
             // YM setup: LFO/timer/DAC off/key off.
@@ -123,33 +125,30 @@ module vgm_region_player (
             10'd81:  rom_byte = 8'h52; 10'd82:  rom_byte = 8'hB4; 10'd83:  rom_byte = 8'hC0;
             10'd84:  rom_byte = 8'h52; 10'd85:  rom_byte = 8'h28; 10'd86:  rom_byte = 8'hF0;
 
-            // PSG tone, same basic command shape as TEST_PSG_TONE.
-            10'd87:  rom_byte = 8'h50; 10'd88:  rom_byte = 8'h9F;
-            10'd89:  rom_byte = 8'h50; 10'd90:  rom_byte = 8'hBF;
-            10'd91:  rom_byte = 8'h50; 10'd92:  rom_byte = 8'hDF;
-            10'd93:  rom_byte = 8'h50; 10'd94:  rom_byte = 8'hFF;
-            10'd95:  rom_byte = 8'h50; 10'd96:  rom_byte = 8'h80;
-            10'd97:  rom_byte = 8'h50; 10'd98:  rom_byte = 8'h10;
-            10'd99:  rom_byte = 8'h50; 10'd100: rom_byte = 8'h90;
+            // FM tone hold: two 44100-sample waits, about two seconds total.
+            10'd87:  rom_byte = 8'h61; 10'd88:  rom_byte = 8'h44; 10'd89:  rom_byte = 8'hAC;
+            10'd90:  rom_byte = 8'h61; 10'd91:  rom_byte = 8'h44; 10'd92:  rom_byte = 8'hAC;
 
-            // Let FM+PSG ring for about 2048 samples.
-            10'd101: rom_byte = 8'h61; 10'd102: rom_byte = 8'h00; 10'd103: rom_byte = 8'h08;
+            // Silence FM and keep DAC safely off before the PSG-only section.
+            10'd93:  rom_byte = 8'h52; 10'd94:  rom_byte = 8'h28; 10'd95:  rom_byte = 8'h00;
+            10'd96:  rom_byte = 8'h52; 10'd97:  rom_byte = 8'h2A; 10'd98:  rom_byte = 8'h00;
+            10'd99:  rom_byte = 8'h52; 10'd100: rom_byte = 8'h2B; 10'd101: rom_byte = 8'h00;
+            10'd102: rom_byte = 8'h61; 10'd103: rom_byte = 8'h00; 10'd104: rom_byte = 8'h04;
 
-            // Tiny DAC exercise: enable DAC, seek mini PCM bank, stream bytes.
-            10'd104: rom_byte = 8'h52; 10'd105: rom_byte = 8'h2B; 10'd106: rom_byte = 8'h80;
-            10'd107: rom_byte = 8'hE0; 10'd108: rom_byte = 8'h00; 10'd109: rom_byte = 8'h00;
-            10'd110: rom_byte = 8'h00; 10'd111: rom_byte = 8'h00;
-            10'd112: rom_byte = 8'h84;
-            10'd113: rom_byte = 8'h84;
-            10'd114: rom_byte = 8'h84;
-            10'd115: rom_byte = 8'h84;
-            10'd116: rom_byte = 8'h84;
-            10'd117: rom_byte = 8'h84;
-            10'd118: rom_byte = 8'h84;
-            10'd119: rom_byte = 8'h84;
-            10'd120: rom_byte = 8'h52; 10'd121: rom_byte = 8'h2B; 10'd122: rom_byte = 8'h00;
+            // PSG tone, same basic command shape as TEST_PSG_TONE. Other PSG
+            // channels stay muted so the bring-up tone is easy to identify.
+            10'd105: rom_byte = 8'h50; 10'd106: rom_byte = 8'hBF;
+            10'd107: rom_byte = 8'h50; 10'd108: rom_byte = 8'hDF;
+            10'd109: rom_byte = 8'h50; 10'd110: rom_byte = 8'hFF;
+            10'd111: rom_byte = 8'h50; 10'd112: rom_byte = 8'h80;
+            10'd113: rom_byte = 8'h50; 10'd114: rom_byte = 8'h10;
+            10'd115: rom_byte = 8'h50; 10'd116: rom_byte = 8'h90;
 
-            // Explicit silence sequence for hardware bring-up:
+            // PSG tone hold: two 44100-sample waits, about two seconds total.
+            10'd117: rom_byte = 8'h61; 10'd118: rom_byte = 8'h44; 10'd119: rom_byte = 8'hAC;
+            10'd120: rom_byte = 8'h61; 10'd121: rom_byte = 8'h44; 10'd122: rom_byte = 8'hAC;
+
+            // Explicit final silence sequence for hardware bring-up:
             // key off FM ch1, clear DAC data, keep DAC disabled, mute all PSG
             // channels, then wait briefly before reporting end.
             10'd123: rom_byte = 8'h52; 10'd124: rom_byte = 8'h28; 10'd125: rom_byte = 8'h00;
