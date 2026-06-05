@@ -2306,3 +2306,22 @@ This separates the next hardware result into two questions:
 The cyan debug screen and source-forced `REGION_MODE=1` default remain in place
 for this check. `emu.sv`, `AUDIO_L/R`, output `>>> 2` scaling,
 `mister_vgm_md_top`, `md_sound_module`, JT12, and JT89 were not changed.
+
+## 2026-06-05: Forced VGM Snippet Hardware Confirmation
+
+The source-forced VGM_SNIPPET build was tested again on real MiSTer hardware.
+
+Observed result:
+
+- The screen became cyan.
+- This confirms that the forced `REGION_MODE=1` / VGM_SNIPPET build was present
+  in the RBF.
+- The first FM lead-in tone was audible as a clear `ぴー` sound.
+- MiSTer menu return still worked.
+
+Conclusion:
+
+- The Windows/Quartus/RBF path is now confirmed to include the latest source.
+- The forced VGM_SNIPPET path is active on hardware.
+- JT12/FM writes still work in the forced snippet path.
+- The remaining bring-up focus is now the PSG section after the FM lead-in.
