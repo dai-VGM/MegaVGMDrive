@@ -1986,8 +1986,13 @@ Observed VGM snippet smoke result:
 
 ```text
 FIXED_REGION_TEST_START samples=5000 region_mode=1
-FIXED_REGION_TEST_DONE wav_written_samples=5000 audio_sample_valid_edges=5000 pc=116 last_cmd=66 busy=0 done=0
+FIXED_REGION_TEST_DONE wav_written_samples=5000 audio_sample_valid_edges=5000 pc=90 last_cmd=61 busy=1 done=0
 ```
+
+The snippet now contains one-second FM and PSG waits, so a 5000-sample smoke
+test is expected to finish while the player is still inside the first `0x61`
+wait. `wav_written_samples == audio_sample_valid_edges` is the pass condition
+for this short simulation check.
 
 For a hardware `.rbf`, `mister_vgm_md_top` still uses the default mode unless a
 compile-time macro overrides it. To build the snippet without changing
@@ -2001,3 +2006,102 @@ set_global_assignment -name VERILOG_MACRO "FIXED_REGION_MODE=1"
 
 Remove that assignment, or set it back to `0`, to return to the proven
 BRINGUP_TONE region.
+
+## 2026-06-05: VGM Snippet Hardware Retry With Known Init
+
+The first `REGION_MODE=1` VGM snippet was tested on real MiSTer hardware.
+
+Observed result:
+
+- White debug screen appeared.
+- MiSTer menu return still worked.
+- Audio was silent.
+
+The previous `REGION_MODE=0` BRINGUP_TONE build produced audible FM and PSG and
+then silenced correctly, so the MiSTer shell, `AUDIO_L/R`, and md sound path are
+still considered good. The likely issue is that the first snippet behaved too
+much like a mid-stream fragment: it depended on chip state that does not exist
+when the fixed ROM starts from reset.
+
+To remove that dependency, `REGION_MODE=1` now reuses the exact known-good YM
+initialization/timbre/frequency/pan/key-on command sequence from the hardware
+passing BRINGUP_TONE region. After that it runs:
+
+```text
+known-good YM init/timbre/frequency/pan/key-on
+61 44 AC   wait 44100 samples, about 1 second
+FM key-off / DAC zero / DAC off
+short settle wait
+explicit PSG ch0 tone setup and volume unmute
+61 44 AC   wait 44100 samples, about 1 second
+FM key-off / DAC zero / DAC off / PSG mute
+short settle wait
+66 end
+```
+
+This version is still selected with:
+
+```tcl
+set_global_assignment -name VERILOG_MACRO "FIXED_REGION_MODE=1"
+```
+
+Files intentionally unchanged for this retry:
+
+- `rtl/emu.sv`
+- `rtl/mister_vgm_md_top.sv`
+- `rtl/md_sound_module.sv`
+- JT12/JT89 files
+- `AUDIO_L/R >>> 2` scaling
+
+## 2026-06-05: VGM Snippet Still Silent, Audio Path Reconfirmed
+
+The `FIXED_REGION_MODE=1` VGM snippet build was tested on real MiSTer hardware
+again.
+
+Observed result:
+
+- White debug screen appeared.
+- MiSTer menu return still worked.
+- Audio was still silent.
+
+The `FIXED_REGION_MODE=1` assignment was then removed/commented out, returning
+the hardware build to the default BRINGUP_TONE region.
+
+Observed result:
+
+- White debug screen appeared.
+- MiSTer menu return still worked.
+- FM and PSG bring-up tones were audible.
+- The final silence sequence stopped the sound.
+
+Conclusion:
+
+- The MiSTer shell is good.
+- `AUDIO_L/R` is good.
+- `md_sound_module`, JT12, and JT89 are good.
+- The proven BRINGUP_TONE command path is good.
+- The remaining issue is specific to VGM_SNIPPET selection/content.
+
+Two corrective actions are now in place:
+
+1. `REGION_MODE=1` reuses the known-good BRINGUP_TONE YM init/timbre/frequency/
+   pan/key-on sequence at the start, then holds FM for about one second.
+2. `md_sound_fixed_region_test` now also defaults its `REGION_MODE` parameter to
+   `FIXED_REGION_MODE`, so a Quartus macro assignment can propagate through:
+
+```systemverilog
+module md_sound_fixed_region_test #(
+    parameter int REGION_MODE = `FIXED_REGION_MODE
+) (
+```
+
+This matters because `mister_vgm_md_top` instantiates `md_sound_fixed_region_test`
+without an explicit parameter override. If the wrapper default stayed fixed at
+`0`, then the macro could fail to select the snippet at the actual hardware top
+path even though `vgm_region_player` itself supported the macro.
+
+The intended hardware snippet build selection remains:
+
+```tcl
+set_global_assignment -name VERILOG_MACRO "FIXED_REGION_MODE=1"
+```
