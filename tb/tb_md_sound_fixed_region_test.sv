@@ -40,6 +40,7 @@ module tb_md_sound_fixed_region_test;
     wire signed [15:0] audio_l;
     wire signed [15:0] audio_r;
     wire               audio_sample_valid;
+    wire               vgm_wait_tick = audio_sample_valid;
 
     wire        player_busy;
     wire        player_done;
@@ -58,6 +59,7 @@ module tb_md_sound_fixed_region_test;
         .clk                   (clk),
         .reset                 (reset),
         .start                 (start),
+        .vgm_wait_tick         (vgm_wait_tick),
         .audio_l               (audio_l),
         .audio_r               (audio_r),
         .audio_sample_valid    (audio_sample_valid),

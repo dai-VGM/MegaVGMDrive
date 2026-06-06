@@ -3248,6 +3248,89 @@ final wait before 0x66 end
 No RTL was changed for this note. This records the hardware pass result only.
 
 
+## 2026-06-06: VGM Wait Tick Split from Audio Sample Valid
+
+`REGION_MODE=4 / TIMING_CALIBRATION` was tested on real MiSTer hardware.
+
+Observed result:
+
+```text
+expected: 1 second tone
+actual: tone was clearly too long
+```
+
+This confirmed that using `audio_sample_valid` as the VGM wait progression
+source is not suitable on real hardware. `audio_sample_valid` is derived from
+JT12's `snd_sample`:
+
+```text
+md_sound_module:
+  audio_sample_valid = audio_path_enable && jt12_sample
+```
+
+That strobe remains useful for audio/debug/dump timing, but VGM wait commands
+must advance in VGM's 44100 Hz sample units.
+
+Implementation change:
+
+```text
+vgm_region_player:
+  old wait source: audio_sample_valid rising edge
+  new wait source: vgm_wait_tick rising edge
+
+md_sound_fixed_region_test:
+  now passes vgm_wait_tick into vgm_region_player
+
+mister_vgm_md_top:
+  generates vgm_wait_tick with a phase accumulator
+  default parameters:
+    CLK_SYS_HZ  = 50000000
+    VGM_WAIT_HZ = 44100
+```
+
+The phase accumulator produces an average 44100 Hz tick from the 50 MHz MiSTer
+system clock. This avoids using JT12's sample strobe as the VGM tempo source.
+
+For compatibility with earlier direct fixed-region simulation tests,
+`tb_md_sound_fixed_region_test.sv` currently drives:
+
+```text
+vgm_wait_tick = audio_sample_valid
+```
+
+The real MiSTer path uses the dedicated phase-accumulator tick from
+`mister_vgm_md_top`.
+
+Mode 4 remains the hardware timing calibration region:
+
+```text
+FIXED_REGION_MODE = 4
+debug color: lime
+pattern: 1 second tone / 1 second silence repeated
+wait command: 61 44 AC, 44100 samples
+```
+
+Build checks:
+
+```text
+TEST_FIXED_TIMING_CALIBRATION_100K build: passed
+tb_mister_vgm_md_top build: passed
+tb_mister_vgm_md_top run:
+  wav_written_samples=5000
+  audio_sample_valid_edges=5000
+  startup_done=1
+  audio_gate_open=1
+```
+
+Unchanged:
+
+```text
+md_sound_module internals
+JT12/JT89 sources
+AUDIO_L/R and >>> 2 scaling
+```
+
+
 ## 2026-06-06: Region Mode 3 Hardware Timing Issue and Mode 4 Calibration
 
 `REGION_MODE=3 / VGM_REAL_PHRASE` was tested again on real MiSTer hardware

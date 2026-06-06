@@ -9,8 +9,9 @@
 //   vgm_region_player -> ym_cmd_valid/port/reg/data -> md_sound_module
 //                     -> psg_cmd_valid/data          -> md_sound_module
 //
-// Wait commands count audio_sample_valid rising edges, so the timing is tied
-// to the same sample strobe used by the simulation WAV dumper.
+// Wait commands count vgm_wait_tick rising edges. Keep this separate from
+// audio_sample_valid: JT12's sample strobe is useful for audio dumping/debug,
+// but VGM waits are defined in 44100 Hz VGM sample units.
 //
 // Default region mode:
 //   0 = proven hardware bring-up tone
@@ -34,8 +35,9 @@ module vgm_region_player #(
     // Hold high to auto-start after reset, or pulse high to start once.
     input  logic       start,
 
-    // New sample strobe from md_sound_module. Used for VGM wait timing.
-    input  logic       audio_sample_valid,
+    // Dedicated VGM wait timing strobe. One rising edge is one VGM sample.
+    // For standard VGM timing, drive this at 44100 Hz.
+    input  logic       vgm_wait_tick,
 
     // Command-ready handshakes from md_sound_module.
     input  logic       ym_cmd_ready,
@@ -76,7 +78,7 @@ module vgm_region_player #(
     logic [7:0] cmd;
 
     logic [15:0] wait_remaining;
-    logic        audio_sample_valid_d;
+    logic        vgm_wait_tick_d;
 
     logic [9:0] pcm_pos;
 
@@ -525,7 +527,7 @@ module vgm_region_player #(
         endcase
     endfunction
 
-    wire audio_sample_edge = audio_sample_valid && !audio_sample_valid_d;
+    wire vgm_wait_tick_edge = vgm_wait_tick && !vgm_wait_tick_d;
 
     always_ff @(posedge clk) begin
         if (reset) begin
@@ -534,7 +536,7 @@ module vgm_region_player #(
             cmd                  <= 8'h00;
             wait_remaining       <= 16'd0;
             pcm_pos              <= 10'd0;
-            audio_sample_valid_d <= 1'b0;
+            vgm_wait_tick_d      <= 1'b0;
 
             ym_cmd_valid         <= 1'b0;
             ym_cmd_port          <= 1'b0;
@@ -547,7 +549,7 @@ module vgm_region_player #(
             done                 <= 1'b0;
             last_cmd_debug       <= 8'h00;
         end else begin
-            audio_sample_valid_d <= audio_sample_valid;
+            vgm_wait_tick_d      <= vgm_wait_tick;
             ym_cmd_valid         <= 1'b0;
             psg_cmd_valid        <= 1'b0;
 
@@ -681,7 +683,7 @@ module vgm_region_player #(
                 ST_WAIT_SAMPLES: begin
                     if (wait_remaining == 16'd0) begin
                         state <= ST_FETCH;
-                    end else if (audio_sample_edge) begin
+                    end else if (vgm_wait_tick_edge) begin
                         wait_remaining <= wait_remaining - 16'd1;
                     end
                 end
@@ -716,6 +718,7 @@ module md_sound_fixed_region_test #(
     input  logic              clk,
     input  logic              reset,
     input  logic              start,
+    input  logic              vgm_wait_tick,
 
     output signed      [15:0] audio_l,
     output signed      [15:0] audio_r,
@@ -742,7 +745,7 @@ module md_sound_fixed_region_test #(
         .clk                   (clk),
         .reset                 (reset),
         .start                 (start),
-        .audio_sample_valid    (audio_sample_valid),
+        .vgm_wait_tick         (vgm_wait_tick),
         .ym_cmd_ready          (ym_cmd_ready),
         .psg_cmd_ready         (psg_cmd_ready),
         .ym_cmd_valid          (ym_cmd_valid),

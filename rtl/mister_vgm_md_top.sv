@@ -29,7 +29,13 @@ module mister_vgm_md_top #(
     // md_sound_module is running and producing sample strobes, but emu.sv still
     // keeps AUDIO_L/R at zero. 22050 samples is about 0.5 seconds at 44.1 kHz.
     parameter logic [15:0] AUDIO_WARMUP_SAMPLES = 16'd22050,
-    parameter logic [15:0] GATE_TO_START_CYCLES = 16'd1024
+    parameter logic [15:0] GATE_TO_START_CYCLES = 16'd1024,
+
+    // VGM waits are specified in 44100 Hz sample units. Generate a dedicated
+    // average-44100 Hz tick for the fixed VGM player instead of using the JT12
+    // audio sample strobe.
+    parameter logic [31:0] CLK_SYS_HZ = 32'd50_000_000,
+    parameter logic [31:0] VGM_WAIT_HZ = 32'd44_100
 ) (
     input  logic              clk,
 
@@ -75,6 +81,8 @@ module mister_vgm_md_top #(
     logic        start_sent = 1'b0;
     logic        start_pulse = 1'b0;
     logic        audio_sample_valid_d = 1'b0;
+    logic [31:0] vgm_wait_accum = 32'd0;
+    logic        vgm_wait_tick = 1'b0;
 
     typedef enum logic [2:0] {
         STARTUP_RESET,
@@ -105,6 +113,21 @@ module mister_vgm_md_top #(
                              (startup_state == STARTUP_AUDIO_WARMUP) ||
                              (startup_state == STARTUP_GATE_OPEN_WAIT);
     assign startup_done = (startup_state == STARTUP_SNIPPET_STARTED);
+
+    always_ff @(posedge clk) begin
+        if (reset) begin
+            vgm_wait_accum <= 32'd0;
+            vgm_wait_tick  <= 1'b0;
+        end else begin
+            if (vgm_wait_accum >= (CLK_SYS_HZ - VGM_WAIT_HZ)) begin
+                vgm_wait_accum <= vgm_wait_accum + VGM_WAIT_HZ - CLK_SYS_HZ;
+                vgm_wait_tick  <= 1'b1;
+            end else begin
+                vgm_wait_accum <= vgm_wait_accum + VGM_WAIT_HZ;
+                vgm_wait_tick  <= 1'b0;
+            end
+        end
+    end
 
     always_ff @(posedge clk) begin
         if (external_reset) begin
@@ -202,6 +225,7 @@ module mister_vgm_md_top #(
         .clk                   (clk),
         .reset                 (reset),
         .start                 (start_pulse),
+        .vgm_wait_tick         (vgm_wait_tick),
         .audio_l               (audio_l),
         .audio_r               (audio_r),
         .audio_sample_valid    (audio_sample_valid),
