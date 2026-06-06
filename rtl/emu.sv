@@ -427,9 +427,9 @@ module emu
     // player_busy             : red
     // done_latched            : blue
     //
-    // audio_seen has highest priority because it proves md_sound_module is
-    // producing sample ticks. AUDIO_L/R are now connected at a conservative
-    // -12 dB style level by shifting md_audio_* right by two bits.
+    // Color priority is reset > gate open > sample seen > waiting. AUDIO_L/R
+    // keep the existing conservative -12 dB style level by shifting md_audio_*
+    // right by two bits, then applying the output gate.
     wire [7:0] red =
         startup_reset_active ? 8'hff :
         audio_gate_open    ? 8'hff :

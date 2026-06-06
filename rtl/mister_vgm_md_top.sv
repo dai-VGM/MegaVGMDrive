@@ -24,6 +24,11 @@ module mister_vgm_md_top #(
     // opening the external audio gate and starting the fixed region. This lets
     // JT12/JT89/mixer output settle while the board output is still muted.
     parameter logic [15:0] INIT_AUDIO_SAMPLE_EDGES = 16'd64,
+
+    // Additional output warmup before starting the snippet. During this period
+    // md_sound_module is running and producing sample strobes, but emu.sv still
+    // keeps AUDIO_L/R at zero. 22050 samples is about 0.5 seconds at 44.1 kHz.
+    parameter logic [15:0] AUDIO_WARMUP_SAMPLES = 16'd22050,
     parameter logic [15:0] GATE_TO_START_CYCLES = 16'd1024
 ) (
     input  logic              clk,
@@ -65,6 +70,7 @@ module mister_vgm_md_top #(
     logic        por_done = 1'b0;
     logic [31:0] start_delay_counter = 32'd0;
     logic [15:0] init_audio_edge_count = 16'd0;
+    logic [15:0] audio_warmup_count = 16'd0;
     logic [15:0] gate_to_start_count = 16'd0;
     logic        start_sent = 1'b0;
     logic        start_pulse = 1'b0;
@@ -74,6 +80,7 @@ module mister_vgm_md_top #(
         STARTUP_RESET,
         STARTUP_AUDIO_MUTED,
         STARTUP_SOUND_INIT_WAIT,
+        STARTUP_AUDIO_WARMUP,
         STARTUP_GATE_OPEN_WAIT,
         STARTUP_SNIPPET_STARTED
     } startup_state_t;
@@ -95,6 +102,7 @@ module mister_vgm_md_top #(
     assign startup_reset_active = !por_done || (startup_state == STARTUP_RESET);
     assign startup_waiting = (startup_state == STARTUP_AUDIO_MUTED) ||
                              (startup_state == STARTUP_SOUND_INIT_WAIT) ||
+                             (startup_state == STARTUP_AUDIO_WARMUP) ||
                              (startup_state == STARTUP_GATE_OPEN_WAIT);
     assign startup_done = (startup_state == STARTUP_SNIPPET_STARTED);
 
@@ -104,6 +112,7 @@ module mister_vgm_md_top #(
             por_done <= 1'b0;
             start_delay_counter <= 32'd0;
             init_audio_edge_count <= 16'd0;
+            audio_warmup_count <= 16'd0;
             gate_to_start_count <= 16'd0;
             start_sent <= 1'b0;
             start_pulse <= 1'b0;
@@ -119,6 +128,7 @@ module mister_vgm_md_top #(
                     audio_gate_open <= 1'b0;
                     start_delay_counter <= 32'd0;
                     init_audio_edge_count <= 16'd0;
+                    audio_warmup_count <= 16'd0;
                     gate_to_start_count <= 16'd0;
                     start_sent <= 1'b0;
 
@@ -146,9 +156,20 @@ module mister_vgm_md_top #(
                     audio_gate_open <= 1'b0;
                     if (audio_sample_valid && !audio_sample_valid_d) begin
                         if (init_audio_edge_count >= INIT_AUDIO_SAMPLE_EDGES) begin
-                            startup_state <= STARTUP_GATE_OPEN_WAIT;
+                            startup_state <= STARTUP_AUDIO_WARMUP;
                         end else begin
                             init_audio_edge_count <= init_audio_edge_count + 16'd1;
+                        end
+                    end
+                end
+
+                STARTUP_AUDIO_WARMUP: begin
+                    audio_gate_open <= 1'b0;
+                    if (audio_sample_valid && !audio_sample_valid_d) begin
+                        if (audio_warmup_count >= AUDIO_WARMUP_SAMPLES) begin
+                            startup_state <= STARTUP_GATE_OPEN_WAIT;
+                        end else begin
+                            audio_warmup_count <= audio_warmup_count + 16'd1;
                         end
                     end
                 end

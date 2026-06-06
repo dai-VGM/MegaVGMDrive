@@ -2690,3 +2690,39 @@ white    audio gate open after init wait
 
 The goal is to ensure that no unstable cold-boot audio reaches MiSTer output and
 that the fixed snippet starts only after the sound path has had time to settle.
+
+
+## 2026-06-06: Audio Warmup Before Snippet Start
+
+Real-hardware testing improved after the startup audio gate, but cold boot still
+cut the first note sometimes. Core reset playback was cleaner, which suggests
+that HDMI/audio output may still be settling when the snippet begins after a
+cold load. This is still treated as a startup sequencing issue, not a volume
+scaling issue. The existing AUDIO `>>> 2` scaling remains unchanged.
+
+`mister_vgm_md_top` now waits for an additional audio-sample warmup period
+before starting the fixed snippet:
+
+```systemverilog
+parameter logic [15:0] AUDIO_WARMUP_SAMPLES = 16'd22050
+```
+
+At 44.1 kHz this is about 0.5 seconds. During this warmup, `md_sound_module` is
+running and `audio_sample_valid` is being counted, but `emu.sv` keeps
+`AUDIO_L/R` at zero because `audio_gate_open` remains low. After warmup
+completes, the gate opens, a short gate-to-start delay runs, and then the
+one-shot snippet `start_pulse` is emitted.
+
+The intended sequence is now:
+
+```text
+yellow   startup reset / init reset
+magenta  reset released, start/audio warmup waiting
+cyan     audio_sample_valid has been seen while output is still muted
+white    audio gate open / warmup complete
+start    fixed snippet begins after the gate-to-start delay
+```
+
+Color priority in `emu.sv` is reset > gate open > sample seen > waiting.
+`md_sound_module`, JT12, JT89, `vgm_region_player`, and the AUDIO `>>> 2`
+scaling were not changed for this step.

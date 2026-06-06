@@ -5,6 +5,7 @@ module tb_mister_vgm_md_top;
     localparam int AUDIO_DUMP_SAMPLE_COUNT = 5000;
     localparam logic [31:0] TB_POWER_ON_RESET_CYCLES = 32'd2048;
     localparam logic [31:0] TB_START_DELAY_CYCLES = 32'd1024;
+    localparam logic [15:0] TB_AUDIO_WARMUP_SAMPLES = 16'd64;
 
     logic clk = 1'b0;
     logic reset_n = 1'b1;
@@ -30,7 +31,8 @@ module tb_mister_vgm_md_top;
 
     mister_vgm_md_top #(
         .POWER_ON_RESET_CYCLES (TB_POWER_ON_RESET_CYCLES),
-        .START_DELAY_CYCLES    (TB_START_DELAY_CYCLES)
+        .START_DELAY_CYCLES    (TB_START_DELAY_CYCLES),
+        .AUDIO_WARMUP_SAMPLES  (TB_AUDIO_WARMUP_SAMPLES)
     ) dut (
         .clk                   (clk),
         .reset_n               (reset_n),
@@ -60,10 +62,11 @@ module tb_mister_vgm_md_top;
 
         repeat (64) @(posedge clk);
 
-        $display("MISTER_VGM_MD_TOP_TEST_START cold_start_reset_n_initial_high=1 samples=%0d power_on_reset_cycles=%0d start_delay_cycles=%0d",
+        $display("MISTER_VGM_MD_TOP_TEST_START cold_start_reset_n_initial_high=1 samples=%0d power_on_reset_cycles=%0d start_delay_cycles=%0d audio_warmup_samples=%0d",
                  AUDIO_DUMP_SAMPLE_COUNT,
                  TB_POWER_ON_RESET_CYCLES,
-                 TB_START_DELAY_CYCLES);
+                 TB_START_DELAY_CYCLES,
+                 TB_AUDIO_WARMUP_SAMPLES);
 
         while (audio_dump_count < AUDIO_DUMP_SAMPLE_COUNT) begin
             @(posedge clk);
