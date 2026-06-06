@@ -3109,3 +3109,103 @@ gain2:
 
 The regenerated mode 2 WAV is now long enough to judge whether the fixed ROM is
 musically usable before taking the same mode 2 build back to MiSTer hardware.
+
+
+## 2026-06-06: Region Mode 2 Hardware Pass and Silence Strengthening
+
+`REGION_MODE=2 / VGM_REAL_SNIPPET` was tested on real MiSTer hardware.
+
+Observed result:
+
+```text
+screen: purple
+MiSTer menu return: OK
+audio: real-VGM-derived FM tone, heard as "ブォーーーーン"
+problem: the tone did not stop at the end
+```
+
+This confirmed that the wider real-VGM-derived mode 2 ROM is active on
+hardware and that the YM/JT12/audio path works for the snippet. The remaining
+problem was classified as insufficient final silence, not as a playback path
+failure.
+
+Reasoning:
+
+```text
+The previous mode 2 suffix only wrote:
+  52 28 00
+
+But the real VGM slice can key on channels other than ch1. The tail of the
+slice also contains YM key-on values such as 52 28 F2/F5/F6, so a ch1-only
+key-off is not enough.
+```
+
+The `REGION_MODE=2` suffix was strengthened:
+
+```text
+YM2612 key-off for all 6 channels:
+  52 28 00
+  52 28 01
+  52 28 02
+  52 28 04
+  52 28 05
+  52 28 06
+
+DAC zero/off:
+  52 2A 00
+  52 2B 00
+
+PSG mute all:
+  50 9F
+  50 BF
+  50 DF
+  50 FF
+
+final wait:
+  61 44 AC   wait 44100 samples, about 1 second
+
+end:
+  66
+```
+
+This change was made only in the mode 2 fixed ROM include:
+
+```text
+rtl/vgm_real_snippet_mode2_case.vh
+```
+
+Unchanged:
+
+```text
+emu.sv
+AUDIO_L/R and >>> 2 scaling
+mister_vgm_md_top
+md_sound_module
+JT12/JT89 sources
+REGION_MODE=0 bring-up tone
+REGION_MODE=1 smoke snippet
+```
+
+The alternative safety gate, forcing `AUDIO_L/R=0` after
+`player_done_latched`, was considered but not added in this step. The first
+fix is to make the VGM command stream itself end cleanly, so the same command
+path remains valid for both simulation and hardware.
+
+Build sanity check:
+
+```sh
+iverilog -g2012 -Wall -DSIMULATION -DTEST_FIXED_VGM_REAL_SNIPPET_50K \
+  -s tb_md_sound_fixed_region_test \
+  -o /tmp/tb_md_sound_fixed_vgm_real_snippet_50k.vvp \
+  tb/tb_md_sound_fixed_region_test.sv \
+  rtl/vgm_region_player.sv \
+  rtl/md_sound_module.sv \
+  rtl/genesis_audio/**/*.v
+```
+
+Result:
+
+```text
+build passed
+warnings are the existing JT12/timescale/unique-case warnings
+```

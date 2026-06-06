@@ -1,6 +1,6 @@
 // Generated from /Users/daizo/Downloads/fm_only_test.vgm for REGION_MODE=2.
 // Source slice starts at VGM pc=0x000003E2; active wait copied=44368 samples.
-// ROM byte count including silence prefix/suffix: 2477.
+// ROM byte count including silence prefix/suffix: 2492.
             12'd0: vgm_real_context_rom_byte = 8'h52;
             12'd1: vgm_real_context_rom_byte = 8'h28;
             12'd2: vgm_real_context_rom_byte = 8'h00;
@@ -2457,24 +2457,41 @@
             12'd2453: vgm_real_context_rom_byte = 8'h61;
             12'd2454: vgm_real_context_rom_byte = 8'h0D;
             12'd2455: vgm_real_context_rom_byte = 8'h02;
+            // Strong final silence sequence for hardware bring-up.
+            // YM2612 key-off for ch1-3 and ch4-6.
             12'd2456: vgm_real_context_rom_byte = 8'h52;
             12'd2457: vgm_real_context_rom_byte = 8'h28;
             12'd2458: vgm_real_context_rom_byte = 8'h00;
             12'd2459: vgm_real_context_rom_byte = 8'h52;
-            12'd2460: vgm_real_context_rom_byte = 8'h2A;
-            12'd2461: vgm_real_context_rom_byte = 8'h00;
+            12'd2460: vgm_real_context_rom_byte = 8'h28;
+            12'd2461: vgm_real_context_rom_byte = 8'h01;
             12'd2462: vgm_real_context_rom_byte = 8'h52;
-            12'd2463: vgm_real_context_rom_byte = 8'h2B;
-            12'd2464: vgm_real_context_rom_byte = 8'h00;
-            12'd2465: vgm_real_context_rom_byte = 8'h50;
-            12'd2466: vgm_real_context_rom_byte = 8'h9F;
-            12'd2467: vgm_real_context_rom_byte = 8'h50;
-            12'd2468: vgm_real_context_rom_byte = 8'hBF;
-            12'd2469: vgm_real_context_rom_byte = 8'h50;
-            12'd2470: vgm_real_context_rom_byte = 8'hDF;
-            12'd2471: vgm_real_context_rom_byte = 8'h50;
-            12'd2472: vgm_real_context_rom_byte = 8'hFF;
-            12'd2473: vgm_real_context_rom_byte = 8'h61;
-            12'd2474: vgm_real_context_rom_byte = 8'h00;
-            12'd2475: vgm_real_context_rom_byte = 8'h04;
-            12'd2476: vgm_real_context_rom_byte = 8'h66;
+            12'd2463: vgm_real_context_rom_byte = 8'h28;
+            12'd2464: vgm_real_context_rom_byte = 8'h02;
+            12'd2465: vgm_real_context_rom_byte = 8'h52;
+            12'd2466: vgm_real_context_rom_byte = 8'h28;
+            12'd2467: vgm_real_context_rom_byte = 8'h04;
+            12'd2468: vgm_real_context_rom_byte = 8'h52;
+            12'd2469: vgm_real_context_rom_byte = 8'h28;
+            12'd2470: vgm_real_context_rom_byte = 8'h05;
+            12'd2471: vgm_real_context_rom_byte = 8'h52;
+            12'd2472: vgm_real_context_rom_byte = 8'h28;
+            12'd2473: vgm_real_context_rom_byte = 8'h06;
+            12'd2474: vgm_real_context_rom_byte = 8'h52;
+            12'd2475: vgm_real_context_rom_byte = 8'h2A;
+            12'd2476: vgm_real_context_rom_byte = 8'h00;
+            12'd2477: vgm_real_context_rom_byte = 8'h52;
+            12'd2478: vgm_real_context_rom_byte = 8'h2B;
+            12'd2479: vgm_real_context_rom_byte = 8'h00;
+            12'd2480: vgm_real_context_rom_byte = 8'h50;
+            12'd2481: vgm_real_context_rom_byte = 8'h9F;
+            12'd2482: vgm_real_context_rom_byte = 8'h50;
+            12'd2483: vgm_real_context_rom_byte = 8'hBF;
+            12'd2484: vgm_real_context_rom_byte = 8'h50;
+            12'd2485: vgm_real_context_rom_byte = 8'hDF;
+            12'd2486: vgm_real_context_rom_byte = 8'h50;
+            12'd2487: vgm_real_context_rom_byte = 8'hFF;
+            12'd2488: vgm_real_context_rom_byte = 8'h61;
+            12'd2489: vgm_real_context_rom_byte = 8'h44;
+            12'd2490: vgm_real_context_rom_byte = 8'hAC;
+            12'd2491: vgm_real_context_rom_byte = 8'h66;
