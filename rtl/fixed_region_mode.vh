@@ -10,5 +10,5 @@
 //   3 = VGM_REAL_PHRASE, longer real-VGM-derived YM/PSG phrase
 //   4 = TIMING_CALIBRATION, 1s tone / 1s silence timing check
 `ifndef FIXED_REGION_MODE
-`define FIXED_REGION_MODE 4
+`define FIXED_REGION_MODE 3
 `endif

@@ -3306,6 +3306,67 @@ AUDIO_L/R and >>> 2 scaling
 ```
 
 
+## 2026-06-06: Return to Region Mode 3 After Timing Calibration
+
+`REGION_MODE=4 / TIMING_CALIBRATION` was tested again after changing
+`CLK_SYS_HZ` to 12.5 MHz.
+
+Observed result:
+
+```text
+first expected 1 second tone: roughly 1 second on hardware
+later repeats: silent due to the mode 4 re-trigger sequence, not treated as a
+               wait-timing blocker
+```
+
+Conclusion:
+
+```text
+12.5 MHz CLK_SYS_HZ assumption is good enough for the next VGM phrase test
+VGM wait tick correction is effective
+timing calibration phase is sufficient for now
+```
+
+The hardware default was switched back from mode 4 to mode 3:
+
+```text
+rtl/fixed_region_mode.vh
+  FIXED_REGION_MODE = 3
+```
+
+Keep:
+
+```text
+rtl/mister_vgm_md_top.sv
+  CLK_SYS_HZ = 12_500_000
+  VGM_WAIT_HZ = 44_100
+```
+
+Next hardware check:
+
+```text
+REGION_MODE=3 / VGM_REAL_PHRASE
+screen: orange
+goal: verify that the Super Hang-On intro tempo improves with the 12.5 MHz
+      wait-tick calibration
+```
+
+Build sanity check:
+
+```text
+tb_mister_vgm_md_top build: passed
+warnings: existing JT12/timescale/unique-case warnings
+```
+
+Unchanged:
+
+```text
+md_sound_module internals
+JT12/JT89 sources
+AUDIO_L/R and >>> 2 scaling
+```
+
+
 ## 2026-06-06: VGM Wait Tick Split from Audio Sample Valid
 
 `REGION_MODE=4 / TIMING_CALIBRATION` was tested on real MiSTer hardware.
