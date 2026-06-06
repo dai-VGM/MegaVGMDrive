@@ -3209,3 +3209,40 @@ Result:
 build passed
 warnings are the existing JT12/timescale/unique-case warnings
 ```
+
+
+## 2026-06-06: Region Mode 2 Hardware Pass After Strong Silence
+
+The strengthened `REGION_MODE=2 / VGM_REAL_SNIPPET` build was tested again on
+real MiSTer hardware.
+
+Observed result:
+
+```text
+screen: purple
+MiSTer menu return: OK
+audio:
+  real-VGM-derived FM tone played as an engine-like "ぶおおおおおおん"
+  then decayed/stopped as "おん、おん、おん"
+  finally reached silence
+```
+
+Conclusion:
+
+```text
+REGION_MODE=2 is active on hardware
+the real-VGM-derived FM snippet reaches JT12 and AUDIO_L/R
+the strengthened final silence sequence works
+```
+
+The successful stop is attributed to the strengthened suffix:
+
+```text
+YM2612 all-channel key-off
+DAC data zero
+DAC off
+PSG mute all
+final wait before 0x66 end
+```
+
+No RTL was changed for this note. This records the hardware pass result only.
