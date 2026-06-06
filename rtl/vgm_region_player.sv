@@ -70,7 +70,7 @@ module vgm_region_player #(
 
     state_t state;
 
-    logic [9:0] pc;
+    logic [11:0] pc;
     logic [7:0] cmd;
 
     logic [15:0] wait_remaining;
@@ -78,7 +78,7 @@ module vgm_region_player #(
 
     logic [9:0] pcm_pos;
 
-    assign pc_debug = pc;
+    assign pc_debug = pc[9:0];
 
     localparam int REGION_MODE_BRINGUP_TONE = 0;
     localparam int REGION_MODE_VGM_SNIPPET  = 1;
@@ -88,6 +88,8 @@ module vgm_region_player #(
     //
     // Supported opcodes in this bring-up ROM:
     //   0x52 rr dd       YM2612 port 0 write
+    //   0x53 rr dd       YM2612 port 1 write
+    //   0x4f dd          Game Gear stereo command, skipped here
     //   0x50 dd          SN76489 write
     //   0x61 ll hh       wait n samples
     //   0x70-0x7f        short wait 1..16 samples
@@ -99,7 +101,7 @@ module vgm_region_player #(
     // successful TEST_YM_TONE setup. For real hardware bring-up, the ROM keeps
     // the FM tone audible for about two seconds, silences it, then plays a PSG
     // tone for about two seconds before the final silence/end sequence.
-    function automatic logic [7:0] bringup_tone_rom_byte(input logic [9:0] addr);
+    function automatic logic [7:0] bringup_tone_rom_byte(input logic [11:0] addr);
         unique case (addr)
             // YM setup: LFO/timer/DAC off/key off.
             10'd0:   bringup_tone_rom_byte = 8'h52; 10'd1:   bringup_tone_rom_byte = 8'h28; 10'd2:   bringup_tone_rom_byte = 8'h00;
@@ -184,7 +186,7 @@ module vgm_region_player #(
         endcase
     endfunction
 
-    function automatic logic [7:0] vgm_snippet_rom_byte(input logic [9:0] addr);
+    function automatic logic [7:0] vgm_snippet_rom_byte(input logic [11:0] addr);
         if (addr <= 10'd19) begin
             unique case (addr)
                 // Explicit cold-boot silence initialization before the audible
@@ -264,7 +266,14 @@ module vgm_region_player #(
         end
     endfunction
 
-    function automatic logic [7:0] vgm_real_snippet_rom_byte(input logic [9:0] addr);
+    function automatic logic [7:0] vgm_real_context_rom_byte(input logic [11:0] addr);
+        unique case (addr)
+`include "rtl/vgm_real_snippet_mode2_case.vh"
+            default: vgm_real_context_rom_byte = 8'h66;
+        endcase
+    endfunction
+
+    function automatic logic [7:0] vgm_real_snippet_rom_byte(input logic [11:0] addr);
         unique case (addr)
             // Initial silence before the real-VGM-derived register state.
             10'd0:   vgm_real_snippet_rom_byte = 8'h52; 10'd1:   vgm_real_snippet_rom_byte = 8'h28; 10'd2:   vgm_real_snippet_rom_byte = 8'h00;
@@ -336,9 +345,9 @@ module vgm_region_player #(
         endcase
     endfunction
 
-    function automatic logic [7:0] rom_byte(input logic [9:0] addr);
+    function automatic logic [7:0] rom_byte(input logic [11:0] addr);
         if (REGION_MODE == REGION_MODE_VGM_REAL_SNIPPET) begin
-            rom_byte = vgm_real_snippet_rom_byte(addr);
+            rom_byte = vgm_real_context_rom_byte(addr);
         end else if (REGION_MODE == REGION_MODE_VGM_SNIPPET) begin
             rom_byte = vgm_snippet_rom_byte(addr);
         end else begin
@@ -372,7 +381,7 @@ module vgm_region_player #(
     always_ff @(posedge clk) begin
         if (reset) begin
             state                <= ST_IDLE;
-            pc                   <= 10'd0;
+            pc                   <= 12'd0;
             cmd                  <= 8'h00;
             wait_remaining       <= 16'd0;
             pcm_pos              <= 10'd0;
@@ -398,7 +407,7 @@ module vgm_region_player #(
                     busy <= 1'b0;
                     done <= 1'b0;
                     if (start) begin
-                        pc    <= 10'd0;
+                        pc    <= 12'd0;
                         busy  <= 1'b1;
                         state <= ST_FETCH;
                     end
@@ -414,38 +423,43 @@ module vgm_region_player #(
                     unique case (cmd)
                         8'h52: begin
                             ym_cmd_port <= 1'b0;
-                            ym_cmd_reg  <= rom_byte(pc + 10'd1);
-                            ym_cmd_data <= rom_byte(pc + 10'd2);
+                            ym_cmd_reg  <= rom_byte(pc + 12'd1);
+                            ym_cmd_data <= rom_byte(pc + 12'd2);
                             state       <= ST_YM_WAIT_READY;
                         end
 
                         8'h53: begin
                             ym_cmd_port <= 1'b1;
-                            ym_cmd_reg  <= rom_byte(pc + 10'd1);
-                            ym_cmd_data <= rom_byte(pc + 10'd2);
+                            ym_cmd_reg  <= rom_byte(pc + 12'd1);
+                            ym_cmd_data <= rom_byte(pc + 12'd2);
                             state       <= ST_YM_WAIT_READY;
                         end
 
                         8'h50: begin
-                            psg_cmd_data <= rom_byte(pc + 10'd1);
+                            psg_cmd_data <= rom_byte(pc + 12'd1);
                             state        <= ST_PSG_WAIT_READY;
                         end
 
+                        8'h4F: begin
+                            pc    <= pc + 12'd2;
+                            state <= ST_FETCH;
+                        end
+
                         8'h61: begin
-                            wait_remaining <= {rom_byte(pc + 10'd2), rom_byte(pc + 10'd1)};
-                            pc             <= pc + 10'd3;
+                            wait_remaining <= {rom_byte(pc + 12'd2), rom_byte(pc + 12'd1)};
+                            pc             <= pc + 12'd3;
                             state          <= ST_WAIT_SAMPLES;
                         end
 
                         8'h62: begin
                             wait_remaining <= 16'd735;
-                            pc             <= pc + 10'd1;
+                            pc             <= pc + 12'd1;
                             state          <= ST_WAIT_SAMPLES;
                         end
 
                         8'h63: begin
                             wait_remaining <= 16'd882;
-                            pc             <= pc + 10'd1;
+                            pc             <= pc + 12'd1;
                             state          <= ST_WAIT_SAMPLES;
                         end
 
@@ -458,15 +472,15 @@ module vgm_region_player #(
                         8'hE0: begin
                             // Only a tiny local PCM bank is implemented here,
                             // so the high offset bits are intentionally ignored.
-                            pcm_pos <= {2'b00, rom_byte(pc + 10'd1)};
-                            pc      <= pc + 10'd5;
+                            pcm_pos <= {2'b00, rom_byte(pc + 12'd1)};
+                            pc      <= pc + 12'd5;
                             state   <= ST_FETCH;
                         end
 
                         default: begin
                             if (cmd[7:4] == 4'h7) begin
                                 wait_remaining <= {12'd0, cmd[3:0]} + 16'd1;
-                                pc             <= pc + 10'd1;
+                                pc             <= pc + 12'd1;
                                 state          <= ST_WAIT_SAMPLES;
                             end else if (cmd[7:4] == 4'h8) begin
                                 ym_cmd_port <= 1'b0;
@@ -495,10 +509,10 @@ module vgm_region_player #(
                 ST_YM_PULSE: begin
                     if (cmd[7:4] == 4'h8) begin
                         wait_remaining <= {12'd0, cmd[3:0]};
-                        pc             <= pc + 10'd1;
+                        pc             <= pc + 12'd1;
                         state          <= ST_WAIT_SAMPLES;
                     end else begin
-                        pc    <= pc + 10'd3;
+                        pc    <= pc + 12'd3;
                         state <= ST_FETCH;
                     end
                 end
@@ -511,7 +525,7 @@ module vgm_region_player #(
                 end
 
                 ST_PSG_PULSE: begin
-                    pc    <= pc + 10'd2;
+                    pc    <= pc + 12'd2;
                     state <= ST_FETCH;
                 end
 

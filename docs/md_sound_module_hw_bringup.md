@@ -3003,3 +3003,109 @@ with:
 
 For this step, the snippet body, JT12/JT89, `md_sound_module`, the existing 50K
 regression, mode 0, mode 1, and AUDIO `>>> 2` were not changed.
+
+
+## 2026-06-06: Region Mode 2 Context Slice Rebuild
+
+The first 50k mode 2 simulation WAV was also heard as a short "ぶおん" style
+sound. Because the MiSTer hardware result and the simulation result matched in
+that direction, the problem was classified as a mode 2 fixed-ROM snippet issue,
+not a MiSTer audio output issue.
+
+Conclusion:
+
+```text
+mode 2 sim WAV also short/noisy:
+  real hardware path is probably not the primary problem
+
+likely cause:
+  the VGM cut was too close to the first active KeyOn and lacked enough
+  preceding YM initialization/timbre/frequency context
+```
+
+The mode 2 ROM was rebuilt from a wider `fm_only_test.vgm` context slice:
+
+```text
+source VGM: /Users/daizo/Downloads/fm_only_test.vgm
+slice start pc: 0x000003E2
+first active KeyOn pc: 0x0000044B
+slice end pc: 0x00000D51
+copied active wait: 44368 samples, about 1 second
+generated include: rtl/vgm_real_snippet_mode2_case.vh
+ROM byte count including silence prefix/suffix: 2477
+```
+
+The fixed player change was kept local to the region ROM path:
+
+```text
+REGION_MODE=2 now uses vgm_real_context_rom_byte()
+the old compact mode 2 function remains in the source but is no longer selected
+internal ROM pc was widened to 12 bits
+external pc_debug remains 10 bits
+0x4F Game Gear stereo commands are skipped by the fixed player
+```
+
+Unchanged:
+
+```text
+emu.sv
+AUDIO_L/R and >>> 2 scaling
+mister_vgm_md_top
+md_sound_module
+JT12/JT89 sources
+REGION_MODE=0 bring-up tone
+REGION_MODE=1 smoke snippet
+```
+
+50k simulation check:
+
+```sh
+iverilog -g2012 -Wall -DSIMULATION -DTEST_FIXED_VGM_REAL_SNIPPET_50K \
+  -s tb_md_sound_fixed_region_test \
+  -o /tmp/tb_md_sound_fixed_vgm_real_snippet_50k.vvp \
+  tb/tb_md_sound_fixed_region_test.sv \
+  rtl/vgm_region_player.sv \
+  rtl/md_sound_module.sv \
+  rtl/genesis_audio/**/*.v
+
+vvp /tmp/tb_md_sound_fixed_vgm_real_snippet_50k.vvp
+```
+
+Observed simulation summary:
+
+```text
+FIXED_REGION_TEST_START samples=50000 region_mode=2
+FIXED_REGION_TEST_DONE wav_written_samples=50000 audio_sample_valid_edges=50000 pc=428 last_cmd=66 busy=0 done=0
+```
+
+WAV outputs:
+
+```text
+/tmp/md_sound_fixed_vgm_real_snippet_50k_gain1.wav
+/tmp/md_sound_fixed_vgm_real_snippet_50k_gain2.wav
+/Users/daizo/Downloads/md_sound_fixed_vgm_real_snippet_50k_gain1.wav
+/Users/daizo/Downloads/md_sound_fixed_vgm_real_snippet_50k_gain2.wav
+```
+
+Statistics:
+
+```text
+gain1:
+  frames=50000
+  min=-4377
+  max=3216
+  nonzero=97652
+  rms=926.36
+  clip_count=0
+
+gain2:
+  frames=50000
+  min=-8754
+  max=6432
+  nonzero=97652
+  rms=1852.73
+  clip_count=0
+```
+
+The regenerated mode 2 WAV is now long enough to judge whether the fixed ROM is
+musically usable before taking the same mode 2 build back to MiSTer hardware.
