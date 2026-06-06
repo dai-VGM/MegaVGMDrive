@@ -3248,6 +3248,64 @@ final wait before 0x66 end
 No RTL was changed for this note. This records the hardware pass result only.
 
 
+## 2026-06-06: VGM Wait Tick Clock Assumption Adjusted to 12.5 MHz
+
+`REGION_MODE=4 / TIMING_CALIBRATION` was tested on real MiSTer hardware after
+splitting VGM waits from `audio_sample_valid`.
+
+Observed result:
+
+```text
+screen: lime, confirming REGION_MODE=4
+expected: 1 second tone / 1 second silence
+actual: about 4 seconds tone / about 4 seconds silence
+```
+
+This means the dedicated `vgm_wait_tick` exists and is controlling VGM wait
+progression, but it is about 4x too slow. The most likely cause is that the
+clock feeding `mister_vgm_md_top` in the InputTest-based shell is not 50 MHz,
+but closer to 12.5 MHz.
+
+Correction for the next hardware timing calibration:
+
+```text
+rtl/mister_vgm_md_top.sv
+  CLK_SYS_HZ default:
+    50_000_000 -> 12_500_000
+```
+
+The phase accumulator still targets:
+
+```text
+VGM_WAIT_HZ = 44100
+```
+
+Expected next check:
+
+```text
+REGION_MODE=4 should produce roughly:
+  1 second tone
+  1 second silence
+  repeated
+```
+
+Build checks after the default change:
+
+```text
+tb_mister_vgm_md_top build: passed
+TEST_FIXED_TIMING_CALIBRATION_100K build: passed
+warnings: existing JT12/timescale/unique-case warnings
+```
+
+Unchanged:
+
+```text
+md_sound_module internals
+JT12/JT89 sources
+AUDIO_L/R and >>> 2 scaling
+```
+
+
 ## 2026-06-06: VGM Wait Tick Split from Audio Sample Valid
 
 `REGION_MODE=4 / TIMING_CALIBRATION` was tested on real MiSTer hardware.

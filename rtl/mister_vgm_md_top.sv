@@ -34,7 +34,7 @@ module mister_vgm_md_top #(
     // VGM waits are specified in 44100 Hz sample units. Generate a dedicated
     // average-44100 Hz tick for the fixed VGM player instead of using the JT12
     // audio sample strobe.
-    parameter logic [31:0] CLK_SYS_HZ = 32'd50_000_000,
+    parameter logic [31:0] CLK_SYS_HZ = 32'd12_500_000,
     parameter logic [31:0] VGM_WAIT_HZ = 32'd44_100
 ) (
     input  logic              clk,
