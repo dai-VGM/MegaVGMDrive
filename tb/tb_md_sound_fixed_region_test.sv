@@ -3,7 +3,9 @@
 
 module tb_md_sound_fixed_region_test;
 
-`ifdef TEST_FIXED_VGM_REAL_SNIPPET_50K
+`ifdef TEST_FIXED_VGM_REAL_PHRASE_50K
+    localparam int AUDIO_DUMP_SAMPLE_COUNT = 50000;
+`elsif TEST_FIXED_VGM_REAL_SNIPPET_50K
     localparam int AUDIO_DUMP_SAMPLE_COUNT = 50000;
 `else
     localparam int AUDIO_DUMP_SAMPLE_COUNT = 5000;
@@ -17,6 +19,10 @@ module tb_md_sound_fixed_region_test;
     localparam int REGION_MODE = 2;
 `elsif TEST_FIXED_VGM_REAL_SNIPPET
     localparam int REGION_MODE = 2;
+`elsif TEST_FIXED_VGM_REAL_PHRASE_50K
+    localparam int REGION_MODE = 3;
+`elsif TEST_FIXED_VGM_REAL_PHRASE
+    localparam int REGION_MODE = 3;
 `else
     localparam int REGION_MODE = `FIXED_REGION_MODE;
 `endif
@@ -62,12 +68,16 @@ module tb_md_sound_fixed_region_test;
     initial begin
 `ifdef TEST_FIXED_VGM_REAL_SNIPPET_50K
         audio_file = $fopen("/tmp/md_sound_fixed_vgm_real_snippet_50k.txt", "w");
+`elsif TEST_FIXED_VGM_REAL_PHRASE_50K
+        audio_file = $fopen("/tmp/md_sound_fixed_vgm_real_phrase_50k.txt", "w");
 `else
         audio_file = $fopen("/tmp/md_sound_fixed_region_test_5k.txt", "w");
 `endif
         if (audio_file == 0) begin
 `ifdef TEST_FIXED_VGM_REAL_SNIPPET_50K
             $display("ERROR: failed to open /tmp/md_sound_fixed_vgm_real_snippet_50k.txt");
+`elsif TEST_FIXED_VGM_REAL_PHRASE_50K
+            $display("ERROR: failed to open /tmp/md_sound_fixed_vgm_real_phrase_50k.txt");
 `else
             $display("ERROR: failed to open /tmp/md_sound_fixed_region_test_5k.txt");
 `endif

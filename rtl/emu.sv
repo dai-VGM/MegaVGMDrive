@@ -6,6 +6,7 @@
 `include "rtl/fixed_region_mode.vh"
 
 localparam bit FIXED_REAL_SNIPPET_MODE = (`FIXED_REGION_MODE == 2);
+localparam bit FIXED_REAL_PHRASE_MODE  = (`FIXED_REGION_MODE == 3);
 
 module emu
 (
@@ -425,6 +426,7 @@ module emu
     // audio_seen_latched      : cyan
     // audio gate open         : white
     // region mode 2 gate open : purple
+    // region mode 3 gate open : orange
     // player_busy             : red
     // done_latched            : blue
     //
@@ -433,6 +435,7 @@ module emu
     // right by two bits, then applying the output gate.
     wire [7:0] red =
         startup_reset_active ? 8'hff :
+        (audio_gate_open && FIXED_REAL_PHRASE_MODE)  ? 8'hff :
         (audio_gate_open && FIXED_REAL_SNIPPET_MODE) ? 8'hc0 :
         audio_gate_open    ? 8'hff :
         audio_seen_latched ? 8'h00 :
@@ -443,6 +446,7 @@ module emu
 
     wire [7:0] green =
         startup_reset_active ? 8'hff :
+        (audio_gate_open && FIXED_REAL_PHRASE_MODE)  ? 8'h80 :
         (audio_gate_open && FIXED_REAL_SNIPPET_MODE) ? 8'h00 :
         audio_gate_open    ? 8'hff :
         audio_seen_latched ? 8'hff :
@@ -453,6 +457,7 @@ module emu
 
     wire [7:0] blue =
         startup_reset_active ? 8'h00 :
+        (audio_gate_open && FIXED_REAL_PHRASE_MODE)  ? 8'h00 :
         (audio_gate_open && FIXED_REAL_SNIPPET_MODE) ? 8'hff :
         audio_gate_open    ? 8'hff :
         audio_seen_latched ? 8'hff :

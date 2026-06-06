@@ -3246,3 +3246,159 @@ final wait before 0x66 end
 ```
 
 No RTL was changed for this note. This records the hardware pass result only.
+
+
+## 2026-06-06: Region Mode 3 Real-VGM Phrase Preparation
+
+After `REGION_MODE=2 / VGM_REAL_SNIPPET` passed on MiSTer hardware, the next
+step is to move from a one-shot FM sound to a short real-VGM-derived phrase.
+
+Purpose:
+
+```text
+REGION_MODE=3 / VGM_REAL_PHRASE
+  longer fixed-ROM phrase
+  real VGM-derived YM2612 + PSG command stream
+  no PCM/DAC stream for this first phrase pass
+  target length: about 2-5 seconds
+```
+
+The first mode 3 candidate is derived from `fm_only_test.vgm`:
+
+```text
+source VGM: /Users/daizo/Downloads/fm_only_test.vgm
+source command_start: 0x00000040
+slice end pc: 0x000014AA
+copied wait total before suffix: 100220 samples, about 2.27 seconds
+body byte count: 5226
+ROM byte count including strong silence suffix: 5262
+generated include: rtl/vgm_real_phrase_mode3_case.vh
+```
+
+Command mix in the copied body:
+
+```text
+YM2612 port 0 writes: 1048
+YM2612 port 1 writes: 306
+SN76489 writes: 22
+0x4F Game Gear stereo commands: 2
+wait commands: 0x61 and 0x70-0x7F
+PCM/DAC stream: not included
+unsupported commands: none
+```
+
+Mode 3 final silence suffix:
+
+```text
+YM2612 all-channel key-off
+DAC data zero
+DAC off
+PSG mute all
+44100-sample final wait
+0x66 end
+```
+
+Implementation notes:
+
+```text
+REGION_MODE=0 remains the proven bring-up tone
+REGION_MODE=1 remains the smoke snippet
+REGION_MODE=2 remains the proven real-VGM snippet
+REGION_MODE=3 adds the longer real-VGM phrase
+```
+
+The fixed player internal ROM `pc` was widened to 13 bits so the 5262-byte
+mode 3 ROM fits. The external `pc_debug` output remains 10 bits. The audio
+path was not changed:
+
+```text
+AUDIO_L/R and >>> 2 scaling: unchanged
+md_sound_module: unchanged
+JT12/JT89: unchanged
+mister_vgm_md_top: unchanged
+```
+
+For hardware identification, `FIXED_REGION_MODE=3` makes the gate-open debug
+color orange. The source default was not switched to mode 3 in this step;
+mode 3 is first intended for simulation WAV review.
+
+50k simulation command:
+
+```sh
+iverilog -g2012 -Wall -DSIMULATION -DTEST_FIXED_VGM_REAL_PHRASE_50K \
+  -s tb_md_sound_fixed_region_test \
+  -o /tmp/tb_md_sound_fixed_vgm_real_phrase_50k.vvp \
+  tb/tb_md_sound_fixed_region_test.sv \
+  rtl/vgm_region_player.sv \
+  rtl/md_sound_module.sv \
+  rtl/genesis_audio/**/*.v
+
+vvp /tmp/tb_md_sound_fixed_vgm_real_phrase_50k.vvp
+```
+
+Observed simulation summary:
+
+```text
+FIXED_REGION_TEST_START samples=50000 region_mode=3
+FIXED_REGION_TEST_DONE wav_written_samples=50000 audio_sample_valid_edges=50000 pc=447 last_cmd=61 busy=1 done=0
+```
+
+WAV conversion:
+
+```sh
+python3 tools/audio_txt_to_wav/audio_txt_to_wav.py \
+  /tmp/md_sound_fixed_vgm_real_phrase_50k.txt \
+  /tmp/md_sound_fixed_vgm_real_phrase_50k_gain1.wav \
+  --gain 1
+
+python3 tools/audio_txt_to_wav/audio_txt_to_wav.py \
+  /tmp/md_sound_fixed_vgm_real_phrase_50k.txt \
+  /tmp/md_sound_fixed_vgm_real_phrase_50k_gain2.wav \
+  --gain 2
+```
+
+WAV outputs:
+
+```text
+/tmp/md_sound_fixed_vgm_real_phrase_50k_gain1.wav
+/tmp/md_sound_fixed_vgm_real_phrase_50k_gain2.wav
+/Users/daizo/Downloads/md_sound_fixed_vgm_real_phrase_50k_gain1.wav
+/Users/daizo/Downloads/md_sound_fixed_vgm_real_phrase_50k_gain2.wav
+```
+
+Statistics:
+
+```text
+gain1:
+  frames=50000
+  min=-4453
+  max=3408
+  nonzero=98924
+  rms=939.76
+  clip_count=0
+
+gain2:
+  frames=50000
+  min=-8906
+  max=6816
+  nonzero=98924
+  rms=1879.52
+  clip_count=0
+```
+
+Additional compile checks:
+
+```text
+REGION_MODE=2 fixed-region TB build: passed
+default fixed-region TB build: passed
+warnings: existing JT12/timescale/unique-case warnings
+```
+
+Hardware pass conditions for the next step:
+
+```text
+screen color: orange when FIXED_REGION_MODE=3 is selected
+MiSTer menu return: OK
+audio: short real-VGM-derived YM/PSG phrase, not just a one-shot tone
+end behavior: all-channel key-off / DAC off / PSG mute reaches silence
+```
