@@ -35,7 +35,16 @@ module mister_vgm_md_top #(
     // average-44100 Hz tick for the fixed VGM player instead of using the JT12
     // audio sample strobe.
     parameter logic [31:0] CLK_SYS_HZ = 32'd12_500_000,
-    parameter logic [31:0] VGM_WAIT_HZ = 32'd44_100
+    parameter logic [31:0] VGM_WAIT_HZ = 32'd44_100,
+
+    // Bring-up replay/retry support. If the fixed-region player misses the
+    // first start or stalls before END, reset only the player wrapper and try
+    // again without disturbing the JT12/JT89 audio path.
+    parameter bit          REPLAY_ENABLE = 1'b1,
+    parameter logic [31:0] PLAYER_RESET_CYCLES = 32'd4096,
+    parameter logic [31:0] START_ACCEPT_TIMEOUT_CYCLES = 32'd1_000_000,
+    parameter logic [31:0] PLAYER_DONE_TIMEOUT_TICKS = 32'd264_600,
+    parameter logic [31:0] REPLAY_DELAY_TICKS = 32'd88_200
 ) (
     input  logic              clk,
 
@@ -83,14 +92,22 @@ module mister_vgm_md_top #(
     logic        audio_sample_valid_d = 1'b0;
     logic [31:0] vgm_wait_accum = 32'd0;
     logic        vgm_wait_tick = 1'b0;
+    logic        player_reset_active = 1'b0;
+    logic [31:0] player_reset_counter = 32'd0;
+    logic [31:0] start_accept_counter = 32'd0;
+    logic [31:0] player_done_timeout_ticks = 32'd0;
+    logic [31:0] replay_delay_ticks = 32'd0;
 
-    typedef enum logic [2:0] {
+    typedef enum logic [3:0] {
         STARTUP_RESET,
         STARTUP_AUDIO_MUTED,
         STARTUP_SOUND_INIT_WAIT,
         STARTUP_AUDIO_WARMUP,
         STARTUP_GATE_OPEN_WAIT,
-        STARTUP_SNIPPET_STARTED
+        STARTUP_WAIT_PLAYER_BUSY,
+        STARTUP_PLAYING,
+        STARTUP_REPLAY_WAIT,
+        STARTUP_RETRY_RESET
     } startup_state_t;
 
     startup_state_t startup_state = STARTUP_RESET;
@@ -107,12 +124,18 @@ module mister_vgm_md_top #(
 
     assign reset = external_reset | !por_done;
 
-    assign startup_reset_active = !por_done || (startup_state == STARTUP_RESET);
+    assign startup_reset_active = !por_done ||
+                                  player_reset_active ||
+                                  (startup_state == STARTUP_RESET) ||
+                                  (startup_state == STARTUP_RETRY_RESET);
     assign startup_waiting = (startup_state == STARTUP_AUDIO_MUTED) ||
                              (startup_state == STARTUP_SOUND_INIT_WAIT) ||
                              (startup_state == STARTUP_AUDIO_WARMUP) ||
-                             (startup_state == STARTUP_GATE_OPEN_WAIT);
-    assign startup_done = (startup_state == STARTUP_SNIPPET_STARTED);
+                             (startup_state == STARTUP_GATE_OPEN_WAIT) ||
+                             (startup_state == STARTUP_WAIT_PLAYER_BUSY) ||
+                             (startup_state == STARTUP_REPLAY_WAIT);
+    assign startup_done = (startup_state == STARTUP_PLAYING) ||
+                          (startup_state == STARTUP_REPLAY_WAIT);
 
     always_ff @(posedge clk) begin
         if (reset) begin
@@ -141,6 +164,11 @@ module mister_vgm_md_top #(
             start_pulse <= 1'b0;
             audio_gate_open <= 1'b0;
             audio_sample_valid_d <= 1'b0;
+            player_reset_active <= 1'b0;
+            player_reset_counter <= 32'd0;
+            start_accept_counter <= 32'd0;
+            player_done_timeout_ticks <= 32'd0;
+            replay_delay_ticks <= 32'd0;
             startup_state <= STARTUP_RESET;
         end else begin
             start_pulse <= 1'b0;
@@ -153,6 +181,11 @@ module mister_vgm_md_top #(
                     init_audio_edge_count <= 16'd0;
                     audio_warmup_count <= 16'd0;
                     gate_to_start_count <= 16'd0;
+                    player_reset_active <= 1'b0;
+                    player_reset_counter <= 32'd0;
+                    start_accept_counter <= 32'd0;
+                    player_done_timeout_ticks <= 32'd0;
+                    replay_delay_ticks <= 32'd0;
                     start_sent <= 1'b0;
 
                     if (!por_done) begin
@@ -202,15 +235,80 @@ module mister_vgm_md_top #(
                     if (gate_to_start_count >= GATE_TO_START_CYCLES) begin
                         start_pulse <= 1'b1;
                         start_sent <= 1'b1;
-                        startup_state <= STARTUP_SNIPPET_STARTED;
+                        start_accept_counter <= 32'd0;
+                        player_done_timeout_ticks <= 32'd0;
+                        startup_state <= STARTUP_WAIT_PLAYER_BUSY;
                     end else begin
                         gate_to_start_count <= gate_to_start_count + 16'd1;
                     end
                 end
 
-                STARTUP_SNIPPET_STARTED: begin
+                STARTUP_WAIT_PLAYER_BUSY: begin
                     audio_gate_open <= 1'b1;
-                    startup_state <= STARTUP_SNIPPET_STARTED;
+
+                    if (player_busy) begin
+                        player_done_timeout_ticks <= 32'd0;
+                        startup_state <= STARTUP_PLAYING;
+                    end else if (start_accept_counter >= START_ACCEPT_TIMEOUT_CYCLES) begin
+                        player_reset_active <= 1'b1;
+                        player_reset_counter <= 32'd0;
+                        startup_state <= STARTUP_RETRY_RESET;
+                    end else begin
+                        start_accept_counter <= start_accept_counter + 32'd1;
+                    end
+                end
+
+                STARTUP_PLAYING: begin
+                    audio_gate_open <= 1'b1;
+
+                    if (player_done) begin
+                        if (REPLAY_ENABLE) begin
+                            replay_delay_ticks <= 32'd0;
+                            startup_state <= STARTUP_REPLAY_WAIT;
+                        end
+                    end else if (vgm_wait_tick) begin
+                        if (player_done_timeout_ticks >= PLAYER_DONE_TIMEOUT_TICKS) begin
+                            player_reset_active <= 1'b1;
+                            player_reset_counter <= 32'd0;
+                            startup_state <= STARTUP_RETRY_RESET;
+                        end else begin
+                            player_done_timeout_ticks <= player_done_timeout_ticks + 32'd1;
+                        end
+                    end
+                end
+
+                STARTUP_REPLAY_WAIT: begin
+                    audio_gate_open <= 1'b1;
+
+                    if (!REPLAY_ENABLE) begin
+                        startup_state <= STARTUP_REPLAY_WAIT;
+                    end else if (vgm_wait_tick) begin
+                        if (replay_delay_ticks >= REPLAY_DELAY_TICKS) begin
+                            player_reset_active <= 1'b1;
+                            player_reset_counter <= 32'd0;
+                            startup_state <= STARTUP_RETRY_RESET;
+                        end else begin
+                            replay_delay_ticks <= replay_delay_ticks + 32'd1;
+                        end
+                    end
+                end
+
+                STARTUP_RETRY_RESET: begin
+                    audio_gate_open <= 1'b0;
+                    player_reset_active <= 1'b1;
+                    start_sent <= 1'b0;
+                    start_accept_counter <= 32'd0;
+                    player_done_timeout_ticks <= 32'd0;
+                    replay_delay_ticks <= 32'd0;
+                    gate_to_start_count <= 16'd0;
+
+                    if (player_reset_counter >= PLAYER_RESET_CYCLES) begin
+                        player_reset_active <= 1'b0;
+                        player_reset_counter <= 32'd0;
+                        startup_state <= STARTUP_GATE_OPEN_WAIT;
+                    end else begin
+                        player_reset_counter <= player_reset_counter + 32'd1;
+                    end
                 end
 
                 default: begin
@@ -224,6 +322,7 @@ module mister_vgm_md_top #(
     md_sound_fixed_region_test fixed_region (
         .clk                   (clk),
         .reset                 (reset),
+        .player_reset          (player_reset_active),
         .start                 (start_pulse),
         .vgm_wait_tick         (vgm_wait_tick),
         .audio_l               (audio_l),

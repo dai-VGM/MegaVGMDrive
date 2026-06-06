@@ -422,52 +422,53 @@ module emu
 
     // State colors:
     // idle/running background : green
-    // internal power-on reset : yellow
+    // internal/retry reset    : yellow
     // init wait / start wait  : magenta
-    // audio_seen_latched      : cyan
+    // region mode 2 playing   : purple
+    // region mode 3 playing   : orange
+    // region mode 4 playing   : lime
     // audio gate open         : white
-    // region mode 2 gate open : purple
-    // region mode 3 gate open : orange
-    // region mode 4 gate open : lime
+    // audio_seen_latched      : cyan
+    // player_done latched     : green
     // player_busy             : red
-    // done_latched            : blue
     //
-    // Color priority is reset > gate open > sample seen > waiting. AUDIO_L/R
+    // Color priority is reset > done > waiting > mode/gate > sample seen.
+    // AUDIO_L/R
     // keep the existing conservative -12 dB style level by shifting md_audio_*
     // right by two bits, then applying the output gate.
     wire [7:0] red =
         startup_reset_active ? 8'hff :
+        done_latched       ? 8'h00 :
+        startup_waiting    ? 8'hff :
         (audio_gate_open && FIXED_TIMING_CAL_MODE)   ? 8'h80 :
         (audio_gate_open && FIXED_REAL_PHRASE_MODE)  ? 8'hff :
         (audio_gate_open && FIXED_REAL_SNIPPET_MODE) ? 8'hc0 :
         audio_gate_open    ? 8'hff :
         audio_seen_latched ? 8'h00 :
-        startup_waiting    ? 8'hff :
-        done_latched       ? 8'h00 :
         player_busy        ? 8'hd0 :
                              8'h00;
 
     wire [7:0] green =
         startup_reset_active ? 8'hff :
+        done_latched       ? 8'hd0 :
+        startup_waiting    ? 8'h00 :
         (audio_gate_open && FIXED_TIMING_CAL_MODE)   ? 8'hff :
         (audio_gate_open && FIXED_REAL_PHRASE_MODE)  ? 8'h80 :
         (audio_gate_open && FIXED_REAL_SNIPPET_MODE) ? 8'h00 :
         audio_gate_open    ? 8'hff :
         audio_seen_latched ? 8'hff :
-        startup_waiting    ? 8'h00 :
-        done_latched       ? 8'h20 :
         player_busy        ? 8'h00 :
                              8'hb0;
 
     wire [7:0] blue =
         startup_reset_active ? 8'h00 :
+        done_latched       ? 8'h00 :
+        startup_waiting    ? 8'hff :
         (audio_gate_open && FIXED_TIMING_CAL_MODE)   ? 8'h00 :
         (audio_gate_open && FIXED_REAL_PHRASE_MODE)  ? 8'h00 :
         (audio_gate_open && FIXED_REAL_SNIPPET_MODE) ? 8'hff :
         audio_gate_open    ? 8'hff :
         audio_seen_latched ? 8'hff :
-        startup_waiting    ? 8'hff :
-        done_latched       ? 8'hd0 :
         player_busy        ? 8'h00 :
                              8'h40;
 

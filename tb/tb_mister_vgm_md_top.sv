@@ -6,6 +6,10 @@ module tb_mister_vgm_md_top;
     localparam logic [31:0] TB_POWER_ON_RESET_CYCLES = 32'd2048;
     localparam logic [31:0] TB_START_DELAY_CYCLES = 32'd1024;
     localparam logic [15:0] TB_AUDIO_WARMUP_SAMPLES = 16'd64;
+    localparam logic [31:0] TB_PLAYER_RESET_CYCLES = 32'd128;
+    localparam logic [31:0] TB_START_ACCEPT_TIMEOUT_CYCLES = 32'd10000;
+    localparam logic [31:0] TB_PLAYER_DONE_TIMEOUT_TICKS = 32'd100000;
+    localparam logic [31:0] TB_REPLAY_DELAY_TICKS = 32'd1024;
 
     logic clk = 1'b0;
     logic reset_n = 1'b1;
@@ -30,9 +34,13 @@ module tb_mister_vgm_md_top;
     bit     audio_sample_valid_prev = 1'b0;
 
     mister_vgm_md_top #(
-        .POWER_ON_RESET_CYCLES (TB_POWER_ON_RESET_CYCLES),
-        .START_DELAY_CYCLES    (TB_START_DELAY_CYCLES),
-        .AUDIO_WARMUP_SAMPLES  (TB_AUDIO_WARMUP_SAMPLES)
+        .POWER_ON_RESET_CYCLES       (TB_POWER_ON_RESET_CYCLES),
+        .START_DELAY_CYCLES          (TB_START_DELAY_CYCLES),
+        .AUDIO_WARMUP_SAMPLES        (TB_AUDIO_WARMUP_SAMPLES),
+        .PLAYER_RESET_CYCLES         (TB_PLAYER_RESET_CYCLES),
+        .START_ACCEPT_TIMEOUT_CYCLES (TB_START_ACCEPT_TIMEOUT_CYCLES),
+        .PLAYER_DONE_TIMEOUT_TICKS   (TB_PLAYER_DONE_TIMEOUT_TICKS),
+        .REPLAY_DELAY_TICKS          (TB_REPLAY_DELAY_TICKS)
     ) dut (
         .clk                   (clk),
         .reset_n               (reset_n),

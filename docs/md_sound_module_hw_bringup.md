@@ -3248,6 +3248,64 @@ final wait before 0x66 end
 No RTL was changed for this note. This records the hardware pass result only.
 
 
+## 2026-06-06: Region Mode 3 Start Retry / Replay
+
+`REGION_MODE=3 / VGM_REAL_PHRASE` was confirmed on real MiSTer hardware, but
+the replay was not yet stable.
+
+Observed result:
+
+```text
+screen: orange
+MiSTer menu return: OK
+audio: Super Hang-On-intro-like sound played once
+tempo: improved after the 12.5 MHz wait tick correction
+issue: after several core resets, playback happened only once
+```
+
+Conclusion:
+
+```text
+REGION_MODE=3 itself is active
+the VGM_REAL_PHRASE ROM contents were not changed
+the JT12/JT89/audio path was not changed
+the remaining issue is bring-up start/reset/replay stability
+```
+
+Change made for bring-up stability:
+
+```text
+rtl/mister_vgm_md_top.sv:
+  add player-local retry reset
+  retry if player_busy is not seen after start
+  retry if player_done is not seen within a timeout
+  add REPLAY_ENABLE for automatic replay after player_done
+  wait about 2 seconds before replay by default
+
+rtl/vgm_region_player.sv:
+  add player_reset to md_sound_fixed_region_test wrapper
+  retry reset is applied to vgm_region_player only
+  md_sound_module reset remains tied to the normal top reset
+
+rtl/emu.sv:
+  keep AUDIO_L/R scaling at >>> 2
+  keep debug color output
+  show reset/retry reset as yellow
+  show start/replay wait as magenta
+  show REGION_MODE=3 playback as orange
+  show player_done latched as green
+```
+
+The sound core itself remains untouched:
+
+```text
+rtl/md_sound_module.sv unchanged
+JT12/JT89 unchanged
+REGION_MODE=3 ROM unchanged
+AUDIO >>> 2 scaling unchanged
+```
+
+
 ## 2026-06-06: VGM Wait Tick Clock Assumption Adjusted to 12.5 MHz
 
 `REGION_MODE=4 / TIMING_CALIBRATION` was tested on real MiSTer hardware after

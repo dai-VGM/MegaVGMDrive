@@ -58,6 +58,7 @@ module tb_md_sound_fixed_region_test;
     ) dut (
         .clk                   (clk),
         .reset                 (reset),
+        .player_reset          (1'b0),
         .start                 (start),
         .vgm_wait_tick         (vgm_wait_tick),
         .audio_l               (audio_l),

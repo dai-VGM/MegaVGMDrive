@@ -717,6 +717,7 @@ module md_sound_fixed_region_test #(
 ) (
     input  logic              clk,
     input  logic              reset,
+    input  logic              player_reset,
     input  logic              start,
     input  logic              vgm_wait_tick,
 
@@ -738,12 +739,15 @@ module md_sound_fixed_region_test #(
     logic [7:0] psg_cmd_data;
     logic       ym_cmd_ready;
     logic       psg_cmd_ready;
+    logic       player_reset_combined;
+
+    assign player_reset_combined = reset | player_reset;
 
     vgm_region_player #(
         .REGION_MODE (REGION_MODE)
     ) player (
         .clk                   (clk),
-        .reset                 (reset),
+        .reset                 (player_reset_combined),
         .start                 (start),
         .vgm_wait_tick         (vgm_wait_tick),
         .ym_cmd_ready          (ym_cmd_ready),
