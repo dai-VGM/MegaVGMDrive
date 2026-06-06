@@ -17,6 +17,7 @@
 //   1 = short VGM-style snippet for the next hardware check
 //   2 = short real-VGM-derived YM/PSG snippet
 //   3 = longer real-VGM-derived YM/PSG phrase
+//   4 = timing calibration, 1 second tone / 1 second silence
 //
 // Temporary hardware-source check:
 //   fixed_region_mode.vh currently defaults to REGION_MODE=2 without depending
@@ -85,6 +86,7 @@ module vgm_region_player #(
     localparam int REGION_MODE_VGM_SNIPPET  = 1;
     localparam int REGION_MODE_VGM_REAL_SNIPPET = 2;
     localparam int REGION_MODE_VGM_REAL_PHRASE  = 3;
+    localparam int REGION_MODE_TIMING_CALIBRATION = 4;
 
     // Small fixed command ROM.
     //
@@ -282,6 +284,140 @@ module vgm_region_player #(
         endcase
     endfunction
 
+    function automatic logic [7:0] timing_calibration_rom_byte(input logic [12:0] addr);
+        if (addr <= 13'd86) begin
+            // Reuse the known-good FM setup/key-on part of BRINGUP_TONE.
+            timing_calibration_rom_byte = bringup_tone_rom_byte(addr);
+        end else begin
+            unique case (addr)
+                // 1 second tone, then 1 second silence. Repeat three times.
+                13'd87: timing_calibration_rom_byte = 8'h61;
+                13'd88: timing_calibration_rom_byte = 8'h44;
+                13'd89: timing_calibration_rom_byte = 8'hAC;
+                13'd90: timing_calibration_rom_byte = 8'h52;
+                13'd91: timing_calibration_rom_byte = 8'h28;
+                13'd92: timing_calibration_rom_byte = 8'h00;
+                13'd93: timing_calibration_rom_byte = 8'h52;
+                13'd94: timing_calibration_rom_byte = 8'h28;
+                13'd95: timing_calibration_rom_byte = 8'h01;
+                13'd96: timing_calibration_rom_byte = 8'h52;
+                13'd97: timing_calibration_rom_byte = 8'h28;
+                13'd98: timing_calibration_rom_byte = 8'h02;
+                13'd99: timing_calibration_rom_byte = 8'h52;
+                13'd100: timing_calibration_rom_byte = 8'h28;
+                13'd101: timing_calibration_rom_byte = 8'h04;
+                13'd102: timing_calibration_rom_byte = 8'h52;
+                13'd103: timing_calibration_rom_byte = 8'h28;
+                13'd104: timing_calibration_rom_byte = 8'h05;
+                13'd105: timing_calibration_rom_byte = 8'h52;
+                13'd106: timing_calibration_rom_byte = 8'h28;
+                13'd107: timing_calibration_rom_byte = 8'h06;
+                13'd108: timing_calibration_rom_byte = 8'h52;
+                13'd109: timing_calibration_rom_byte = 8'h2A;
+                13'd110: timing_calibration_rom_byte = 8'h00;
+                13'd111: timing_calibration_rom_byte = 8'h52;
+                13'd112: timing_calibration_rom_byte = 8'h2B;
+                13'd113: timing_calibration_rom_byte = 8'h00;
+                13'd114: timing_calibration_rom_byte = 8'h50;
+                13'd115: timing_calibration_rom_byte = 8'h9F;
+                13'd116: timing_calibration_rom_byte = 8'h50;
+                13'd117: timing_calibration_rom_byte = 8'hBF;
+                13'd118: timing_calibration_rom_byte = 8'h50;
+                13'd119: timing_calibration_rom_byte = 8'hDF;
+                13'd120: timing_calibration_rom_byte = 8'h50;
+                13'd121: timing_calibration_rom_byte = 8'hFF;
+                13'd122: timing_calibration_rom_byte = 8'h61;
+                13'd123: timing_calibration_rom_byte = 8'h44;
+                13'd124: timing_calibration_rom_byte = 8'hAC;
+                13'd125: timing_calibration_rom_byte = 8'h52;
+                13'd126: timing_calibration_rom_byte = 8'h28;
+                13'd127: timing_calibration_rom_byte = 8'hF0;
+                13'd128: timing_calibration_rom_byte = 8'h61;
+                13'd129: timing_calibration_rom_byte = 8'h44;
+                13'd130: timing_calibration_rom_byte = 8'hAC;
+                13'd131: timing_calibration_rom_byte = 8'h52;
+                13'd132: timing_calibration_rom_byte = 8'h28;
+                13'd133: timing_calibration_rom_byte = 8'h00;
+                13'd134: timing_calibration_rom_byte = 8'h52;
+                13'd135: timing_calibration_rom_byte = 8'h28;
+                13'd136: timing_calibration_rom_byte = 8'h01;
+                13'd137: timing_calibration_rom_byte = 8'h52;
+                13'd138: timing_calibration_rom_byte = 8'h28;
+                13'd139: timing_calibration_rom_byte = 8'h02;
+                13'd140: timing_calibration_rom_byte = 8'h52;
+                13'd141: timing_calibration_rom_byte = 8'h28;
+                13'd142: timing_calibration_rom_byte = 8'h04;
+                13'd143: timing_calibration_rom_byte = 8'h52;
+                13'd144: timing_calibration_rom_byte = 8'h28;
+                13'd145: timing_calibration_rom_byte = 8'h05;
+                13'd146: timing_calibration_rom_byte = 8'h52;
+                13'd147: timing_calibration_rom_byte = 8'h28;
+                13'd148: timing_calibration_rom_byte = 8'h06;
+                13'd149: timing_calibration_rom_byte = 8'h52;
+                13'd150: timing_calibration_rom_byte = 8'h2A;
+                13'd151: timing_calibration_rom_byte = 8'h00;
+                13'd152: timing_calibration_rom_byte = 8'h52;
+                13'd153: timing_calibration_rom_byte = 8'h2B;
+                13'd154: timing_calibration_rom_byte = 8'h00;
+                13'd155: timing_calibration_rom_byte = 8'h50;
+                13'd156: timing_calibration_rom_byte = 8'h9F;
+                13'd157: timing_calibration_rom_byte = 8'h50;
+                13'd158: timing_calibration_rom_byte = 8'hBF;
+                13'd159: timing_calibration_rom_byte = 8'h50;
+                13'd160: timing_calibration_rom_byte = 8'hDF;
+                13'd161: timing_calibration_rom_byte = 8'h50;
+                13'd162: timing_calibration_rom_byte = 8'hFF;
+                13'd163: timing_calibration_rom_byte = 8'h61;
+                13'd164: timing_calibration_rom_byte = 8'h44;
+                13'd165: timing_calibration_rom_byte = 8'hAC;
+                13'd166: timing_calibration_rom_byte = 8'h52;
+                13'd167: timing_calibration_rom_byte = 8'h28;
+                13'd168: timing_calibration_rom_byte = 8'hF0;
+                13'd169: timing_calibration_rom_byte = 8'h61;
+                13'd170: timing_calibration_rom_byte = 8'h44;
+                13'd171: timing_calibration_rom_byte = 8'hAC;
+                13'd172: timing_calibration_rom_byte = 8'h52;
+                13'd173: timing_calibration_rom_byte = 8'h28;
+                13'd174: timing_calibration_rom_byte = 8'h00;
+                13'd175: timing_calibration_rom_byte = 8'h52;
+                13'd176: timing_calibration_rom_byte = 8'h28;
+                13'd177: timing_calibration_rom_byte = 8'h01;
+                13'd178: timing_calibration_rom_byte = 8'h52;
+                13'd179: timing_calibration_rom_byte = 8'h28;
+                13'd180: timing_calibration_rom_byte = 8'h02;
+                13'd181: timing_calibration_rom_byte = 8'h52;
+                13'd182: timing_calibration_rom_byte = 8'h28;
+                13'd183: timing_calibration_rom_byte = 8'h04;
+                13'd184: timing_calibration_rom_byte = 8'h52;
+                13'd185: timing_calibration_rom_byte = 8'h28;
+                13'd186: timing_calibration_rom_byte = 8'h05;
+                13'd187: timing_calibration_rom_byte = 8'h52;
+                13'd188: timing_calibration_rom_byte = 8'h28;
+                13'd189: timing_calibration_rom_byte = 8'h06;
+                13'd190: timing_calibration_rom_byte = 8'h52;
+                13'd191: timing_calibration_rom_byte = 8'h2A;
+                13'd192: timing_calibration_rom_byte = 8'h00;
+                13'd193: timing_calibration_rom_byte = 8'h52;
+                13'd194: timing_calibration_rom_byte = 8'h2B;
+                13'd195: timing_calibration_rom_byte = 8'h00;
+                13'd196: timing_calibration_rom_byte = 8'h50;
+                13'd197: timing_calibration_rom_byte = 8'h9F;
+                13'd198: timing_calibration_rom_byte = 8'h50;
+                13'd199: timing_calibration_rom_byte = 8'hBF;
+                13'd200: timing_calibration_rom_byte = 8'h50;
+                13'd201: timing_calibration_rom_byte = 8'hDF;
+                13'd202: timing_calibration_rom_byte = 8'h50;
+                13'd203: timing_calibration_rom_byte = 8'hFF;
+                13'd204: timing_calibration_rom_byte = 8'h61;
+                13'd205: timing_calibration_rom_byte = 8'h44;
+                13'd206: timing_calibration_rom_byte = 8'hAC;
+                13'd207: timing_calibration_rom_byte = 8'h66;
+
+                default: timing_calibration_rom_byte = 8'h66;
+            endcase
+        end
+    endfunction
+
     function automatic logic [7:0] vgm_real_snippet_rom_byte(input logic [12:0] addr);
         unique case (addr)
             // Initial silence before the real-VGM-derived register state.
@@ -355,7 +491,9 @@ module vgm_region_player #(
     endfunction
 
     function automatic logic [7:0] rom_byte(input logic [12:0] addr);
-        if (REGION_MODE == REGION_MODE_VGM_REAL_PHRASE) begin
+        if (REGION_MODE == REGION_MODE_TIMING_CALIBRATION) begin
+            rom_byte = timing_calibration_rom_byte(addr);
+        end else if (REGION_MODE == REGION_MODE_VGM_REAL_PHRASE) begin
             rom_byte = vgm_real_phrase_rom_byte(addr);
         end else if (REGION_MODE == REGION_MODE_VGM_REAL_SNIPPET) begin
             rom_byte = vgm_real_context_rom_byte(addr);

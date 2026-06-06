@@ -3248,6 +3248,133 @@ final wait before 0x66 end
 No RTL was changed for this note. This records the hardware pass result only.
 
 
+## 2026-06-06: Region Mode 3 Hardware Timing Issue and Mode 4 Calibration
+
+`REGION_MODE=3 / VGM_REAL_PHRASE` was tested again on real MiSTer hardware
+after the source default was switched to mode 3.
+
+Observed result:
+
+```text
+screen: orange, confirming REGION_MODE=3
+MiSTer menu return: OK
+audio: recognizable as the Super Hang-On intro
+problem: tempo is slow
+problem: some notes appear to be missing
+reset behavior: reset repeats the same slow playback
+```
+
+This means the mode selection and VGM slice are now correct. The remaining
+problem is likely timing, not the fixed ROM selection:
+
+```text
+likely suspect:
+  VGM wait timing
+  audio_sample_valid frequency
+  real hardware sample strobe not matching the VGM 44100 Hz sample basis
+```
+
+Current wait implementation in `vgm_region_player.sv`:
+
+```text
+0x61 ll hh:
+  wait_remaining = {hh,ll}
+
+0x62:
+  wait_remaining = 735
+
+0x63:
+  wait_remaining = 882
+
+0x70-0x7F:
+  wait_remaining = (cmd & 0x0F) + 1
+
+wait progress:
+  decrement wait_remaining by 1 on audio_sample_valid rising edge
+```
+
+Current sample-valid source in `md_sound_module.sv`:
+
+```text
+audio_sample_valid = audio_path_enable && jt12_sample
+```
+
+So the fixed player currently treats one `jt12_sample` pulse as one VGM sample.
+If `jt12_sample` is not exactly 44100 Hz on MiSTer hardware, VGM tempo will be
+wrong even though command decoding is correct.
+
+To isolate this, `REGION_MODE=4 / TIMING_CALIBRATION` was added.
+
+Purpose:
+
+```text
+play 1 second tone
+play 1 second silence
+repeat several times
+use VGM wait 44100 samples:
+  61 44 AC
+```
+
+Expected hardware behavior if timing is correct:
+
+```text
+tone: about 1.0 second
+silence: about 1.0 second
+repeat cadence: steady 1s on / 1s off
+```
+
+If the one-second sections are clearly too long, the likely fix is to decouple
+VGM wait timing from `jt12_sample` and provide a true 44100 Hz wait tick. Two
+possible directions:
+
+```text
+1. Generate vgm_wait_tick from the MiSTer/audio clock domain at 44100 Hz.
+
+2. Expose a dedicated timing input to vgm_region_player and keep
+   audio_sample_valid only for WAV/audio dump synchronization.
+```
+
+No sound core internals were changed for this calibration step:
+
+```text
+md_sound_module: unchanged
+JT12/JT89: unchanged
+AUDIO_L/R and >>> 2 scaling: unchanged
+```
+
+Hardware selection:
+
+```text
+rtl/fixed_region_mode.vh
+  FIXED_REGION_MODE = 4
+```
+
+Debug color:
+
+```text
+REGION_MODE=4 gate-open color: lime
+```
+
+Simulation build check:
+
+```sh
+iverilog -g2012 -Wall -DSIMULATION -DTEST_FIXED_TIMING_CALIBRATION_100K \
+  -s tb_md_sound_fixed_region_test \
+  -o /tmp/tb_md_sound_fixed_timing_calibration_100k.vvp \
+  tb/tb_md_sound_fixed_region_test.sv \
+  rtl/vgm_region_player.sv \
+  rtl/md_sound_module.sv \
+  rtl/genesis_audio/**/*.v
+```
+
+Result:
+
+```text
+build passed
+warnings are the existing JT12/timescale/unique-case warnings
+```
+
+
 ## 2026-06-06: Source Default Changed to Region Mode 3
 
 The previous hardware check was expected to use `REGION_MODE=3`, but the real

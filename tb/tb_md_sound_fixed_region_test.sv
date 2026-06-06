@@ -3,7 +3,9 @@
 
 module tb_md_sound_fixed_region_test;
 
-`ifdef TEST_FIXED_VGM_REAL_PHRASE_50K
+`ifdef TEST_FIXED_TIMING_CALIBRATION_100K
+    localparam int AUDIO_DUMP_SAMPLE_COUNT = 100000;
+`elsif TEST_FIXED_VGM_REAL_PHRASE_50K
     localparam int AUDIO_DUMP_SAMPLE_COUNT = 50000;
 `elsif TEST_FIXED_VGM_REAL_SNIPPET_50K
     localparam int AUDIO_DUMP_SAMPLE_COUNT = 50000;
@@ -23,6 +25,10 @@ module tb_md_sound_fixed_region_test;
     localparam int REGION_MODE = 3;
 `elsif TEST_FIXED_VGM_REAL_PHRASE
     localparam int REGION_MODE = 3;
+`elsif TEST_FIXED_TIMING_CALIBRATION_100K
+    localparam int REGION_MODE = 4;
+`elsif TEST_FIXED_TIMING_CALIBRATION
+    localparam int REGION_MODE = 4;
 `else
     localparam int REGION_MODE = `FIXED_REGION_MODE;
 `endif
@@ -70,6 +76,8 @@ module tb_md_sound_fixed_region_test;
         audio_file = $fopen("/tmp/md_sound_fixed_vgm_real_snippet_50k.txt", "w");
 `elsif TEST_FIXED_VGM_REAL_PHRASE_50K
         audio_file = $fopen("/tmp/md_sound_fixed_vgm_real_phrase_50k.txt", "w");
+`elsif TEST_FIXED_TIMING_CALIBRATION_100K
+        audio_file = $fopen("/tmp/md_sound_fixed_timing_calibration_100k.txt", "w");
 `else
         audio_file = $fopen("/tmp/md_sound_fixed_region_test_5k.txt", "w");
 `endif
@@ -78,6 +86,8 @@ module tb_md_sound_fixed_region_test;
             $display("ERROR: failed to open /tmp/md_sound_fixed_vgm_real_snippet_50k.txt");
 `elsif TEST_FIXED_VGM_REAL_PHRASE_50K
             $display("ERROR: failed to open /tmp/md_sound_fixed_vgm_real_phrase_50k.txt");
+`elsif TEST_FIXED_TIMING_CALIBRATION_100K
+            $display("ERROR: failed to open /tmp/md_sound_fixed_timing_calibration_100k.txt");
 `else
             $display("ERROR: failed to open /tmp/md_sound_fixed_region_test_5k.txt");
 `endif
