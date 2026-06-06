@@ -2583,3 +2583,44 @@ Conclusion:
   remains useful after the emu-side reset is released.
 
 No RTL changes were made for this log entry.
+
+## 2026-06-06: Cold Boot / Core Load Startup Reconfirmed
+
+The same real-hardware result was reconfirmed after the PLL-locked reset stretcher fix:
+
+- Audio starts after cold boot / core load.
+- MiSTer menu return works.
+- The screen becomes cyan after audio_seen_latched.
+- Pressing reset briefly shows yellow.
+
+This confirms that using pll_locked plus MiSTer reset/status reset as the VGM top reset condition solved the automatic playback failure after core load.
+
+No RTL changes were made for this confirmation entry.
+
+## 2026-06-06: VGM Snippet PSG Three-Note Test
+
+After cold boot / core load startup was confirmed, `REGION_MODE=1` was kept as
+the active hardware snippet path and the snippet content was adjusted for the
+next audible check. The proven BRINGUP_TONE ROM was not changed.
+
+Current VGM_SNIPPET shape:
+
+```text
+known-good FM lead-in, about 1 second
+FM key-off / DAC off
+PSG ch0 note 1, about 0.4 seconds
+mute gap, about 0.2 seconds
+PSG ch0 note 2, about 0.4 seconds
+mute gap, about 0.2 seconds
+PSG ch0 note 3, about 0.4 seconds
+final silence sequence
+66 end
+```
+
+The PSG notes now send SN76489 tone periods as explicit byte sequences: latch
+low nibble, high bits, then volume. This avoids the earlier ambiguity where a
+10-bit PSG period could be mistaken for a single VGM `0x50` payload byte.
+
+`REGION_MODE=1` remains source-forced, and the cyan `audio_seen_latched` display
+path remains in place. `emu.sv`, `mister_vgm_md_top`, `md_sound_module`,
+JT12/JT89, and `AUDIO_L/R` scaling were not changed for this step.
