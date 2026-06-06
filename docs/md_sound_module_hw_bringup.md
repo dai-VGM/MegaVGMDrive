@@ -2924,3 +2924,82 @@ iverilog -g2012 -Wall -DSIMULATION -DTEST_FIXED_BRINGUP_TONE \
   rtl/md_sound_module.sv \
   rtl/genesis_audio/**/*.v
 ```
+
+
+## 2026-06-06: Region Mode 2 Hardware Sound Needs 50k Simulation Check
+
+Real MiSTer hardware confirmed that source-default `REGION_MODE=2` is active:
+
+```text
+screen: purple
+menu return: OK
+audio: short "ププププ" style sound that appears to speed up
+```
+
+This proves the mode 2 ROM is selected on hardware, but it does not yet prove
+that the real-VGM-derived snippet is musically held in the intended way. The
+next check is to dump a longer simulation WAV for mode 2 and compare it against
+the hardware sound.
+
+New TB mode:
+
+```text
+define: TEST_FIXED_VGM_REAL_SNIPPET_50K
+REGION_MODE: 2
+samples: 50000
+txt output: /tmp/md_sound_fixed_vgm_real_snippet_50k.txt
+```
+
+Build and run:
+
+```sh
+iverilog -g2012 -Wall -DSIMULATION -DTEST_FIXED_VGM_REAL_SNIPPET_50K \
+  -s tb_md_sound_fixed_region_test \
+  -o /tmp/tb_md_sound_fixed_vgm_real_snippet_50k.vvp \
+  tb/tb_md_sound_fixed_region_test.sv \
+  rtl/vgm_region_player.sv \
+  rtl/md_sound_module.sv \
+  rtl/genesis_audio/**/*.v
+
+vvp /tmp/tb_md_sound_fixed_vgm_real_snippet_50k.vvp
+```
+
+WAV conversion:
+
+```sh
+python3 tools/audio_txt_to_wav/audio_txt_to_wav.py \
+  /tmp/md_sound_fixed_vgm_real_snippet_50k.txt \
+  /tmp/md_sound_fixed_vgm_real_snippet_50k_gain1.wav \
+  --gain 1
+
+python3 tools/audio_txt_to_wav/audio_txt_to_wav.py \
+  /tmp/md_sound_fixed_vgm_real_snippet_50k.txt \
+  /tmp/md_sound_fixed_vgm_real_snippet_50k_gain4.wav \
+  --gain 4
+```
+
+Interpretation:
+
+```text
+If the simulation WAV also sounds like short "ププププ":
+  The mode 2 snippet itself is too short or lacks enough original VGM context.
+
+If the simulation WAV holds a normal sustained/musical tone:
+  Suspect the hardware wait/audio timing path or startup timing around mode 2.
+```
+
+Possible next edit, only after listening to the 50k WAV:
+
+```text
+Add an explicit long hold after the mode 2 KeyOn:
+  61 44 AC   wait 44100 samples, about 1 second
+
+or replace the current 5000-sample hold:
+  61 88 13   wait 5000 samples
+
+with:
+  61 44 AC   wait 44100 samples
+```
+
+For this step, the snippet body, JT12/JT89, `md_sound_module`, the existing 50K
+regression, mode 0, mode 1, and AUDIO `>>> 2` were not changed.

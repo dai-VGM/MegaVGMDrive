@@ -3,11 +3,18 @@
 
 module tb_md_sound_fixed_region_test;
 
+`ifdef TEST_FIXED_VGM_REAL_SNIPPET_50K
+    localparam int AUDIO_DUMP_SAMPLE_COUNT = 50000;
+`else
     localparam int AUDIO_DUMP_SAMPLE_COUNT = 5000;
+`endif
+
 `ifdef TEST_FIXED_BRINGUP_TONE
     localparam int REGION_MODE = 0;
 `elsif TEST_FIXED_VGM_SNIPPET
     localparam int REGION_MODE = 1;
+`elsif TEST_FIXED_VGM_REAL_SNIPPET_50K
+    localparam int REGION_MODE = 2;
 `elsif TEST_FIXED_VGM_REAL_SNIPPET
     localparam int REGION_MODE = 2;
 `else
@@ -53,9 +60,17 @@ module tb_md_sound_fixed_region_test;
     always #5 clk = ~clk;
 
     initial begin
+`ifdef TEST_FIXED_VGM_REAL_SNIPPET_50K
+        audio_file = $fopen("/tmp/md_sound_fixed_vgm_real_snippet_50k.txt", "w");
+`else
         audio_file = $fopen("/tmp/md_sound_fixed_region_test_5k.txt", "w");
+`endif
         if (audio_file == 0) begin
+`ifdef TEST_FIXED_VGM_REAL_SNIPPET_50K
+            $display("ERROR: failed to open /tmp/md_sound_fixed_vgm_real_snippet_50k.txt");
+`else
             $display("ERROR: failed to open /tmp/md_sound_fixed_region_test_5k.txt");
+`endif
             $finish;
         end
 
