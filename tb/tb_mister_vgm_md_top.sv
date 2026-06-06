@@ -2,7 +2,11 @@
 
 module tb_mister_vgm_md_top;
 
+`ifdef TEST_MISTER_TOP_MODE3_120K
+    localparam int AUDIO_DUMP_SAMPLE_COUNT = 120000;
+`else
     localparam int AUDIO_DUMP_SAMPLE_COUNT = 5000;
+`endif
     localparam logic [31:0] TB_POWER_ON_RESET_CYCLES = 32'd2048;
     localparam logic [31:0] TB_START_DELAY_CYCLES = 32'd1024;
     localparam logic [15:0] TB_AUDIO_WARMUP_SAMPLES = 16'd64;
@@ -62,11 +66,19 @@ module tb_mister_vgm_md_top;
     always #5 clk = ~clk;
 
     initial begin
+`ifdef TEST_MISTER_TOP_MODE3_120K
+        audio_file = $fopen("/tmp/mister_vgm_md_top_mode3_top_path_120k.txt", "w");
+        if (audio_file == 0) begin
+            $display("ERROR: failed to open /tmp/mister_vgm_md_top_mode3_top_path_120k.txt");
+            $finish;
+        end
+`else
         audio_file = $fopen("/tmp/mister_vgm_md_top_5k.txt", "w");
         if (audio_file == 0) begin
             $display("ERROR: failed to open /tmp/mister_vgm_md_top_5k.txt");
             $finish;
         end
+`endif
 
         repeat (64) @(posedge clk);
 
@@ -110,7 +122,11 @@ module tb_mister_vgm_md_top;
 
         $fclose(audio_file);
 
-        $display("MISTER_VGM_MD_TOP_TEST_DONE wav_written_samples=%0d audio_sample_valid_edges=%0d pc=%0d last_cmd=%02h busy=%0b done=%0b startup_reset=%0b startup_waiting=%0b startup_done=%0b audio_gate_open=%0b",
+`ifdef TEST_MISTER_TOP_MODE3_120K
+        $display("MISTER_VGM_MD_TOP_TEST_DONE file=/tmp/mister_vgm_md_top_mode3_top_path_120k.txt wav_written_samples=%0d audio_sample_valid_edges=%0d pc=%0d last_cmd=%02h busy=%0b done=%0b startup_reset=%0b startup_waiting=%0b startup_done=%0b audio_gate_open=%0b",
+`else
+        $display("MISTER_VGM_MD_TOP_TEST_DONE file=/tmp/mister_vgm_md_top_5k.txt wav_written_samples=%0d audio_sample_valid_edges=%0d pc=%0d last_cmd=%02h busy=%0b done=%0b startup_reset=%0b startup_waiting=%0b startup_done=%0b audio_gate_open=%0b",
+`endif
                  audio_dump_count,
                  audio_sample_valid_edges,
                  player_pc_debug,

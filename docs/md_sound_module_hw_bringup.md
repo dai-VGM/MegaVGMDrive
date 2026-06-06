@@ -3248,6 +3248,251 @@ final wait before 0x66 end
 No RTL was changed for this note. This records the hardware pass result only.
 
 
+## 2026-06-06: Region Mode 3 Audio Difference Triage
+
+`REGION_MODE=3 / VGM_REAL_PHRASE` now plays and replays on real MiSTer
+hardware, but the tone is still audibly different from the source/original VGM
+playback. Before changing the sound path, keep the next step focused on
+comparison data.
+
+Current mode3 fixed ROM facts:
+
+```text
+region: REGION_MODE=3 / VGM_REAL_PHRASE
+generated include: rtl/vgm_real_phrase_mode3_case.vh
+source VGM: /Users/daizo/Downloads/fm_only_test.vgm
+source slice start: VGM pc=0x00000040
+source slice end:   VGM pc=0x000014AA
+copied wait total before suffix: 100220 samples
+ROM byte count including strong silence suffix: 5262
+suffix: all 6 YM key-off, DAC zero/off, PSG mute all, final wait, 0x66 end
+```
+
+The slice starts at the VGM command area and includes the early YM setup writes
+visible at the start of the generated ROM:
+
+```text
+YM key-off for channels 0..5
+LFO off
+timer/control setup
+DAC off
+YM port0 and port1 operator/frequency/pan writes from the source VGM
+wait commands copied from the source command stream
+```
+
+Top-level simulation WAV procedure for mode3:
+
+```sh
+iverilog -g2012 -Wall -DSIMULATION \
+  -s tb_mister_vgm_md_top \
+  -o /tmp/tb_mister_vgm_md_top_mode3_audio_check.vvp \
+  tb/tb_mister_vgm_md_top.sv \
+  rtl/mister_vgm_md_top.sv \
+  rtl/vgm_region_player.sv \
+  rtl/md_sound_module.sv \
+  rtl/genesis_audio/**/*.v
+
+vvp /tmp/tb_mister_vgm_md_top_mode3_audio_check.vvp \
+  > /tmp/tb_mister_vgm_md_top_mode3_audio_check.log
+
+python3 tools/audio_txt_to_wav/audio_txt_to_wav.py \
+  /tmp/mister_vgm_md_top_5k.txt \
+  /tmp/mister_vgm_md_top_mode3_5k_gain1.wav \
+  --gain 1
+
+python3 tools/audio_txt_to_wav/audio_txt_to_wav.py \
+  /tmp/mister_vgm_md_top_5k.txt \
+  /tmp/mister_vgm_md_top_mode3_5k_gain2.wav \
+  --gain 2
+```
+
+For a MiSTer hardware recording comparison, generate a simulation WAV with the
+same intended sample count as the capture. The current top TB dumps 5000 samples
+to:
+
+```text
+/tmp/mister_vgm_md_top_5k.txt
+```
+
+If the hardware recording is longer, temporarily adjust only
+`AUDIO_DUMP_SAMPLE_COUNT` in `tb/tb_mister_vgm_md_top.sv` or add a dedicated
+test define for the desired sample count, then regenerate the WAV with the same
+gain used for comparison. Do not tune RTL audio based on a different duration or
+gain.
+
+Current mixer/filter/audio-output path:
+
+```text
+JT12 fm_left/fm_right
+  -> fm_adjust_l/r, matching the Genesis_MiSTer-style pre-genmix gain adjustment
+JT89 psg_sound
+  -> psg_adjust
+jt12_genmix
+  -> pre_lpf_l/r
+genesis_lpf
+  -> audio_l/audio_r
+emu.sv
+  -> AUDIO_L/R = md_audio_l/r >>> 2 while audio_gate_open is high
+```
+
+Important current difference from a final Genesis/Mega Drive output model:
+
+```text
+genesis_lpf is instantiated, but lpf_mode is 2'b11, which is bypass
+AUDIO_L/R are shifted right by 2 in emu.sv for safe hardware level
+AUDIO_MIX is 2'b00, so stereo is not forced to mono by this core
+PCM/DAC stream is not part of this mode3 fixed phrase
+```
+
+Likely causes to isolate, in order:
+
+```text
+1. Source/reference mismatch
+   Compare against the same fixed slice, not a full VGM player at another song
+   position.
+
+2. Filter mismatch
+   The current hardware path bypasses genesis_lpf. Original MD/MiSTer playback
+   may use Model 1, Model 2, or another low-pass response.
+
+3. Level mismatch
+   emu.sv applies AUDIO >>> 2 after md_sound_module. This should not change
+   pitch or register behavior, but it changes perceived loudness and may make
+   envelopes feel different.
+
+4. Command context mismatch
+   The mode3 ROM includes YM setup from command_start, but it is still a fixed
+   slice. If the reference playback includes earlier reset behavior, DAC/PCM, or
+   a different VGM region, the tone will differ.
+
+5. Wait/timing mismatch
+   VGM waits now use a dedicated 44100 Hz tick with CLK_SYS_HZ=12_500_000.
+   The mode4 calibration made the first 1-second wait roughly correct, but a
+   longer capture should still be compared against simulation at the same sample
+   count.
+
+6. JT12/JT89 model difference
+   If the simulation top WAV and MiSTer recording match each other but both
+   differ from another emulator/player, the remaining difference may be the
+   selected JT12/JT89 model/mixer/filter configuration rather than the VGM
+   command stream.
+```
+
+Do not change the audio RTL yet. First collect:
+
+```text
+top-sim mode3 WAV, gain1/gain2, same sample count as hardware capture
+MiSTer hardware recording from the same region and gain path
+reference/original VGM playback of the same slice, if possible
+```
+
+Then compare:
+
+```text
+pitch/tempo
+attack timing
+envelope decay
+stereo pan
+high-frequency brightness, especially with LPF bypass
+overall level caused by >>> 2
+```
+
+
+## 2026-06-06: Region Mode 3 Comparison Baseline
+
+The comparison target is now fixed to the exact ROM used by hardware
+`REGION_MODE=3`.
+
+Baseline definition:
+
+```text
+fixed ROM file: rtl/vgm_real_phrase_mode3_case.vh
+mode name: REGION_MODE=3 / VGM_REAL_PHRASE
+source VGM: /Users/daizo/Downloads/fm_only_test.vgm
+source slice: VGM pc=0x00000040 through 0x000014AA
+copied wait total before suffix: 100220 samples
+ROM byte count including strong silence suffix: 5262
+```
+
+Use this as the only reference for mode3 MiSTer comparison. Do not mix these
+results with:
+
+```text
+REGION_MODE=2 / VGM_REAL_SNIPPET
+older 50K fixed-region WAVs
+full-VGM parser simulation WAVs
+PCM/DAC-region tests
+```
+
+Top-path simulation means the signal goes through the same wrapper path used by
+the MiSTer shell:
+
+```text
+tb_mister_vgm_md_top
+  -> mister_vgm_md_top
+  -> md_sound_fixed_region_test
+  -> vgm_region_player REGION_MODE=3
+  -> md_sound_module
+  -> JT12 / JT89
+  -> jt12_genmix
+  -> genesis_lpf bypass
+  -> audio_l/audio_r
+```
+
+120K top-path dump command:
+
+```sh
+iverilog -g2012 -Wall -DSIMULATION -DTEST_MISTER_TOP_MODE3_120K \
+  -s tb_mister_vgm_md_top \
+  -o /tmp/tb_mister_vgm_md_top_mode3_top_path_120k.vvp \
+  tb/tb_mister_vgm_md_top.sv \
+  rtl/mister_vgm_md_top.sv \
+  rtl/vgm_region_player.sv \
+  rtl/md_sound_module.sv \
+  rtl/genesis_audio/**/*.v
+
+vvp /tmp/tb_mister_vgm_md_top_mode3_top_path_120k.vvp \
+  > /tmp/tb_mister_vgm_md_top_mode3_top_path_120k.log
+```
+
+Expected text dump:
+
+```text
+/tmp/mister_vgm_md_top_mode3_top_path_120k.txt
+```
+
+WAV conversion:
+
+```sh
+python3 tools/audio_txt_to_wav/audio_txt_to_wav.py \
+  /tmp/mister_vgm_md_top_mode3_top_path_120k.txt \
+  /tmp/mister_vgm_md_top_mode3_top_path_120k_gain1.wav \
+  --gain 1
+
+python3 tools/audio_txt_to_wav/audio_txt_to_wav.py \
+  /tmp/mister_vgm_md_top_mode3_top_path_120k.txt \
+  /tmp/mister_vgm_md_top_mode3_top_path_120k_gain2.wav \
+  --gain 2
+```
+
+These WAVs are the comparison baseline for MiSTer hardware `REGION_MODE=3`:
+
+```text
+/tmp/mister_vgm_md_top_mode3_top_path_120k_gain1.wav
+/tmp/mister_vgm_md_top_mode3_top_path_120k_gain2.wav
+```
+
+Comparison rule:
+
+```text
+same fixed ROM
+same top path
+same sample count
+same gain
+same AUDIO >>> 2 hardware path noted separately
+```
+
+
 ## 2026-06-06: Region Mode 3 Start Retry / Replay
 
 `REGION_MODE=3 / VGM_REAL_PHRASE` was confirmed on real MiSTer hardware, but
