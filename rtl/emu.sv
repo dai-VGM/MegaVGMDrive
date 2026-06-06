@@ -7,6 +7,8 @@
 `define FIXED_REGION_MODE 0
 `endif
 
+localparam bit FIXED_REAL_SNIPPET_MODE = (`FIXED_REGION_MODE == 2);
+
 module emu
 (
     input         CLK_50M,
@@ -424,6 +426,7 @@ module emu
     // init wait / start wait  : magenta
     // audio_seen_latched      : cyan
     // audio gate open         : white
+    // region mode 2 gate open : purple
     // player_busy             : red
     // done_latched            : blue
     //
@@ -432,6 +435,7 @@ module emu
     // right by two bits, then applying the output gate.
     wire [7:0] red =
         startup_reset_active ? 8'hff :
+        (audio_gate_open && FIXED_REAL_SNIPPET_MODE) ? 8'hc0 :
         audio_gate_open    ? 8'hff :
         audio_seen_latched ? 8'h00 :
         startup_waiting    ? 8'hff :
@@ -441,6 +445,7 @@ module emu
 
     wire [7:0] green =
         startup_reset_active ? 8'hff :
+        (audio_gate_open && FIXED_REAL_SNIPPET_MODE) ? 8'h00 :
         audio_gate_open    ? 8'hff :
         audio_seen_latched ? 8'hff :
         startup_waiting    ? 8'h00 :
@@ -450,6 +455,7 @@ module emu
 
     wire [7:0] blue =
         startup_reset_active ? 8'h00 :
+        (audio_gate_open && FIXED_REAL_SNIPPET_MODE) ? 8'hff :
         audio_gate_open    ? 8'hff :
         audio_seen_latched ? 8'hff :
         startup_waiting    ? 8'hff :

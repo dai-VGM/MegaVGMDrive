@@ -5,6 +5,8 @@ module tb_md_sound_fixed_region_test;
     localparam int AUDIO_DUMP_SAMPLE_COUNT = 5000;
 `ifdef TEST_FIXED_VGM_SNIPPET
     localparam int REGION_MODE = 1;
+`elsif TEST_FIXED_VGM_REAL_SNIPPET
+    localparam int REGION_MODE = 2;
 `else
     localparam int REGION_MODE = 0;
 `endif

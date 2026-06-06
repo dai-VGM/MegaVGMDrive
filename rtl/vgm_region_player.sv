@@ -15,6 +15,7 @@
 // Default region mode:
 //   0 = proven hardware bring-up tone
 //   1 = short VGM-style snippet for the next hardware check
+//   2 = short real-VGM-derived YM/PSG snippet
 //
 // Temporary hardware-source check:
 //   Default to 1 without depending on a QSF VERILOG_MACRO. If the real MiSTer
@@ -25,7 +26,7 @@
 `endif
 
 module vgm_region_player #(
-    parameter int REGION_MODE = 1
+    parameter int REGION_MODE = `FIXED_REGION_MODE
 ) (
     input  logic       clk,
     input  logic       reset,
@@ -83,6 +84,7 @@ module vgm_region_player #(
 
     localparam int REGION_MODE_BRINGUP_TONE = 0;
     localparam int REGION_MODE_VGM_SNIPPET  = 1;
+    localparam int REGION_MODE_VGM_REAL_SNIPPET = 2;
 
     // Small fixed command ROM.
     //
@@ -264,8 +266,82 @@ module vgm_region_player #(
         end
     endfunction
 
+    function automatic logic [7:0] vgm_real_snippet_rom_byte(input logic [9:0] addr);
+        unique case (addr)
+            // Initial silence before the real-VGM-derived register state.
+            10'd0:   vgm_real_snippet_rom_byte = 8'h52; 10'd1:   vgm_real_snippet_rom_byte = 8'h28; 10'd2:   vgm_real_snippet_rom_byte = 8'h00;
+            10'd3:   vgm_real_snippet_rom_byte = 8'h52; 10'd4:   vgm_real_snippet_rom_byte = 8'h2A; 10'd5:   vgm_real_snippet_rom_byte = 8'h00;
+            10'd6:   vgm_real_snippet_rom_byte = 8'h52; 10'd7:   vgm_real_snippet_rom_byte = 8'h2B; 10'd8:   vgm_real_snippet_rom_byte = 8'h00;
+            10'd9:   vgm_real_snippet_rom_byte = 8'h50; 10'd10:  vgm_real_snippet_rom_byte = 8'h9F;
+            10'd11:  vgm_real_snippet_rom_byte = 8'h50; 10'd12:  vgm_real_snippet_rom_byte = 8'hBF;
+            10'd13:  vgm_real_snippet_rom_byte = 8'h50; 10'd14:  vgm_real_snippet_rom_byte = 8'hDF;
+            10'd15:  vgm_real_snippet_rom_byte = 8'h50; 10'd16:  vgm_real_snippet_rom_byte = 8'hFF;
+            10'd17:  vgm_real_snippet_rom_byte = 8'h61; 10'd18:  vgm_real_snippet_rom_byte = 8'h00; 10'd19:  vgm_real_snippet_rom_byte = 8'h04;
+
+            // Distilled from /Users/daizo/Downloads/fm_only_test.vgm:
+            // first active YM2612 KeyOn at VGM pc=0x0000044B. These are the
+            // latest channel-1 register values seen before that KeyOn, kept as
+            // VGM opcodes so the fixed player still exercises the same command
+            // path as a real VGM stream.
+            10'd20:  vgm_real_snippet_rom_byte = 8'h52; 10'd21:  vgm_real_snippet_rom_byte = 8'h22; 10'd22:  vgm_real_snippet_rom_byte = 8'h00;
+            10'd23:  vgm_real_snippet_rom_byte = 8'h52; 10'd24:  vgm_real_snippet_rom_byte = 8'h27; 10'd25:  vgm_real_snippet_rom_byte = 8'h40;
+            10'd26:  vgm_real_snippet_rom_byte = 8'h52; 10'd27:  vgm_real_snippet_rom_byte = 8'h2B; 10'd28:  vgm_real_snippet_rom_byte = 8'h00;
+            10'd29:  vgm_real_snippet_rom_byte = 8'h52; 10'd30:  vgm_real_snippet_rom_byte = 8'h30; 10'd31:  vgm_real_snippet_rom_byte = 8'h61;
+            10'd32:  vgm_real_snippet_rom_byte = 8'h52; 10'd33:  vgm_real_snippet_rom_byte = 8'h34; 10'd34:  vgm_real_snippet_rom_byte = 8'h31;
+            10'd35:  vgm_real_snippet_rom_byte = 8'h52; 10'd36:  vgm_real_snippet_rom_byte = 8'h38; 10'd37:  vgm_real_snippet_rom_byte = 8'h31;
+            10'd38:  vgm_real_snippet_rom_byte = 8'h52; 10'd39:  vgm_real_snippet_rom_byte = 8'h3C; 10'd40:  vgm_real_snippet_rom_byte = 8'h61;
+            10'd41:  vgm_real_snippet_rom_byte = 8'h52; 10'd42:  vgm_real_snippet_rom_byte = 8'h40; 10'd43:  vgm_real_snippet_rom_byte = 8'h1E;
+            10'd44:  vgm_real_snippet_rom_byte = 8'h52; 10'd45:  vgm_real_snippet_rom_byte = 8'h44; 10'd46:  vgm_real_snippet_rom_byte = 8'h1B;
+            10'd47:  vgm_real_snippet_rom_byte = 8'h52; 10'd48:  vgm_real_snippet_rom_byte = 8'h48; 10'd49:  vgm_real_snippet_rom_byte = 8'h1A;
+            10'd50:  vgm_real_snippet_rom_byte = 8'h52; 10'd51:  vgm_real_snippet_rom_byte = 8'h4C; 10'd52:  vgm_real_snippet_rom_byte = 8'h1A;
+            10'd53:  vgm_real_snippet_rom_byte = 8'h52; 10'd54:  vgm_real_snippet_rom_byte = 8'h50; 10'd55:  vgm_real_snippet_rom_byte = 8'h4F;
+            10'd56:  vgm_real_snippet_rom_byte = 8'h52; 10'd57:  vgm_real_snippet_rom_byte = 8'h54; 10'd58:  vgm_real_snippet_rom_byte = 8'h4F;
+            10'd59:  vgm_real_snippet_rom_byte = 8'h52; 10'd60:  vgm_real_snippet_rom_byte = 8'h58; 10'd61:  vgm_real_snippet_rom_byte = 8'h9F;
+            10'd62:  vgm_real_snippet_rom_byte = 8'h52; 10'd63:  vgm_real_snippet_rom_byte = 8'h5C; 10'd64:  vgm_real_snippet_rom_byte = 8'h1F;
+            10'd65:  vgm_real_snippet_rom_byte = 8'h52; 10'd66:  vgm_real_snippet_rom_byte = 8'h60; 10'd67:  vgm_real_snippet_rom_byte = 8'h03;
+            10'd68:  vgm_real_snippet_rom_byte = 8'h52; 10'd69:  vgm_real_snippet_rom_byte = 8'h64; 10'd70:  vgm_real_snippet_rom_byte = 8'h0E;
+            10'd71:  vgm_real_snippet_rom_byte = 8'h52; 10'd72:  vgm_real_snippet_rom_byte = 8'h68; 10'd73:  vgm_real_snippet_rom_byte = 8'h01;
+            10'd74:  vgm_real_snippet_rom_byte = 8'h52; 10'd75:  vgm_real_snippet_rom_byte = 8'h6C; 10'd76:  vgm_real_snippet_rom_byte = 8'h15;
+            10'd77:  vgm_real_snippet_rom_byte = 8'h52; 10'd78:  vgm_real_snippet_rom_byte = 8'h70; 10'd79:  vgm_real_snippet_rom_byte = 8'h01;
+            10'd80:  vgm_real_snippet_rom_byte = 8'h52; 10'd81:  vgm_real_snippet_rom_byte = 8'h74; 10'd82:  vgm_real_snippet_rom_byte = 8'h08;
+            10'd83:  vgm_real_snippet_rom_byte = 8'h52; 10'd84:  vgm_real_snippet_rom_byte = 8'h78; 10'd85:  vgm_real_snippet_rom_byte = 8'h01;
+            10'd86:  vgm_real_snippet_rom_byte = 8'h52; 10'd87:  vgm_real_snippet_rom_byte = 8'h7C; 10'd88:  vgm_real_snippet_rom_byte = 8'h15;
+            10'd89:  vgm_real_snippet_rom_byte = 8'h52; 10'd90:  vgm_real_snippet_rom_byte = 8'h80; 10'd91:  vgm_real_snippet_rom_byte = 8'h27;
+            10'd92:  vgm_real_snippet_rom_byte = 8'h52; 10'd93:  vgm_real_snippet_rom_byte = 8'h84; 10'd94:  vgm_real_snippet_rom_byte = 8'h47;
+            10'd95:  vgm_real_snippet_rom_byte = 8'h52; 10'd96:  vgm_real_snippet_rom_byte = 8'h88; 10'd97:  vgm_real_snippet_rom_byte = 8'h28;
+            10'd98:  vgm_real_snippet_rom_byte = 8'h52; 10'd99:  vgm_real_snippet_rom_byte = 8'h8C; 10'd100: vgm_real_snippet_rom_byte = 8'h28;
+            10'd101: vgm_real_snippet_rom_byte = 8'h52; 10'd102: vgm_real_snippet_rom_byte = 8'h90; 10'd103: vgm_real_snippet_rom_byte = 8'h00;
+            10'd104: vgm_real_snippet_rom_byte = 8'h52; 10'd105: vgm_real_snippet_rom_byte = 8'h94; 10'd106: vgm_real_snippet_rom_byte = 8'h00;
+            10'd107: vgm_real_snippet_rom_byte = 8'h52; 10'd108: vgm_real_snippet_rom_byte = 8'h98; 10'd109: vgm_real_snippet_rom_byte = 8'h00;
+            10'd110: vgm_real_snippet_rom_byte = 8'h52; 10'd111: vgm_real_snippet_rom_byte = 8'h9C; 10'd112: vgm_real_snippet_rom_byte = 8'h00;
+            10'd113: vgm_real_snippet_rom_byte = 8'h52; 10'd114: vgm_real_snippet_rom_byte = 8'hA4; 10'd115: vgm_real_snippet_rom_byte = 8'h14;
+            10'd116: vgm_real_snippet_rom_byte = 8'h52; 10'd117: vgm_real_snippet_rom_byte = 8'hA0; 10'd118: vgm_real_snippet_rom_byte = 8'h0D;
+            10'd119: vgm_real_snippet_rom_byte = 8'h52; 10'd120: vgm_real_snippet_rom_byte = 8'hB0; 10'd121: vgm_real_snippet_rom_byte = 8'h3C;
+            10'd122: vgm_real_snippet_rom_byte = 8'h52; 10'd123: vgm_real_snippet_rom_byte = 8'hB4; 10'd124: vgm_real_snippet_rom_byte = 8'hC0;
+            10'd125: vgm_real_snippet_rom_byte = 8'h52; 10'd126: vgm_real_snippet_rom_byte = 8'h28; 10'd127: vgm_real_snippet_rom_byte = 8'hF0;
+
+            // Hold the real VGM-derived tone for about 0.11 seconds.
+            10'd128: vgm_real_snippet_rom_byte = 8'h61; 10'd129: vgm_real_snippet_rom_byte = 8'h88; 10'd130: vgm_real_snippet_rom_byte = 8'h13;
+
+            // Explicit final silence sequence.
+            10'd131: vgm_real_snippet_rom_byte = 8'h52; 10'd132: vgm_real_snippet_rom_byte = 8'h28; 10'd133: vgm_real_snippet_rom_byte = 8'h00;
+            10'd134: vgm_real_snippet_rom_byte = 8'h52; 10'd135: vgm_real_snippet_rom_byte = 8'h2A; 10'd136: vgm_real_snippet_rom_byte = 8'h00;
+            10'd137: vgm_real_snippet_rom_byte = 8'h52; 10'd138: vgm_real_snippet_rom_byte = 8'h2B; 10'd139: vgm_real_snippet_rom_byte = 8'h00;
+            10'd140: vgm_real_snippet_rom_byte = 8'h50; 10'd141: vgm_real_snippet_rom_byte = 8'h9F;
+            10'd142: vgm_real_snippet_rom_byte = 8'h50; 10'd143: vgm_real_snippet_rom_byte = 8'hBF;
+            10'd144: vgm_real_snippet_rom_byte = 8'h50; 10'd145: vgm_real_snippet_rom_byte = 8'hDF;
+            10'd146: vgm_real_snippet_rom_byte = 8'h50; 10'd147: vgm_real_snippet_rom_byte = 8'hFF;
+            10'd148: vgm_real_snippet_rom_byte = 8'h61; 10'd149: vgm_real_snippet_rom_byte = 8'h00; 10'd150: vgm_real_snippet_rom_byte = 8'h04;
+            10'd151: vgm_real_snippet_rom_byte = 8'h66;
+
+            default: vgm_real_snippet_rom_byte = 8'h66;
+        endcase
+    endfunction
+
     function automatic logic [7:0] rom_byte(input logic [9:0] addr);
-        if (REGION_MODE == REGION_MODE_VGM_SNIPPET) begin
+        if (REGION_MODE == REGION_MODE_VGM_REAL_SNIPPET) begin
+            rom_byte = vgm_real_snippet_rom_byte(addr);
+        end else if (REGION_MODE == REGION_MODE_VGM_SNIPPET) begin
             rom_byte = vgm_snippet_rom_byte(addr);
         end else begin
             rom_byte = bringup_tone_rom_byte(addr);
@@ -474,7 +550,7 @@ endmodule
 // audio_l/audio_r to the platform audio output. For a larger design, instantiate
 // vgm_region_player and md_sound_module separately and keep the same wiring.
 module md_sound_fixed_region_test #(
-    parameter int REGION_MODE = 1
+    parameter int REGION_MODE = `FIXED_REGION_MODE
 ) (
     input  logic              clk,
     input  logic              reset,

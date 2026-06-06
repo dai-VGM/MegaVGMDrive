@@ -2726,3 +2726,140 @@ start    fixed snippet begins after the gate-to-start delay
 Color priority in `emu.sv` is reset > gate open > sample seen > waiting.
 `md_sound_module`, JT12, JT89, `vgm_region_player`, and the AUDIO `>>> 2`
 scaling were not changed for this step.
+
+
+## 2026-06-06: Fixed ROM Region Mode 2, Real-VGM-Derived YM Snippet
+
+The hardware bring-up tone and the VGM_SNIPPET smoke test are now confirmed, so
+the next fixed-ROM step is a short snippet derived from an actual VGM command
+stream instead of a purely hand-authored tone.
+
+New fixed region mode:
+
+```text
+REGION_MODE = 0   BRINGUP_TONE, proven FM -> PSG -> silence hardware tone
+REGION_MODE = 1   VGM_SNIPPET smoke test, proven FM lead-in + PSG 3-note test
+REGION_MODE = 2   VGM_REAL_SNIPPET, short real-VGM-derived YM snippet
+```
+
+`REGION_MODE=2` is derived from:
+
+```text
+/Users/daizo/Downloads/fm_only_test.vgm
+first active YM2612 KeyOn pc = 0x0000044B
+KeyOn command = 52 28 F0
+```
+
+The fixed ROM does not include PCM/DAC stream commands. It distills the latest
+YM2612 channel-1 register values seen before that first active KeyOn, keeps
+them as VGM-style `0x52 reg data` opcodes, then holds the resulting tone for
+about 5000 audio samples. The region ends with the same explicit silence style
+used by the bring-up tests:
+
+```text
+52 28 00      YM key off
+52 2A 00      DAC data zero
+52 2B 00      DAC off
+50 9F         PSG ch0 mute
+50 BF         PSG ch1 mute
+50 DF         PSG ch2 mute
+50 FF         PSG noise mute
+61 00 04      wait 1024 samples
+66            end
+```
+
+For hardware identification, `FIXED_REGION_MODE=2` changes the gate-open debug
+screen to purple. Existing mode 0 and mode 1 behavior remains available.
+
+Simulation commands:
+
+```sh
+iverilog -g2012 -Wall -DSIMULATION -s tb_md_sound_fixed_region_test \
+  -o /tmp/tb_md_sound_fixed_region_mode0.vvp \
+  tb/tb_md_sound_fixed_region_test.sv \
+  rtl/vgm_region_player.sv \
+  rtl/md_sound_module.sv \
+  rtl/genesis_audio/**/*.v
+
+iverilog -g2012 -Wall -DSIMULATION -DTEST_FIXED_VGM_SNIPPET \
+  -s tb_md_sound_fixed_region_test \
+  -o /tmp/tb_md_sound_fixed_region_mode1.vvp \
+  tb/tb_md_sound_fixed_region_test.sv \
+  rtl/vgm_region_player.sv \
+  rtl/md_sound_module.sv \
+  rtl/genesis_audio/**/*.v
+
+iverilog -g2012 -Wall -DSIMULATION -DTEST_FIXED_VGM_REAL_SNIPPET \
+  -s tb_md_sound_fixed_region_test \
+  -o /tmp/tb_md_sound_fixed_region_mode2.vvp \
+  tb/tb_md_sound_fixed_region_test.sv \
+  rtl/vgm_region_player.sv \
+  rtl/md_sound_module.sv \
+  rtl/genesis_audio/**/*.v
+
+vvp /tmp/tb_md_sound_fixed_region_mode0.vvp
+vvp /tmp/tb_md_sound_fixed_region_mode1.vvp
+vvp /tmp/tb_md_sound_fixed_region_mode2.vvp
+```
+
+Observed fixed-region smoke results:
+
+```text
+REGION_MODE=0:
+wav_written_samples=5000
+audio_sample_valid_edges=5000
+pc=90
+last_cmd=61
+
+REGION_MODE=1:
+wav_written_samples=5000
+audio_sample_valid_edges=5000
+pc=20
+last_cmd=61
+
+REGION_MODE=2:
+wav_written_samples=5000
+audio_sample_valid_edges=5000
+pc=131
+last_cmd=61
+fixed_region_mode2_dump min_l=-922 max_l=1027 min_r=-922 max_r=1027 nonzero=3868 samples=5000
+```
+
+Top-level smoke command for the new mode:
+
+```sh
+iverilog -g2012 -Wall -DSIMULATION -DFIXED_REGION_MODE=2 \
+  -s tb_mister_vgm_md_top \
+  -o /tmp/tb_mister_vgm_md_top_mode2.vvp \
+  tb/tb_mister_vgm_md_top.sv \
+  rtl/mister_vgm_md_top.sv \
+  rtl/vgm_region_player.sv \
+  rtl/md_sound_module.sv \
+  rtl/genesis_audio/**/*.v
+
+vvp /tmp/tb_mister_vgm_md_top_mode2.vvp
+```
+
+Observed top-level result:
+
+```text
+MISTER_VGM_MD_TOP_TEST_DONE
+wav_written_samples=5000
+audio_sample_valid_edges=5000
+pc=131
+last_cmd=61
+startup_reset=0
+startup_waiting=0
+startup_done=1
+audio_gate_open=1
+mister_top_mode2_dump min_l=-922 max_l=1050 min_r=-922 max_r=1050 nonzero=3725 samples=5000
+```
+
+To build this mode for MiSTer hardware, use the normal project flow with:
+
+```tcl
+set_global_assignment -name VERILOG_MACRO "FIXED_REGION_MODE=2"
+```
+
+The existing 50K regression path and the previous fixed regions are not changed
+by this mode addition.
