@@ -2558,3 +2558,28 @@ cyan     audio_sample_valid observed
 `AUDIO_L/R`, output `>>> 2` scaling, `md_sound_module`, JT12/JT89, and
 `vgm_region_player` were not changed. The `tb_mister_vgm_md_top` smoke test
 still completed with 5000 audio sample edges after this change.
+
+## 2026-06-06: Cold Boot / Core Load Audio Startup Confirmed
+
+The PLL-locked reset stretcher change was tested on real MiSTer hardware.
+
+Observed result:
+
+- Audio now starts after cold boot / core load, without requiring a manual core
+  reset.
+- MiSTer menu return still works.
+- The screen becomes cyan after `audio_seen_latched`, confirming
+  `audio_sample_valid` was observed.
+- Pressing core reset briefly shows yellow, confirming the startup reset phase
+  is still visible and reruns on reset.
+
+Conclusion:
+
+- The previous failure was consistent with `mister_vgm_md_top` not receiving a
+  reliable reset during cold core load.
+- Holding `mister_vgm_md_top.reset_n` low until PLL lock, then extending reset
+  with the emu-side reset stretcher, fixes cold-load startup.
+- The existing internal POR/start-delay sequence inside `mister_vgm_md_top`
+  remains useful after the emu-side reset is released.
+
+No RTL changes were made for this log entry.
