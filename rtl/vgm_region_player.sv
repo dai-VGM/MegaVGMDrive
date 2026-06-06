@@ -18,12 +18,10 @@
 //   2 = short real-VGM-derived YM/PSG snippet
 //
 // Temporary hardware-source check:
-//   Default to 1 without depending on a QSF VERILOG_MACRO. If the real MiSTer
-//   build still behaves like BRINGUP_TONE, Quartus is likely using an older
-//   source tree or an older RBF.
-`ifndef FIXED_REGION_MODE
-`define FIXED_REGION_MODE 1
-`endif
+//   fixed_region_mode.vh currently defaults to REGION_MODE=2 without depending
+//   on a QSF VERILOG_MACRO. If the real MiSTer build still behaves differently,
+//   Quartus is likely using an older source tree or an older RBF.
+`include "rtl/fixed_region_mode.vh"
 
 module vgm_region_player #(
     parameter int REGION_MODE = `FIXED_REGION_MODE

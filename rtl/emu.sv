@@ -3,9 +3,7 @@
 // This module intentionally mirrors InputTest_MiSTer's explicit emu port list
 // and hps_io style. The sound module is not instantiated in this baseline.
 
-`ifndef FIXED_REGION_MODE
-`define FIXED_REGION_MODE 0
-`endif
+`include "rtl/fixed_region_mode.vh"
 
 localparam bit FIXED_REAL_SNIPPET_MODE = (`FIXED_REGION_MODE == 2);
 

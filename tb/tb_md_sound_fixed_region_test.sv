@@ -1,14 +1,17 @@
 `timescale 1ns/1ps
+`include "rtl/fixed_region_mode.vh"
 
 module tb_md_sound_fixed_region_test;
 
     localparam int AUDIO_DUMP_SAMPLE_COUNT = 5000;
-`ifdef TEST_FIXED_VGM_SNIPPET
+`ifdef TEST_FIXED_BRINGUP_TONE
+    localparam int REGION_MODE = 0;
+`elsif TEST_FIXED_VGM_SNIPPET
     localparam int REGION_MODE = 1;
 `elsif TEST_FIXED_VGM_REAL_SNIPPET
     localparam int REGION_MODE = 2;
 `else
-    localparam int REGION_MODE = 0;
+    localparam int REGION_MODE = `FIXED_REGION_MODE;
 `endif
 
     logic clk = 1'b0;

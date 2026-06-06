@@ -2863,3 +2863,64 @@ set_global_assignment -name VERILOG_MACRO "FIXED_REGION_MODE=2"
 
 The existing 50K regression path and the previous fixed regions are not changed
 by this mode addition.
+
+
+## 2026-06-06: Source-Default Force For Region Mode 2 Hardware Test
+
+On inspection, `VGM_MD_MiSTer.qsf` did not contain a `FIXED_REGION_MODE`
+`VERILOG_MACRO` assignment. That means earlier hardware region selection was
+very likely coming from source defaults, not from the Quartus project file.
+
+For the next real-hardware check, the project intentionally avoids depending on
+QSF macro propagation. A small shared header now owns the temporary source-side
+default:
+
+```systemverilog
+// rtl/fixed_region_mode.vh
+`ifndef FIXED_REGION_MODE
+`define FIXED_REGION_MODE 2
+`endif
+```
+
+Both `rtl/vgm_region_player.sv` and `rtl/emu.sv` include this header, so the ROM
+selection and the debug color selection use the same value. With no QSF macro:
+
+```text
+REGION_MODE=2 is selected by default
+gate-open debug color is purple
+```
+
+`VGM_MD_MiSTer.qsf` was not changed for this step. AUDIO `>>> 2`,
+`md_sound_module`, JT12, and JT89 were not changed.
+
+Verification:
+
+```sh
+iverilog -g2012 -Wall -DSIMULATION -s tb_md_sound_fixed_region_test \
+  -o /tmp/tb_md_sound_fixed_region_default.vvp \
+  tb/tb_md_sound_fixed_region_test.sv \
+  rtl/vgm_region_player.sv \
+  rtl/md_sound_module.sv \
+  rtl/genesis_audio/**/*.v
+
+vvp /tmp/tb_md_sound_fixed_region_default.vvp
+```
+
+Observed result without any `TEST_FIXED_*` override:
+
+```text
+FIXED_REGION_TEST_START samples=5000 region_mode=2
+FIXED_REGION_TEST_DONE wav_written_samples=5000 audio_sample_valid_edges=5000 pc=131 last_cmd=61 busy=1 done=0
+```
+
+To explicitly re-run the older bring-up region in simulation, use:
+
+```sh
+iverilog -g2012 -Wall -DSIMULATION -DTEST_FIXED_BRINGUP_TONE \
+  -s tb_md_sound_fixed_region_test \
+  -o /tmp/tb_md_sound_fixed_region_mode0_explicit.vvp \
+  tb/tb_md_sound_fixed_region_test.sv \
+  rtl/vgm_region_player.sv \
+  rtl/md_sound_module.sv \
+  rtl/genesis_audio/**/*.v
+```
