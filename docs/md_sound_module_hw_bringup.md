@@ -3248,6 +3248,64 @@ final wait before 0x66 end
 No RTL was changed for this note. This records the hardware pass result only.
 
 
+## 2026-06-06: Source Default Changed to Region Mode 3
+
+The previous hardware check was expected to use `REGION_MODE=3`, but the real
+MiSTer screen was still purple and the audio matched the known `REGION_MODE=2`
+sound. That means the build was still selecting mode 2.
+
+Root cause:
+
+```text
+rtl/fixed_region_mode.vh still defaulted FIXED_REGION_MODE to 2
+```
+
+For the next hardware test, the source-side default was changed:
+
+```text
+rtl/fixed_region_mode.vh
+  FIXED_REGION_MODE 2 -> 3
+```
+
+Confirmed connections:
+
+```text
+emu.sv:
+  FIXED_REGION_MODE == 3 selects the orange debug color
+
+vgm_region_player.sv:
+  REGION_MODE == 3 selects vgm_real_phrase_rom_byte()
+```
+
+Unchanged:
+
+```text
+AUDIO_L/R and >>> 2 scaling
+md_sound_module
+JT12/JT89 sources
+mister_vgm_md_top
+```
+
+Build sanity check:
+
+```sh
+iverilog -g2012 -Wall -DSIMULATION \
+  -s tb_md_sound_fixed_region_test \
+  -o /tmp/tb_md_sound_fixed_region_default_mode3_check.vvp \
+  tb/tb_md_sound_fixed_region_test.sv \
+  rtl/vgm_region_player.sv \
+  rtl/md_sound_module.sv \
+  rtl/genesis_audio/**/*.v
+```
+
+Result:
+
+```text
+build passed
+warnings are the existing JT12/timescale/unique-case warnings
+```
+
+
 ## 2026-06-06: Region Mode 3 Real-VGM Phrase Preparation
 
 After `REGION_MODE=2 / VGM_REAL_SNIPPET` passed on MiSTer hardware, the next
@@ -3402,3 +3460,37 @@ MiSTer menu return: OK
 audio: short real-VGM-derived YM/PSG phrase, not just a one-shot tone
 end behavior: all-channel key-off / DAC off / PSG mute reaches silence
 ```
+
+
+## 2026-06-06: Region Mode 3 Hardware Pass
+
+`REGION_MODE=3 / VGM_REAL_PHRASE` was tested on real MiSTer hardware.
+
+Observed result:
+
+```text
+screen: orange, confirming REGION_MODE=3
+MiSTer menu return: OK
+audio: real-VGM-derived phrase was recognizable as the Super Hang-On intro
+```
+
+Conclusion:
+
+```text
+REGION_MODE=3 fixed ROM is active on hardware
+the real-VGM-derived YM2612/PSG command stream is valid
+JT12/JT89 playback works on real MiSTer hardware
+the path is no longer limited to hand-written test tones or a one-shot FM sound
+```
+
+This is the first hardware pass where a fixed-ROM real VGM-derived YM/PSG
+phrase was played through:
+
+```text
+vgm_region_player
+  -> md_sound_module
+  -> JT12 / JT89
+  -> MiSTer AUDIO_L/R
+```
+
+No RTL was changed for this note. This records the hardware pass result only.
