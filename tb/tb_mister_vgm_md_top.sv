@@ -20,6 +20,7 @@ module tb_mister_vgm_md_top;
     wire        startup_reset_active;
     wire        startup_waiting;
     wire        startup_done;
+    wire        audio_gate_open;
 
     integer audio_file = 0;
     integer audio_dump_count = 0;
@@ -42,7 +43,8 @@ module tb_mister_vgm_md_top;
         .player_last_cmd_debug (player_last_cmd_debug),
         .startup_reset_active  (startup_reset_active),
         .startup_waiting       (startup_waiting),
-        .startup_done          (startup_done)
+        .startup_done          (startup_done),
+        .audio_gate_open       (audio_gate_open)
     );
 
     // Simple simulation clock. The exact frequency is not important for this
@@ -76,7 +78,7 @@ module tb_mister_vgm_md_top;
             audio_sample_valid_prev = audio_sample_valid;
 
             if (watchdog_clk_count >= 1000000) begin
-                $display("MISTER_VGM_MD_TOP_WATCHDOG_TIMEOUT dump_count=%0d edges=%0d pc=%0d last_cmd=%02h busy=%0b done=%0b audio_l=%0d audio_r=%0d reset_n=%0b startup_reset=%0b startup_waiting=%0b startup_done=%0b",
+                $display("MISTER_VGM_MD_TOP_WATCHDOG_TIMEOUT dump_count=%0d edges=%0d pc=%0d last_cmd=%02h busy=%0b done=%0b audio_l=%0d audio_r=%0d reset_n=%0b startup_reset=%0b startup_waiting=%0b startup_done=%0b audio_gate_open=%0b",
                          audio_dump_count,
                          audio_sample_valid_edges,
                          player_pc_debug,
@@ -88,7 +90,8 @@ module tb_mister_vgm_md_top;
                          reset_n,
                          startup_reset_active,
                          startup_waiting,
-                         startup_done);
+                         startup_done,
+                         audio_gate_open);
                 $fclose(audio_file);
                 $finish;
             end
@@ -96,7 +99,7 @@ module tb_mister_vgm_md_top;
 
         $fclose(audio_file);
 
-        $display("MISTER_VGM_MD_TOP_TEST_DONE wav_written_samples=%0d audio_sample_valid_edges=%0d pc=%0d last_cmd=%02h busy=%0b done=%0b startup_reset=%0b startup_waiting=%0b startup_done=%0b",
+        $display("MISTER_VGM_MD_TOP_TEST_DONE wav_written_samples=%0d audio_sample_valid_edges=%0d pc=%0d last_cmd=%02h busy=%0b done=%0b startup_reset=%0b startup_waiting=%0b startup_done=%0b audio_gate_open=%0b",
                  audio_dump_count,
                  audio_sample_valid_edges,
                  player_pc_debug,
@@ -105,7 +108,8 @@ module tb_mister_vgm_md_top;
                  player_done,
                  startup_reset_active,
                  startup_waiting,
-                 startup_done);
+                 startup_done,
+                 audio_gate_open);
 
         repeat (1024) @(posedge clk);
         $finish;

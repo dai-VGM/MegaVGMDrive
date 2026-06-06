@@ -2624,3 +2624,69 @@ low nibble, high bits, then volume. This avoids the earlier ambiguity where a
 `REGION_MODE=1` remains source-forced, and the cyan `audio_seen_latched` display
 path remains in place. `emu.sv`, `mister_vgm_md_top`, `md_sound_module`,
 JT12/JT89, and `AUDIO_L/R` scaling were not changed for this step.
+
+## 2026-06-06: VGM Snippet FM + PSG Three-Note Hardware Pass
+
+The updated `REGION_MODE=1` VGM_SNIPPET was tested on real MiSTer hardware.
+
+Observed result:
+
+- The screen became cyan, confirming `audio_seen_latched`.
+- Audio started immediately after cold boot / core load.
+- The known-good FM lead-in was audible.
+- The PSG three-note section was audible and distinguishable, like `ぴー・ポー・ぷー`.
+- The final silence sequence stopped the sound.
+- MiSTer menu return still worked.
+
+Conclusion:
+
+- The forced `REGION_MODE=1` snippet path is active on hardware.
+- The cold-load reset/start sequence is working.
+- YM/JT12 output works in the snippet path.
+- PSG/JT89 output works in the snippet path.
+- The fixed ROM can now play a short mixed FM + PSG phrase, not just a single
+  bring-up tone.
+
+No RTL changes were made for this log entry.
+
+## 2026-06-06: Startup Audio Gate and Snippet Silence Init
+
+Real-hardware testing showed that the VGM_SNIPPET path can play FM and PSG, but
+cold boot / reset behavior is still not fully stable: sometimes the initial
+sound is quiet, uneven, or appears to grow in volume. This is treated as an
+initialization/reset settling issue, not as an output volume problem. The
+external AUDIO `>>> 2` scaling was intentionally left unchanged.
+
+Changes for this isolation step:
+
+- Added an `audio_gate_open` startup signal in `mister_vgm_md_top`.
+- Kept external audio muted until after startup reset, start-delay, and a small
+  number of `audio_sample_valid` edges have occurred.
+- Opened the audio gate before issuing the one-shot fixed-region `start_pulse`.
+- Gated `AUDIO_L/R` to zero in `emu.sv` while `audio_gate_open` is low.
+- Left `md_sound_module`, JT12, JT89, and the `>>> 2` audio scaling unchanged.
+- Added a VGM_SNIPPET-only silence initialization prefix before the audible
+  phrase:
+
+```text
+52 28 00      YM key off
+52 2A 00      DAC data zero
+52 2B 00      DAC off
+50 9F         PSG ch0 mute
+50 BF         PSG ch1 mute
+50 DF         PSG ch2 mute
+50 FF         PSG noise mute
+61 44 AC      wait 44100 samples
+```
+
+Debug color intent for this step:
+
+```text
+yellow   startup reset / init reset
+magenta  muted init wait / start wait
+cyan     audio_sample_valid has been seen before gate opens
+white    audio gate open after init wait
+```
+
+The goal is to ensure that no unstable cold-boot audio reaches MiSTer output and
+that the fixed snippet starts only after the sound path has had time to settle.

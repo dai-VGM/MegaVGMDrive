@@ -165,12 +165,15 @@ module emu
 
     wire signed [15:0] md_audio_l;
     wire signed [15:0] md_audio_r;
+    wire               audio_gate_open;
     wire signed [15:0] audio_l_safe = md_audio_l >>> 2;
     wire signed [15:0] audio_r_safe = md_audio_r >>> 2;
+    wire signed [15:0] audio_l_gated = audio_gate_open ? audio_l_safe : 16'sd0;
+    wire signed [15:0] audio_r_gated = audio_gate_open ? audio_r_safe : 16'sd0;
 
     assign AUDIO_S = 1'b1;
-    assign AUDIO_L = audio_l_safe;
-    assign AUDIO_R = audio_r_safe;
+    assign AUDIO_L = audio_l_gated;
+    assign AUDIO_R = audio_r_gated;
     assign AUDIO_MIX = 2'b00;
 
     assign LED_DISK = 2'b00;
@@ -363,7 +366,8 @@ module emu
         .player_last_cmd_debug (player_last_cmd_debug),
         .startup_reset_active  (startup_reset_active),
         .startup_waiting       (startup_waiting),
-        .startup_done          (startup_done)
+        .startup_done          (startup_done),
+        .audio_gate_open       (audio_gate_open)
     );
 
     reg [8:0] h_count;
@@ -417,33 +421,37 @@ module emu
     // State colors:
     // idle/running background : green
     // internal power-on reset : yellow
-    // start delay waiting     : magenta
+    // init wait / start wait  : magenta
+    // audio_seen_latched      : cyan
+    // audio gate open         : white
     // player_busy             : red
     // done_latched            : blue
-    // audio_seen_latched      : cyan
     //
     // audio_seen has highest priority because it proves md_sound_module is
     // producing sample ticks. AUDIO_L/R are now connected at a conservative
     // -12 dB style level by shifting md_audio_* right by two bits.
     wire [7:0] red =
-        audio_seen_latched ? 8'h00 :
         startup_reset_active ? 8'hff :
+        audio_gate_open    ? 8'hff :
+        audio_seen_latched ? 8'h00 :
         startup_waiting    ? 8'hff :
         done_latched       ? 8'h00 :
         player_busy        ? 8'hd0 :
                              8'h00;
 
     wire [7:0] green =
-        audio_seen_latched ? 8'hff :
         startup_reset_active ? 8'hff :
+        audio_gate_open    ? 8'hff :
+        audio_seen_latched ? 8'hff :
         startup_waiting    ? 8'h00 :
         done_latched       ? 8'h20 :
         player_busy        ? 8'h00 :
                              8'hb0;
 
     wire [7:0] blue =
-        audio_seen_latched ? 8'hff :
         startup_reset_active ? 8'h00 :
+        audio_gate_open    ? 8'hff :
+        audio_seen_latched ? 8'hff :
         startup_waiting    ? 8'hff :
         done_latched       ? 8'hd0 :
         player_busy        ? 8'h00 :
