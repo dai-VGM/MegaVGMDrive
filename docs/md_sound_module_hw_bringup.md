@@ -3248,6 +3248,654 @@ final wait before 0x66 end
 No RTL was changed for this note. This records the hardware pass result only.
 
 
+## 2026-06-06: Fixed ROM Milestone and VGM Load Plan
+
+The fixed-ROM bring-up path has reached the intended hardware milestone.
+
+Confirmed on MiSTer hardware:
+
+```text
+REGION_MODE=0: hand-written FM/PSG bring-up tone
+REGION_MODE=1: smoke-test snippet
+REGION_MODE=2: short real-VGM-derived FM snippet
+REGION_MODE=3: longer real-VGM-derived YM/PSG phrase
+REGION_MODE=4: timing calibration
+
+video shell: stable
+MiSTer menu return: OK
+audio output: OK
+JT12/YM2612 writes: OK
+JT89/SN76489 writes: OK
+VGM wait tick: corrected for the current 12.5 MHz clk_sys assumption
+start/retry/replay: OK for bring-up
+silence/end: OK with all-channel key-off, DAC off, PSG mute
+```
+
+`REGION_MODE=3 / VGM_REAL_PHRASE` is the current best fixed-ROM proof:
+
+```text
+screen: orange while playing
+done/replay indication: green observed
+audio: real-VGM-derived Super Hang-On-like phrase
+repeat: hardware replay confirmed
+menu return: OK
+```
+
+Keep `REGION_MODE=0..4` as permanent bring-up and regression modes. They are
+small, deterministic, and useful when the future file-loading path fails.
+
+Next phase goal:
+
+```text
+move from fixed ROM command arrays
+to loading an uncompressed .vgm file from MiSTer/HPS
+then parse/play it through the same md_sound_module input interface
+```
+
+Out of scope for the first loader:
+
+```text
+VGZ decompression
+XGM
+full DAC Stream Control 0x90-0x95
+compressed data blocks
+multi-bank PCM
+playlist/browser UI
+full loop polish
+audio filter/level matching
+```
+
+Initial supported target:
+
+```text
+uncompressed .vgm only
+Mega Drive / Genesis style command subset
+YM2612 writes: 0x52 / 0x53
+SN76489 writes: 0x50
+waits: 0x61 / 0x62 / 0x63 / 0x70-0x7F
+end: 0x66
+skip or minimally hold: 0x4F, 0x67, 0xE0, 0x80-0x8F for later DAC phase
+```
+
+Current MiSTer shell already exposes the relevant `hps_io` download signals:
+
+```text
+ioctl_download
+ioctl_wr
+ioctl_addr[26:0]
+ioctl_dout[7:0]
+ioctl_index[15:0]
+```
+
+These are currently unused by the sound path. The loader phase should connect
+them to a new VGM receive buffer.
+
+Suggested architecture:
+
+```text
+MiSTer OSD / HPS file download
+  -> hps_io ioctl_download/ioctl_wr/ioctl_addr/ioctl_dout
+  -> vgm_file_loader
+  -> VGM byte memory
+  -> vgm_file_player
+  -> existing md_sound_module command inputs
+  -> JT12 / JT89
+  -> MiSTer AUDIO_L/R
+```
+
+New RTL blocks to add later:
+
+```text
+rtl/vgm_file_loader.sv
+  receives bytes from ioctl_wr
+  writes them to BRAM or SDRAM
+  tracks file_size
+  exposes load_done / load_busy / load_error
+
+rtl/vgm_file_player.sv
+  reads bytes from VGM memory
+  parses the VGM header
+  computes command_start
+  executes the same command subset as vgm_region_player
+  drives ym_cmd_valid / psg_cmd_valid into md_sound_module
+
+rtl/vgm_memory_bram.sv or SDRAM adapter
+  first implementation can be BRAM for small test VGMs
+  later implementation can use SDRAM for full songs
+```
+
+BRAM-first option:
+
+```text
+pros:
+  simplest to simulate
+  easiest first hardware pass
+  deterministic timing
+  no SDRAM arbitration yet
+
+cons:
+  limited file size
+  not enough for many full VGM files
+```
+
+Recommended first BRAM size:
+
+```text
+64 KiB or 128 KiB if the Quartus fit allows it
+enough for short uncompressed VGM tests
+not intended for full library support
+```
+
+SDRAM option for later:
+
+```text
+pros:
+  enough space for full uncompressed VGM files
+  closer to final architecture
+
+cons:
+  requires MiSTer memory-controller integration
+  needs arbitration between loader writes and player reads
+  harder to debug than BRAM
+```
+
+VGM header handling for the first player:
+
+```text
+check magic "Vgm "
+read version
+read EOF offset for sanity
+read SN76489 clock
+read YM2612 clock
+read total samples
+read loop offset / loop samples, but loop can be ignored first
+read data offset
+
+if version >= 1.50 and data_offset != 0:
+  command_start = 0x34 + data_offset
+else:
+  command_start = 0x40
+```
+
+Playback state machine sketch:
+
+```text
+IDLE
+  wait for load_done and play_start
+
+READ_HEADER
+  validate magic and compute command_start
+
+FETCH_CMD
+  read one byte at pc
+
+DECODE
+  0x52: read reg/data, send YM port0 write
+  0x53: read reg/data, send YM port1 write
+  0x50: read data, send PSG write
+  0x61: read 16-bit wait count
+  0x62: wait 735
+  0x63: wait 882
+  0x70-0x7F: wait 1..16
+  0x66: stop or wait-for-replay
+
+WAIT_READY
+  wait for ym_cmd_ready / psg_cmd_ready
+
+WAIT_SAMPLES
+  count vgm_wait_tick, not audio_sample_valid
+
+DONE
+  hold stopped or replay depending on bring-up mode
+```
+
+Important design rule:
+
+```text
+VGM timing must remain based on the dedicated 44100 Hz vgm_wait_tick.
+Do not return to audio_sample_valid as the VGM wait source.
+```
+
+Reuse from fixed-ROM path:
+
+```text
+md_sound_module command interface
+JT12/JT89 write timing and ready handling
+vgm_wait_tick generator in mister_vgm_md_top
+debug colors / menu-safe InputTest shell
+REGION_MODE fixed ROMs as fallback tests
+```
+
+Milestone plan:
+
+```text
+Phase A: Loader-only smoke
+  hps_io downloads a small .vgm into BRAM
+  show load_done/load_error with debug colors
+  no playback yet
+
+Phase B: Header parser
+  read magic/version/data_offset from BRAM
+  expose command_start/debug values
+  reject non-VGM/VGZ
+
+Phase C: YM-only file playback
+  support 0x52/0x53/waits/0x66
+  use a small FM-only VGM first
+  compare against fixed REGION_MODE=3 behavior
+
+Phase D: PSG support
+  add 0x50 and 0x4F skip/handling
+  confirm YM+PSG file playback
+
+Phase E: Minimal DAC stream support
+  add 0x67 type 0x00 data block
+  add 0xE0 seek
+  add 0x80-0x8F generated YM 0x2A writes
+  reuse the simulator-proven minimal PCM approach
+
+Phase F: Loop/end behavior
+  implement optional loop offset
+  define stop, replay, and silence behavior
+
+Phase G: SDRAM/full-size path
+  move from BRAM to SDRAM once the parser/player works
+```
+
+Bring-up UI/debug suggestion:
+
+```text
+fixed ROM modes remain selected by source default or build define
+file-loader mode gets a new debug color
+loader states:
+  waiting for file
+  downloading
+  load done
+  header OK
+  playing
+  done
+  error
+```
+
+Do not remove the fixed ROM path when adding the loader. It is the known-good
+hardware reference for video, reset, timing, JT12/JT89 writes, and AUDIO output.
+
+
+## 2026-06-07: Phase A VGM File Loader Smoke RTL
+
+The first uncompressed VGM loading step has been added without replacing the
+known-good fixed-ROM playback path.
+
+Added:
+
+```text
+rtl/vgm_file_loader.sv
+tb/tb_vgm_file_loader.sv
+```
+
+`vgm_file_loader` receives the existing MiSTer `hps_io` download bus:
+
+```text
+ioctl_download
+ioctl_wr
+ioctl_addr[26:0]
+ioctl_dout[7:0]
+ioctl_index[15:0]
+```
+
+For this first smoke step it stores bytes into a small BRAM-backed buffer:
+
+```text
+ADDR_WIDTH = 16
+capacity   = 64 KiB
+```
+
+It exposes only loader status and debug values for now:
+
+```text
+load_busy
+load_done
+load_error
+overflow_error
+file_size
+magic_debug
+```
+
+No VGM header parser or file playback is connected yet. The active audio path
+still uses:
+
+```text
+REGION_MODE=3 fixed ROM
+  -> vgm_region_player
+  -> md_sound_module
+  -> JT12 / JT89
+  -> AUDIO_L/R
+```
+
+`rtl/emu.sv` now adds an OSD file entry:
+
+```text
+F,VGM,Load VGM;
+```
+
+and instantiates `vgm_file_loader` beside the existing fixed-region sound path.
+The loader accepts any download index for the initial smoke test, so the first
+hardware check should focus on whether selecting a `.vgm` from the OSD changes
+the loader debug color.
+
+Debug colors added above the normal fixed-ROM color priority:
+
+```text
+blue: file download active
+cyan: file download completed into BRAM
+red : file load error or 64 KiB overflow
+```
+
+`files.qip` now includes:
+
+```text
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/vgm_file_loader.sv
+```
+
+Loader unit test:
+
+```sh
+iverilog -g2012 -Wall -s tb_vgm_file_loader \
+  -o /tmp/tb_vgm_file_loader.vvp \
+  tb/tb_vgm_file_loader.sv \
+  rtl/vgm_file_loader.sv
+
+vvp /tmp/tb_vgm_file_loader.vvp
+```
+
+Observed result:
+
+```text
+PASS tb_vgm_file_loader
+```
+
+Existing fixed-ROM top-path build still passes:
+
+```sh
+iverilog -g2012 -Wall -DTEST_MISTER_TOP_MODE3_5K \
+  -s tb_mister_vgm_md_top \
+  -o /tmp/tb_mister_vgm_md_top_mode3_top_path_5k.vvp \
+  tb/tb_mister_vgm_md_top.sv \
+  rtl/mister_vgm_md_top.sv \
+  rtl/vgm_region_player.sv \
+  rtl/md_sound_module.sv \
+  rtl/genesis_audio/**/*.v
+```
+
+Warnings are the existing JT12/timescale/unique-case warnings.
+
+Attempted `emu.sv` elaboration with `iverilog` stops because `build_id.v` is a
+Quartus/generated include and is not present in the repository checkout. This
+is not a loader-specific failure.
+
+Next hardware check:
+
+```text
+1. Build the MiSTer core.
+2. Confirm fixed REGION_MODE=3 playback still works.
+3. Open OSD and load a small uncompressed .vgm.
+4. Expect blue while downloading.
+5. Expect cyan after load_done, or red if the file exceeds 64 KiB.
+```
+
+If Phase A passes on hardware, the next RTL step is Phase B: read bytes back
+from the BRAM buffer and validate the VGM header magic/version/data offset.
+
+
+## 2026-06-07: REGION_MODE=5 Loaded-BRAM VGM Playback
+
+OSD file index behavior was inspected in `sys/hps_io.sv`.
+
+Relevant implementation:
+
+```text
+FIO_FILE_INDEX writes io_din[15:0] directly to ioctl_index
+FIO_FILE_TX starts/ends ioctl_download
+FIO_FILE_TX_DAT emits ioctl_wr/ioctl_addr/ioctl_dout while downloading
+```
+
+So the safe hardware contract is to make the CONF_STR index explicit and match
+the loader to it:
+
+```text
+rtl/emu.sv:
+  F1,VGM,Load VGM;
+
+rtl/mister_vgm_md_top.sv / vgm_file_loader:
+  VGM_LOAD_FILE_INDEX = 1
+  ACCEPT_ANY_INDEX = 0
+```
+
+This replaces the previous Phase A permissive loader mode. A download with any
+other `ioctl_index` is ignored.
+
+Added:
+
+```text
+rtl/vgm_loaded_player.sv
+tb/tb_vgm_loaded_player.sv
+```
+
+`REGION_MODE=5` now selects the first loaded-BRAM playback path:
+
+```text
+hps_io ioctl_* download
+  -> vgm_file_loader, 64 KiB BRAM
+  -> vgm_loaded_player
+  -> md_sound_module
+  -> JT12 / JT89
+  -> AUDIO_L/R
+```
+
+`REGION_MODE=0..4` remain fixed-ROM modes and are not rewritten. In
+`mister_vgm_md_top`, mode 5 is selected with a generate branch; all other modes
+still instantiate `md_sound_fixed_region_test`.
+
+Mode 5 behavior:
+
+```text
+no valid load_done:
+  no YM/PSG commands are generated
+  audio path remains silent
+
+load_error or overflow_error:
+  no YM/PSG commands are generated
+  debug error color is shown
+
+load_done_pulse with valid file:
+  dynamic player validates the VGM header
+  data_start is computed
+  playback starts from loaded BRAM
+```
+
+Minimal supported VGM header parsing:
+
+```text
+magic bytes 0x00..0x03 must be "Vgm "
+data offset is read little-endian from 0x34..0x37
+if data offset == 0:
+  data_start = 0x40
+else:
+  data_start = 0x34 + data_offset
+```
+
+Minimal supported command subset:
+
+```text
+0x52 rr dd   YM2612 port 0 write
+0x53 rr dd   YM2612 port 1 write
+0x50 dd      SN76489 write
+0x4F dd      Game Gear stereo write, skipped
+0x61 ll hh   wait n VGM samples
+0x62         wait 735 samples
+0x63         wait 882 samples
+0x70-0x7F    short wait 1..16 samples
+0x66         end
+```
+
+Unsupported commands currently stop with `player_error`. This first mode 5
+path does not support VGZ/gzip, compressed VGM data blocks, DAC stream control,
+or SDRAM streaming.
+
+Debug color additions:
+
+```text
+file download busy: blue
+file loaded: cyan
+mode 5 header-valid playback: teal/blue
+load error / overflow / player error: red
+```
+
+Tests run:
+
+```sh
+iverilog -g2012 -Wall -s tb_vgm_file_loader \
+  -o /tmp/tb_vgm_file_loader.vvp \
+  tb/tb_vgm_file_loader.sv \
+  rtl/vgm_file_loader.sv
+
+vvp /tmp/tb_vgm_file_loader.vvp
+```
+
+Result:
+
+```text
+PASS tb_vgm_file_loader
+```
+
+Coverage:
+
+```text
+index mismatch ignored
+index 1 accepted
+load_done_pulse generated
+bytes readable after load
+overflow detected
+```
+
+```sh
+iverilog -g2012 -Wall -s tb_vgm_loaded_player \
+  -o /tmp/tb_vgm_loaded_player.vvp \
+  tb/tb_vgm_loaded_player.sv \
+  rtl/vgm_loaded_player.sv
+
+vvp /tmp/tb_vgm_loaded_player.vvp
+```
+
+Result:
+
+```text
+PASS tb_vgm_loaded_player
+```
+
+Coverage:
+
+```text
+no playback before load_done
+data offset 0 selects data_start 0x40
+nonzero data offset selects data_start 0x34 + offset
+load_error prevents playback
+overflow_error prevents playback
+```
+
+Existing mode 3 top-path simulation:
+
+```sh
+iverilog -g2012 -Wall -DSIMULATION -DTEST_MISTER_TOP_MODE3_5K \
+  -s tb_mister_vgm_md_top \
+  -o /tmp/tb_mister_vgm_md_top_mode3_top_path_5k.vvp \
+  tb/tb_mister_vgm_md_top.sv \
+  rtl/mister_vgm_md_top.sv \
+  rtl/vgm_region_player.sv \
+  rtl/vgm_file_loader.sv \
+  rtl/vgm_loaded_player.sv \
+  rtl/md_sound_module.sv \
+  rtl/genesis_audio/**/*.v
+
+vvp /tmp/tb_mister_vgm_md_top_mode3_top_path_5k.vvp
+```
+
+Result:
+
+```text
+MISTER_VGM_MD_TOP_TEST_DONE
+wav_written_samples=5000
+audio_sample_valid_edges=5000
+startup_done=1
+audio_gate_open=1
+```
+
+Mode 5 generate-path compile:
+
+```sh
+iverilog -g2012 -Wall -DSIMULATION -DFIXED_REGION_MODE=5 \
+  -DTEST_MISTER_TOP_MODE3_5K \
+  -s tb_mister_vgm_md_top \
+  -o /tmp/tb_mister_vgm_md_top_mode5_compile.vvp \
+  tb/tb_mister_vgm_md_top.sv \
+  rtl/mister_vgm_md_top.sv \
+  rtl/vgm_region_player.sv \
+  rtl/vgm_file_loader.sv \
+  rtl/vgm_loaded_player.sv \
+  rtl/md_sound_module.sv \
+  rtl/genesis_audio/**/*.v
+```
+
+Result:
+
+```text
+build passed
+warnings: existing JT12/timescale/unique-case style warnings
+```
+
+Quartus was not run in this environment because `quartus_sh` was not available
+on PATH.
+
+Exact MiSTer hardware steps for mode 5:
+
+```text
+1. Keep rtl/fixed_region_mode.vh default at 3 for reference builds unless
+   intentionally testing loaded playback.
+
+2. For the mode 5 hardware build, set:
+     `define FIXED_REGION_MODE 5
+   or add the equivalent Quartus VERILOG_MACRO for FIXED_REGION_MODE=5.
+
+3. Build the core and copy the RBF to MiSTer.
+
+4. Boot the core.
+   Expected before loading a file:
+     no VGM playback from mode 5
+     no YM/PSG commands from loaded player
+     menu return still works
+
+5. Open OSD and choose:
+     Load VGM
+
+6. Select a small uncompressed .vgm under 64 KiB.
+   The file should use only the currently supported command subset.
+
+7. Expected colors:
+     blue while downloading
+     cyan after load_done
+     teal/blue while header-valid playback is busy
+     red on load overflow, bad header, unsupported command, or other player error
+
+8. Expected audio:
+     the loaded .vgm starts automatically after load_done
+     waits use the existing 44.1 kHz vgm_wait_tick
+     no audio should play for no file, bad header, overflow, or unsupported command
+
+9. Rebuild or reset back to FIXED_REGION_MODE=3 to compare against the known-good
+   fixed-ROM reference path.
+```
+
+
 ## 2026-06-06: Region Mode 3 Audio Difference Triage
 
 `REGION_MODE=3 / VGM_REAL_PHRASE` now plays and replays on real MiSTer
@@ -3454,6 +4102,61 @@ iverilog -g2012 -Wall -DSIMULATION -DTEST_MISTER_TOP_MODE3_120K \
 vvp /tmp/tb_mister_vgm_md_top_mode3_top_path_120k.vvp \
   > /tmp/tb_mister_vgm_md_top_mode3_top_path_120k.log
 ```
+
+Short top-path debug commands:
+
+```sh
+iverilog -g2012 -Wall -DSIMULATION -DTEST_MISTER_TOP_MODE3_5K \
+  -s tb_mister_vgm_md_top \
+  -o /tmp/tb_mister_vgm_md_top_mode3_top_path_5k.vvp \
+  tb/tb_mister_vgm_md_top.sv \
+  rtl/mister_vgm_md_top.sv \
+  rtl/vgm_region_player.sv \
+  rtl/md_sound_module.sv \
+  rtl/genesis_audio/**/*.v
+
+vvp /tmp/tb_mister_vgm_md_top_mode3_top_path_5k.vvp
+
+iverilog -g2012 -Wall -DSIMULATION -DTEST_MISTER_TOP_MODE3_10K \
+  -s tb_mister_vgm_md_top \
+  -o /tmp/tb_mister_vgm_md_top_mode3_top_path_10k.vvp \
+  tb/tb_mister_vgm_md_top.sv \
+  rtl/mister_vgm_md_top.sv \
+  rtl/vgm_region_player.sv \
+  rtl/md_sound_module.sv \
+  rtl/genesis_audio/**/*.v
+
+vvp /tmp/tb_mister_vgm_md_top_mode3_top_path_10k.vvp
+```
+
+The top-path TB now prints debug state before and during dumping:
+
+```text
+MISTER_VGM_MD_TOP_TEST_START
+MISTER_VGM_MD_TOP_WAITING_FOR_AUDIO_EDGE
+MISTER_VGM_MD_TOP_FIRST_AUDIO_EDGE
+MISTER_VGM_MD_TOP_DUMP_PROGRESS
+MISTER_VGM_MD_TOP_WATCHDOG_TIMEOUT
+MISTER_VGM_MD_TOP_TEST_DONE
+```
+
+The debug lines include:
+
+```text
+audio_sample_valid
+audio_gate_open
+startup_reset / startup_waiting / startup_done
+internal startup_state
+player_busy / player_done
+player_pc_debug / player_last_cmd_debug
+start_pulse
+player_reset_active
+vgm_wait_tick
+```
+
+The TB also flushes the text dump after the first audio edge and periodically
+after that, so a running simulation should no longer appear as a permanently
+zero-line file merely because stdio buffering has not reached `$fclose`.
 
 Expected text dump:
 

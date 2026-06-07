@@ -8,10 +8,15 @@
 //       -> md_sound_fixed_region_test
 //       -> audio_l/audio_r
 //
-// The fixed region auto-starts once after reset is released. No SD card, HPS,
-// OSD, file loading, or VGM selection is implemented here.
+// REGION_MODE=0..4 keep the fixed-region path. REGION_MODE=5 adds the first
+// small BRAM-backed HPS/OSD-loaded VGM path.
+`include "rtl/fixed_region_mode.vh"
 
 module mister_vgm_md_top #(
+    parameter int REGION_MODE = `FIXED_REGION_MODE,
+    parameter int VGM_LOAD_ADDR_WIDTH = 16,
+    parameter logic [15:0] VGM_LOAD_FILE_INDEX = 16'd1,
+
     // Internal reset hold after FPGA configuration or external core reset.
     // With a 50 MHz clk_sys, 25,000,000 cycles is about 0.5 seconds.
     parameter logic [31:0] POWER_ON_RESET_CYCLES = 32'd25_000_000,
@@ -70,7 +75,25 @@ module mister_vgm_md_top #(
     output logic              startup_reset_active,
     output logic              startup_waiting,
     output logic              startup_done,
-    output logic              audio_gate_open
+    output logic              audio_gate_open,
+
+    // MiSTer file download bus. Used only by REGION_MODE=5.
+    input  logic              ioctl_download,
+    input  logic              ioctl_wr,
+    input  logic [26:0]       ioctl_addr,
+    input  logic [7:0]        ioctl_dout,
+    input  logic [15:0]       ioctl_index,
+
+    // REGION_MODE=5 loader/player status for hardware debug colors.
+    output logic              vgm_load_busy,
+    output logic              vgm_load_done,
+    output logic              vgm_load_error,
+    output logic              vgm_load_overflow,
+    output logic              vgm_header_valid,
+    output logic              vgm_player_error,
+    output logic [VGM_LOAD_ADDR_WIDTH:0] vgm_load_size,
+    output logic [31:0]       vgm_load_magic,
+    output logic [VGM_LOAD_ADDR_WIDTH-1:0] vgm_data_start_debug
 );
 
     logic        reset;
@@ -319,19 +342,117 @@ module mister_vgm_md_top #(
         end
     end
 
-    md_sound_fixed_region_test fixed_region (
-        .clk                   (clk),
-        .reset                 (reset),
-        .player_reset          (player_reset_active),
-        .start                 (start_pulse),
-        .vgm_wait_tick         (vgm_wait_tick),
-        .audio_l               (audio_l),
-        .audio_r               (audio_r),
-        .audio_sample_valid    (audio_sample_valid),
-        .player_busy           (player_busy),
-        .player_done           (player_done),
-        .player_pc_debug       (player_pc_debug),
-        .player_last_cmd_debug (player_last_cmd_debug)
-    );
+    generate
+        if (REGION_MODE == 5) begin : loaded_vgm_mode
+            logic [VGM_LOAD_ADDR_WIDTH-1:0] ram_rd_addr;
+            logic [7:0] ram_rd_data;
+            logic load_done_pulse;
+            logic ym_cmd_valid;
+            logic ym_cmd_port;
+            logic [7:0] ym_cmd_reg;
+            logic [7:0] ym_cmd_data;
+            logic psg_cmd_valid;
+            logic [7:0] psg_cmd_data;
+            logic ym_cmd_ready;
+            logic psg_cmd_ready;
+
+            vgm_file_loader #(
+                .ADDR_WIDTH       (VGM_LOAD_ADDR_WIDTH),
+                .ACCEPT_ANY_INDEX (1'b0),
+                .FILE_INDEX       (VGM_LOAD_FILE_INDEX)
+            ) loader (
+                .clk              (clk),
+                .reset            (reset),
+                .ioctl_download   (ioctl_download),
+                .ioctl_wr         (ioctl_wr),
+                .ioctl_addr       (ioctl_addr),
+                .ioctl_dout       (ioctl_dout),
+                .ioctl_index      (ioctl_index),
+                .rd_addr          (ram_rd_addr),
+                .rd_data          (ram_rd_data),
+                .load_busy        (vgm_load_busy),
+                .load_done        (vgm_load_done),
+                .load_done_pulse  (load_done_pulse),
+                .load_error       (vgm_load_error),
+                .overflow_error   (vgm_load_overflow),
+                .file_size        (vgm_load_size),
+                .magic_debug      (vgm_load_magic)
+            );
+
+            vgm_loaded_player #(
+                .ADDR_WIDTH (VGM_LOAD_ADDR_WIDTH)
+            ) loaded_player (
+                .clk                   (clk),
+                .reset                 (reset | player_reset_active),
+                .start                 (start_pulse),
+                .load_done             (vgm_load_done),
+                .load_done_pulse       (load_done_pulse),
+                .load_error            (vgm_load_error),
+                .overflow_error        (vgm_load_overflow),
+                .file_size             (vgm_load_size),
+                .vgm_wait_tick         (vgm_wait_tick),
+                .rd_addr               (ram_rd_addr),
+                .rd_data               (ram_rd_data),
+                .ym_cmd_ready          (ym_cmd_ready),
+                .psg_cmd_ready         (psg_cmd_ready),
+                .ym_cmd_valid          (ym_cmd_valid),
+                .ym_cmd_port           (ym_cmd_port),
+                .ym_cmd_reg            (ym_cmd_reg),
+                .ym_cmd_data           (ym_cmd_data),
+                .psg_cmd_valid         (psg_cmd_valid),
+                .psg_cmd_data          (psg_cmd_data),
+                .busy                  (player_busy),
+                .done                  (player_done),
+                .header_valid          (vgm_header_valid),
+                .player_error          (vgm_player_error),
+                .data_start_debug      (vgm_data_start_debug),
+                .pc_debug              (player_pc_debug),
+                .last_cmd_debug        (player_last_cmd_debug)
+            );
+
+            md_sound_module sound (
+                .clk                   (clk),
+                .reset                 (reset),
+                .ym_cmd_valid          (ym_cmd_valid),
+                .ym_cmd_port           (ym_cmd_port),
+                .ym_cmd_reg            (ym_cmd_reg),
+                .ym_cmd_data           (ym_cmd_data),
+                .psg_cmd_valid         (psg_cmd_valid),
+                .psg_cmd_data          (psg_cmd_data),
+                .ym_cmd_ready          (ym_cmd_ready),
+                .psg_cmd_ready         (psg_cmd_ready),
+                .audio_l               (audio_l),
+                .audio_r               (audio_r),
+                .audio_sample_valid    (audio_sample_valid)
+            );
+        end else begin : fixed_region_mode
+            assign vgm_load_busy = 1'b0;
+            assign vgm_load_done = 1'b0;
+            assign vgm_load_error = 1'b0;
+            assign vgm_load_overflow = 1'b0;
+            assign vgm_header_valid = 1'b0;
+            assign vgm_player_error = 1'b0;
+            assign vgm_load_size = '0;
+            assign vgm_load_magic = 32'd0;
+            assign vgm_data_start_debug = '0;
+
+            md_sound_fixed_region_test #(
+                .REGION_MODE (REGION_MODE)
+            ) fixed_region (
+                .clk                   (clk),
+                .reset                 (reset),
+                .player_reset          (player_reset_active),
+                .start                 (start_pulse),
+                .vgm_wait_tick         (vgm_wait_tick),
+                .audio_l               (audio_l),
+                .audio_r               (audio_r),
+                .audio_sample_valid    (audio_sample_valid),
+                .player_busy           (player_busy),
+                .player_done           (player_done),
+                .player_pc_debug       (player_pc_debug),
+                .player_last_cmd_debug (player_last_cmd_debug)
+            );
+        end
+    endgenerate
 
 endmodule

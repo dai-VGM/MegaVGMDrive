@@ -4,6 +4,10 @@ module tb_mister_vgm_md_top;
 
 `ifdef TEST_MISTER_TOP_MODE3_120K
     localparam int AUDIO_DUMP_SAMPLE_COUNT = 120000;
+`elsif TEST_MISTER_TOP_MODE3_10K
+    localparam int AUDIO_DUMP_SAMPLE_COUNT = 10000;
+`elsif TEST_MISTER_TOP_MODE3_5K
+    localparam int AUDIO_DUMP_SAMPLE_COUNT = 5000;
 `else
     localparam int AUDIO_DUMP_SAMPLE_COUNT = 5000;
 `endif
@@ -35,7 +39,9 @@ module tb_mister_vgm_md_top;
     integer audio_dump_count = 0;
     integer audio_sample_valid_edges = 0;
     integer watchdog_clk_count = 0;
+    integer total_clk_count = 0;
     bit     audio_sample_valid_prev = 1'b0;
+    bit     first_audio_edge_seen = 1'b0;
 
     mister_vgm_md_top #(
         .POWER_ON_RESET_CYCLES       (TB_POWER_ON_RESET_CYCLES),
@@ -58,7 +64,21 @@ module tb_mister_vgm_md_top;
         .startup_reset_active  (startup_reset_active),
         .startup_waiting       (startup_waiting),
         .startup_done          (startup_done),
-        .audio_gate_open       (audio_gate_open)
+        .audio_gate_open       (audio_gate_open),
+        .ioctl_download        (1'b0),
+        .ioctl_wr              (1'b0),
+        .ioctl_addr            (27'd0),
+        .ioctl_dout            (8'd0),
+        .ioctl_index           (16'd0),
+        .vgm_load_busy         (),
+        .vgm_load_done         (),
+        .vgm_load_error        (),
+        .vgm_load_overflow     (),
+        .vgm_header_valid      (),
+        .vgm_player_error      (),
+        .vgm_load_size         (),
+        .vgm_load_magic        (),
+        .vgm_data_start_debug  ()
     );
 
     // Simple simulation clock. The exact frequency is not important for this
@@ -72,6 +92,18 @@ module tb_mister_vgm_md_top;
             $display("ERROR: failed to open /tmp/mister_vgm_md_top_mode3_top_path_120k.txt");
             $finish;
         end
+`elsif TEST_MISTER_TOP_MODE3_10K
+        audio_file = $fopen("/tmp/mister_vgm_md_top_mode3_top_path_10k.txt", "w");
+        if (audio_file == 0) begin
+            $display("ERROR: failed to open /tmp/mister_vgm_md_top_mode3_top_path_10k.txt");
+            $finish;
+        end
+`elsif TEST_MISTER_TOP_MODE3_5K
+        audio_file = $fopen("/tmp/mister_vgm_md_top_mode3_top_path_5k.txt", "w");
+        if (audio_file == 0) begin
+            $display("ERROR: failed to open /tmp/mister_vgm_md_top_mode3_top_path_5k.txt");
+            $finish;
+        end
 `else
         audio_file = $fopen("/tmp/mister_vgm_md_top_5k.txt", "w");
         if (audio_file == 0) begin
@@ -82,39 +114,102 @@ module tb_mister_vgm_md_top;
 
         repeat (64) @(posedge clk);
 
-        $display("MISTER_VGM_MD_TOP_TEST_START cold_start_reset_n_initial_high=1 samples=%0d power_on_reset_cycles=%0d start_delay_cycles=%0d audio_warmup_samples=%0d",
+        $display("MISTER_VGM_MD_TOP_TEST_START cold_start_reset_n_initial_high=1 samples=%0d power_on_reset_cycles=%0d start_delay_cycles=%0d audio_warmup_samples=%0d startup_state=%0d",
                  AUDIO_DUMP_SAMPLE_COUNT,
                  TB_POWER_ON_RESET_CYCLES,
                  TB_START_DELAY_CYCLES,
-                 TB_AUDIO_WARMUP_SAMPLES);
+                 TB_AUDIO_WARMUP_SAMPLES,
+                 dut.startup_state);
 
         while (audio_dump_count < AUDIO_DUMP_SAMPLE_COUNT) begin
             @(posedge clk);
             watchdog_clk_count++;
+            total_clk_count++;
 
             if (audio_sample_valid && !audio_sample_valid_prev) begin
                 $fdisplay(audio_file, "%0d %0d", audio_l, audio_r);
+                if (!first_audio_edge_seen) begin
+                    first_audio_edge_seen = 1'b1;
+                    $display("MISTER_VGM_MD_TOP_FIRST_AUDIO_EDGE total_clk=%0d pc=%0d last_cmd=%02h busy=%0b done=%0b audio_l=%0d audio_r=%0d startup_state=%0d startup_reset=%0b startup_waiting=%0b startup_done=%0b audio_gate_open=%0b start_pulse=%0b player_reset_active=%0b vgm_wait_tick=%0b",
+                             total_clk_count,
+                             player_pc_debug,
+                             player_last_cmd_debug,
+                             player_busy,
+                             player_done,
+                             audio_l,
+                             audio_r,
+                             dut.startup_state,
+                             startup_reset_active,
+                             startup_waiting,
+                             startup_done,
+                             audio_gate_open,
+                             dut.start_pulse,
+                             dut.player_reset_active,
+                             dut.vgm_wait_tick);
+                    $fflush(audio_file);
+                end
                 audio_dump_count++;
                 audio_sample_valid_edges++;
                 watchdog_clk_count = 0;
+
+                if ((audio_dump_count % 1024) == 0) begin
+                    $fflush(audio_file);
+                end
+
+                if ((audio_dump_count % 10000) == 0) begin
+                    $display("MISTER_VGM_MD_TOP_DUMP_PROGRESS samples=%0d edges=%0d pc=%0d last_cmd=%02h busy=%0b done=%0b startup_state=%0d audio_gate_open=%0b",
+                             audio_dump_count,
+                             audio_sample_valid_edges,
+                             player_pc_debug,
+                             player_last_cmd_debug,
+                             player_busy,
+                             player_done,
+                             dut.startup_state,
+                             audio_gate_open);
+                end
+            end else if (!first_audio_edge_seen && ((watchdog_clk_count % 250000) == 0)) begin
+                $display("MISTER_VGM_MD_TOP_WAITING_FOR_AUDIO_EDGE total_clk=%0d idle_clk=%0d pc=%0d last_cmd=%02h busy=%0b done=%0b audio_sample_valid=%0b audio_l=%0d audio_r=%0d startup_state=%0d startup_reset=%0b startup_waiting=%0b startup_done=%0b audio_gate_open=%0b start_pulse=%0b player_reset_active=%0b vgm_wait_tick=%0b",
+                         total_clk_count,
+                         watchdog_clk_count,
+                         player_pc_debug,
+                         player_last_cmd_debug,
+                         player_busy,
+                         player_done,
+                         audio_sample_valid,
+                         audio_l,
+                         audio_r,
+                         dut.startup_state,
+                         startup_reset_active,
+                         startup_waiting,
+                         startup_done,
+                         audio_gate_open,
+                         dut.start_pulse,
+                         dut.player_reset_active,
+                         dut.vgm_wait_tick);
             end
             audio_sample_valid_prev = audio_sample_valid;
 
             if (watchdog_clk_count >= 1000000) begin
-                $display("MISTER_VGM_MD_TOP_WATCHDOG_TIMEOUT dump_count=%0d edges=%0d pc=%0d last_cmd=%02h busy=%0b done=%0b audio_l=%0d audio_r=%0d reset_n=%0b startup_reset=%0b startup_waiting=%0b startup_done=%0b audio_gate_open=%0b",
+                $display("MISTER_VGM_MD_TOP_WATCHDOG_TIMEOUT total_clk=%0d dump_count=%0d edges=%0d pc=%0d last_cmd=%02h busy=%0b done=%0b audio_sample_valid=%0b audio_l=%0d audio_r=%0d reset_n=%0b startup_state=%0d startup_reset=%0b startup_waiting=%0b startup_done=%0b audio_gate_open=%0b start_pulse=%0b player_reset_active=%0b vgm_wait_tick=%0b",
+                         total_clk_count,
                          audio_dump_count,
                          audio_sample_valid_edges,
                          player_pc_debug,
                          player_last_cmd_debug,
                          player_busy,
                          player_done,
+                         audio_sample_valid,
                          audio_l,
                          audio_r,
                          reset_n,
+                         dut.startup_state,
                          startup_reset_active,
                          startup_waiting,
                          startup_done,
-                         audio_gate_open);
+                         audio_gate_open,
+                         dut.start_pulse,
+                         dut.player_reset_active,
+                         dut.vgm_wait_tick);
                 $fclose(audio_file);
                 $finish;
             end
@@ -124,6 +219,10 @@ module tb_mister_vgm_md_top;
 
 `ifdef TEST_MISTER_TOP_MODE3_120K
         $display("MISTER_VGM_MD_TOP_TEST_DONE file=/tmp/mister_vgm_md_top_mode3_top_path_120k.txt wav_written_samples=%0d audio_sample_valid_edges=%0d pc=%0d last_cmd=%02h busy=%0b done=%0b startup_reset=%0b startup_waiting=%0b startup_done=%0b audio_gate_open=%0b",
+`elsif TEST_MISTER_TOP_MODE3_10K
+        $display("MISTER_VGM_MD_TOP_TEST_DONE file=/tmp/mister_vgm_md_top_mode3_top_path_10k.txt wav_written_samples=%0d audio_sample_valid_edges=%0d pc=%0d last_cmd=%02h busy=%0b done=%0b startup_reset=%0b startup_waiting=%0b startup_done=%0b audio_gate_open=%0b",
+`elsif TEST_MISTER_TOP_MODE3_5K
+        $display("MISTER_VGM_MD_TOP_TEST_DONE file=/tmp/mister_vgm_md_top_mode3_top_path_5k.txt wav_written_samples=%0d audio_sample_valid_edges=%0d pc=%0d last_cmd=%02h busy=%0b done=%0b startup_reset=%0b startup_waiting=%0b startup_done=%0b audio_gate_open=%0b",
 `else
         $display("MISTER_VGM_MD_TOP_TEST_DONE file=/tmp/mister_vgm_md_top_5k.txt wav_written_samples=%0d audio_sample_valid_edges=%0d pc=%0d last_cmd=%02h busy=%0b done=%0b startup_reset=%0b startup_waiting=%0b startup_done=%0b audio_gate_open=%0b",
 `endif

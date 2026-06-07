@@ -10,6 +10,8 @@ set_global_assignment -name VERILOG_FILE rtl/JTFRAME/jtframe_cen24.v
 
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/mister_vgm_md_top.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/vgm_region_player.sv
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/vgm_file_loader.sv
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/vgm_loaded_player.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/md_sound_module.sv
 
 set_global_assignment -name VERILOG_FILE rtl/genesis_audio/filters/audio_iir_filter.v

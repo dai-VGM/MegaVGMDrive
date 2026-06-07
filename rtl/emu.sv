@@ -8,6 +8,7 @@
 localparam bit FIXED_REAL_SNIPPET_MODE = (`FIXED_REGION_MODE == 2);
 localparam bit FIXED_REAL_PHRASE_MODE  = (`FIXED_REGION_MODE == 3);
 localparam bit FIXED_TIMING_CAL_MODE   = (`FIXED_REGION_MODE == 4);
+localparam bit LOADED_VGM_MODE         = (`FIXED_REGION_MODE == 5);
 
 module emu
 (
@@ -190,6 +191,7 @@ module emu
     `include "build_id.v"
     localparam CONF_STR = {
         "VGM_MD;;",
+        "F1,VGM,Load VGM;",
         "-;",
         "R0,Reset;",
         "V,v",`BUILD_DATE
@@ -204,9 +206,18 @@ module emu
 
     wire        ioctl_download;
     wire        ioctl_wr;
-    wire [24:0] ioctl_addr;
+    wire [26:0] ioctl_addr;
     wire  [7:0] ioctl_dout;
-    wire  [7:0] ioctl_index;
+    wire [15:0] ioctl_index;
+    wire        vgm_load_busy;
+    wire        vgm_load_done;
+    wire        vgm_load_error;
+    wire        vgm_load_overflow;
+    wire        vgm_header_valid;
+    wire        vgm_player_error;
+    wire [16:0] vgm_load_size;
+    wire [31:0] vgm_load_magic;
+    wire [15:0] vgm_data_start_debug;
 
     wire [31:0] joystick_0;
     wire [31:0] joystick_1;
@@ -369,7 +380,21 @@ module emu
         .startup_reset_active  (startup_reset_active),
         .startup_waiting       (startup_waiting),
         .startup_done          (startup_done),
-        .audio_gate_open       (audio_gate_open)
+        .audio_gate_open       (audio_gate_open),
+        .ioctl_download        (ioctl_download),
+        .ioctl_wr              (ioctl_wr),
+        .ioctl_addr            (ioctl_addr),
+        .ioctl_dout            (ioctl_dout),
+        .ioctl_index           (ioctl_index),
+        .vgm_load_busy         (vgm_load_busy),
+        .vgm_load_done         (vgm_load_done),
+        .vgm_load_error        (vgm_load_error),
+        .vgm_load_overflow     (vgm_load_overflow),
+        .vgm_header_valid      (vgm_header_valid),
+        .vgm_player_error      (vgm_player_error),
+        .vgm_load_size         (vgm_load_size),
+        .vgm_load_magic        (vgm_load_magic),
+        .vgm_data_start_debug  (vgm_data_start_debug)
     );
 
     reg [8:0] h_count;
@@ -427,6 +452,10 @@ module emu
     // region mode 2 playing   : purple
     // region mode 3 playing   : orange
     // region mode 4 playing   : lime
+    // region mode 5 loaded    : teal/blue
+    // VGM file downloading    : blue
+    // VGM file loaded         : cyan
+    // VGM file load error     : red
     // audio gate open         : white
     // audio_seen_latched      : cyan
     // player_done latched     : green
@@ -438,6 +467,10 @@ module emu
     // right by two bits, then applying the output gate.
     wire [7:0] red =
         startup_reset_active ? 8'hff :
+        (vgm_load_error || vgm_load_overflow || vgm_player_error) ? 8'hff :
+        (LOADED_VGM_MODE && vgm_header_valid && player_busy) ? 8'h00 :
+        vgm_load_busy     ? 8'h00 :
+        vgm_load_done     ? 8'h00 :
         done_latched       ? 8'h00 :
         startup_waiting    ? 8'hff :
         (audio_gate_open && FIXED_TIMING_CAL_MODE)   ? 8'h80 :
@@ -450,6 +483,10 @@ module emu
 
     wire [7:0] green =
         startup_reset_active ? 8'hff :
+        (vgm_load_error || vgm_load_overflow || vgm_player_error) ? 8'h00 :
+        (LOADED_VGM_MODE && vgm_header_valid && player_busy) ? 8'hc0 :
+        vgm_load_busy     ? 8'h40 :
+        vgm_load_done     ? 8'hff :
         done_latched       ? 8'hd0 :
         startup_waiting    ? 8'h00 :
         (audio_gate_open && FIXED_TIMING_CAL_MODE)   ? 8'hff :
@@ -462,6 +499,10 @@ module emu
 
     wire [7:0] blue =
         startup_reset_active ? 8'h00 :
+        (vgm_load_error || vgm_load_overflow || vgm_player_error) ? 8'h00 :
+        (LOADED_VGM_MODE && vgm_header_valid && player_busy) ? 8'hff :
+        vgm_load_busy     ? 8'hff :
+        vgm_load_done     ? 8'hff :
         done_latched       ? 8'h00 :
         startup_waiting    ? 8'hff :
         (audio_gate_open && FIXED_TIMING_CAL_MODE)   ? 8'h00 :
@@ -492,11 +533,10 @@ module emu
         forced_scandoubler,
         video_rotated,
         gamma_bus,
-        ioctl_download,
-        ioctl_wr,
-        ioctl_addr,
-        ioctl_dout,
-        ioctl_index,
+        vgm_load_overflow,
+        vgm_load_size,
+        vgm_load_magic,
+        vgm_data_start_debug,
         joystick_0,
         joystick_1,
         joystick_2,

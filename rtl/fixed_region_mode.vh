@@ -9,6 +9,7 @@
 //   2 = VGM_REAL_SNIPPET, real-VGM-derived YM snippet
 //   3 = VGM_REAL_PHRASE, longer real-VGM-derived YM/PSG phrase
 //   4 = TIMING_CALIBRATION, 1s tone / 1s silence timing check
+//   5 = OSD_LOADED_VGM, first BRAM-loaded uncompressed VGM playback path
 `ifndef FIXED_REGION_MODE
 `define FIXED_REGION_MODE 3
 `endif
