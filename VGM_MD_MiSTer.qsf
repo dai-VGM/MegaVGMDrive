@@ -53,7 +53,10 @@ set_global_assignment -name ALM_REGISTER_PACKING_EFFORT MEDIUM
 set_global_assignment -name SEED 1
 
 set_global_assignment -name VERILOG_MACRO "MISTER_FB=1"
-
+set_global_assignment -name VERILOG_MACRO "FIXED_REGION_MODE=5"
+set_global_assignment -name VERILOG_MACRO "MD_JT12_CEN_NTSC_TEST=1"
+set_global_assignment -name VERILOG_MACRO "MD_JT12_LADDER_EFFECT_TEST=1"
+set_global_assignment -name VERILOG_MACRO "MD_AUDIO_PRE_GENMIX_FM_LPF_TEST=1"
 # Keep HDMI/video framework enabled. The current hardware goal is stable
 # video/menu first; do not enable MISTER_DEBUG_NOHDMI.
 

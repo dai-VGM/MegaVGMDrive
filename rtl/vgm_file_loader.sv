@@ -5,7 +5,7 @@
 // separate file player is added.
 
 module vgm_file_loader #(
-    parameter int ADDR_WIDTH = 16,
+    parameter int ADDR_WIDTH = 18,
     parameter bit ACCEPT_ANY_INDEX = 1'b1,
     parameter logic [15:0] FILE_INDEX = 16'd0
 ) (

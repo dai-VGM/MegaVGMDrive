@@ -728,7 +728,27 @@ module md_sound_fixed_region_test #(
     output logic              player_busy,
     output logic              player_done,
     output logic        [9:0] player_pc_debug,
-    output logic        [7:0] player_last_cmd_debug
+    output logic        [7:0] player_last_cmd_debug,
+    output logic       [15:0] fm_adjust_clip_count_l,
+    output logic       [15:0] fm_adjust_clip_count_r,
+    output logic       [15:0] genmix_wrap_count_l,
+    output logic       [15:0] genmix_wrap_count_r,
+    output logic       [31:0] ym_write_requested_count,
+    output logic       [31:0] ym_write_accepted_count,
+    output logic       [31:0] ym_write_dropped_or_busy_count,
+    output logic       [31:0] ym_port0_count,
+    output logic       [31:0] ym_port1_count,
+    output logic              last_ym_port,
+    output logic        [7:0] last_ym_addr,
+    output logic        [7:0] last_ym_data,
+    output logic       [15:0] jt12_cen_interval_1_count,
+    output logic       [15:0] jt12_cen_interval_2_count,
+    output logic       [15:0] jt12_cen_interval_3_count,
+    output logic       [15:0] jt12_cen_interval_4_count,
+    output logic       [15:0] jt12_cen_interval_ge5_count,
+    output logic        [7:0] jt12_cen_interval_min,
+    output logic        [7:0] jt12_cen_interval_max,
+    output logic        [7:0] jt12_cen_interval_last
 );
 
     logic       ym_cmd_valid;
@@ -777,7 +797,27 @@ module md_sound_fixed_region_test #(
         .psg_cmd_ready         (psg_cmd_ready),
         .audio_l               (audio_l),
         .audio_r               (audio_r),
-        .audio_sample_valid    (audio_sample_valid)
+        .audio_sample_valid    (audio_sample_valid),
+        .fm_adjust_clip_count_l(fm_adjust_clip_count_l),
+        .fm_adjust_clip_count_r(fm_adjust_clip_count_r),
+        .genmix_wrap_count_l   (genmix_wrap_count_l),
+        .genmix_wrap_count_r   (genmix_wrap_count_r),
+        .ym_write_requested_count(ym_write_requested_count),
+        .ym_write_accepted_count(ym_write_accepted_count),
+        .ym_write_dropped_or_busy_count(ym_write_dropped_or_busy_count),
+        .ym_port0_count        (ym_port0_count),
+        .ym_port1_count        (ym_port1_count),
+        .last_ym_port          (last_ym_port),
+        .last_ym_addr          (last_ym_addr),
+        .last_ym_data          (last_ym_data),
+        .jt12_cen_interval_1_count(jt12_cen_interval_1_count),
+        .jt12_cen_interval_2_count(jt12_cen_interval_2_count),
+        .jt12_cen_interval_3_count(jt12_cen_interval_3_count),
+        .jt12_cen_interval_4_count(jt12_cen_interval_4_count),
+        .jt12_cen_interval_ge5_count(jt12_cen_interval_ge5_count),
+        .jt12_cen_interval_min(jt12_cen_interval_min),
+        .jt12_cen_interval_max(jt12_cen_interval_max),
+        .jt12_cen_interval_last(jt12_cen_interval_last)
     );
 
 endmodule

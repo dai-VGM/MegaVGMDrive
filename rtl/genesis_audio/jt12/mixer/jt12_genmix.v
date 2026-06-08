@@ -42,7 +42,9 @@ module jt12_genmix(
     input psg_en, // enable PSG
     // Mixed sound at clk sample rate
     output signed [15:0] snd_left,
-    output signed [15:0] snd_right
+    output signed [15:0] snd_right,
+    output [15:0] mixed_wrap_count_left,
+    output [15:0] mixed_wrap_count_right
 );
 
 /////////////////////////////////////////////////
@@ -162,7 +164,8 @@ jt12_fm_uprate u_left(
     .cen_252    ( cen_252   ),
     .cen_63     ( cen_63    ),
     .cen_9      ( cen_9     ),
-    .snd        ( snd_left  )      // Mixed sound at clk sample rate
+    .snd        ( snd_left  ),     // Mixed sound at clk sample rate
+    .mixed_wrap_count(mixed_wrap_count_left)
 );
 
 jt12_fm_uprate u_right(
@@ -175,7 +178,8 @@ jt12_fm_uprate u_right(
     .cen_252    ( cen_252   ),
     .cen_63     ( cen_63    ),
     .cen_9      ( cen_9     ),
-    .snd        ( snd_right )      // Mixed sound at clk sample rate
+    .snd        ( snd_right ),     // Mixed sound at clk sample rate
+    .mixed_wrap_count(mixed_wrap_count_right)
 );
 
 `ifdef VERBOSE_TB_LOG

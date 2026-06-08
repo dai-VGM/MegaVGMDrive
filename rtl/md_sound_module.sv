@@ -54,8 +54,227 @@ module md_sound_module
 
 	    // Pulses when a new jt12 FM sample is available after the startup guard.
 	    // Testbenches can use this as a practical audio dump strobe.
-	    output logic              audio_sample_valid
+	    output logic              audio_sample_valid,
+
+	    // Upstream mix diagnostics. These counters saturate at 16'hffff.
+	    output logic       [15:0] fm_adjust_clip_count_l,
+	    output logic       [15:0] fm_adjust_clip_count_r,
+	    output logic       [15:0] genmix_wrap_count_l,
+	    output logic       [15:0] genmix_wrap_count_r,
+	    output logic       [31:0] ym_write_requested_count,
+	    output logic       [31:0] ym_write_accepted_count,
+	    output logic       [31:0] ym_write_dropped_or_busy_count,
+	    output logic       [31:0] ym_port0_count,
+	    output logic       [31:0] ym_port1_count,
+	    output logic              last_ym_port,
+	    output logic        [7:0] last_ym_addr,
+	    output logic        [7:0] last_ym_data,
+	    output logic       [15:0] jt12_cen_interval_1_count,
+	    output logic       [15:0] jt12_cen_interval_2_count,
+	    output logic       [15:0] jt12_cen_interval_3_count,
+	    output logic       [15:0] jt12_cen_interval_4_count,
+	    output logic       [15:0] jt12_cen_interval_ge5_count,
+	    output logic        [7:0] jt12_cen_interval_min,
+	    output logic        [7:0] jt12_cen_interval_max,
+	    output logic        [7:0] jt12_cen_interval_last
 	);
+
+`ifdef MD_YM_WRITE_SLOW_TEST
+    localparam bit MD_YM_WRITE_SLOW_BUILD = 1'b1;
+    localparam logic [7:0] YM_EXTRA_WRITE_GAP_CYCLES = 8'd32;
+`else
+    localparam bit MD_YM_WRITE_SLOW_BUILD = 1'b0;
+    localparam logic [7:0] YM_EXTRA_WRITE_GAP_CYCLES = 8'd0;
+`endif
+
+`ifdef MD_YM_FORCE_LFO_OFF_TEST
+    localparam bit MD_YM_FORCE_LFO_OFF_BUILD = 1'b1;
+`else
+    localparam bit MD_YM_FORCE_LFO_OFF_BUILD = 1'b0;
+`endif
+
+`ifdef MD_YM_MASK_PMS_AMS_TEST
+    localparam bit MD_YM_MASK_PMS_AMS_BUILD = 1'b1;
+`else
+    localparam bit MD_YM_MASK_PMS_AMS_BUILD = 1'b0;
+`endif
+
+`ifdef MD_YM_CH3_NORMAL_TEST
+    localparam bit MD_YM_CH3_NORMAL_BUILD = 1'b1;
+`else
+    localparam bit MD_YM_CH3_NORMAL_BUILD = 1'b0;
+`endif
+
+`ifdef MD_AUDIO_FM_ONLY_TEST
+    localparam bit MD_AUDIO_FM_ONLY_BUILD = 1'b1;
+`else
+    localparam bit MD_AUDIO_FM_ONLY_BUILD = 1'b0;
+`endif
+
+`ifdef MD_AUDIO_FM_FORCE_MUTE_TEST
+    localparam bit MD_AUDIO_FM_FORCE_MUTE_BUILD = 1'b1;
+`else
+    localparam bit MD_AUDIO_FM_FORCE_MUTE_BUILD = 1'b0;
+`endif
+
+`ifdef MD_AUDIO_PSG_ONLY_TEST
+    localparam bit MD_AUDIO_PSG_ONLY_BUILD = 1'b1;
+`else
+    localparam bit MD_AUDIO_PSG_ONLY_BUILD = 1'b0;
+`endif
+
+`ifdef MD_AUDIO_FM_CH1_ONLY_TEST
+    localparam bit MD_AUDIO_FM_CH_SOLO_BUILD = 1'b1;
+    localparam logic [2:0] MD_AUDIO_FM_CH_SOLO_KEYON_CH = 3'd0;
+`elsif MD_AUDIO_FM_CH2_ONLY_TEST
+    localparam bit MD_AUDIO_FM_CH_SOLO_BUILD = 1'b1;
+    localparam logic [2:0] MD_AUDIO_FM_CH_SOLO_KEYON_CH = 3'd1;
+`elsif MD_AUDIO_FM_CH3_ONLY_TEST
+    localparam bit MD_AUDIO_FM_CH_SOLO_BUILD = 1'b1;
+    localparam logic [2:0] MD_AUDIO_FM_CH_SOLO_KEYON_CH = 3'd2;
+`elsif MD_AUDIO_FM_CH4_ONLY_TEST
+    localparam bit MD_AUDIO_FM_CH_SOLO_BUILD = 1'b1;
+    localparam logic [2:0] MD_AUDIO_FM_CH_SOLO_KEYON_CH = 3'd4;
+`elsif MD_AUDIO_FM_CH5_ONLY_TEST
+    localparam bit MD_AUDIO_FM_CH_SOLO_BUILD = 1'b1;
+    localparam logic [2:0] MD_AUDIO_FM_CH_SOLO_KEYON_CH = 3'd5;
+`elsif MD_AUDIO_FM_CH6_ONLY_TEST
+    localparam bit MD_AUDIO_FM_CH_SOLO_BUILD = 1'b1;
+    localparam logic [2:0] MD_AUDIO_FM_CH_SOLO_KEYON_CH = 3'd6;
+`else
+    localparam bit MD_AUDIO_FM_CH_SOLO_BUILD = 1'b0;
+    localparam logic [2:0] MD_AUDIO_FM_CH_SOLO_KEYON_CH = 3'd0;
+`endif
+
+`ifdef MD_AUDIO_PREMIX_ATTENUATE_FM_6DB
+    localparam bit MD_AUDIO_PREMIX_ATTENUATE_FM_BUILD = 1'b1;
+`else
+    localparam bit MD_AUDIO_PREMIX_ATTENUATE_FM_BUILD = 1'b0;
+`endif
+
+`ifdef MD_AUDIO_FM_ADJUST_BYPASS_TEST
+    localparam bit MD_AUDIO_FM_ADJUST_BYPASS_BUILD = 1'b1;
+`else
+    localparam bit MD_AUDIO_FM_ADJUST_BYPASS_BUILD = 1'b0;
+`endif
+
+`ifdef MD_AUDIO_FM_ADJUST_LOW_GAIN_TEST
+    localparam bit MD_AUDIO_FM_ADJUST_LOW_GAIN_BUILD = 1'b1;
+`else
+    localparam bit MD_AUDIO_FM_ADJUST_LOW_GAIN_BUILD = 1'b0;
+`endif
+
+`ifdef MD_AUDIO_FM_ADJUST_SATURATE_TEST
+    localparam bit MD_AUDIO_FM_ADJUST_SATURATE_BUILD = 1'b1;
+`else
+    localparam bit MD_AUDIO_FM_ADJUST_SATURATE_BUILD = 1'b0;
+`endif
+
+`ifdef MD_AUDIO_PREMIX_ATTENUATE_PSG_6DB
+    localparam bit MD_AUDIO_PREMIX_ATTENUATE_PSG_BUILD = 1'b1;
+`else
+    localparam bit MD_AUDIO_PREMIX_ATTENUATE_PSG_BUILD = 1'b0;
+`endif
+
+`ifdef MD_AUDIO_RAW_JT12_FM_TEST
+    localparam bit MD_AUDIO_RAW_JT12_FM_BUILD = 1'b1;
+`else
+    localparam bit MD_AUDIO_RAW_JT12_FM_BUILD = 1'b0;
+`endif
+
+`ifdef MD_AUDIO_RAW_JT12_SAMPLE_LATCH_TEST
+    localparam bit MD_AUDIO_RAW_JT12_SAMPLE_LATCH_BUILD = 1'b1;
+`else
+    localparam bit MD_AUDIO_RAW_JT12_SAMPLE_LATCH_BUILD = 1'b0;
+`endif
+
+`ifdef MD_AUDIO_NORMAL_SAMPLE_LATCH_TEST
+    localparam bit MD_AUDIO_NORMAL_SAMPLE_LATCH_BUILD = 1'b1;
+`else
+    localparam bit MD_AUDIO_NORMAL_SAMPLE_LATCH_BUILD = 1'b0;
+`endif
+
+`ifdef MD_JT12_CEN_NTSC_TEST
+    localparam bit MD_JT12_CEN_NTSC_BUILD = 1'b1;
+`else
+    localparam bit MD_JT12_CEN_NTSC_BUILD = 1'b0;
+`endif
+
+`ifdef MD_JT12_CEN_EVERY_CLK_TEST
+    localparam bit MD_JT12_CEN_EVERY_CLK_BUILD = 1'b1;
+`else
+    localparam bit MD_JT12_CEN_EVERY_CLK_BUILD = 1'b0;
+`endif
+
+`ifdef MD_JT12_CEN_UNIFORM_10MHZ_TEST
+    localparam bit MD_JT12_CEN_UNIFORM_10MHZ_BUILD = 1'b1;
+`else
+    localparam bit MD_JT12_CEN_UNIFORM_10MHZ_BUILD = 1'b0;
+`endif
+
+`ifdef MD_JT12_CEN_UNIFORM_6P67MHZ_TEST
+    localparam bit MD_JT12_CEN_UNIFORM_6P67MHZ_BUILD = 1'b1;
+`else
+    localparam bit MD_JT12_CEN_UNIFORM_6P67MHZ_BUILD = 1'b0;
+`endif
+
+`ifdef MD_JT12_LADDER_EFFECT_TEST
+    localparam bit MD_JT12_LADDER_EFFECT_BUILD = 1'b1;
+`else
+    localparam bit MD_JT12_LADDER_EFFECT_BUILD = 1'b0;
+`endif
+
+`ifdef MD_JT12_FORCE_YM2612_TEST
+    localparam bit MD_JT12_FORCE_YM2612_BUILD = 1'b1;
+`else
+    localparam bit MD_JT12_FORCE_YM2612_BUILD = 1'b0;
+`endif
+
+`ifdef MD_JT12_FORCE_YM3438_TEST
+    localparam bit MD_JT12_FORCE_YM3438_BUILD = 1'b1;
+`else
+    localparam bit MD_JT12_FORCE_YM3438_BUILD = 1'b0;
+`endif
+
+`ifdef MD_JT12_FORCE_LADDER_ON_TEST
+    localparam bit MD_JT12_FORCE_LADDER_ON_BUILD = 1'b1;
+`else
+    localparam bit MD_JT12_FORCE_LADDER_ON_BUILD = 1'b0;
+`endif
+
+`ifdef MD_JT12_FORCE_LADDER_OFF_TEST
+    localparam bit MD_JT12_FORCE_LADDER_OFF_BUILD = 1'b1;
+`else
+    localparam bit MD_JT12_FORCE_LADDER_OFF_BUILD = 1'b0;
+`endif
+
+`ifdef MD_JT12_HIFI_PCM_TEST
+    localparam bit MD_JT12_HIFI_PCM_BUILD = 1'b1;
+`else
+    localparam bit MD_JT12_HIFI_PCM_BUILD = 1'b0;
+`endif
+
+`ifdef MD_AUDIO_FM_DC_BLOCK_TEST
+    localparam bit MD_AUDIO_FM_DC_BLOCK_BUILD = 1'b1;
+`else
+    localparam bit MD_AUDIO_FM_DC_BLOCK_BUILD = 1'b0;
+`endif
+
+`ifdef MD_AUDIO_PRE_GENMIX_FM_LPF_TEST
+    localparam bit MD_AUDIO_PRE_GENMIX_FM_LPF_BUILD = 1'b1;
+`else
+    localparam bit MD_AUDIO_PRE_GENMIX_FM_LPF_BUILD = 1'b0;
+`endif
+
+`ifdef MD_AUDIO_LPF_MODEL1_TEST
+    localparam logic [1:0] MD_AUDIO_LPF_MODE = 2'b00;
+`elsif MD_AUDIO_LPF_MODEL2_TEST
+    localparam logic [1:0] MD_AUDIO_LPF_MODE = 2'b01;
+`elsif MD_AUDIO_LPF_MINIMAL_TEST
+    localparam logic [1:0] MD_AUDIO_LPF_MODE = 2'b10;
+`else
+    localparam logic [1:0] MD_AUDIO_LPF_MODE = 2'b11;
+`endif
 
     //----------------------------------------------------------------------
     // Clock enables
@@ -70,21 +289,92 @@ module md_sound_module
     // different frequency, these enables will no longer represent real Mega
     // Drive chip timing.
 
-    logic [2:0] fm_clk_cnt;
-    logic       fm_clken;
+    logic [2:0]  fm_clk_cnt;
+    logic        fm_clken;
+    logic [23:0] fm_cen_accum;
+
+    // Hardware A/B only: approximate the Mega Drive NTSC YM2612 input enable
+    // from the current 20 MHz clk_sys. 53.693175 MHz / 7 ~= 7.670454 MHz.
+    localparam logic [24:0] JT12_NTSC_CEN_INC = 25'd6434443;
+    wire [24:0] jt12_ntsc_cen_sum =
+        {1'b0, fm_cen_accum} + JT12_NTSC_CEN_INC;
 
     always_ff @(posedge clk) begin
         if (reset) begin
             fm_clk_cnt <= 3'd0;
             fm_clken   <= 1'b1;
+            fm_cen_accum <= 24'd0;
         end else begin
             fm_clken <= 1'b0;
-            if (fm_clk_cnt == 3'd6) begin
-                fm_clk_cnt <= 3'd0;
+            if (MD_JT12_CEN_EVERY_CLK_BUILD) begin
                 fm_clken   <= 1'b1;
+            end else if (MD_JT12_CEN_UNIFORM_10MHZ_BUILD) begin
+                if (fm_clk_cnt == 3'd1) begin
+                    fm_clk_cnt <= 3'd0;
+                    fm_clken   <= 1'b1;
+                end else begin
+                    fm_clk_cnt <= fm_clk_cnt + 3'd1;
+                end
+            end else if (MD_JT12_CEN_UNIFORM_6P67MHZ_BUILD) begin
+                if (fm_clk_cnt == 3'd2) begin
+                    fm_clk_cnt <= 3'd0;
+                    fm_clken   <= 1'b1;
+                end else begin
+                    fm_clk_cnt <= fm_clk_cnt + 3'd1;
+                end
+            end else if (MD_JT12_CEN_NTSC_BUILD) begin
+                fm_cen_accum <= jt12_ntsc_cen_sum[23:0];
+                fm_clken     <= jt12_ntsc_cen_sum[24];
             end else begin
-                fm_clk_cnt <= fm_clk_cnt + 3'd1;
+                if (fm_clk_cnt == 3'd6) begin
+                    fm_clk_cnt <= 3'd0;
+                    fm_clken   <= 1'b1;
+                end else begin
+                    fm_clk_cnt <= fm_clk_cnt + 3'd1;
+                end
             end
+        end
+    end
+
+    logic [7:0] jt12_cen_interval_counter;
+    logic       jt12_cen_seen_first;
+
+    always_ff @(posedge clk) begin
+        if (reset) begin
+            jt12_cen_interval_counter <= 8'd0;
+            jt12_cen_seen_first       <= 1'b0;
+            jt12_cen_interval_1_count <= 16'd0;
+            jt12_cen_interval_2_count <= 16'd0;
+            jt12_cen_interval_3_count <= 16'd0;
+            jt12_cen_interval_4_count <= 16'd0;
+            jt12_cen_interval_ge5_count <= 16'd0;
+            jt12_cen_interval_min     <= 8'hff;
+            jt12_cen_interval_max     <= 8'd0;
+            jt12_cen_interval_last    <= 8'd0;
+        end else if (fm_clken) begin
+            jt12_cen_interval_last <= jt12_cen_interval_counter;
+            jt12_cen_interval_counter <= 8'd1;
+
+            if (!jt12_cen_seen_first) begin
+                jt12_cen_seen_first <= 1'b1;
+            end else begin
+                if (jt12_cen_interval_counter < jt12_cen_interval_min) begin
+                    jt12_cen_interval_min <= jt12_cen_interval_counter;
+                end
+                if (jt12_cen_interval_counter > jt12_cen_interval_max) begin
+                    jt12_cen_interval_max <= jt12_cen_interval_counter;
+                end
+
+                unique case (jt12_cen_interval_counter)
+                    8'd1: if (!(&jt12_cen_interval_1_count)) jt12_cen_interval_1_count <= jt12_cen_interval_1_count + 16'd1;
+                    8'd2: if (!(&jt12_cen_interval_2_count)) jt12_cen_interval_2_count <= jt12_cen_interval_2_count + 16'd1;
+                    8'd3: if (!(&jt12_cen_interval_3_count)) jt12_cen_interval_3_count <= jt12_cen_interval_3_count + 16'd1;
+                    8'd4: if (!(&jt12_cen_interval_4_count)) jt12_cen_interval_4_count <= jt12_cen_interval_4_count + 16'd1;
+                    default: if (!(&jt12_cen_interval_ge5_count)) jt12_cen_interval_ge5_count <= jt12_cen_interval_ge5_count + 16'd1;
+                endcase
+            end
+        end else if (jt12_cen_interval_counter != 8'hff) begin
+            jt12_cen_interval_counter <= jt12_cen_interval_counter + 8'd1;
         end
     end
 
@@ -144,27 +434,47 @@ module md_sound_module
     // A VGM YM command already contains "port, register, data", so this FSM
     // converts one VGM command into the two required jt12 bus writes.
 
-    typedef enum logic [3:0] {
-        YM_IDLE,
-        YM_ADDR_SETUP,
-        YM_ADDR_WAIT_CEN,
-        YM_ADDR_RELEASE,
-        YM_DATA_SETUP,
-        YM_DATA_WAIT_CEN,
-        YM_DATA_RELEASE,
+	    typedef enum logic [3:0] {
+	        YM_IDLE,
+	        YM_ADDR_SETUP,
+	        YM_ADDR_WAIT_CEN,
+	        YM_ADDR_RELEASE,
+	        YM_ADDR_GAP,
+	        YM_DATA_SETUP,
+	        YM_DATA_WAIT_CEN,
+	        YM_DATA_RELEASE,
         YM_BUSY_WAIT
     } ym_state_t;
 
     ym_state_t ym_state;
 
-    logic       ym_pending_port;
-    logic [7:0] ym_pending_reg;
-    logic [7:0] ym_pending_data;
+	    logic       ym_pending_port;
+	    logic [7:0] ym_pending_reg;
+	    logic [7:0] ym_pending_data;
+	    logic [7:0] ym_extra_gap_count;
 
     logic [1:0] jt12_addr;
     logic [7:0] jt12_din;
     logic       jt12_wr_n;
     wire  [7:0] jt12_dout;
+
+    wire ym_filter_lfo_off =
+        MD_YM_FORCE_LFO_OFF_BUILD && !ym_cmd_port && (ym_cmd_reg == 8'h22);
+    wire ym_filter_pms_ams =
+        MD_YM_MASK_PMS_AMS_BUILD &&
+        ((ym_cmd_reg == 8'hB4) || (ym_cmd_reg == 8'hB5) ||
+         (ym_cmd_reg == 8'hB6));
+    wire ym_filter_ch3_mode =
+        MD_YM_CH3_NORMAL_BUILD && !ym_cmd_port && (ym_cmd_reg == 8'h27);
+    wire ym_filter_fm_ch_solo_keyon =
+        MD_AUDIO_FM_CH_SOLO_BUILD && !ym_cmd_port && (ym_cmd_reg == 8'h28) &&
+        (ym_cmd_data[2:0] != MD_AUDIO_FM_CH_SOLO_KEYON_CH);
+    wire [7:0] ym_cmd_data_filtered =
+        ym_filter_lfo_off ? 8'h00 :
+        ym_filter_pms_ams ? (ym_cmd_data & 8'hC0) :
+        ym_filter_ch3_mode ? (ym_cmd_data & 8'h3F) :
+        ym_filter_fm_ch_solo_keyon ? {4'h0, ym_cmd_data[3:0]} :
+                              ym_cmd_data;
 
 `ifdef SIMULATION
     logic [15:0] ym_wait_cen_count;
@@ -175,23 +485,50 @@ module md_sound_module
     always_ff @(posedge clk) begin
         if (reset || jt12_reset) begin
             ym_state        <= YM_IDLE;
-            ym_pending_port <= 1'b0;
-            ym_pending_reg  <= 8'h00;
-            ym_pending_data <= 8'h00;
-            jt12_addr       <= 2'd0;
-            jt12_din        <= 8'h00;
-            jt12_wr_n       <= 1'b1;
+	            ym_pending_port <= 1'b0;
+	            ym_pending_reg  <= 8'h00;
+	            ym_pending_data <= 8'h00;
+	            ym_extra_gap_count <= 8'd0;
+	            jt12_addr       <= 2'd0;
+	            jt12_din        <= 8'h00;
+	            jt12_wr_n       <= 1'b1;
+	            ym_write_requested_count <= 32'd0;
+	            ym_write_accepted_count <= 32'd0;
+	            ym_write_dropped_or_busy_count <= 32'd0;
+	            ym_port0_count <= 32'd0;
+	            ym_port1_count <= 32'd0;
+	            last_ym_port <= 1'b0;
+	            last_ym_addr <= 8'd0;
+	            last_ym_data <= 8'd0;
 `ifdef SIMULATION
-            ym_wait_cen_count <= 16'd0;
+	            ym_wait_cen_count <= 16'd0;
 `endif
-        end else begin
-            unique case (ym_state)
+	        end else begin
+	            if (ym_cmd_valid) begin
+	                ym_write_requested_count <= ym_write_requested_count + 32'd1;
+	                if (ym_cmd_ready) begin
+	                    ym_write_accepted_count <= ym_write_accepted_count + 32'd1;
+	                    if (ym_cmd_port) begin
+	                        ym_port1_count <= ym_port1_count + 32'd1;
+	                    end else begin
+	                        ym_port0_count <= ym_port0_count + 32'd1;
+	                    end
+	                    last_ym_port <= ym_cmd_port;
+	                    last_ym_addr <= ym_cmd_reg;
+	                    last_ym_data <= ym_cmd_data;
+	                end else begin
+	                    ym_write_dropped_or_busy_count <=
+	                        ym_write_dropped_or_busy_count + 32'd1;
+	                end
+	            end
+
+	            unique case (ym_state)
                 YM_IDLE: begin
                     jt12_wr_n <= 1'b1;
                     if (ym_cmd_valid && ym_cmd_ready) begin
                         ym_pending_port <= ym_cmd_port;
                         ym_pending_reg  <= ym_cmd_reg;
-                        ym_pending_data <= ym_cmd_data;
+                        ym_pending_data <= ym_cmd_data_filtered;
 
                         // First write: select register on the chosen port.
                         // Keep addr/din stable before asserting wr_n, matching the
@@ -202,8 +539,9 @@ module md_sound_module
 `ifdef SIMULATION
 `ifdef VERBOSE_TB_LOG
                         ym_wait_cen_count <= 16'd0;
-                        $display("YM_CMD_ACCEPT time=%0t port=%0d reg=%02h data=%02h",
-                                 $time, ym_cmd_port, ym_cmd_reg, ym_cmd_data);
+                        $display("YM_CMD_ACCEPT time=%0t port=%0d reg=%02h data=%02h filtered=%02h",
+                                 $time, ym_cmd_port, ym_cmd_reg, ym_cmd_data,
+                                 ym_cmd_data_filtered);
 `endif
 `endif
                     end
@@ -236,14 +574,28 @@ module md_sound_module
                     end
                 end
 
-                YM_ADDR_RELEASE: begin
-                    jt12_wr_n <= 1'b1;
-                    jt12_addr <= ym_pending_port ? 2'd3 : 2'd1;
-                    jt12_din  <= ym_pending_data;
-                    ym_state  <= YM_DATA_SETUP;
-                end
+	                YM_ADDR_RELEASE: begin
+	                    jt12_wr_n <= 1'b1;
+	                    jt12_addr <= ym_pending_port ? 2'd3 : 2'd1;
+	                    jt12_din  <= ym_pending_data;
+	                    if (MD_YM_WRITE_SLOW_BUILD) begin
+	                        ym_extra_gap_count <= YM_EXTRA_WRITE_GAP_CYCLES;
+	                        ym_state <= YM_ADDR_GAP;
+	                    end else begin
+	                        ym_state <= YM_DATA_SETUP;
+	                    end
+	                end
 
-                YM_DATA_SETUP: begin
+	                YM_ADDR_GAP: begin
+	                    jt12_wr_n <= 1'b1;
+	                    if (ym_extra_gap_count == 8'd0) begin
+	                        ym_state <= YM_DATA_SETUP;
+	                    end else begin
+	                        ym_extra_gap_count <= ym_extra_gap_count - 8'd1;
+	                    end
+	                end
+
+	                YM_DATA_SETUP: begin
                     jt12_wr_n <= 1'b0;
                     ym_state  <= YM_DATA_WAIT_CEN;
                 end
@@ -341,6 +693,15 @@ module md_sound_module
     wire signed [15:0] fm_left;
     wire signed [15:0] fm_right;
 
+    wire jt12_ladder_config =
+        MD_JT12_FORCE_LADDER_OFF_BUILD ? 1'b0 :
+        MD_JT12_FORCE_LADDER_ON_BUILD  ? 1'b1 :
+        MD_JT12_FORCE_YM3438_BUILD     ? 1'b0 :
+        MD_JT12_FORCE_YM2612_BUILD     ? 1'b1 :
+                                          MD_JT12_LADDER_EFFECT_BUILD;
+
+    wire jt12_hifi_pcm_config = MD_JT12_HIFI_PCM_BUILD;
+
     jt12 fm
     (
         .rst          (jt12_reset),
@@ -352,12 +713,12 @@ module md_sound_module
         .wr_n         (jt12_wr_n),
         .dout         (jt12_dout),
         .irq_n        (jt12_irq_n),
-        .en_hifi_pcm  (1'b0),
+        .en_hifi_pcm  (jt12_hifi_pcm_config),
 
-        // 1'b0 follows Genesis_MiSTer default option wiring for YM2612 style
-        // ladder effect. Make this an input later if the front end needs to
-        // switch between YM2612-like and YM3438-like behavior.
-        .ladder       (1'b0),
+        // Local JT12 exposes YM2612/YM3438-style character mainly through the
+        // ladder-effect input; explicit A/B macros above make the polarity easy
+        // to verify against Genesis_MiSTer.
+        .ladder       (jt12_ladder_config),
 
         .snd_right    (fm_right),
         .snd_left     (fm_left),
@@ -383,18 +744,112 @@ module md_sound_module
     //----------------------------------------------------------------------
     // The gain adjustment mirrors Genesis_MiSTer system.sv before genmix.
 
+	    logic signed [15:0] fm_dc_prev_l;
+	    logic signed [15:0] fm_dc_prev_r;
+	    wire signed [16:0] fm_dc_diff_l =
+	        {fm_left[15], fm_left} - {fm_dc_prev_l[15], fm_dc_prev_l};
+	    wire signed [16:0] fm_dc_diff_r =
+	        {fm_right[15], fm_right} - {fm_dc_prev_r[15], fm_dc_prev_r};
+	    wire signed [15:0] fm_dc_block_l = fm_dc_diff_l >>> 1;
+	    wire signed [15:0] fm_dc_block_r = fm_dc_diff_r >>> 1;
+
+	    always_ff @(posedge clk) begin
+	        if (reset) begin
+	            fm_dc_prev_l <= 16'sd0;
+	            fm_dc_prev_r <= 16'sd0;
+	        end else if (jt12_sample) begin
+	            fm_dc_prev_l <= fm_left;
+	            fm_dc_prev_r <= fm_right;
+	        end
+	    end
+
+	    wire signed [15:0] fm_dc_source_l =
+	        MD_AUDIO_FM_DC_BLOCK_BUILD ? fm_dc_block_l : fm_left;
+	    wire signed [15:0] fm_dc_source_r =
+	        MD_AUDIO_FM_DC_BLOCK_BUILD ? fm_dc_block_r : fm_right;
+
+	    wire signed [15:0] fm_pre_l =
+	        MD_AUDIO_PREMIX_ATTENUATE_FM_BUILD ? (fm_dc_source_l >>> 1) : fm_dc_source_l;
+	    wire signed [15:0] fm_pre_r =
+	        MD_AUDIO_PREMIX_ATTENUATE_FM_BUILD ? (fm_dc_source_r >>> 1) : fm_dc_source_r;
+	    wire signed [10:0] psg_pre =
+	        MD_AUDIO_PREMIX_ATTENUATE_PSG_BUILD ? (psg_sound >>> 1) : psg_sound;
+	    wire signed [21:0] fm_pre_l_wide = {{6{fm_pre_l[15]}}, fm_pre_l};
+	    wire signed [21:0] fm_pre_r_wide = {{6{fm_pre_r[15]}}, fm_pre_r};
+
+	    wire signed [21:0] fm_adjust_l_wide =
+	        (fm_pre_l_wide <<< 4) +
+	        (fm_pre_l_wide <<< 2) +
+	        (fm_pre_l_wide <<< 1) +
+	        (fm_pre_l_wide >>> 2);
+	    wire signed [21:0] fm_adjust_r_wide =
+	        (fm_pre_r_wide <<< 4) +
+	        (fm_pre_r_wide <<< 2) +
+	        (fm_pre_r_wide <<< 1) +
+	        (fm_pre_r_wide >>> 2);
+
+	    localparam signed [21:0] MIX_INT16_MAX = 22'sd32767;
+	    localparam signed [21:0] MIX_INT16_MIN = -22'sd32768;
+
+	    wire fm_adjust_clip_l =
+	        (fm_adjust_l_wide > MIX_INT16_MAX) ||
+	        (fm_adjust_l_wide < MIX_INT16_MIN);
+	    wire fm_adjust_clip_r =
+	        (fm_adjust_r_wide > MIX_INT16_MAX) ||
+	        (fm_adjust_r_wide < MIX_INT16_MIN);
+
+	    wire signed [15:0] fm_adjust_l_trunc = fm_adjust_l_wide[15:0];
+	    wire signed [15:0] fm_adjust_r_trunc = fm_adjust_r_wide[15:0];
+	    wire signed [15:0] fm_adjust_l_sat =
+	        (fm_adjust_l_wide > MIX_INT16_MAX) ? 16'sd32767 :
+	        (fm_adjust_l_wide < MIX_INT16_MIN) ? -16'sd32768 :
+	                                             fm_adjust_l_wide[15:0];
+	    wire signed [15:0] fm_adjust_r_sat =
+	        (fm_adjust_r_wide > MIX_INT16_MAX) ? 16'sd32767 :
+	        (fm_adjust_r_wide < MIX_INT16_MIN) ? -16'sd32768 :
+	                                             fm_adjust_r_wide[15:0];
 	    wire signed [15:0] fm_adjust_l =
-	        (fm_left  <<< 4) + (fm_left  <<< 2) + (fm_left  <<< 1) + (fm_left  >>> 2);
+	        MD_AUDIO_FM_ADJUST_BYPASS_BUILD ? fm_pre_l :
+	        MD_AUDIO_FM_ADJUST_LOW_GAIN_BUILD ? (fm_pre_l >>> 1) :
+	        MD_AUDIO_FM_ADJUST_SATURATE_BUILD ? fm_adjust_l_sat :
+	                                            fm_adjust_l_trunc;
 	    wire signed [15:0] fm_adjust_r =
-	        (fm_right <<< 4) + (fm_right <<< 2) + (fm_right <<< 1) + (fm_right >>> 2);
+	        MD_AUDIO_FM_ADJUST_BYPASS_BUILD ? fm_pre_r :
+	        MD_AUDIO_FM_ADJUST_LOW_GAIN_BUILD ? (fm_pre_r >>> 1) :
+	        MD_AUDIO_FM_ADJUST_SATURATE_BUILD ? fm_adjust_r_sat :
+	                                            fm_adjust_r_trunc;
 
-	    wire signed [10:0] psg_adjust = psg_sound - (psg_sound >>> 5);
+	    wire signed [15:0] fm_pre_genmix_lpf_l;
+	    wire signed [15:0] fm_pre_genmix_lpf_r;
 
-`ifdef MUTE_PSG
-	    wire signed [10:0] psg_mixer_snd = 11'sd0;
-`else
-	    wire signed [10:0] psg_mixer_snd = psg_adjust;
-`endif
+	    genesis_fm_lpf pre_genmix_fm_lpf_left
+	    (
+	        .clk   (clk),
+	        .reset (reset),
+	        .in    (fm_adjust_l),
+	        .out   (fm_pre_genmix_lpf_l)
+	    );
+
+	    genesis_fm_lpf pre_genmix_fm_lpf_right
+	    (
+	        .clk   (clk),
+	        .reset (reset),
+	        .in    (fm_adjust_r),
+	        .out   (fm_pre_genmix_lpf_r)
+	    );
+
+	    wire signed [15:0] fm_pre_genmix_l =
+	        MD_AUDIO_PRE_GENMIX_FM_LPF_BUILD ? fm_pre_genmix_lpf_l : fm_adjust_l;
+	    wire signed [15:0] fm_pre_genmix_r =
+	        MD_AUDIO_PRE_GENMIX_FM_LPF_BUILD ? fm_pre_genmix_lpf_r : fm_adjust_r;
+
+	    wire signed [10:0] psg_adjust = psg_pre - (psg_pre >>> 5);
+
+	    wire fm_path_enabled =
+	        !MD_AUDIO_PSG_ONLY_BUILD && !MD_AUDIO_FM_FORCE_MUTE_BUILD;
+	    wire psg_path_enabled = !MD_AUDIO_FM_ONLY_BUILD;
+	    wire signed [10:0] psg_mixer_snd =
+	        psg_path_enabled ? psg_adjust : 11'sd0;
 
 	    //----------------------------------------------------------------------
 	    // Audio path startup guard
@@ -422,6 +877,20 @@ module md_sound_module
 	        end
 	    end
 
+	    always_ff @(posedge clk) begin
+	        if (reset) begin
+	            fm_adjust_clip_count_l <= 16'd0;
+	            fm_adjust_clip_count_r <= 16'd0;
+	        end else if (audio_path_enable && jt12_sample) begin
+	            if (fm_adjust_clip_l && !(&fm_adjust_clip_count_l)) begin
+	                fm_adjust_clip_count_l <= fm_adjust_clip_count_l + 16'd1;
+	            end
+	            if (fm_adjust_clip_r && !(&fm_adjust_clip_count_r)) begin
+	                fm_adjust_clip_count_r <= fm_adjust_clip_count_r + 16'd1;
+	            end
+	        end
+	    end
+
 `ifdef SIMULATION
 `ifdef VERBOSE_TB_LOG
 	    always @(posedge clk) begin
@@ -435,14 +904,51 @@ module md_sound_module
 `endif
 
 	    wire signed [15:0] fm_mixer_l =
-	        audio_path_enable ? fm_adjust_l : 16'sd0;
+	        (audio_path_enable && fm_path_enabled) ? fm_pre_genmix_l : 16'sd0;
 	    wire signed [15:0] fm_mixer_r =
-	        audio_path_enable ? fm_adjust_r : 16'sd0;
+	        (audio_path_enable && fm_path_enabled) ? fm_pre_genmix_r : 16'sd0;
 
 	    assign audio_sample_valid = audio_path_enable && jt12_sample;
 
 	    wire signed [15:0] pre_lpf_l;
 	    wire signed [15:0] pre_lpf_r;
+	    wire signed [15:0] lpf_audio_l;
+	    wire signed [15:0] lpf_audio_r;
+	    logic signed [15:0] normal_latched_l;
+	    logic signed [15:0] normal_latched_r;
+	    logic signed [15:0] raw_jt12_latched_l;
+	    logic signed [15:0] raw_jt12_latched_r;
+
+	    always_ff @(posedge clk) begin
+	        if (reset || !audio_path_enable) begin
+	            raw_jt12_latched_l <= 16'sd0;
+	            raw_jt12_latched_r <= 16'sd0;
+	        end else if (jt12_sample) begin
+	            raw_jt12_latched_l <= fm_left >>> 2;
+	            raw_jt12_latched_r <= fm_right >>> 2;
+	        end
+	    end
+
+	    always_ff @(posedge clk) begin
+	        if (reset || !audio_path_enable) begin
+	            normal_latched_l <= 16'sd0;
+	            normal_latched_r <= 16'sd0;
+	        end else if (jt12_sample) begin
+	            normal_latched_l <= lpf_audio_l;
+	            normal_latched_r <= lpf_audio_r;
+	        end
+	    end
+
+	    wire signed [15:0] raw_jt12_live_l =
+	        audio_path_enable ? (fm_left >>> 2) : 16'sd0;
+	    wire signed [15:0] raw_jt12_live_r =
+	        audio_path_enable ? (fm_right >>> 2) : 16'sd0;
+	    wire signed [15:0] raw_jt12_audio_l =
+	        MD_AUDIO_RAW_JT12_SAMPLE_LATCH_BUILD ? raw_jt12_latched_l :
+	                                                raw_jt12_live_l;
+	    wire signed [15:0] raw_jt12_audio_r =
+	        MD_AUDIO_RAW_JT12_SAMPLE_LATCH_BUILD ? raw_jt12_latched_r :
+	                                                raw_jt12_live_r;
 
 	    jt12_genmix genmix
 	    (
@@ -451,10 +957,12 @@ module md_sound_module
 	        .fm_left   (fm_mixer_l),
 	        .fm_right  (fm_mixer_r),
 	        .psg_snd   (psg_mixer_snd),
-	        .fm_en     (1'b1),
-        .psg_en    (1'b1),
+	        .fm_en     (fm_path_enabled),
+        .psg_en    (psg_path_enabled),
         .snd_left  (pre_lpf_l),
-        .snd_right (pre_lpf_r)
+        .snd_right (pre_lpf_r),
+        .mixed_wrap_count_left  (genmix_wrap_count_l),
+        .mixed_wrap_count_right (genmix_wrap_count_r)
     );
 
     // LPF mode from Genesis_MiSTer genesis_lpf.v:
@@ -470,19 +978,29 @@ module md_sound_module
     genesis_lpf lpf_left
     (
         .clk      (clk),
-        .reset    (reset),
-        .lpf_mode (2'b11),
-        .in       (pre_lpf_l),
-        .out      (audio_l)
-    );
+	        .reset    (reset),
+	        .lpf_mode (MD_AUDIO_LPF_MODE),
+	        .in       (pre_lpf_l),
+	        .out      (lpf_audio_l)
+	    );
 
     genesis_lpf lpf_right
     (
         .clk      (clk),
-        .reset    (reset),
-        .lpf_mode (2'b11),
-        .in       (pre_lpf_r),
-        .out      (audio_r)
-    );
+	        .reset    (reset),
+	        .lpf_mode (MD_AUDIO_LPF_MODE),
+	        .in       (pre_lpf_r),
+	        .out      (lpf_audio_r)
+	    );
+
+	    wire raw_jt12_output_build =
+	        MD_AUDIO_RAW_JT12_FM_BUILD || MD_AUDIO_RAW_JT12_SAMPLE_LATCH_BUILD;
+	    wire signed [15:0] normal_audio_l =
+	        MD_AUDIO_NORMAL_SAMPLE_LATCH_BUILD ? normal_latched_l : lpf_audio_l;
+	    wire signed [15:0] normal_audio_r =
+	        MD_AUDIO_NORMAL_SAMPLE_LATCH_BUILD ? normal_latched_r : lpf_audio_r;
+
+	    assign audio_l = raw_jt12_output_build ? raw_jt12_audio_l : normal_audio_l;
+	    assign audio_r = raw_jt12_output_build ? raw_jt12_audio_r : normal_audio_r;
 
 endmodule

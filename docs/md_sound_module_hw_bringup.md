@@ -3248,6 +3248,2623 @@ final wait before 0x66 end
 No RTL was changed for this note. This records the hardware pass result only.
 
 
+## 2026-06-08: JT12 Mode/Config Comparison A/B
+
+Hardware observation before this step:
+
+```text
+current best config:
+  FIXED_REGION_MODE=5
+  MD_JT12_CEN_NTSC_TEST=1
+  MD_JT12_LADDER_EFFECT_TEST=1
+
+patch104 diagnostics:
+  foobar/VGMRips plays ch1_main_patch.vgm, fb7, and op1+op4 cleanly
+  MiSTer/JT12 current best makes the same files noisy
+  disabling ladder reduces noise slightly, but does not make it clean
+```
+
+Conclusion going into this step:
+
+```text
+remaining issue is likely JT12 feedback/operator behavior or YM2612/YM3438
+mode/config difference, especially around op1 feedback in patch104
+```
+
+Local JT12 wrapper inspection:
+
+```text
+rtl/genesis_audio/jt12/jt12.v:
+  wrapper comment says it defaults to YM2612 mode
+  exposed runtime config pins:
+    en_hifi_pcm
+    ladder
+  no explicit ym2612/ym3438 mode input was found
+
+rtl/genesis_audio/jt12/jt12_top.v:
+  default parameters:
+    use_lfo=1
+    use_ssg=0
+    num_ch=6
+    use_pcm=1
+    use_adpcm=0
+    JT49_DIV=2
+    mask_div=1
+  no exposed feedback compatibility option was found
+  en_hifi_pcm only affects YM2612 DAC/PCM interpolation path
+
+rtl/genesis_audio/jt12/jt12_acc.v:
+  ladder input adds the ladder-effect term
+  comments distinguish YM2612 limiter behavior and YM3438 behavior, but this
+  local wrapper exposes only ladder/en_hifi_pcm as runtime chip-character knobs
+```
+
+Genesis_MiSTer comparison:
+
+```text
+Genesis_MiSTer CONF_STR exposes:
+  FM Chip,YM2612,YM3438
+  HiFi PCM,No,Yes
+
+Genesis_MiSTer top wiring:
+  EN_HIFI_PCM(status[23])
+  LADDER(~status[11])
+  LPF_MODE(status[15:14])
+
+Genesis_MiSTer files.qip includes:
+  rtl/jt12/jt12.qip
+```
+
+Reference sources:
+
+```text
+https://github.com/MiSTer-devel/Genesis_MiSTer
+https://github.com/MiSTer-devel/Genesis_MiSTer/blob/master/Genesis.sv
+https://github.com/MiSTer-devel/Genesis_MiSTer/blob/master/files.qip
+```
+
+RTL diagnostic macros added:
+
+```text
+MD_JT12_FORCE_YM2612_TEST
+  Forces local JT12 ladder config high.
+  Intended as explicit YM2612-style label for hardware A/B.
+
+MD_JT12_FORCE_YM3438_TEST
+  Forces local JT12 ladder config low.
+  Intended as explicit YM3438-style label for hardware A/B.
+
+MD_JT12_FORCE_LADDER_ON_TEST
+  Forces ladder high, overriding the named mode macros.
+
+MD_JT12_FORCE_LADDER_OFF_TEST
+  Forces ladder low, overriding the named mode macros.
+
+MD_JT12_HIFI_PCM_TEST
+  Drives en_hifi_pcm high.
+  Expected to have no effect on fm_only_test/ch1 patch diagnostics because
+  those files do not use YM DAC/PCM, but it is useful for matching the
+  Genesis_MiSTer exposed option.
+```
+
+Macro priority:
+
+```text
+MD_JT12_FORCE_LADDER_OFF_TEST
+MD_JT12_FORCE_LADDER_ON_TEST
+MD_JT12_FORCE_YM3438_TEST
+MD_JT12_FORCE_YM2612_TEST
+MD_JT12_LADDER_EFFECT_TEST
+default low
+```
+
+No loader, VGM timing, mode5 player, PCM/DAC parsing, or final mixer behavior
+was changed in this step. No JT12 feedback compatibility macro was added because
+the currently imported JT12 wrapper does not expose such a setting; feedback
+level A/B remains best tested with the generated patch104 `fb0`..`fb7` VGM
+diagnostics.
+
+Suggested hardware A/B matrix:
+
+```text
+baseline current best:
+  FIXED_REGION_MODE=5
+  MD_JT12_CEN_NTSC_TEST=1
+  MD_JT12_LADDER_EFFECT_TEST=1
+
+explicit YM2612-style:
+  FIXED_REGION_MODE=5
+  MD_JT12_CEN_NTSC_TEST=1
+  MD_JT12_FORCE_YM2612_TEST=1
+
+explicit YM3438-style:
+  FIXED_REGION_MODE=5
+  MD_JT12_CEN_NTSC_TEST=1
+  MD_JT12_FORCE_YM3438_TEST=1
+
+ladder polarity sanity:
+  FIXED_REGION_MODE=5
+  MD_JT12_CEN_NTSC_TEST=1
+  MD_JT12_FORCE_LADDER_ON_TEST=1
+
+  FIXED_REGION_MODE=5
+  MD_JT12_CEN_NTSC_TEST=1
+  MD_JT12_FORCE_LADDER_OFF_TEST=1
+
+HiFi PCM sanity:
+  FIXED_REGION_MODE=5
+  MD_JT12_CEN_NTSC_TEST=1
+  MD_JT12_LADDER_EFFECT_TEST=1
+  MD_JT12_HIFI_PCM_TEST=1
+```
+
+For each build, test `ch1_main_patch.vgm`, `ch1_main_patch_fb7.vgm`,
+`ch1_main_patch_op1_plus_op4.vgm`, and `fm_only_test.vgm`. Watch the top 12-line
+marker to confirm the expected macro is active before judging audio.
+
+
+## 2026-06-08: FM DC-Block / High-Pass Diagnostic A/B
+
+External review hypothesis:
+
+```text
+The remaining patch104 noise may be caused by missing DC blocking or
+high-pass filtering after the JT12 FM output, especially for strong feedback
+sounds such as OP1 feedback / FB7.
+```
+
+Current evidence:
+
+```text
+foobar/VGMRips:
+  patch104 diagnostics are clean synth lead / clean rotating tone
+
+MiSTer/JT12 current best:
+  ch1_main_patch.vgm, fb7, and op1+op4 remain noisy
+  ladder off reduces noise slightly but does not make the tone clean
+
+Previously unlikely causes:
+  final output attenuation / clipping
+  LPF setting alone
+  fm_adjust gain alone
+  YM write timing
+  CEN jitter alone
+  LFO/PMS/AMS
+  channel 3 special mode
+  VGM loader/player/timing
+```
+
+Added macro:
+
+```text
+MD_AUDIO_FM_DC_BLOCK_TEST
+```
+
+Implementation:
+
+```text
+location:
+  after JT12 snd_left/snd_right, including ladder effect
+  before fm_adjust and jt12_genmix
+
+first diagnostic equation:
+  y[n] = (x[n] - x[n-1]) >>> 1
+
+sample point:
+  previous x is updated only on jt12_sample
+
+reason:
+  this is a deliberately simple DC-block / high-pass A/B. It may make the FM
+  sound thinner or overemphasize transients; it is not intended as final audio
+  tuning.
+```
+
+Current best QSF should remain:
+
+```text
+FIXED_REGION_MODE=5
+MD_JT12_CEN_NTSC_TEST=1
+MD_JT12_LADDER_EFFECT_TEST=1
+```
+
+For this A/B, add:
+
+```text
+MD_AUDIO_FM_DC_BLOCK_TEST=1
+```
+
+Expected marker:
+
+```text
+top 12 lines: yellow/green stripe
+```
+
+Hardware test files:
+
+```text
+ch1_main_patch.vgm
+ch1_main_patch_fb7.vgm
+ch1_main_patch_op1_plus_op4.vgm
+fm_only_test.vgm
+```
+
+Interpretation:
+
+```text
+If noise / biting feedback becomes clean or greatly reduced:
+  missing FM DC blocking / post-filtering is likely a major cause
+  next try a proper one-pole DC blocker:
+    y[n] = x[n] - x[n-1] + R*y[n-1]
+    R near 0.995, or a power-of-two approximation
+
+If the sound becomes thinner but noise remains:
+  simple difference is too crude; test the one-pole version before returning
+  to JT12 internals
+
+If unchanged:
+  return focus to JT12 feedback/model differences
+```
+
+No VGM loader, VGM timing, mode5 player, PCM/DAC handling, or JT12 write logic
+was changed in this step.
+
+
+## 2026-06-08: FM DC-Block Result and Direct Genesis_MiSTer JT12 Compare
+
+Hardware result:
+
+```text
+MD_AUDIO_FM_DC_BLOCK_TEST:
+  expected yellow/green marker appeared
+  simple difference high-pass did not improve patch104/op1+op4 noise
+  volume was lower
+  noise increased
+```
+
+Conclusion:
+
+```text
+the simple y[n] = x[n] - x[n-1] high-pass/DC-block diagnostic is not the fix
+do not add more broad filters for now
+return QSF to current best config
+```
+
+Current best QSF restored:
+
+```text
+FIXED_REGION_MODE=5
+MD_JT12_CEN_NTSC_TEST=1
+MD_JT12_LADDER_EFFECT_TEST=1
+```
+
+The `MD_AUDIO_FM_DC_BLOCK_TEST` RTL macro remains available as a diagnostic, but
+it is no longer enabled in `VGM_MD_MiSTer.qsf`.
+
+Direct Genesis_MiSTer source comparison:
+
+```text
+Genesis_MiSTer source checked:
+  https://github.com/MiSTer-devel/Genesis_MiSTer
+
+fetched for comparison:
+  files.qip
+  rtl/jt12/jt12.qip
+  rtl/jt12/*.v
+  rtl/jt12/mixer/*.v
+  Genesis.sv
+  rtl/system.sv
+```
+
+JT12 file-set comparison:
+
+```text
+Genesis_MiSTer uses:
+  rtl/jt12/jt12.qip
+
+The local project uses the same JT12 Verilog file set under:
+  rtl/genesis_audio/jt12
+```
+
+Important source equality result:
+
+```text
+jt12_op.v:
+  identical to Genesis_MiSTer master
+
+This is the file containing the operator feedback path:
+  fb_II input
+  pm_preshift_II <= xs + ys
+  fb level shift table for fb=0..7
+  phasemod_VIII 6-stage YM2612 delay
+
+Therefore the current patch104 feedback noise is probably not caused by a local
+edit to the core feedback operator implementation.
+```
+
+JT12 files that were byte-identical to Genesis_MiSTer master:
+
+```text
+jt12_top.v
+jt12_op.v
+jt12_mod.v
+jt12_pg*.v
+jt12_pm.v
+jt12_lfo.v
+jt12_logsin.v
+jt12_div.v
+jt12_csr.v
+jt12_dout.v
+jt12_rst.v
+jt12_timers.v
+jt12_sumch.v
+most EG files
+adpcm/jt10_adpcm_div.v
+mixer/jt12_decim.v
+```
+
+JT12 files with local differences:
+
+```text
+jt12.v:
+  local wrapper ties some otherwise unused ADPCM/IO/debug inputs to constants
+
+jt12_acc.v:
+  local version adds reset initialization for pcm_sum, rl_latch, rl_old,
+  left, and right
+  ladder equation itself matches Genesis_MiSTer:
+    ladder high enables the ladder-effect term
+    ladder low disables it
+
+jt12_kon.v / jt12_mmr.v / jt12_reg.v:
+  local differences are VERBOSE_TB_LOG debug instrumentation
+
+jt12_single_acc.v:
+  local differences initialize regs
+
+jt12_pcm_interpol.v:
+  local difference is declaration ordering / newline style
+
+mixer/jt12_genmix.v / jt12_fm_uprate.v / jt12_comb.v / jt12_interpol.v:
+  local differences are debug instrumentation and wrap counters
+```
+
+No Genesis_MiSTer special handling for feedback-heavy patches was found in
+`system.sv`. Its FM path is:
+
+```text
+jt12
+  -> fm_adjust = FM * 22.25
+  -> optional genesis_fm_lpf when LPF_MODE == 2'b01
+  -> jt12_genmix
+  -> genesis_lpf
+  -> DAC_LDATA / DAC_RDATA
+```
+
+Important integration difference still remaining:
+
+```text
+Genesis_MiSTer has a dedicated FM-only LPF before genmix:
+  genesis_fm_lpf fm_lpf_l/r
+
+It is selected only when:
+  LPF_MODE == 2'b01
+
+The current VGM-only project has been testing the final genesis_lpf path, but
+does not currently insert Genesis_MiSTer's pre-genmix genesis_fm_lpf in the
+normal FM path.
+```
+
+This is not the same as the failed simple DC-block test. `genesis_fm_lpf` is the
+known Genesis_MiSTer FM post-processing stage for Model 2 mode, placed after
+`fm_adjust` and before `jt12_genmix`.
+
+Current interpretation:
+
+```text
+less likely now:
+  local jt12_op feedback implementation drift
+  local ladder equation drift
+  missing simple DC blocking
+
+still plausible:
+  Genesis_MiSTer FM-only LPF integration difference
+  JT12 drive/reset/init differences outside the byte-identical op core
+  remaining clocking/sample-enable differences from running JT12 from 20 MHz
+```
+
+Verification after restoring QSF:
+
+```text
+tb_mister_vgm_md_top compile:
+  FIXED_REGION_MODE=5
+  MD_JT12_CEN_NTSC_TEST=1
+  MD_JT12_LADDER_EFFECT_TEST=1
+  result: PASS
+
+tb_mister_vgm_md_top vvp:
+  result: PASS
+  audio_sample_valid_edges=5000
+```
+
+
+## 2026-06-08: Pre-Genmix Genesis FM LPF A/B
+
+Current concrete difference after direct Genesis_MiSTer JT12 comparison:
+
+```text
+jt12_op.v feedback/operator core:
+  matches Genesis_MiSTer master byte-for-byte
+
+jt12_acc.v ladder expression:
+  matches Genesis_MiSTer
+
+simple FM DC-block/high-pass:
+  did not improve patch104/op1+op4 noise
+
+Genesis_MiSTer system.sv still has one relevant FM post-processing stage that
+the VGM-only project did not have in the normal path:
+  genesis_fm_lpf after fm_adjust and before jt12_genmix
+```
+
+Added macro:
+
+```text
+MD_AUDIO_PRE_GENMIX_FM_LPF_TEST
+```
+
+Implementation:
+
+```text
+default path:
+  JT12 raw FM
+    -> fm_adjust
+    -> jt12_genmix
+
+with MD_AUDIO_PRE_GENMIX_FM_LPF_TEST:
+  JT12 raw FM
+    -> fm_adjust
+    -> genesis_fm_lpf
+    -> jt12_genmix
+```
+
+The `genesis_fm_lpf` implementation is reused from the local
+`rtl/genesis_audio/filters/genesis_lpf.v`, which matches the Genesis_MiSTer FM
+post-filter module already imported into this project.
+
+Current best QSF remains:
+
+```text
+FIXED_REGION_MODE=5
+MD_JT12_CEN_NTSC_TEST=1
+MD_JT12_LADDER_EFFECT_TEST=1
+```
+
+For this A/B, add:
+
+```text
+MD_AUDIO_PRE_GENMIX_FM_LPF_TEST=1
+```
+
+Expected marker:
+
+```text
+top 12 lines: purple/green stripe
+```
+
+Hardware test files:
+
+```text
+ch1_main_patch.vgm
+ch1_main_patch_fb7.vgm
+ch1_main_patch_op1_plus_op4.vgm
+fm_only_test.vgm
+```
+
+Interpretation:
+
+```text
+If patch104 becomes closer to the foobar/VGMRips clean synth lead:
+  the missing pre-genmix FM LPF was likely a major difference
+
+If unchanged:
+  continue comparing Genesis_MiSTer post-FM audio path and JT12 wrapper/clock
+  integration details
+```
+
+No VGM loader, VGM timing, mode5 player, PCM/DAC handling, JT12 write logic, or
+final output path was changed in this step.
+
+
+## 2026-06-08: Pre-Genmix FM LPF Hardware Pass
+
+`REGION_MODE=5 / OSD-loaded VGM` playback is working on real MiSTer hardware.
+The remaining major audio issue was the patch104 / CH1 main melody / OP1
+feedback noise.
+
+Working QSF configuration:
+
+```tcl
+set_global_assignment -name VERILOG_MACRO "MISTER_FB=1"
+set_global_assignment -name VERILOG_MACRO "FIXED_REGION_MODE=5"
+set_global_assignment -name VERILOG_MACRO "MD_JT12_CEN_NTSC_TEST=1"
+set_global_assignment -name VERILOG_MACRO "MD_JT12_LADDER_EFFECT_TEST=1"
+set_global_assignment -name VERILOG_MACRO "MD_AUDIO_PRE_GENMIX_FM_LPF_TEST=1"
+```
+
+Confirmed hardware result:
+
+```text
+OSD Load VGM: works
+fm_only_test.vgm: loads and plays full length
+loop length: matches foobar/VGMRips, about 150 seconds
+MiSTer menu return: OK
+single_fm_sustain.vgm: clean
+
+patch104 / CH1 main melody issue:
+  isolated to the CH1 main patch / OP1 feedback-heavy material
+
+without pre-genmix FM LPF:
+  ch1_main_patch.vgm noisy
+  ch1_main_patch_fb7.vgm noisy
+  ch1_main_patch_op1_plus_op4.vgm noisy
+
+with MD_AUDIO_PRE_GENMIX_FM_LPF_TEST=1:
+  noise disappears
+  patch becomes clean
+  result is much closer to foobar/VGMRips
+```
+
+Important investigation history:
+
+```text
+fm_only_test.vgm is effectively FM-only:
+  DAC data writes 0x2A: 0
+  DAC enable 0x2B: one write, value 0x00
+  PSG writes: 24
+  YM port0 writes: 50488
+  YM port1 writes: 3500
+  unsupported commands: 0
+```
+
+The issue was not caused by:
+
+```text
+VGM loader
+VGM wait timing
+loop handling
+PCM/DAC
+PSG
+final sys_top/audio_out clipping
+simple output attenuation
+post-output LPF alone
+fm_adjust 22.25x gain alone
+YM write spacing / handshake
+LFO / PMS / AMS
+CH3 special mode
+simple DC-block / difference high-pass
+```
+
+JT12 source comparison result:
+
+```text
+jt12_op.v:
+  matches Genesis_MiSTer master byte-for-byte
+
+jt12_acc.v:
+  ladder expression is effectively the same as Genesis_MiSTer
+  local difference is reset initialization
+
+Conclusion:
+  noise was not due to a locally broken JT12 feedback/operator implementation
+```
+
+Key finding:
+
+```text
+Genesis_MiSTer has a pre-genmix genesis_fm_lpf between fm_adjust and
+jt12_genmix. The self-made audio path was missing this stage.
+```
+
+Working path:
+
+```text
+JT12 raw FM
+  -> fm_adjust
+  -> genesis_fm_lpf
+  -> jt12_genmix
+  -> genesis_lpf / final audio path
+```
+
+Conclusion:
+
+```text
+The patch104 / OP1 feedback / FB7 noise was caused by missing
+Genesis_MiSTer-style pre-genmix FM LPF in the self-made audio path.
+
+JT12 itself was not locally broken.
+```
+
+Current best hardware audio configuration for Mega Drive / Genesis-style
+YM2612 audio:
+
+```text
+1. NTSC Mega Drive style JT12 CEN
+   MD_JT12_CEN_NTSC_TEST=1
+
+2. YM2612 / ladder-style behavior
+   MD_JT12_LADDER_EFFECT_TEST=1
+
+3. Genesis_MiSTer-style pre-genmix FM LPF
+   MD_AUDIO_PRE_GENMIX_FM_LPF_TEST=1
+```
+
+Next suggested cleanup:
+
+```text
+Promote the three successful test macros into named normal Mega Drive audio
+configuration options.
+
+Keep debug/test macros available, but avoid leaving the QSF in an experimental
+state.
+
+Potential renames:
+  MD_JT12_CEN_NTSC_TEST
+    -> normal MD FM CEN mode
+
+  MD_JT12_LADDER_EFFECT_TEST
+    -> normal YM2612 ladder mode
+
+  MD_AUDIO_PRE_GENMIX_FM_LPF_TEST
+    -> normal Genesis FM LPF path
+
+Preserve the known-good mode3 and mode5 paths.
+Do not change PCM/DAC yet.
+```
+
+
+## 2026-06-08: Raw JT12 FM Still Distorted, JT12 Clock/CEN A/B Added
+
+Hardware A/B result:
+
+```text
+build macro:
+  MD_AUDIO_RAW_JT12_FM_TEST
+
+screen:
+  blue/white top stripe visible
+
+audio:
+  much quieter, as expected because fm_adjust/genmix/PSG/LPF are bypassed
+  snare distortion / harsh character remains essentially unchanged
+```
+
+Conclusion:
+
+```text
+distortion is already present in raw JT12 FM output
+not caused by fm_adjust
+not caused by jt12_genmix
+not caused by PSG mixing
+not caused by genesis_lpf
+not caused by final sys_top/audio_out scaling
+```
+
+JT12 integration inspection:
+
+```text
+actual clk_sys:
+  rtl/pll/pll_0002.v outputs 20.000000 MHz
+
+current md_sound_module default FM enable:
+  fm_clken = clk / 7
+  at 20 MHz this is about 2.857 MHz
+
+Genesis_MiSTer-style assumption in md_sound_module comments:
+  master clock about 53.693 MHz
+  FM_CLKEN about MCLK / 7 = about 7.670 MHz
+
+jt12 wrapper:
+  rst must be held for at least 6 clk&cen cycles
+  current reset stretcher holds jt12_reset for 8 fm_clken pulses
+
+jt12_top:
+  exposes signed 16-bit fm_snd_left/right
+  jt12.v wrapper currently leaves separated fm_snd_left/right unconnected
+  snd_left/right are connected to md_sound_module fm_left/right
+  with use_ssg=0, snd_left/right are assigned directly from fm_snd_left/right
+
+mode/config:
+  jt12.v default parameters select YM2612-style use_pcm=1, use_ssg=0
+  en_hifi_pcm is tied low
+  ladder was tied low before this A/B step
+```
+
+Important note:
+
+```text
+The project now has correct VGM wait timing at CLK_SYS_HZ=20 MHz, but that does
+not automatically make JT12's FM core clocking equivalent to the Mega Drive
+integration. The VGM sequencer timing and the YM core execution clock are now
+separate suspects.
+```
+
+Added hardware A/B macros:
+
+```text
+MD_JT12_CEN_NTSC_TEST
+  Uses a fractional accumulator to approximate 53.693175 MHz / 7 from the
+  current 20 MHz clk_sys.
+  Target enable rate: about 7.670454 MHz.
+  Current accumulator increment: 6434443 / 2^24 per 20 MHz clock.
+  Marker: green/white top stripe.
+
+MD_JT12_CEN_EVERY_CLK_TEST
+  Drives jt12 cen every clk_sys cycle as an extreme clocking A/B.
+  Marker: red/white top stripe.
+
+MD_AUDIO_RAW_JT12_SAMPLE_LATCH_TEST
+  Routes raw JT12 FM output, but updates the routed sample only on jt12_sample.
+  This checks whether raw fm_left/right should be consumed only on JT12's own
+  sample pulse.
+  Marker: blue/yellow top stripe.
+
+MD_JT12_LADDER_EFFECT_TEST
+  Drives jt12 ladder input high for YM2612 ladder-effect A/B.
+  Marker: magenta/cyan top stripe.
+```
+
+Current QSF test build selection:
+
+```text
+FIXED_REGION_MODE=5
+MD_AUDIO_RAW_JT12_FM_TEST=1
+MD_JT12_CEN_NTSC_TEST=1
+```
+
+Expected hardware marker for the current build:
+
+```text
+green/white top stripe
+```
+
+Exact MiSTer hardware test steps:
+
+```text
+1. Build the current QSF.
+2. Confirm the top stripe is green/white.
+3. Open OSD and Load VGM.
+4. Load fm_only_test.vgm.
+5. Confirm mode5 still starts and loops.
+6. Compare against the previous raw JT12 FM build:
+   - pitch / tempo of FM tone material
+   - snare distortion
+   - hi-hat harshness
+   - overall character
+7. Menu return must remain OK.
+```
+
+Interpretation:
+
+```text
+If MD_JT12_CEN_NTSC_TEST changes pitch/timbre or improves the harsh snare,
+focus next on making the JT12/FM clock-enable relationship match the known-good
+Genesis integration without disturbing VGM wait timing.
+
+If it does not change the harsh character, test MD_AUDIO_RAW_JT12_SAMPLE_LATCH_TEST
+next to see whether output consumption needs to be synchronized to jt12_sample.
+
+If both are unchanged, test MD_JT12_LADDER_EFFECT_TEST only as a mode/character
+comparison; it is not expected to fix harshness if the current low-ladder path
+is already the cleaner YM3438-like path.
+```
+
+
+## 2026-06-08: Mode 5 Hardware Pass and JT12 CEN/Ladder Improvement
+
+Real-hardware status for `REGION_MODE=5 / OSD-loaded VGM` is now a pass for the
+non-PCM loaded-VGM playback path.
+
+Confirmed on MiSTer hardware:
+
+```text
+OSD Load VGM: works
+216 KB fm_only_test.vgm: loads successfully
+64 KiB boundary: crossed successfully
+full-length playback: works
+loop duration: matches foobar2000, about 150 seconds
+MiSTer menu return: OK
+
+VGM timing: working
+loop behavior: working
+loader: working
+256 KiB loaded RAM path: working
+```
+
+Important fixes and corrected interpretations:
+
+```text
+1. The earlier 7-8 second restart was caused by the top-level watchdog timeout,
+   not by VGM wait speed.
+
+2. The later 150s -> 90s speed issue was caused by a CLK_SYS_HZ mismatch:
+     actual PLL clk_sys: 20 MHz
+     old CLK_SYS_HZ:     12.5 MHz
+     fixed CLK_SYS_HZ:   20 MHz
+
+   Changing CLK_SYS_HZ to 20 MHz fixed the dedicated VGM wait timing on real
+   hardware.
+```
+
+Audio distortion investigation summary:
+
+```text
+The snare distortion / harsh hi-hat issue was not caused by:
+
+  final sys_top/audio_out clipping
+  LPF setting alone
+  fm_adjust 22.25x gain alone
+  PSG
+  YM DAC / PCM
+  YM write spacing / handshake
+  VGM loader
+  mode 5 player
+```
+
+Mac-side analysis of `fm_only_test.vgm`:
+
+```text
+dac_2a writes:        0
+dac_2b writes:        1, value 0x00
+PSG writes:           24
+YM port0 writes:      50488
+YM port1 writes:      3500
+unsupported commands: 0
+```
+
+Conclusion from the file analysis:
+
+```text
+fm_only_test.vgm is effectively FM-only
+the observed distortion is not a DAC/PCM playback issue
+PSG contribution is negligible for this test material
+```
+
+Hardware A/B conclusions:
+
+```text
+FM force mute:
+  fm_only_test.vgm becomes silent
+  confirms the real FM contribution path
+
+Raw JT12 FM output:
+  much quieter because fm_adjust/genmix/PSG/LPF are bypassed
+  same snare/hi-hat harshness remains
+  points upstream to JT12 drive conditions rather than downstream mix
+
+YM write slow test:
+  marker appears
+  snare/hi-hat character unchanged
+  write spacing / handshake is unlikely to be the primary cause
+```
+
+Decisive hardware improvement:
+
+```text
+MD_JT12_CEN_NTSC_TEST=1
+MD_JT12_LADDER_EFFECT_TEST=1
+
+Result:
+  drums sound much better
+  most instruments sound much better
+  previous snare / hi-hat problem is mostly resolved
+```
+
+Current best hardware test configuration:
+
+```text
+FIXED_REGION_MODE=5
+MD_JT12_CEN_NTSC_TEST=1
+MD_JT12_LADDER_EFFECT_TEST=1
+```
+
+Current remaining issue:
+
+```text
+one or more tones still seem to have unwanted vibrato / pitch wobble
+drums and most other parts sound good
+```
+
+Likely next suspects:
+
+```text
+fractional JT12 CEN jitter from deriving the Mega Drive-ish FM enable from
+  the current 20 MHz clk_sys
+
+JT12 output sample latch timing
+
+YM2612 / YM3438 mode details
+
+remaining Genesis_MiSTer integration differences
+```
+
+Next investigation direction:
+
+```text
+Keep the working mode 5 loader/player/timing path unchanged.
+Do not tune final mix yet.
+Do not implement PCM yet.
+
+Focus next on making JT12's clock-enable and mode wiring closer to the known
+Genesis_MiSTer integration, and specifically test whether a less jittery JT12
+CEN source or sample-latched output reduces the remaining pitch wobble.
+```
+
+No RTL was changed for this note. This records the hardware pass and audio
+investigation result only.
+
+
+## 2026-06-08: JT12 Fractional CEN Jitter Investigation
+
+Current hardware result:
+
+```text
+FIXED_REGION_MODE=5
+MD_JT12_CEN_NTSC_TEST=1
+MD_JT12_LADDER_EFFECT_TEST=1
+
+drums: good
+most instruments: good
+tempo / loop length: correct
+
+remaining issue:
+  one or more sustained tones seem to have unwanted vibrato / pitch wobble
+  drums and bass do not obviously wobble
+```
+
+Hypothesis:
+
+```text
+The fractional JT12 CEN generated from the current 20 MHz clk_sys has the
+correct average rate, but its per-enable spacing alternates between uneven
+2-clk and 3-clk intervals. This enable jitter may be audible on sustained FM
+tones even when drums and bass sound acceptable.
+```
+
+Current fractional CEN parameters:
+
+```text
+clk_sys:
+  20,000,000 Hz
+
+target Mega Drive-ish JT12 CEN:
+  53.693175 MHz / 7 = about 7.670454 MHz
+
+accumulator width:
+  24 bits
+
+increment:
+  6,434,443
+
+denominator:
+  2^24 = 16,777,216
+
+average CEN rate:
+  20,000,000 * 6,434,443 / 16,777,216
+  = 7,670,453.786849976 Hz
+
+average interval:
+  20,000,000 / 7,670,453.786849976
+  = 2.607407665 clk_sys cycles
+```
+
+Observed interval pattern from the accumulator:
+
+```text
+first CEN pulse positions in clk_sys cycles:
+  3, 6, 8, 11, 14, 16, 19, 21, 24, 27,
+  29, 32, 34, 37, 40, 42, 45, 47, 50, 53,
+  ...
+
+intervals:
+  3, 2, 3, 3, 2, 3, 2, 3, 3, 2,
+  3, 2, 3, 3, 2, 3, 2, 3, 3, 2,
+  ...
+
+min interval:
+  2 clk_sys cycles
+
+max interval:
+  3 clk_sys cycles
+
+short-window distribution example:
+  2-clk intervals: 29
+  3-clk intervals: 46
+```
+
+Periodicity:
+
+```text
+gcd(6,434,443, 16,777,216) = 1
+
+full accumulator state period:
+  16,777,216 clk_sys cycles
+  about 0.838861 seconds at 20 MHz
+
+pulses per full pattern:
+  6,434,443
+
+This is not a small repeating divider pattern. It is a long Bresenham-style
+fractional pattern with only 2-clk and 3-clk intervals.
+```
+
+JT12 cadence expectation:
+
+```text
+JT12 accepts a clk plus cen. The local jt12_top/jt12_div code is written around
+a regular chip clock/enable relationship. It can function with a cen, but a
+high-jitter fractional cen is not equivalent to running the core from a true
+uniform Mega Drive master clock or from a clean divided enable.
+```
+
+Comparison with Genesis_MiSTer:
+
+```text
+Genesis_MiSTer uses a PLL-derived Genesis system clock path and passes MCLK into
+the system module. The FM chip option also drives the LADDER input from the OSD
+FM Chip selection.
+
+Relevant observed wiring from Genesis_MiSTer Genesis.sv:
+  system system (
+    .MCLK(clk_sys),
+    ...
+    .LADDER(~status[11]),
+    .LPF_MODE(status[15:14]),
+    ...
+  )
+
+This differs from the current VGM-only project, where clk_sys is the MiSTer
+shell's 20 MHz PLL output and MD_JT12_CEN_NTSC_TEST synthesizes a Mega
+Drive-ish JT12 enable by fractional accumulation.
+```
+
+Engineering interpretation:
+
+```text
+For a permanent fix, a separate PLL clock or a higher clk_sys would likely be
+better than generating a 7.67 MHz enable from only 20 MHz.
+
+Examples:
+  a true Genesis-like master clock lets the JT12 enable be a uniform /7 style
+  relationship.
+
+  a much higher clk_sys reduces the absolute time size of fractional jitter.
+
+  a diagnostic uniform divider from 20 MHz removes jitter, but necessarily
+  changes the FM chip rate and therefore pitch.
+```
+
+Added hardware A/B macros:
+
+```text
+MD_AUDIO_NORMAL_SAMPLE_LATCH_TEST
+  Applies sample-latch behavior on the normal audio path, after genmix/LPF.
+  This is separate from MD_AUDIO_RAW_JT12_SAMPLE_LATCH_TEST, which only affects
+  the raw JT12 debug output path.
+  Marker: blue/green top stripe.
+
+MD_JT12_CEN_UNIFORM_10MHZ_TEST
+  Generates a uniform CEN every 2 clk_sys cycles.
+  Rate: 10 MHz.
+  Pitch is expected to be too high compared with the target 7.67 MHz.
+  Purpose: see whether removing CEN jitter changes the sustained-tone wobble.
+  Marker: yellow/blue top stripe.
+
+MD_JT12_CEN_UNIFORM_6P67MHZ_TEST
+  Generates a uniform CEN every 3 clk_sys cycles.
+  Rate: about 6.666667 MHz.
+  Pitch is expected to be too low compared with the target 7.67 MHz.
+  Purpose: see whether removing CEN jitter changes the sustained-tone wobble.
+  Marker: amber/green top stripe.
+```
+
+Added CEN interval debug:
+
+```text
+jt12_cen_interval_1_count
+jt12_cen_interval_2_count
+jt12_cen_interval_3_count
+jt12_cen_interval_4_count
+jt12_cen_interval_ge5_count
+jt12_cen_interval_min
+jt12_cen_interval_max
+jt12_cen_interval_last
+```
+
+The interval counters are exposed through `md_sound_module`,
+`mister_vgm_md_top`, and `emu.sv` unused-input retention so they can be probed
+in hardware if needed.
+
+Current QSF baseline after this step:
+
+```text
+FIXED_REGION_MODE=5
+MD_JT12_CEN_NTSC_TEST=1
+MD_JT12_LADDER_EFFECT_TEST=1
+```
+
+Suggested hardware A/B sequence:
+
+```text
+Baseline:
+  FIXED_REGION_MODE=5
+  MD_JT12_CEN_NTSC_TEST=1
+  MD_JT12_LADDER_EFFECT_TEST=1
+
+A/B 1, normal-path sample latch:
+  add MD_AUDIO_NORMAL_SAMPLE_LATCH_TEST=1
+  keep MD_JT12_CEN_NTSC_TEST=1
+  keep MD_JT12_LADDER_EFFECT_TEST=1
+  listen for sustained-tone wobble change
+
+A/B 2, uniform 10 MHz CEN:
+  replace MD_JT12_CEN_NTSC_TEST with MD_JT12_CEN_UNIFORM_10MHZ_TEST=1
+  keep MD_JT12_LADDER_EFFECT_TEST=1
+  expect pitch to be high
+  listen only for wobble character change
+
+A/B 3, uniform 6.67 MHz CEN:
+  replace MD_JT12_CEN_NTSC_TEST with MD_JT12_CEN_UNIFORM_6P67MHZ_TEST=1
+  keep MD_JT12_LADDER_EFFECT_TEST=1
+  expect pitch to be low
+  listen only for wobble character change
+```
+
+Do not use the uniform-divider tests as final sound tuning. They are only to
+separate "wrong average FM clock" from "fractional CEN jitter".
+
+Compile checks:
+
+```text
+tb_mister_vgm_md_top compile with:
+  MD_JT12_CEN_NTSC_TEST=1
+  MD_JT12_LADDER_EFFECT_TEST=1
+
+result:
+  passed
+
+tb_mister_vgm_md_top compile with:
+  MD_AUDIO_NORMAL_SAMPLE_LATCH_TEST=1
+  MD_JT12_CEN_UNIFORM_10MHZ_TEST=1
+
+result:
+  passed
+
+tb_md_sound_module compile with:
+  MD_JT12_CEN_NTSC_TEST=1
+  MD_JT12_LADDER_EFFECT_TEST=1
+
+result:
+  passed
+
+warnings:
+  existing jt12_comb mem[-1] warnings
+  existing Icarus unique-case ignored warnings
+```
+
+No VGM timing, loader, PCM, or final mix behavior was changed in this step.
+
+
+## 2026-06-08: Uniform CEN A/B and YM LFO/CH3 Register Analysis
+
+Hardware result:
+
+```text
+MD_JT12_CEN_UNIFORM_10MHZ_TEST:
+  pitch changes as expected
+  sustained-note buzzing / "re-re-re" artifact remains
+
+Conclusion:
+  fractional CEN jitter is probably not the main cause
+```
+
+Current best hardware configuration remains:
+
+```text
+FIXED_REGION_MODE=5
+MD_JT12_CEN_NTSC_TEST=1
+MD_JT12_LADDER_EFFECT_TEST=1
+```
+
+Remaining issue:
+
+```text
+sustained FM notes should sound continuous
+some sustained notes sound finely chopped / buzzing / vibrato-like
+pitch is mostly correct
+drums and short attacks sound mostly OK
+overall FM is improved but still somewhat noisy/rough
+```
+
+`fm_only_test.vgm` register analysis:
+
+```text
+file: out/fm_only_test.vgm
+file size: 0x3601e bytes, 221214 decimal
+data_start: 0x40
+first 0x66 end command: pc=0x35f39
+wait total before end: 6608179 samples
+duration: 149.845 seconds
+unsupported commands: none
+```
+
+YM LFO register `0x22`:
+
+```text
+port 0 reg 0x22 writes: 1
+  pc=0x52 data=0x00
+
+port 1 reg 0x22 writes: 0
+
+Interpretation:
+  VGM explicitly disables YM LFO at startup
+  the sustained-tone artifact is not explained by intentional global YM LFO
+```
+
+PMS/AMS/pan registers `0xB4-0xB6`:
+
+```text
+reg 0xB4 total writes: 19
+  all values: 0xC0
+
+reg 0xB5 total writes: 18
+  all values: 0xC0
+
+reg 0xB6 total writes: 274
+  values: 0xC0 for 273 writes, 0x00 for 1 write
+
+decoded 0xC0:
+  pan: left+right
+  AMS: 0
+  PMS: 0
+
+nonzero AMS/PMS writes across 0xB4-0xB6:
+  0
+
+Interpretation:
+  the file is not intentionally using PMS/AMS vibrato/tremolo
+```
+
+Timer / mode register `0x27`:
+
+```text
+reg 0x24 timer A high: 0 writes
+reg 0x25 timer A low:  0 writes
+reg 0x26 timer B:      0 writes
+reg 0x27 mode/timer:   1 write
+  pc=0x55 data=0x40
+```
+
+Interpretation:
+
+```text
+timer values are not programmed
+CSM/timer playback is not the apparent source
+0x27=0x40 enables the channel 3 special-frequency mode bit path
+```
+
+Channel 3 special-frequency registers:
+
+```text
+0xA8 writes: 1887
+0xA9 writes: 1887
+0xAA writes: 1887
+0xAC writes: 1887
+0xAD writes: 1887
+0xAE writes: 1887
+```
+
+Interpretation:
+
+```text
+channel 3 special mode is heavily used
+the affected sustained-tone artifact is more plausibly related to channel 3
+special-frequency behavior, operator frequency update timing, or JT12 handling
+of that mode than to LFO/PMS/AMS
+```
+
+JT12 mode/config comparison:
+
+```text
+current VGM project:
+  jt12 default parameters select YM2612-style use_pcm=1, use_ssg=0
+  en_hifi_pcm is tied low
+  ladder is controlled by MD_JT12_LADDER_EFFECT_TEST
+  LPF defaults to bypass unless an LPF A/B macro is enabled
+  no compile-time NOLFO macro is used
+
+Genesis_MiSTer:
+  system receives MCLK(clk_sys)
+  FM Chip OSD option drives LADDER(~status[11])
+  LPF_MODE is also driven from OSD status
+  Genesis_MiSTer exposes YM2612/YM3438-style FM chip choice
+```
+
+Added incorrect diagnostic macros:
+
+```text
+MD_YM_FORCE_LFO_OFF_TEST
+  forces accepted YM write port0/reg0x22 data to 0x00
+  marker: black/yellow top stripe
+  expected effect for fm_only_test.vgm: probably no change, because the file
+  already writes 0x22=0x00
+
+MD_YM_MASK_PMS_AMS_TEST
+  masks data for regs 0xB4-0xB6 to keep only pan bits: data & 0xC0
+  marker: cyan/yellow top stripe
+  expected effect for fm_only_test.vgm: probably no change, because AMS/PMS
+  are already zero
+
+MD_YM_CH3_NORMAL_TEST
+  masks port0/reg0x27 with data & 0x3F, clearing the upper mode bits
+  marker: red/blue top stripe
+  this is intentionally incorrect for files using channel 3 special mode
+  purpose: test whether the buzzing/chopped sustained tones are tied to
+  channel 3 special-frequency handling
+```
+
+Suggested hardware A/B sequence:
+
+```text
+Baseline:
+  FIXED_REGION_MODE=5
+  MD_JT12_CEN_NTSC_TEST=1
+  MD_JT12_LADDER_EFFECT_TEST=1
+
+A/B 1:
+  add MD_YM_FORCE_LFO_OFF_TEST=1
+  expected: little/no change
+
+A/B 2:
+  add MD_YM_MASK_PMS_AMS_TEST=1
+  expected: little/no change
+
+A/B 3:
+  add MD_YM_CH3_NORMAL_TEST=1
+  expected: pitch/timbre may become wrong
+  listen specifically for whether the chopped/buzzing sustained artifact
+  disappears or changes character
+```
+
+Compile check:
+
+```text
+tb_mister_vgm_md_top compile with:
+  MD_JT12_CEN_NTSC_TEST=1
+  MD_JT12_LADDER_EFFECT_TEST=1
+  MD_YM_FORCE_LFO_OFF_TEST=1
+  MD_YM_MASK_PMS_AMS_TEST=1
+  MD_YM_CH3_NORMAL_TEST=1
+
+result:
+  passed
+
+warnings:
+  existing jt12_comb mem[-1] warnings
+  existing Icarus unique-case ignored warnings
+```
+
+No loader, VGM wait timing, mode 5 player, PCM/DAC, final mixer, or fm_adjust
+behavior was changed in this step.
+
+
+## 2026-06-08: CH3 Normal A/B No Change and Single-Tone Diagnostic VGM
+
+Hardware result:
+
+```text
+MD_YM_CH3_NORMAL_TEST=1:
+  expected blue/red stripe appears
+  sustained-note buzzing / noisy character is unchanged
+```
+
+Conclusion:
+
+```text
+The remaining sustained-note buzzing is unlikely to be caused by:
+
+  LFO / PMS / AMS
+  channel 3 special mode
+  fractional CEN jitter alone
+  output sample latch timing
+  fm_adjust
+  LPF
+  sys_top/audio_out clipping
+  YM write spacing
+```
+
+Current best known hardware configuration remains:
+
+```text
+FIXED_REGION_MODE=5
+MD_JT12_CEN_NTSC_TEST=1
+MD_JT12_LADDER_EFFECT_TEST=1
+```
+
+QSF has been returned to that best-known baseline. The diagnostic
+`MD_YM_CH3_NORMAL_TEST` macro is not enabled in the current QSF.
+
+Direct JT12 / Genesis_MiSTer comparison:
+
+```text
+This project:
+  clk_sys is 20 MHz from rtl/pll/pll_0002.v
+  MD_JT12_CEN_NTSC_TEST creates an approximate 7.670454 MHz JT12 cen
+  jt12.v default parameters are used:
+    use_lfo = 1
+    use_ssg = 0
+    num_ch  = 6
+    use_pcm = 1
+  en_hifi_pcm is tied low
+  ladder is high when MD_JT12_LADDER_EFFECT_TEST=1
+  jt12.snd_left/right are used
+  with use_ssg=0, jt12_top assigns snd_left/right directly from fm_snd_left/right
+  external PSG is mixed later through jt12_genmix
+  genesis_lpf is present but currently bypassed unless an LPF A/B macro is used
+
+Genesis_MiSTer:
+  system receives MCLK(clk_sys)
+  FM chip OSD option is "YM2612,YM3438"
+  LADDER is wired as ~status[11]
+  EN_HIFI_PCM is wired from status[23]
+  LPF_MODE is wired from status[15:14]
+  AUDIO_L/R are driven from system DAC_LDATA/DAC_RDATA
+```
+
+Interpretation:
+
+```text
+The biggest remaining integration differences are no longer the final mixer or
+VGM player. They are more likely:
+
+  exact clock tree / MCLK relationship
+  JT12 wrapper version or surrounding system integration
+  hifi PCM / ladder / LPF option defaults
+  any Genesis_MiSTer-specific FM post-processing before DAC_LDATA/DAC_RDATA
+```
+
+Simple diagnostic VGM prepared:
+
+```text
+file:
+  out/single_fm_sustain.vgm
+
+size:
+  203 bytes
+
+header:
+  uncompressed VGM
+  version 1.50
+  data_start 0x40
+  YM2612 clock 7,670,454 Hz
+  total samples 485100, about 11 seconds
+
+content:
+  one sustained FM tone on YM channel 1
+  LFO disabled
+  normal channel mode
+  DAC disabled
+  no PMS/AMS
+  no channel 3 special mode
+  no PSG
+  no PCM/DAC stream
+  no data blocks
+
+tone duration:
+  10 seconds sustained
+  1 second key-off/silence
+```
+
+`vgm_inspector` summary:
+
+```text
+YM2612 port0 writes: 38
+YM2612 port1 writes: 0
+SN76489 writes: 0
+WAIT commands: 8
+WAIT total samples: 485100
+Data blocks: 0
+PCM seeks: 0
+YM2612 DAC stream commands: 0
+Unsupported commands: none
+END reached: yes
+
+reg 0x22 LFO writes: 1
+reg 0x28 KeyOn writes: 3
+reg 0x30-0x9E operator parameter writes: 28
+reg 0xB4-0xB6 pan/AMS/FMS writes: 1
+```
+
+Manual register sanity check:
+
+```text
+reg 0x22:
+  0x00
+
+reg 0x27:
+  0x00
+
+reg 0xB4-0xB6:
+  only 0xB4=0xC0
+  AMS=0
+  PMS=0
+
+channel 3 special registers:
+  no 0xA8/0xA9/0xAA/0xAC/0xAD/0xAE writes
+```
+
+Hardware test purpose:
+
+```text
+If out/single_fm_sustain.vgm buzzes or sounds chopped:
+  the artifact is likely intrinsic to the current JT12 drive/config/integration
+  rather than fm_only_test.vgm's complex patches.
+
+If out/single_fm_sustain.vgm sounds clean:
+  the artifact is likely triggered by fm_only_test.vgm's patch data, dense
+  frequency updates, or some more specific YM register interaction.
+```
+
+No loader, VGM wait timing, mode 5 player, PCM/DAC, final mixer, or fm_adjust
+behavior was changed in this step.
+
+
+## 2026-06-08: Mode 5 Per-File Sound-Core Reset
+
+Hardware observation:
+
+```text
+Current best configuration:
+  FIXED_REGION_MODE=5
+  MD_JT12_CEN_NTSC_TEST=1
+  MD_JT12_LADDER_EFFECT_TEST=1
+
+out/single_fm_sustain.vgm by itself:
+  simple sustained FM tone sounds clean
+
+fm_only_test.vgm loaded/played first, then out/single_fm_sustain.vgm loaded:
+  sustain test appears to inherit/drag previous fm_only sound/timbre/state
+```
+
+Conclusion:
+
+```text
+Mode 5 playback was not fully resetting the sound chip state between OSD-loaded
+VGM files. The next file could start while JT12/YM2612 and PSG state from the
+previous file was still present.
+```
+
+Implementation change:
+
+```text
+REGION_MODE=0..4:
+  unchanged
+
+REGION_MODE=5:
+  loader still captures OSD/HPS bytes into the same 256 KiB BRAM path
+  vgm_loaded_player command parsing is unchanged
+  VGM wait timing is unchanged
+  CEN_NTSC and ladder test behavior is unchanged
+
+new load sequence:
+  load_done_pulse
+    -> hold md_sound_module in reset for MODE5_SOUND_RESET_CYCLES
+    -> keep vgm_loaded_player reset during that sound reset
+    -> issue one gated mode5 player start pulse
+
+load/error behavior:
+  while a new file is downloading, mode5 player and sound core are reset
+  if load_error or overflow_error is latched, mode5 sound core remains reset/silent
+```
+
+Rationale:
+
+```text
+md_sound_module reset clears the local YM command adapter state and drives the
+existing JT12 reset stretcher. JT89 is also reset through the same module reset.
+This should clear stale YM register/key-on/DAC/LFO/timer/channel-mode state and
+PSG latch/volume state before the newly loaded file starts.
+```
+
+New debug/status:
+
+```text
+mode5_sound_reset_active:
+  high during the post-load sound reset window
+
+mode5_player_start_pulse_debug:
+  one-cycle pulse when mode5 starts the loaded player after reset
+
+emu.sv debug color:
+  yellow during mode5 post-load sound reset
+  white on the mode5 gated player-start pulse
+```
+
+Test added:
+
+```text
+tb/tb_mode5_sound_reset_sequence.sv
+
+test behavior:
+  load a minimal VGM through the mode5 ioctl path
+  confirm mode5_sound_reset_active asserts
+  confirm player start is not issued while sound reset is active
+  confirm a gated player start pulse is issued after reset
+  repeat the load a second time to cover per-file reinitialization
+```
+
+Simulation result:
+
+```text
+PASS tb_mode5_sound_reset_sequence
+```
+
+Hardware test steps:
+
+```text
+Build with:
+  FIXED_REGION_MODE=5
+  MD_JT12_CEN_NTSC_TEST=1
+  MD_JT12_LADDER_EFFECT_TEST=1
+
+1. Boot the RBF on MiSTer.
+2. OSD Load VGM: out/single_fm_sustain.vgm.
+3. Confirm the simple sustained FM tone is clean by itself.
+4. OSD Load VGM: fm_only_test.vgm.
+5. Let it play long enough to establish the previous FM timbre/state.
+6. OSD Load VGM: out/single_fm_sustain.vgm again.
+7. Expected: the sustain tone starts from a freshly reset sound core and no
+   longer drags the previous fm_only_test.vgm timbre/state.
+8. Confirm OSD menu return remains OK.
+```
+
+
+## 2026-06-08: FM Channel Solo Diagnostic Macros
+
+Clarification after the per-file reset work:
+
+```text
+The per-file sound reset issue is real when loading multiple VGMs in one core
+session, but it likely does not explain the current fm_only_test.vgm buzzing.
+
+single_fm_sustain.vgm:
+  clean from a fresh core load
+
+fm_only_test.vgm:
+  still has buzzing/noisy sustained tones from a fresh core load
+```
+
+Next diagnostic target:
+
+```text
+Isolate which YM2612/JT12 FM channel or patch in fm_only_test.vgm produces the
+buzzing, or determine whether the roughness is present across all FM output.
+```
+
+Added compile-time macros:
+
+```text
+MD_AUDIO_FM_CH1_ONLY_TEST
+MD_AUDIO_FM_CH2_ONLY_TEST
+MD_AUDIO_FM_CH3_ONLY_TEST
+MD_AUDIO_FM_CH4_ONLY_TEST
+MD_AUDIO_FM_CH5_ONLY_TEST
+MD_AUDIO_FM_CH6_ONLY_TEST
+```
+
+Implementation note:
+
+```text
+JT12's current wrapper exposes combined stereo FM output, not separate per-
+channel PCM. The diagnostic therefore filters YM2612 register 0x28 KeyOn
+writes in md_sound_module:
+
+  selected channel:
+    KeyOn writes pass unchanged
+
+  non-selected channels:
+    operator key-on bits are cleared, preserving the channel number
+
+All other YM register writes still pass through. This keeps VGM timing, loader,
+mode5 reset/init, PCM/DAC handling, JT12 CEN, ladder, fm_adjust, genmix, LPF,
+and final mixer behavior unchanged.
+```
+
+YM2612 KeyOn channel mapping used by the macros:
+
+```text
+CH1 -> keyon channel value 0
+CH2 -> keyon channel value 1
+CH3 -> keyon channel value 2
+CH4 -> keyon channel value 4
+CH5 -> keyon channel value 5
+CH6 -> keyon channel value 6
+```
+
+Hardware build guidance:
+
+```text
+Keep current best config:
+  FIXED_REGION_MODE=5
+  MD_JT12_CEN_NTSC_TEST=1
+  MD_JT12_LADDER_EFFECT_TEST=1
+
+Add exactly one channel solo macro per A/B build, for example:
+  MD_AUDIO_FM_CH1_ONLY_TEST=1
+```
+
+Debug marker colors in the top 12 lines:
+
+```text
+CH1 solo: red
+CH2 solo: green
+CH3 solo: blue
+CH4 solo: yellow
+CH5 solo: magenta
+CH6 solo: cyan
+```
+
+Suggested hardware pass:
+
+```text
+1. Build six RBFs, each with one MD_AUDIO_FM_CHn_ONLY_TEST macro.
+2. Fresh-load the core for each RBF.
+3. OSD Load VGM: fm_only_test.vgm.
+4. Note which solo channels contain the sustained buzzing/noisy tone.
+5. Compare against the all-channel current-best build.
+
+Interpretation:
+  one channel only:
+    suspect that channel's patch/register stream in fm_only_test.vgm
+
+  several channels:
+    suspect a shared JT12 behavior triggered by this file's more complex FM use
+
+  no solo channel buzzes, but all-channel does:
+    suspect interaction between simultaneous FM channels or accumulated output
+```
+
+Compile checks:
+
+```text
+tb_mister_vgm_md_top compile with MD_AUDIO_FM_CH1_ONLY_TEST: PASS
+tb_mister_vgm_md_top compile with MD_AUDIO_FM_CH2_ONLY_TEST: PASS
+tb_mister_vgm_md_top compile with MD_AUDIO_FM_CH3_ONLY_TEST: PASS
+tb_mister_vgm_md_top compile with MD_AUDIO_FM_CH4_ONLY_TEST: PASS
+tb_mister_vgm_md_top compile with MD_AUDIO_FM_CH5_ONLY_TEST: PASS
+tb_mister_vgm_md_top compile with MD_AUDIO_FM_CH6_ONLY_TEST: PASS
+
+emu.sv syntax/elaboration reached the existing vendor PLL model boundary:
+  missing altera_pll simulation model
+```
+
+
+## 2026-06-08: CH1 Main Melody Patch Extraction
+
+Hardware observation:
+
+```text
+Current best config plus MD_AUDIO_FM_CH1_ONLY_TEST=1:
+  intro sounds mostly OK
+  when the main melody starts, buzzing/wobble becomes clear
+  artifact sounds like rotary-speaker / wave-like modulation
+
+Interpretation:
+  the issue is not global JT12 noise
+  the strongest suspect is a CH1 main melody patch/operator behavior
+```
+
+Tool added:
+
+```text
+tools/ch1_patch_probe.py
+```
+
+The tool parses `out/fm_only_test.vgm`, tracks CH1 YM2612 register state by VGM
+sample time, emits a CSV timeline, summarizes active CH1 key-on patch usage, and
+generates minimal CH1-only sustain VGMs from selected patches.
+
+Generated analysis outputs:
+
+```text
+out/fm_only_ch1_timeline.csv
+out/fm_only_ch1_report.txt
+```
+
+CH1 activity summary:
+
+```text
+CH1 register events: 1550
+CH1 active key-ons: 561
+```
+
+Most-used CH1 patches among active key-ons:
+
+```text
+patch 104:
+  count: 237
+  first_t: 21.442s
+  first_pc: 0x09081
+  likely main melody candidate
+
+patch 125:
+  count: 233
+  first_t: 106.825s
+  likely later/second-section melody candidate
+
+patch 35:
+  count: 67
+  first_t: 0.000s
+  intro/early repeated figure
+
+patch 59:
+  count: 24
+  first_t: 2.658s
+  early transition/fill candidate
+```
+
+CH1 patch comparison:
+
+```text
+patch 35, intro/early:
+  DT/MUL: 61,31,31,61
+  TL:     1E,1B,1A,1A
+  RS/AR:  4F,4F,9F,1F
+  AM/DR:  03,0E,01,15
+  SR:     01,08,01,15
+  SL/RR:  27,47,28,28
+  SSG-EG: 00,00,00,00
+  B0:     3C
+  B4:     C0
+
+patch 59, early transition:
+  DT/MUL: 61,02,01,31
+  TL:     18,7F,7F,19
+  RS/AR:  11,1F,1F,15
+  AM/DR:  0B,1F,1F,09
+  SR:     09,00,00,07
+  SL/RR:  37,0F,0F,59
+  SSG-EG: 00,00,00,00
+  B0:     3A
+  B4:     C0
+
+patch 104, main melody candidate:
+  DT/MUL: 61,23,21,21
+  TL:     16,2B,33,1A
+  RS/AR:  18,5F,18,1F
+  AM/DR:  00,00,00,03
+  SR:     00,00,00,03
+  SL/RR:  09,09,0B,1C
+  SSG-EG: 00,00,00,00
+  B0:     3D
+  B4:     C0
+
+patch 125, later candidate:
+  DT/MUL: 01,12,02,22
+  TL:     18,1B,1B,23
+  RS/AR:  1C,16,1C,1D
+  AM/DR:  1F,1F,1F,1F
+  SR:     00,00,00,00
+  SL/RR:  09,07,09,08
+  SSG-EG: 00,00,00,00
+  B0:     3B
+  B4:     C0
+```
+
+What changes when the suspected wobble begins:
+
+```text
+The main melody candidate at 21.442s switches CH1 to patch 104:
+  feedback/algorithm changes to B0=3D
+  DT/MUL changes from the intro patch's 61,31,31,61 to 61,23,21,21
+  TL balance changes to 16,2B,33,1A
+  AR/DR/SR/RR envelope shape is much more sustained than the intro patch
+  SSG-EG remains disabled on all operators
+  B4 remains C0, so AMS/PMS are still 0
+
+Therefore the audible rotary/wave-like artifact is unlikely to be caused by
+YM LFO/PMS/AMS or SSG-EG in this file. The next suspects are operator
+interaction, feedback, detune/multiply, or an algorithm-specific JT12 behavior.
+```
+
+Generated minimal patch VGMs:
+
+```text
+out/ch1_main_patch.vgm
+  patch 104, one sustained CH1 note
+
+out/ch1_main_patch_fb0.vgm
+  patch 104 with feedback forced to 0
+
+out/ch1_main_patch_detune0.vgm
+  patch 104 with detune bits forced to 0
+
+out/ch1_main_patch_no_ssgeg.vgm
+  patch 104 with SSG-EG forced to 0
+
+out/ch1_main_patch_alg0.vgm
+  patch 104 with algorithm forced to 0
+
+out/ch1_main_patch_op1_only.vgm
+out/ch1_main_patch_op2_only.vgm
+out/ch1_main_patch_op3_only.vgm
+out/ch1_main_patch_op4_only.vgm
+  patch 104 with only one selected operator keyed on
+
+Additional high-use patch candidates:
+  out/ch1_main_patch_patch104.vgm
+  out/ch1_main_patch_patch125.vgm
+  out/ch1_main_patch_patch35.vgm
+  out/ch1_main_patch_patch59.vgm
+```
+
+Generated VGM properties:
+
+```text
+uncompressed VGM
+YM2612 clock: 7,670,454 Hz
+LFO register 0x22: 00
+channel mode register 0x27: 00
+DAC enable 0x2B: 00
+PSG writes: none
+PCM/data blocks: none
+PMS/AMS: B4=C0, so AMS=0 and PMS=0
+duration: about 9 seconds
+```
+
+Suggested hardware test order:
+
+```text
+1. Fresh-load current best RBF.
+2. OSD Load VGM: out/ch1_main_patch.vgm.
+3. If wobble reproduces, test:
+     out/ch1_main_patch_fb0.vgm
+     out/ch1_main_patch_detune0.vgm
+     out/ch1_main_patch_alg0.vgm
+     out/ch1_main_patch_op1_only.vgm .. op4_only
+4. If patch104 does not reproduce, test:
+     out/ch1_main_patch_patch125.vgm
+     out/ch1_main_patch_patch35.vgm
+     out/ch1_main_patch_patch59.vgm
+```
+
+No VGM loader, timing, CEN, ladder, PCM, reset/init, or final mixer RTL was
+changed in this step.
+
+
+## 2026-06-08: Patch104 Operator Combination A/B VGMs
+
+Hardware result for patch104 operator-only VGMs:
+
+```text
+out/ch1_main_patch_op1_only.vgm:
+  silent
+
+out/ch1_main_patch_op2_only.vgm:
+  faint noise, no rotary/wobble
+
+out/ch1_main_patch_op3_only.vgm:
+  simple sustained tone with slight noise, no rotary/wobble
+
+out/ch1_main_patch_op4_only.vgm:
+  cleanest / most natural
+  sustained "poooo" tone
+  slight slow movement
+
+out/ch1_main_patch.vgm, full patch104:
+  buzzing / rotary / distortion present
+
+out/ch1_main_patch_fb0.vgm:
+  harsh feedback-like buzz is reduced
+  rotary movement remains
+
+out/ch1_main_patch_alg0.vgm:
+  clean
+```
+
+Interpretation:
+
+```text
+The artifact is likely not produced by one operator alone. It appears when the
+operators interact under patch104's algorithm 5, with feedback contributing the
+harsh buzz component.
+```
+
+Additional generated operator-combination diagnostics:
+
+```text
+out/ch1_main_patch_op3_plus_op4.vgm
+  KeyOn data: C0
+
+out/ch1_main_patch_op2_plus_op4.vgm
+  KeyOn data: A0
+
+out/ch1_main_patch_op1_plus_op4.vgm
+  KeyOn data: 90
+
+out/ch1_main_patch_op2_plus_op3_plus_op4.vgm
+  KeyOn data: E0
+
+out/ch1_main_patch_op1_plus_op2_plus_op3_plus_op4_fb0.vgm
+  KeyOn data: F0
+  B0: 05, algorithm 5 with feedback 0
+```
+
+Additional generated feedback-step diagnostics:
+
+```text
+out/ch1_main_patch_fb1.vgm
+  B0: 0D, algorithm 5 with feedback 1
+
+out/ch1_main_patch_fb2.vgm
+  B0: 15, algorithm 5 with feedback 2
+
+out/ch1_main_patch_fb3.vgm
+  B0: 1D, algorithm 5 with feedback 3
+
+out/ch1_main_patch_fb4.vgm
+  B0: 25, algorithm 5 with feedback 4
+
+out/ch1_main_patch_fb5.vgm
+  B0: 2D, algorithm 5 with feedback 5
+
+out/ch1_main_patch_fb6.vgm
+  B0: 35, algorithm 5 with feedback 6
+
+out/ch1_main_patch_fb7.vgm
+  B0: 3D, original patch104 algorithm/feedback
+```
+
+Suggested hardware test order:
+
+```text
+Operator interaction pass:
+  1. out/ch1_main_patch_op4_only.vgm
+  2. out/ch1_main_patch_op3_plus_op4.vgm
+  3. out/ch1_main_patch_op2_plus_op4.vgm
+  4. out/ch1_main_patch_op1_plus_op4.vgm
+  5. out/ch1_main_patch_op2_plus_op3_plus_op4.vgm
+  6. out/ch1_main_patch.vgm
+
+Feedback threshold pass:
+  1. out/ch1_main_patch_fb0.vgm
+  2. out/ch1_main_patch_fb1.vgm
+  3. out/ch1_main_patch_fb2.vgm
+  4. out/ch1_main_patch_fb3.vgm
+  5. out/ch1_main_patch_fb4.vgm
+  6. out/ch1_main_patch_fb5.vgm
+  7. out/ch1_main_patch_fb6.vgm
+  8. out/ch1_main_patch_fb7.vgm
+```
+
+No RTL was changed for this step. Only diagnostic VGM generation was extended.
+
+
+## 2026-06-07: Common Audio Output Gain A/B Test
+
+Hardware A/B observation:
+
+```text
+REGION_MODE=3 fixed-ROM playback: correct speed
+REGION_MODE=5 OSD-loaded VGM playback: correct speed
+
+common audio issue in both paths:
+  snare sounds distorted/clipped
+  hi-hat sounds harsh/bright
+  channels seem present
+  timing is correct
+```
+
+Because both fixed-ROM and OSD-loaded playback show the same issue, the first
+suspect is the shared audio output/mixing path rather than the mode 5 loader,
+BRAM reader, VGM parser, or command timing.
+
+Current common audio path:
+
+```text
+VGM command player
+  -> md_sound_module
+  -> JT12 FM core
+  -> JT89 PSG core
+  -> fm_adjust_l/r and psg_adjust
+  -> jt12_genmix
+  -> genesis_lpf with lpf_mode=2'b11
+  -> mister_vgm_md_top.audio_l/r
+  -> emu.sv final AUDIO_L/R scaling and gate
+```
+
+Width inspection:
+
+```text
+JT12 FM output:
+  fm_left/fm_right are signed 16-bit from jt12.snd_left/snd_right
+
+FM pre-genmix adjustment in md_sound_module:
+  fm_adjust_l/r are declared signed 16-bit
+  expression is approximately fm * 22.25
+  because the destination is 16-bit, large values can wrap/truncate here
+
+JT89 PSG output:
+  jt89.sound is signed 11-bit
+  internal jt89_mixer sums four signed 9-bit channels into signed 11-bit
+
+PSG pre-genmix adjustment:
+  psg_adjust is signed 11-bit
+  psg_mixer_snd remains signed 11-bit
+
+jt12_genmix input/output:
+  fm_left/fm_right input: signed 16-bit
+  psg_snd input: signed 11-bit
+  psg is interpolated to signed 12-bit inside genmix
+  jt12_fm_uprate mixed register is 16-bit
+  final snd_left/snd_right are signed 16-bit
+
+genesis_lpf:
+  instantiated on both channels
+  lpf_mode is currently 2'b11
+  2'b11 bypasses the filter, so no low-pass filtering is active
+
+emu.sv final output:
+  default AUDIO_L/R uses md_audio_l/r >>> 2 while audio_gate_open is high
+```
+
+Potential clipping/wrap points:
+
+```text
+1. fm_adjust_l/r:
+   signed 16-bit destination after a large gain expression
+
+2. jt12_fm_uprate.mixed:
+   16-bit register receiving FM + shifted PSG
+
+3. jt12 interpolation/decimation chain:
+   outputs are signed 16-bit
+
+4. final emu.sv AUDIO_L/R:
+   normally reduced by >>> 2, so final MiSTer output is less likely to clip
+   unless the signal has already wrapped/clipped upstream
+```
+
+Quick hardware A/B attenuation test added:
+
+```text
+default build:
+  MD_AUDIO_OUTPUT_SHIFT = 2
+  AUDIO_L/R = md_audio_l/r >>> 2
+
+test build with -DMD_AUDIO_FINAL_ATTENUATE_6DB:
+  MD_AUDIO_OUTPUT_SHIFT = 3
+  AUDIO_L/R = md_audio_l/r >>> 3
+  this is an additional -6 dB at the final output only
+```
+
+This does not change VGM timing, REGION_MODE playback logic, YM registers, VGM
+command handling, PCM support, loader capacity, or loop behavior.
+
+Debug added for SignalTap:
+
+```text
+md_audio_l_at_rail
+md_audio_r_at_rail
+md_audio_l_rail_count
+md_audio_r_rail_count
+```
+
+These counters only see the 16-bit `md_audio_l/r` values entering the final
+`emu.sv` output scaler. They can show whether the shared module output is
+reaching signed 16-bit rails before the final shift. They cannot prove earlier
+internal wrap in `fm_adjust_l/r` or `jt12_fm_uprate.mixed`.
+
+Hardware test plan:
+
+```text
+1. Build the normal RBF and confirm the known snare/hi-hat issue.
+2. Build a second RBF with MD_AUDIO_FINAL_ATTENUATE_6DB defined.
+3. Test the same REGION_MODE=3 fixed-ROM phrase.
+4. Test the same REGION_MODE=5 OSD-loaded fm_only_test.vgm.
+5. If snare distortion improves significantly, the issue is likely gain/clipping
+   at or after the shared 16-bit output.
+6. If harshness remains with only lower level, inspect upstream mixer/filter
+   configuration next, especially active LPF mode and FM/PSG gain staging.
+```
+
+Simulation compile checks:
+
+```text
+default tb_mister_vgm_md_top compile: passed
+MD_AUDIO_FINAL_ATTENUATE_6DB tb_mister_vgm_md_top compile: passed
+warnings: existing JT12/timescale/unique-case style warnings
+```
+
+
+## 2026-06-07: Mode 5 Wait Clock Matched to 20 MHz clk_sys
+
+Hardware observation after disabling the mode 5 playback watchdog:
+
+```text
+fm_only_test.vgm now plays through the full chorus/full song structure
+and loops on real MiSTer hardware.
+
+foobar2000 loop length: about 2:30, roughly 150 seconds
+MiSTer mode 5 loop length: about 1:30, roughly 90 seconds
+ratio: 150 / 90 = about 1.666x fast
+```
+
+This strongly pointed at a clock-parameter mismatch in the dedicated
+`vgm_wait_tick` generator, not a file-size, BRAM address, loop offset, or
+command-PC problem.
+
+Confirmed clock path:
+
+```text
+sys/sys_top.v:
+  HPS_BUS carries clk_sys into emu
+
+rtl/emu.sv:
+  pll pll (
+    .refclk(CLK_50M),
+    .outclk_0(clk_sys)
+  )
+
+rtl/pll/pll_0002.v:
+  output_clock_frequency0("20.000000 MHz")
+
+rtl/mister_vgm_md_top.sv before this change:
+  CLK_SYS_HZ = 12_500_000
+```
+
+Because the hardware `clk_sys` is 20 MHz, using `CLK_SYS_HZ=12.5 MHz` makes the
+phase accumulator emit too many 44.1 kHz wait ticks per real second:
+
+```text
+20.0 / 12.5 = 1.6x
+observed: about 1.67x fast
+```
+
+Change made:
+
+```text
+rtl/mister_vgm_md_top.sv:
+  CLK_SYS_HZ default changed from 12_500_000 to 20_000_000
+
+comment added:
+  active PLL output feeding emu.clk_sys is 20 MHz
+```
+
+This affects the shared dedicated `vgm_wait_tick` generator used by both the
+fixed-region path and mode 5. That is intentional: the previous value did not
+match the actual hardware clock. `REGION_MODE=0..4` command streams and player
+logic were not changed, but their wait timing now uses the hardware-correct
+20 MHz clock assumption.
+
+No sound tuning, PCM support, loader capacity change, SDRAM work, or loop-offset
+logic change was made in this step.
+
+Test added:
+
+```text
+tb/tb_mister_vgm_wait_tick.sv
+
+scaled check:
+  CLK_SYS_HZ = 20_000
+  VGM_WAIT_HZ = 44
+  count vgm_wait_tick pulses for one configured clock-second
+
+expected:
+  exactly 44 ticks
+```
+
+Simulation result:
+
+```text
+PASS tb_mister_vgm_wait_tick clk_hz=20000 wait_hz=44 ticks=44
+```
+
+Next hardware test:
+
+```text
+1. Build FIXED_REGION_MODE=5 with the updated CLK_SYS_HZ default.
+2. Load fm_only_test.vgm through OSD.
+3. Measure the loop length again.
+4. Expected result: close to foobar2000's about 150 second loop length.
+5. Confirm menu return remains OK.
+6. Do not tune sound quality from this test.
+7. Do not implement PCM unless unsupported_opcode / unsupported_pc proves that
+   PCM/DAC commands are the next blocker for a specific file.
+```
+
+
+## 2026-06-07: Mode 5 20 MHz Wait Timing Hardware Pass
+
+`FIXED_REGION_MODE=5` was tested again on real MiSTer hardware after changing
+`mister_vgm_md_top.CLK_SYS_HZ` from `12_500_000` to `20_000_000`.
+
+Observed result:
+
+```text
+foobar2000 loop length: about 150 seconds
+MiSTer mode 5 loop length: about 150 seconds
+OSD Load VGM: works
+216 KB non-PCM fm_only_test.vgm: loads and plays
+64 KiB boundary: crossed successfully
+watchdog early restart: fixed
+VGM wait timing: correct on real hardware
+MiSTer menu return: OK
+```
+
+Conclusion:
+
+```text
+mode 5 loaded-BRAM playback path is working for the 216 KB non-PCM VGM
+the 256 KiB loader is valid on hardware
+the 64 KiB address boundary is not the playback-limit problem
+the previous 7-8 second restart was the mode 5 watchdog timeout
+the previous 150s -> 90s fast playback was the 12.5 MHz vs 20 MHz clock mismatch
+```
+
+The confirmed real-hardware path is now:
+
+```text
+hps_io ioctl
+  -> vgm_file_loader
+  -> vgm_loaded_player
+  -> md_sound_module
+  -> JT12 / JT89
+  -> MiSTer AUDIO_L/R
+```
+
+No RTL was changed for this note. This records the hardware pass result only.
+
+
+## 2026-06-07: Mode 5 Early Restart Timing Investigation
+
+Hardware observation:
+
+```text
+fm_only_test.vgm:
+  Mac-side parser first 0x66: pc=0x35f39
+  expected time to first 0x66: about 149.8 seconds
+  foobar2000 playback: full song
+
+MiSTer mode 5:
+  apparent loop/restart: about 7-8 seconds
+
+cross64_probe.vgm:
+  confirmed playback past 64 KiB works
+```
+
+Initial suspicion was that mode 5 VGM waits were running roughly 20x too fast.
+The code inspection showed a different likely cause.
+
+Wait timing inspection:
+
+```text
+vgm_loaded_player:
+  wait_remaining decrements only on vgm_wait_tick rising edge
+  it does not decrement on every clk_sys
+  it does not use audio_sample_valid
+
+mister_vgm_md_top mode 5:
+  vgm_loaded_player.vgm_wait_tick is connected to the same dedicated
+  vgm_wait_tick generator used by the fixed-region path
+
+vgm_region_player / REGION_MODE=4:
+  also decrements waits only on vgm_wait_tick rising edge
+```
+
+The more likely early-restart source was the top-level player watchdog:
+
+```text
+PLAYER_DONE_TIMEOUT_TICKS = 264600
+264600 / 44100 Hz = 6.0 seconds
+```
+
+In `STARTUP_PLAYING`, the wrapper reset/retried the player if `player_done`
+did not happen before this timeout. That was useful for short fixed-ROM bring-up
+regions, but wrong for externally loaded mode 5 VGM files that may run for
+minutes. A 6-second watchdog plus startup/warmup latency matches the observed
+7-8 second apparent restart much better than a BRAM address or VGM `0x66`
+problem.
+
+Change made:
+
+```text
+REGION_MODE=0..4:
+  keep the existing PLAYER_DONE_TIMEOUT_TICKS watchdog behavior
+
+REGION_MODE=5:
+  disable the player_done timeout while playing
+  keep start-accept timeout and explicit reset behavior unchanged
+```
+
+Additional mode 5 debug:
+
+```text
+wait_ticks_consumed_debug:
+  32-bit counter in vgm_loaded_player
+  increments only when a VGM wait command consumes a vgm_wait_tick
+  exported through mister_vgm_md_top and emu for SignalTap/debug
+```
+
+Test added:
+
+```text
+loaded VGM body:
+  60 x 0x62 wait commands
+  then 0x66 end
+
+expected:
+  60 * 735 = 44100 wait ticks consumed before end
+  wait counter does not advance from clk_sys-only cycles
+  done is not reached before 44100 consumed wait ticks
+```
+
+Important note:
+
+```text
+mode 5 was already using the dedicated vgm_wait_tick, not audio_sample_valid.
+The user-visible early restart was most likely the mode 5 watchdog timeout.
+```
+
+Next hardware test:
+
+```text
+1. Build FIXED_REGION_MODE=5.
+2. Load fm_only_test.vgm through OSD.
+3. Confirm playback does not restart around 7-8 seconds.
+4. Let it run well beyond 64 KiB and past the previous apparent restart point.
+5. If it still restarts early, capture:
+   current_pc_debug
+   wait_ticks_consumed_debug
+   end_command_seen
+   loop_taken_debug
+   player_error_code
+   unsupported_opcode
+   unsupported_pc
+6. Do not tune sound quality and do not implement PCM from this result alone.
+```
+
+
+## 2026-06-07: Mode 5 256 KiB Loader Playback and Loop Debug
+
+Real-hardware status before this RTL/debug step:
+
+```text
+FIXED_REGION_MODE=5: hardware pass
+OSD Load VGM: works
+216 KB fm_only_test.vgm: loads and plays from external loaded BRAM
+mode 5 256 KiB loader: confirmed on hardware
+menu return: OK
+```
+
+The 216 KB `fm_only_test.vgm` plays, but was observed to repeat at the same
+point as the earlier trimmed 64 KiB test. A PCM-included VGM loads but goes
+red/silent. Sound quality and PCM/DAC accuracy are still intentionally out of
+scope.
+
+The current supported path remains:
+
+```text
+hps_io ioctl
+  -> vgm_file_loader
+  -> vgm_loaded_player
+  -> md_sound_module
+  -> JT12 / JT89
+  -> MiSTer AUDIO_L/R
+```
+
+Before this step, `vgm_loaded_player` handled command `0x66` by entering
+`done/ST_DONE`. The startup/replay wrapper could then restart the player from
+the parsed VGM data start. The VGM header loop offset at `0x1C` was not read,
+so file-authored loop points were ignored.
+
+This step adds hardware-visible mode 5 player debug and basic VGM loop offset
+support:
+
+```text
+player_error_code: exported through mister_vgm_md_top / emu
+unsupported_opcode: exported
+unsupported_pc: exported
+current_pc_debug: exported full mode5 BRAM-width PC
+end_command_seen: latched when command 0x66 is decoded
+restarted_from_data_start: latched when playback starts from parsed data_start
+loop_pc_debug: exported parsed loop target
+loop_valid_debug: exported parsed loop target validity
+loop_taken_debug: latched when 0x66 jumps to loop_pc
+```
+
+Loop handling now reads the VGM loop offset at header bytes `0x1C..0x1F`:
+
+```text
+if loop_offset != 0:
+  loop_pc = 0x1C + loop_offset
+  loop_valid = loop_pc < file_size and fits loaded RAM address width
+
+on 0x66:
+  if loop_valid:
+    jump to loop_pc
+  else:
+    keep the previous done/ST_DONE behavior
+```
+
+The non-loop case therefore stays compatible with the previous mode 5 behavior.
+`0x67` data block skip, the 256 KiB loader sizing, and `REGION_MODE=0..4` were
+not changed. `0xE0`, `0x80..0x8F` DAC stream commands, VGZ, SDRAM, and sound
+accuracy tuning were not implemented in this step.
+
+Expected hardware debug interpretation:
+
+```text
+red/silent:
+  vgm_load_error, vgm_load_overflow, or vgm_player_error
+  check player_error_code / unsupported_opcode / unsupported_pc in SignalTap
+
+blue/teal playback:
+  mode 5 header valid and player busy
+
+0x66 loop diagnosis:
+  end_command_seen=1 and loop_taken_debug=0 means 0x66 ended the stream
+  end_command_seen=1 and loop_taken_debug=1 means 0x66 used the VGM loop point
+  restarted_from_data_start=1 means playback began from the parsed data_start
+```
+
+Exact MiSTer hardware test steps for the next pass:
+
+```text
+1. Build an .rbf with FIXED_REGION_MODE=5.
+2. Copy the .rbf to the MiSTer test location.
+3. Boot/load the core and confirm the video state reaches the mode 5 idle/load screen.
+4. Open the OSD and use Load VGM.
+5. Load the 216 KB fm_only_test.vgm.
+6. Confirm it loads without red/overflow and enters blue/teal playback.
+7. Listen for playback and watch whether the previous repeat point changes.
+8. Return to the MiSTer menu and confirm menu return remains OK.
+9. Load the PCM-included VGM that previously went red/silent.
+10. If it still goes red/silent, capture:
+    player_error_code
+    unsupported_opcode
+    unsupported_pc
+    current_pc_debug
+    end_command_seen
+    loop_valid_debug
+    loop_taken_debug
+11. Do not tune sound quality from this result; use it only to identify the
+    next unsupported VGM command or loop behavior.
+```
+
+Simulation checks run after this change:
+
+```text
+tb_vgm_file_loader: PASS
+tb_vgm_loaded_player: PASS
+  includes no playback before load_done
+  includes VGM data_start parsing
+  includes 0x67 data block skip
+  includes unsupported opcode debug
+  includes no-loop 0x66 done/ST_DONE behavior
+  includes valid-loop 0x66 jump-to-loop behavior
+
+tb_mister_vgm_md_top, FIXED_REGION_MODE=5: compile PASS
+tb_mister_vgm_md_top, default mode 3: compile PASS
+tb_mister_vgm_md_top, default mode 3 5k smoke run: PASS
+```
+
+Quartus was not available in the local shell used for this note:
+
+```text
+command -v quartus_sh: not found
+```
+
+
 ## 2026-06-06: Fixed ROM Milestone and VGM Load Plan
 
 The fixed-ROM bring-up path has reached the intended hardware milestone.
@@ -3543,12 +6160,15 @@ ioctl_dout[7:0]
 ioctl_index[15:0]
 ```
 
-For this first smoke step it stores bytes into a small BRAM-backed buffer:
+For this first smoke step it stored bytes into a small BRAM-backed buffer:
 
 ```text
 ADDR_WIDTH = 16
 capacity   = 64 KiB
 ```
+
+This was the initial Phase A size. A later compatibility step raises the
+active `REGION_MODE=5` capacity to 256 KiB.
 
 It exposes only loader status and debug values for now:
 
@@ -3588,7 +6208,7 @@ Debug colors added above the normal fixed-ROM color priority:
 ```text
 blue: file download active
 cyan: file download completed into BRAM
-red : file load error or 64 KiB overflow
+red : file load error or initial 64 KiB overflow
 ```
 
 `files.qip` now includes:
@@ -3640,7 +6260,8 @@ Next hardware check:
 2. Confirm fixed REGION_MODE=3 playback still works.
 3. Open OSD and load a small uncompressed .vgm.
 4. Expect blue while downloading.
-5. Expect cyan after load_done, or red if the file exceeds 64 KiB.
+5. Expect cyan after load_done, or red if the file exceeds the active BRAM
+   capacity.
 ```
 
 If Phase A passes on hardware, the next RTL step is Phase B: read bytes back
@@ -3685,7 +6306,7 @@ tb/tb_vgm_loaded_player.sv
 
 ```text
 hps_io ioctl_* download
-  -> vgm_file_loader, 64 KiB BRAM
+  -> vgm_file_loader, BRAM
   -> vgm_loaded_player
   -> md_sound_module
   -> JT12 / JT89
@@ -3877,7 +6498,7 @@ Exact MiSTer hardware steps for mode 5:
 5. Open OSD and choose:
      Load VGM
 
-6. Select a small uncompressed .vgm under 64 KiB.
+6. Select a small uncompressed .vgm that fits in the active BRAM capacity.
    The file should use only the currently supported command subset.
 
 7. Expected colors:
@@ -3893,6 +6514,270 @@ Exact MiSTer hardware steps for mode 5:
 
 9. Rebuild or reset back to FIXED_REGION_MODE=3 to compare against the known-good
    fixed-ROM reference path.
+```
+
+
+## 2026-06-07: REGION_MODE=5 Hardware Pass
+
+`FIXED_REGION_MODE=5` was tested on real MiSTer hardware.
+
+Observed result:
+
+```text
+MiSTer menu return: OK
+OSD Load VGM: works
+large source VGM: fm_only_test.vgm, about 216 KiB
+large-file result: overflow detected, red debug color, silent as expected
+trimmed source VGM: fm_only_test_64k.vgm, under 64 KiB
+trimmed-file result: loaded successfully
+debug playback state: blue/debug playback state observed
+audio: external loaded VGM plays and repeats
+```
+
+This confirms that the first real-hardware OSD-loaded uncompressed VGM playback
+path is alive:
+
+```text
+hps_io ioctl
+  -> vgm_file_loader
+  -> vgm_loaded_player
+  -> md_sound_module
+  -> JT12 / JT89
+  -> MiSTer AUDIO_L/R
+```
+
+Important conclusions:
+
+```text
+F1,VGM,Load VGM; reaches the loader path correctly
+ioctl file download reaches BRAM-backed vgm_file_loader
+64 KiB overflow handling works on hardware
+overflow/error path stays silent and shows red
+trimmed under-64 KiB uncompressed VGM can be loaded from OSD
+loaded-BRAM playback can drive the existing YM/PSG sound path
+the existing menu-safe MiSTer shell remains OK
+```
+
+This is the first confirmed hardware pass where the command bytes did not come
+from fixed FPGA ROM. The known-good fixed `REGION_MODE=3` path should remain as
+the reference comparison path while the loaded-player support grows.
+
+No RTL was changed for this note. This records the hardware pass result only.
+
+
+## 2026-06-07: REGION_MODE=5 256 KiB BRAM and 0x67 Skip
+
+After the first `FIXED_REGION_MODE=5` hardware pass, the loaded-player
+compatibility path was extended without changing the known-good fixed-ROM
+paths.
+
+Unchanged:
+
+```text
+REGION_MODE=0..4
+REGION_MODE=3 fixed-ROM reference path
+JT12/JT89 command adapters
+sound accuracy / tuning
+VGZ support
+SDRAM support
+DAC stream support
+```
+
+Capacity change:
+
+```text
+old loaded VGM BRAM:
+  ADDR_WIDTH = 16
+  capacity   = 64 KiB
+
+new loaded VGM BRAM:
+  ADDR_WIDTH = 18
+  capacity   = 256 KiB
+```
+
+The wider address is carried through:
+
+```text
+vgm_file_loader rd_addr/write address range
+vgm_loaded_player rd_addr / pc / data_start_debug
+mister_vgm_md_top VGM_LOAD_ADDR_WIDTH default
+emu.sv loader debug wires
+file_size width
+overflow detection
+```
+
+New command compatibility:
+
+```text
+0x67 0x66 tt ss ss ss ss
+```
+
+`vgm_loaded_player` now recognizes VGM data blocks and skips them:
+
+```text
+read marker 0x66
+read block type tt
+read 32-bit little-endian block size
+advance pc by 7 + size bytes
+continue with the next VGM command
+```
+
+The data bytes are not decoded or played yet. This is only a compatibility
+skip so files containing VGM data blocks can continue to later YM/PSG commands.
+
+Still not implemented:
+
+```text
+0xE0 PCM seek
+0x80-0x8F DAC stream writes
+0x90-0x95 DAC stream control
+VGZ/gzip
+SDRAM/full-file streaming
+```
+
+Error behavior:
+
+```text
+if a 0x67 block would skip beyond file_size:
+  player_error is set
+  playback remains silent
+
+if an unsupported opcode is decoded:
+  player_error is set
+  unsupported_opcode records the opcode
+  unsupported_pc records the command pc
+  player_error_code records the reason
+  playback remains silent
+```
+
+Current player error code meanings:
+
+```text
+0 = none
+1 = bad VGM magic
+2 = bad data_start
+3 = pc out of loaded file range
+4 = unsupported opcode
+5 = loader error / overflow input
+6 = malformed 0x67 data block
+7 = 0x67 data block skip beyond file_size
+```
+
+Tests run:
+
+```sh
+iverilog -g2012 -Wall -s tb_vgm_file_loader \
+  -o /tmp/tb_vgm_file_loader.vvp \
+  tb/tb_vgm_file_loader.sv \
+  rtl/vgm_file_loader.sv
+
+vvp /tmp/tb_vgm_file_loader.vvp
+```
+
+Result:
+
+```text
+PASS tb_vgm_file_loader
+```
+
+Coverage:
+
+```text
+index mismatch ignored
+index 1 accepted
+normal low-address load/readback
+write beyond 64 KiB but below 256 KiB accepted
+overflow above 256 KiB still errors
+```
+
+```sh
+iverilog -g2012 -Wall -s tb_vgm_loaded_player \
+  -o /tmp/tb_vgm_loaded_player.vvp \
+  tb/tb_vgm_loaded_player.sv \
+  rtl/vgm_loaded_player.sv
+
+vvp /tmp/tb_vgm_loaded_player.vvp
+```
+
+Result:
+
+```text
+PASS tb_vgm_loaded_player
+```
+
+Coverage:
+
+```text
+no playback before load_done
+data_start 0x40 when header data offset is zero
+data_start 0x34 + offset when header data offset is nonzero
+0x67 data block skipped and later PSG command executed
+0x67 data block skip beyond file_size raises player_error
+unsupported opcode raises player_error
+unsupported opcode and pc are recorded
+load_error prevents playback
+overflow_error prevents playback
+```
+
+Mode 5 generate-path compile:
+
+```sh
+iverilog -g2012 -Wall -DSIMULATION -DFIXED_REGION_MODE=5 \
+  -DTEST_MISTER_TOP_MODE3_5K \
+  -s tb_mister_vgm_md_top \
+  -o /tmp/tb_mister_vgm_md_top_mode5_compile.vvp \
+  tb/tb_mister_vgm_md_top.sv \
+  rtl/mister_vgm_md_top.sv \
+  rtl/vgm_region_player.sv \
+  rtl/vgm_file_loader.sv \
+  rtl/vgm_loaded_player.sv \
+  rtl/md_sound_module.sv \
+  rtl/genesis_audio/**/*.v
+```
+
+Result:
+
+```text
+build passed
+warnings: existing JT12/timescale/unique-case style warnings
+```
+
+Fixed-ROM reference generate-path compile:
+
+```sh
+iverilog -g2012 -Wall -DSIMULATION -DTEST_MISTER_TOP_MODE3_5K \
+  -s tb_mister_vgm_md_top \
+  -o /tmp/tb_mister_vgm_md_top_mode3_compile.vvp \
+  tb/tb_mister_vgm_md_top.sv \
+  rtl/mister_vgm_md_top.sv \
+  rtl/vgm_region_player.sv \
+  rtl/vgm_file_loader.sv \
+  rtl/vgm_loaded_player.sv \
+  rtl/md_sound_module.sv \
+  rtl/genesis_audio/**/*.v
+```
+
+Result:
+
+```text
+build passed
+warnings: existing JT12/timescale/unique-case style warnings
+```
+
+Quartus was not run in this environment because `quartus_sh` was not available
+on PATH.
+
+Next hardware check:
+
+```text
+1. Build with FIXED_REGION_MODE=5.
+2. Load a VGM larger than 64 KiB but smaller than 256 KiB.
+3. Confirm it no longer overflows only because it crossed 64 KiB.
+4. Load a VGM larger than 256 KiB.
+5. Confirm red/error/silent still occurs.
+6. Load an uncompressed VGM with a 0x67 data block before later YM/PSG writes.
+7. Confirm playback continues past the data block.
+8. Do not evaluate sound accuracy yet.
 ```
 
 

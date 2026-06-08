@@ -14,15 +14,15 @@
 
 module mister_vgm_md_top #(
     parameter int REGION_MODE = `FIXED_REGION_MODE,
-    parameter int VGM_LOAD_ADDR_WIDTH = 16,
+    parameter int VGM_LOAD_ADDR_WIDTH = 18,
     parameter logic [15:0] VGM_LOAD_FILE_INDEX = 16'd1,
 
     // Internal reset hold after FPGA configuration or external core reset.
-    // With a 50 MHz clk_sys, 25,000,000 cycles is about 0.5 seconds.
+    // The current MiSTer shell PLL drives clk_sys at 20 MHz
+    // (rtl/pll/pll_0002.v output_clock_frequency0).
     parameter logic [31:0] POWER_ON_RESET_CYCLES = 32'd25_000_000,
 
     // Hardware bring-up delay before the fixed VGM region starts.
-    // With a 50 MHz clk_sys, 25,000,000 cycles is about 0.5 seconds.
     parameter logic [31:0] START_DELAY_CYCLES = 32'd25_000_000,
 
     // After reset is released, wait for a few audio sample strobes before
@@ -36,11 +36,16 @@ module mister_vgm_md_top #(
     parameter logic [15:0] AUDIO_WARMUP_SAMPLES = 16'd22050,
     parameter logic [15:0] GATE_TO_START_CYCLES = 16'd1024,
 
-    // VGM waits are specified in 44100 Hz sample units. Generate a dedicated
-    // average-44100 Hz tick for the fixed VGM player instead of using the JT12
-    // audio sample strobe.
-    parameter logic [31:0] CLK_SYS_HZ = 32'd12_500_000,
+    // VGM waits are specified in 44100 Hz sample units. The active PLL output
+    // feeding emu.clk_sys is 20 MHz, so this must match that hardware clock.
+    // A stale 12.5 MHz value makes VGM playback about 20/12.5 = 1.6x fast.
+    parameter logic [31:0] CLK_SYS_HZ = 32'd20_000_000,
     parameter logic [31:0] VGM_WAIT_HZ = 32'd44_100,
+
+    // REGION_MODE=5 reload hygiene. After a valid OSD file download finishes,
+    // hold the MD sound core in reset before starting the loaded player so
+    // stale YM2612/JT12 and PSG state cannot bleed into the next VGM.
+    parameter logic [31:0] MODE5_SOUND_RESET_CYCLES = 32'd32_768,
 
     // Bring-up replay/retry support. If the fixed-region player misses the
     // first start or stalls before END, reset only the player wrapper and try
@@ -91,9 +96,41 @@ module mister_vgm_md_top #(
     output logic              vgm_load_overflow,
     output logic              vgm_header_valid,
     output logic              vgm_player_error,
+    output logic        [7:0] vgm_unsupported_opcode,
+    output logic [VGM_LOAD_ADDR_WIDTH-1:0] vgm_unsupported_pc,
+    output logic        [7:0] vgm_player_error_code,
     output logic [VGM_LOAD_ADDR_WIDTH:0] vgm_load_size,
     output logic [31:0]       vgm_load_magic,
-    output logic [VGM_LOAD_ADDR_WIDTH-1:0] vgm_data_start_debug
+    output logic [VGM_LOAD_ADDR_WIDTH-1:0] vgm_data_start_debug,
+    output logic [VGM_LOAD_ADDR_WIDTH-1:0] vgm_current_pc_debug,
+    output logic [VGM_LOAD_ADDR_WIDTH-1:0] vgm_loop_pc_debug,
+    output logic              vgm_loop_valid_debug,
+    output logic              vgm_loop_taken_debug,
+    output logic              vgm_end_command_seen,
+    output logic              vgm_restarted_from_data_start,
+    output logic [31:0]       vgm_wait_ticks_consumed_debug,
+    output logic              mode5_sound_reset_active,
+    output logic              mode5_player_start_pulse_debug,
+    output logic [15:0]       fm_adjust_clip_count_l,
+    output logic [15:0]       fm_adjust_clip_count_r,
+    output logic [15:0]       genmix_wrap_count_l,
+    output logic [15:0]       genmix_wrap_count_r,
+    output logic [31:0]       ym_write_requested_count,
+    output logic [31:0]       ym_write_accepted_count,
+    output logic [31:0]       ym_write_dropped_or_busy_count,
+    output logic [31:0]       ym_port0_count,
+    output logic [31:0]       ym_port1_count,
+    output logic              last_ym_port,
+    output logic [7:0]        last_ym_addr,
+    output logic [7:0]        last_ym_data,
+    output logic [15:0]       jt12_cen_interval_1_count,
+    output logic [15:0]       jt12_cen_interval_2_count,
+    output logic [15:0]       jt12_cen_interval_3_count,
+    output logic [15:0]       jt12_cen_interval_4_count,
+    output logic [15:0]       jt12_cen_interval_ge5_count,
+    output logic [7:0]        jt12_cen_interval_min,
+    output logic [7:0]        jt12_cen_interval_max,
+    output logic [7:0]        jt12_cen_interval_last
 );
 
     logic        reset;
@@ -289,7 +326,7 @@ module mister_vgm_md_top #(
                             replay_delay_ticks <= 32'd0;
                             startup_state <= STARTUP_REPLAY_WAIT;
                         end
-                    end else if (vgm_wait_tick) begin
+                    end else if ((REGION_MODE != 5) && vgm_wait_tick) begin
                         if (player_done_timeout_ticks >= PLAYER_DONE_TIMEOUT_TICKS) begin
                             player_reset_active <= 1'b1;
                             player_reset_counter <= 32'd0;
@@ -355,6 +392,51 @@ module mister_vgm_md_top #(
             logic [7:0] psg_cmd_data;
             logic ym_cmd_ready;
             logic psg_cmd_ready;
+            logic mode5_sound_reset_active_i = 1'b0;
+            logic mode5_sound_core_reset;
+            logic mode5_player_start_pulse = 1'b0;
+            logic [31:0] mode5_sound_reset_counter = 32'd0;
+
+            always_ff @(posedge clk) begin
+                if (reset) begin
+                    mode5_sound_reset_active_i <= 1'b0;
+                    mode5_player_start_pulse <= 1'b0;
+                    mode5_sound_reset_counter <= 32'd0;
+                end else begin
+                    mode5_player_start_pulse <= 1'b0;
+
+                    if (vgm_load_busy || vgm_load_error || vgm_load_overflow) begin
+                        mode5_sound_reset_active_i <= 1'b0;
+                        mode5_sound_reset_counter <= 32'd0;
+                    end else if (load_done_pulse) begin
+                        if (MODE5_SOUND_RESET_CYCLES == 32'd0) begin
+                            mode5_sound_reset_active_i <= 1'b0;
+                            mode5_player_start_pulse <= 1'b1;
+                            mode5_sound_reset_counter <= 32'd0;
+                        end else begin
+                            mode5_sound_reset_active_i <= 1'b1;
+                            mode5_sound_reset_counter <= 32'd0;
+                        end
+                    end else if (mode5_sound_reset_active_i) begin
+                        if (mode5_sound_reset_counter >= (MODE5_SOUND_RESET_CYCLES - 32'd1)) begin
+                            mode5_sound_reset_active_i <= 1'b0;
+                            mode5_sound_reset_counter <= 32'd0;
+                            if (vgm_load_done) begin
+                                mode5_player_start_pulse <= 1'b1;
+                            end
+                        end else begin
+                            mode5_sound_reset_counter <= mode5_sound_reset_counter + 32'd1;
+                        end
+                    end
+                end
+            end
+
+            assign mode5_sound_core_reset = mode5_sound_reset_active_i |
+                                            vgm_load_busy |
+                                            vgm_load_error |
+                                            vgm_load_overflow;
+            assign mode5_sound_reset_active = mode5_sound_reset_active_i;
+            assign mode5_player_start_pulse_debug = mode5_player_start_pulse;
 
             vgm_file_loader #(
                 .ADDR_WIDTH       (VGM_LOAD_ADDR_WIDTH),
@@ -383,10 +465,10 @@ module mister_vgm_md_top #(
                 .ADDR_WIDTH (VGM_LOAD_ADDR_WIDTH)
             ) loaded_player (
                 .clk                   (clk),
-                .reset                 (reset | player_reset_active),
-                .start                 (start_pulse),
+                .reset                 (reset | player_reset_active | mode5_sound_core_reset),
+                .start                 (start_pulse | mode5_player_start_pulse),
                 .load_done             (vgm_load_done),
-                .load_done_pulse       (load_done_pulse),
+                .load_done_pulse       (1'b0),
                 .load_error            (vgm_load_error),
                 .overflow_error        (vgm_load_overflow),
                 .file_size             (vgm_load_size),
@@ -405,14 +487,24 @@ module mister_vgm_md_top #(
                 .done                  (player_done),
                 .header_valid          (vgm_header_valid),
                 .player_error          (vgm_player_error),
+                .unsupported_opcode    (vgm_unsupported_opcode),
+                .unsupported_pc        (vgm_unsupported_pc),
+                .player_error_code     (vgm_player_error_code),
                 .data_start_debug      (vgm_data_start_debug),
+                .current_pc_debug      (vgm_current_pc_debug),
+                .loop_pc_debug         (vgm_loop_pc_debug),
+                .loop_valid_debug      (vgm_loop_valid_debug),
+                .loop_taken_debug      (vgm_loop_taken_debug),
+                .end_command_seen      (vgm_end_command_seen),
+                .restarted_from_data_start(vgm_restarted_from_data_start),
+                .wait_ticks_consumed_debug(vgm_wait_ticks_consumed_debug),
                 .pc_debug              (player_pc_debug),
                 .last_cmd_debug        (player_last_cmd_debug)
             );
 
             md_sound_module sound (
                 .clk                   (clk),
-                .reset                 (reset),
+                .reset                 (reset | mode5_sound_core_reset),
                 .ym_cmd_valid          (ym_cmd_valid),
                 .ym_cmd_port           (ym_cmd_port),
                 .ym_cmd_reg            (ym_cmd_reg),
@@ -423,7 +515,27 @@ module mister_vgm_md_top #(
                 .psg_cmd_ready         (psg_cmd_ready),
                 .audio_l               (audio_l),
                 .audio_r               (audio_r),
-                .audio_sample_valid    (audio_sample_valid)
+                .audio_sample_valid    (audio_sample_valid),
+                .fm_adjust_clip_count_l(fm_adjust_clip_count_l),
+                .fm_adjust_clip_count_r(fm_adjust_clip_count_r),
+                .genmix_wrap_count_l   (genmix_wrap_count_l),
+                .genmix_wrap_count_r   (genmix_wrap_count_r),
+                .ym_write_requested_count(ym_write_requested_count),
+                .ym_write_accepted_count(ym_write_accepted_count),
+                .ym_write_dropped_or_busy_count(ym_write_dropped_or_busy_count),
+                .ym_port0_count        (ym_port0_count),
+                .ym_port1_count        (ym_port1_count),
+                .last_ym_port          (last_ym_port),
+                .last_ym_addr          (last_ym_addr),
+                .last_ym_data          (last_ym_data),
+                .jt12_cen_interval_1_count(jt12_cen_interval_1_count),
+                .jt12_cen_interval_2_count(jt12_cen_interval_2_count),
+                .jt12_cen_interval_3_count(jt12_cen_interval_3_count),
+                .jt12_cen_interval_4_count(jt12_cen_interval_4_count),
+                .jt12_cen_interval_ge5_count(jt12_cen_interval_ge5_count),
+                .jt12_cen_interval_min(jt12_cen_interval_min),
+                .jt12_cen_interval_max(jt12_cen_interval_max),
+                .jt12_cen_interval_last(jt12_cen_interval_last)
             );
         end else begin : fixed_region_mode
             assign vgm_load_busy = 1'b0;
@@ -432,9 +544,21 @@ module mister_vgm_md_top #(
             assign vgm_load_overflow = 1'b0;
             assign vgm_header_valid = 1'b0;
             assign vgm_player_error = 1'b0;
+            assign vgm_unsupported_opcode = 8'd0;
+            assign vgm_unsupported_pc = '0;
+            assign vgm_player_error_code = 8'd0;
             assign vgm_load_size = '0;
             assign vgm_load_magic = 32'd0;
             assign vgm_data_start_debug = '0;
+            assign vgm_current_pc_debug = '0;
+            assign vgm_loop_pc_debug = '0;
+            assign vgm_loop_valid_debug = 1'b0;
+            assign vgm_loop_taken_debug = 1'b0;
+            assign vgm_end_command_seen = 1'b0;
+            assign vgm_restarted_from_data_start = 1'b0;
+            assign vgm_wait_ticks_consumed_debug = 32'd0;
+            assign mode5_sound_reset_active = 1'b0;
+            assign mode5_player_start_pulse_debug = 1'b0;
 
             md_sound_fixed_region_test #(
                 .REGION_MODE (REGION_MODE)
@@ -450,7 +574,27 @@ module mister_vgm_md_top #(
                 .player_busy           (player_busy),
                 .player_done           (player_done),
                 .player_pc_debug       (player_pc_debug),
-                .player_last_cmd_debug (player_last_cmd_debug)
+                .player_last_cmd_debug (player_last_cmd_debug),
+                .fm_adjust_clip_count_l(fm_adjust_clip_count_l),
+                .fm_adjust_clip_count_r(fm_adjust_clip_count_r),
+                .genmix_wrap_count_l   (genmix_wrap_count_l),
+                .genmix_wrap_count_r   (genmix_wrap_count_r),
+                .ym_write_requested_count(ym_write_requested_count),
+                .ym_write_accepted_count(ym_write_accepted_count),
+                .ym_write_dropped_or_busy_count(ym_write_dropped_or_busy_count),
+                .ym_port0_count        (ym_port0_count),
+                .ym_port1_count        (ym_port1_count),
+                .last_ym_port          (last_ym_port),
+                .last_ym_addr          (last_ym_addr),
+                .last_ym_data          (last_ym_data),
+                .jt12_cen_interval_1_count(jt12_cen_interval_1_count),
+                .jt12_cen_interval_2_count(jt12_cen_interval_2_count),
+                .jt12_cen_interval_3_count(jt12_cen_interval_3_count),
+                .jt12_cen_interval_4_count(jt12_cen_interval_4_count),
+                .jt12_cen_interval_ge5_count(jt12_cen_interval_ge5_count),
+                .jt12_cen_interval_min(jt12_cen_interval_min),
+                .jt12_cen_interval_max(jt12_cen_interval_max),
+                .jt12_cen_interval_last(jt12_cen_interval_last)
             );
         end
     endgenerate

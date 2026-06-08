@@ -39,15 +39,30 @@ module jt12_fm_uprate(
     input cen_252,
     input cen_63,
     input cen_9,
-    output signed [15:0] snd      // Mixed sound at clk sample rate
+    output signed [15:0] snd,     // Mixed sound at clk sample rate
+    output reg [15:0] mixed_wrap_count
 );
 
 wire signed [15:0] fm2,fm3,fm4;
 integer debug_uprate_x_count = 0;
 
-reg [15:0] mixed;
-always @(posedge clk)
-    mixed <= (fm_en?fm_snd:16'd0) + {{1{psg_snd[11]}},psg_snd,3'b0};
+reg signed [15:0] mixed;
+wire signed [16:0] fm_snd_wide = fm_en ? {fm_snd[15], fm_snd} : 17'sd0;
+wire signed [16:0] psg_snd_wide = {{2{psg_snd[11]}}, psg_snd, 3'b0};
+wire signed [16:0] mixed_wide = fm_snd_wide + psg_snd_wide;
+wire mixed_wrap = (mixed_wide > 17'sd32767) || (mixed_wide < -17'sd32768);
+
+always @(posedge clk) begin
+    if (rst) begin
+        mixed <= 16'sd0;
+        mixed_wrap_count <= 16'd0;
+    end else begin
+        mixed <= mixed_wide[15:0];
+        if (cen_1008 && mixed_wrap && !(&mixed_wrap_count)) begin
+            mixed_wrap_count <= mixed_wrap_count + 16'd1;
+        end
+    end
+end
 
 // 1008 --> 252 x4
 jt12_interpol #(.calcw(17),.inw(16),.rate(4),.m(1),.n(1)) 
