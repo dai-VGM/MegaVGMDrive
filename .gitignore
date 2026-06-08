@@ -25,3 +25,5 @@ tmp/
 .vscode/*
 !.vscode/settings.json
 !.vscode/extensions.json
+out/
+output_files/
