@@ -1267,6 +1267,10 @@ reg hdmi_out_hs;
 reg hdmi_out_vs;
 reg hdmi_out_de;
 reg [23:0] hdmi_out_d;
+reg [11:0] md_audio_meter_x;
+reg [11:0] md_audio_meter_y;
+reg        md_audio_meter_de_d;
+reg        md_audio_meter_vs_d;
 
 always @(posedge hdmi_tx_clk) begin
 	reg [23:0] hdmi_dv_data;
@@ -1274,7 +1278,16 @@ always @(posedge hdmi_tx_clk) begin
 
 	reg hs,vs,de;
 	reg [23:0] d;
-	
+	reg [15:0] sys_meter_x_level;
+	reg sys_meter_bar;
+	reg sys_meter_avg_bar;
+	reg sys_meter_reference_marker;
+	reg sys_meter_rail_block;
+	reg sys_meter_pixel;
+	reg sys_meter_avg_pixel;
+	reg [23:0] sys_meter_rgb;
+	reg [23:0] sys_meter_avg_rgb;
+		
 	hdmi_dv_data <= dv_data;
 	hdmi_dv_hs   <= dv_hs;
 	hdmi_dv_vs   <= dv_vs;
@@ -1290,12 +1303,64 @@ always @(posedge hdmi_tx_clk) begin
 	vs <= hdmi_dv_vs;
 	de <= hdmi_dv_de;
 	d  <= hdmi_dv_data;
-`endif
+	`endif
+
+	if (~md_audio_meter_vs_d && vs) begin
+		md_audio_meter_y <= 12'd0;
+	end else if (de && !md_audio_meter_de_d) begin
+		if (!(&md_audio_meter_y)) begin
+			md_audio_meter_y <= md_audio_meter_y + 12'd1;
+		end
+	end
+
+	if (de) begin
+		if (!md_audio_meter_de_d) begin
+			md_audio_meter_x <= 12'd0;
+		end else if (!(&md_audio_meter_x)) begin
+			md_audio_meter_x <= md_audio_meter_x + 12'd1;
+		end
+	end else begin
+		md_audio_meter_x <= 12'd0;
+	end
+
+	md_audio_meter_de_d <= de;
+	md_audio_meter_vs_d <= vs;
+
+	sys_meter_x_level = md_audio_meter_x * 16'd102;
+	sys_meter_bar = (md_audio_meter_x < 12'd320) &&
+		(audio_core_abs_peak >= sys_meter_x_level);
+	sys_meter_avg_bar = (md_audio_meter_x < 12'd320) &&
+		(audio_core_abs_avg >= sys_meter_x_level);
+	sys_meter_reference_marker =
+		(md_audio_meter_x >= 12'd234) && (md_audio_meter_x < 12'd237);
+	sys_meter_rail_block =
+		(md_audio_meter_x >= 12'd312) && (md_audio_meter_x < 12'd320);
+	sys_meter_pixel =
+		de &&
+		(md_audio_meter_y >= 12'd24) &&
+		(md_audio_meter_y < 12'd32) &&
+		(md_audio_meter_x < 12'd320);
+	sys_meter_avg_pixel =
+		de &&
+		(md_audio_meter_y >= 12'd34) &&
+		(md_audio_meter_y < 12'd42) &&
+		(md_audio_meter_x < 12'd320);
+	sys_meter_rgb =
+		(sys_meter_rail_block && audio_core_rail_seen) ? 24'hff0000 :
+		sys_meter_reference_marker ? 24'hffffff :
+		sys_meter_bar ? 24'hffb000 :
+		                24'h181000;
+	sys_meter_avg_rgb =
+		sys_meter_reference_marker ? 24'hffffff :
+		sys_meter_avg_bar ? 24'hffd060 :
+		                    24'h181408;
 
 	hdmi_out_hs <= hs;
 	hdmi_out_vs <= vs;
 	hdmi_out_de <= de;
-	hdmi_out_d  <= d;
+	hdmi_out_d  <= sys_meter_pixel ? sys_meter_rgb :
+	               sys_meter_avg_pixel ? sys_meter_avg_rgb :
+	                                     d;
 end
 
 assign HDMI_TX_HS = hdmi_out_hs;
@@ -1532,6 +1597,191 @@ pll_audio pll_audio
 );
 
 wire spdif;
+
+function [15:0] md_audio_sat18;
+	input signed [17:0] value;
+	begin
+		if (value > 18'sd32767) begin
+			md_audio_sat18 = 16'h7fff;
+		end else if (value < -18'sd32768) begin
+			md_audio_sat18 = 16'h8000;
+		end else begin
+			md_audio_sat18 = value[15:0];
+		end
+	end
+endfunction
+
+function [15:0] md_audio_abs16;
+	input [15:0] value;
+	begin
+		md_audio_abs16 = value[15] ? (~value + 16'd1) : value;
+	end
+endfunction
+
+wire signed [15:0] audio_l_signed = audio_l;
+wire signed [15:0] audio_r_signed = audio_r;
+wire signed [17:0] audio_l_gain_2x_wide = {{2{audio_l_signed[15]}}, audio_l_signed} <<< 1;
+wire signed [17:0] audio_r_gain_2x_wide = {{2{audio_r_signed[15]}}, audio_r_signed} <<< 1;
+wire signed [17:0] audio_l_gain_4x_wide = {{2{audio_l_signed[15]}}, audio_l_signed} <<< 2;
+wire signed [17:0] audio_r_gain_4x_wide = {{2{audio_r_signed[15]}}, audio_r_signed} <<< 2;
+wire [15:0] audio_l_gain_2x_sat = md_audio_sat18(audio_l_gain_2x_wide);
+wire [15:0] audio_r_gain_2x_sat = md_audio_sat18(audio_r_gain_2x_wide);
+wire [15:0] audio_l_gain_4x_sat = md_audio_sat18(audio_l_gain_4x_wide);
+wire [15:0] audio_r_gain_4x_sat = md_audio_sat18(audio_r_gain_4x_wide);
+
+reg [13:0] md_audio_tone_div;
+reg        md_audio_tone_phase;
+
+always @(posedge clk_audio) begin
+	if (reset | areset) begin
+		md_audio_tone_div <= 14'd0;
+		md_audio_tone_phase <= 1'b0;
+	end else if (md_audio_tone_div == 14'd12287) begin
+		md_audio_tone_div <= 14'd0;
+		md_audio_tone_phase <= ~md_audio_tone_phase;
+	end else begin
+		md_audio_tone_div <= md_audio_tone_div + 14'd1;
+	end
+end
+
+wire signed [15:0] md_audio_force_tone =
+	md_audio_tone_phase ? 16'sd24000 : -16'sd24000;
+wire [15:0] md_audio_force_tone_bits = md_audio_force_tone;
+
+`ifndef MISTER_DISABLE_ALSA
+wire signed [15:0] alsa_l_signed = alsa_l;
+wire signed [15:0] alsa_r_signed = alsa_r;
+wire signed [17:0] alsa_l_gain_2x_wide = {{2{alsa_l_signed[15]}}, alsa_l_signed} <<< 1;
+wire signed [17:0] alsa_r_gain_2x_wide = {{2{alsa_r_signed[15]}}, alsa_r_signed} <<< 1;
+wire signed [17:0] alsa_l_gain_4x_wide = {{2{alsa_l_signed[15]}}, alsa_l_signed} <<< 2;
+wire signed [17:0] alsa_r_gain_4x_wide = {{2{alsa_r_signed[15]}}, alsa_r_signed} <<< 2;
+wire [15:0] alsa_l_gain_2x_sat = md_audio_sat18(alsa_l_gain_2x_wide);
+wire [15:0] alsa_r_gain_2x_sat = md_audio_sat18(alsa_r_gain_2x_wide);
+wire [15:0] alsa_l_gain_4x_sat = md_audio_sat18(alsa_l_gain_4x_wide);
+wire [15:0] alsa_r_gain_4x_sat = md_audio_sat18(alsa_r_gain_4x_wide);
+`endif
+
+`ifdef MD_AUDIO_FORCE_MUTE_TEST
+wire [15:0] audio_out_core_l = 16'd0;
+wire [15:0] audio_out_core_r = 16'd0;
+`ifndef MISTER_DISABLE_ALSA
+wire [15:0] audio_out_alsa_l = 16'd0;
+wire [15:0] audio_out_alsa_r = 16'd0;
+`endif
+`else
+`ifdef MD_AUDIO_SYSOUT_FORCE_TONE_TEST
+wire [15:0] audio_out_core_l = md_audio_force_tone_bits;
+wire [15:0] audio_out_core_r = md_audio_force_tone_bits;
+`ifndef MISTER_DISABLE_ALSA
+wire [15:0] audio_out_alsa_l = 16'd0;
+wire [15:0] audio_out_alsa_r = 16'd0;
+`endif
+`else
+`ifdef MD_AUDIO_SYSOUT_ATTENUATE_24DB
+wire signed [15:0] audio_out_core_l = $signed(audio_l) >>> 4;
+wire signed [15:0] audio_out_core_r = $signed(audio_r) >>> 4;
+`ifndef MISTER_DISABLE_ALSA
+wire signed [15:0] audio_out_alsa_l = $signed(alsa_l) >>> 4;
+wire signed [15:0] audio_out_alsa_r = $signed(alsa_r) >>> 4;
+`endif
+`else
+`ifdef MD_AUDIO_SYSOUT_ATTENUATE_6DB
+wire signed [15:0] audio_out_core_l = $signed(audio_l) >>> 1;
+wire signed [15:0] audio_out_core_r = $signed(audio_r) >>> 1;
+`ifndef MISTER_DISABLE_ALSA
+wire signed [15:0] audio_out_alsa_l = $signed(alsa_l) >>> 1;
+wire signed [15:0] audio_out_alsa_r = $signed(alsa_r) >>> 1;
+`endif
+`else
+`ifdef MD_AUDIO_SYSOUT_GAIN_4X_SAT_TEST
+wire [15:0] audio_out_core_l = audio_l_gain_4x_sat;
+wire [15:0] audio_out_core_r = audio_r_gain_4x_sat;
+`ifndef MISTER_DISABLE_ALSA
+wire [15:0] audio_out_alsa_l = alsa_l_gain_4x_sat;
+wire [15:0] audio_out_alsa_r = alsa_r_gain_4x_sat;
+`endif
+`else
+`ifdef MD_AUDIO_SYSOUT_GAIN_2X_SAT_TEST
+wire [15:0] audio_out_core_l = audio_l_gain_2x_sat;
+wire [15:0] audio_out_core_r = audio_r_gain_2x_sat;
+`ifndef MISTER_DISABLE_ALSA
+wire [15:0] audio_out_alsa_l = alsa_l_gain_2x_sat;
+wire [15:0] audio_out_alsa_r = alsa_r_gain_2x_sat;
+`endif
+`else
+wire [15:0] audio_out_core_l = audio_l;
+wire [15:0] audio_out_core_r = audio_r;
+`ifndef MISTER_DISABLE_ALSA
+wire [15:0] audio_out_alsa_l = alsa_l;
+wire [15:0] audio_out_alsa_r = alsa_r;
+`endif
+`endif
+`endif
+`endif
+`endif
+`endif
+`endif
+
+(* keep = 1 *) wire [15:0] md_debug_audio_out_core_l = audio_out_core_l;
+(* keep = 1 *) wire [15:0] md_debug_audio_out_core_r = audio_out_core_r;
+(* keep = 1 *) wire [15:0] md_debug_emu_audio_l = audio_l;
+(* keep = 1 *) wire [15:0] md_debug_emu_audio_r = audio_r;
+
+wire [15:0] audio_core_l_abs = md_audio_abs16(audio_out_core_l);
+wire [15:0] audio_core_r_abs = md_audio_abs16(audio_out_core_r);
+wire [15:0] audio_core_abs_now =
+	(audio_core_l_abs > audio_core_r_abs) ? audio_core_l_abs : audio_core_r_abs;
+wire [15:0] audio_core_abs_peak =
+	(audio_core_l_abs_peak > audio_core_r_abs_peak) ?
+	audio_core_l_abs_peak : audio_core_r_abs_peak;
+wire audio_core_l_at_rail =
+	(audio_out_core_l == 16'h7fff) || (audio_out_core_l == 16'h8000);
+wire audio_core_r_at_rail =
+	(audio_out_core_r == 16'h7fff) || (audio_out_core_r == 16'h8000);
+wire audio_core_rail_seen =
+	(audio_core_l_rail_count != 16'd0) || (audio_core_r_rail_count != 16'd0);
+
+(* keep = 1, noprune = 1 *) reg [15:0] audio_core_l_abs_peak = 16'd0;
+(* keep = 1, noprune = 1 *) reg [15:0] audio_core_r_abs_peak = 16'd0;
+(* keep = 1, noprune = 1 *) reg [15:0] audio_core_abs_avg = 16'd0;
+reg [31:0] audio_core_abs_sum = 32'd0;
+reg [15:0] audio_core_abs_avg_count = 16'd0;
+(* keep = 1, noprune = 1 *) reg [15:0] audio_core_l_rail_count = 16'd0;
+(* keep = 1, noprune = 1 *) reg [15:0] audio_core_r_rail_count = 16'd0;
+
+always @(posedge clk_audio) begin
+	if (reset | areset) begin
+		audio_core_l_abs_peak <= 16'd0;
+		audio_core_r_abs_peak <= 16'd0;
+		audio_core_abs_avg <= 16'd0;
+		audio_core_abs_sum <= 32'd0;
+		audio_core_abs_avg_count <= 16'd0;
+		audio_core_l_rail_count <= 16'd0;
+		audio_core_r_rail_count <= 16'd0;
+	end else begin
+		if (audio_core_l_abs > audio_core_l_abs_peak) begin
+			audio_core_l_abs_peak <= audio_core_l_abs;
+		end
+		if (audio_core_r_abs > audio_core_r_abs_peak) begin
+			audio_core_r_abs_peak <= audio_core_r_abs;
+		end
+		if (&audio_core_abs_avg_count) begin
+			audio_core_abs_avg <= (audio_core_abs_sum + audio_core_abs_now) >> 16;
+			audio_core_abs_sum <= 32'd0;
+			audio_core_abs_avg_count <= 16'd0;
+		end else begin
+			audio_core_abs_sum <= audio_core_abs_sum + audio_core_abs_now;
+			audio_core_abs_avg_count <= audio_core_abs_avg_count + 16'd1;
+		end
+		if (audio_core_l_at_rail && !(&audio_core_l_rail_count)) begin
+			audio_core_l_rail_count <= audio_core_l_rail_count + 16'd1;
+		end
+		if (audio_core_r_at_rail && !(&audio_core_r_rail_count)) begin
+			audio_core_r_rail_count <= audio_core_r_rail_count + 16'd1;
+		end
+	end
+end
+
 audio_out audio_out
 (
 	.reset(reset | areset),
@@ -1551,12 +1801,12 @@ audio_out audio_out
 	.cy2(acy2),
 
 	.is_signed(audio_s),
-	.core_l(audio_l),
-	.core_r(audio_r),
+	.core_l(audio_out_core_l),
+	.core_r(audio_out_core_r),
 
 `ifndef MISTER_DISABLE_ALSA
-	.alsa_l(alsa_l),
-	.alsa_r(alsa_r),
+	.alsa_l(audio_out_alsa_l),
+	.alsa_r(audio_out_alsa_r),
 `endif
 
 	.i2s_bclk(HDMI_SCLK),

@@ -10,10 +10,24 @@ localparam bit FIXED_REAL_PHRASE_MODE  = (`FIXED_REGION_MODE == 3);
 localparam bit FIXED_TIMING_CAL_MODE   = (`FIXED_REGION_MODE == 4);
 localparam bit LOADED_VGM_MODE         = (`FIXED_REGION_MODE == 5);
 
-`ifdef MD_AUDIO_FINAL_ATTENUATE_6DB
+`ifdef MD_AUDIO_OUTPUT_SHIFT_0_TEST
+localparam bit MD_AUDIO_OUTPUT_SHIFT_0_BUILD = 1'b1;
+localparam bit MD_AUDIO_OUTPUT_SHIFT_1_BUILD = 1'b0;
+localparam bit MD_AUDIO_ATTENUATE_6DB_BUILD = 1'b0;
+localparam int MD_AUDIO_OUTPUT_SHIFT = 0;
+`elsif MD_AUDIO_OUTPUT_SHIFT_1_TEST
+localparam bit MD_AUDIO_OUTPUT_SHIFT_0_BUILD = 1'b0;
+localparam bit MD_AUDIO_OUTPUT_SHIFT_1_BUILD = 1'b1;
+localparam bit MD_AUDIO_ATTENUATE_6DB_BUILD = 1'b0;
+localparam int MD_AUDIO_OUTPUT_SHIFT = 1;
+`elsif MD_AUDIO_FINAL_ATTENUATE_6DB
+localparam bit MD_AUDIO_OUTPUT_SHIFT_0_BUILD = 1'b0;
+localparam bit MD_AUDIO_OUTPUT_SHIFT_1_BUILD = 1'b0;
 localparam bit MD_AUDIO_ATTENUATE_6DB_BUILD = 1'b1;
 localparam int MD_AUDIO_OUTPUT_SHIFT = 3;
 `else
+localparam bit MD_AUDIO_OUTPUT_SHIFT_0_BUILD = 1'b0;
+localparam bit MD_AUDIO_OUTPUT_SHIFT_1_BUILD = 1'b0;
 localparam bit MD_AUDIO_ATTENUATE_6DB_BUILD = 1'b0;
 localparam int MD_AUDIO_OUTPUT_SHIFT = 2;
 `endif
@@ -58,6 +72,24 @@ localparam bit MD_AUDIO_SYSOUT_ATTENUATE_BUILD = 1'b0;
 localparam bit MD_AUDIO_SYSOUT_ATTENUATE_24DB_BUILD = 1'b1;
 `else
 localparam bit MD_AUDIO_SYSOUT_ATTENUATE_24DB_BUILD = 1'b0;
+`endif
+
+`ifdef MD_AUDIO_SYSOUT_FORCE_TONE_TEST
+localparam bit MD_AUDIO_SYSOUT_FORCE_TONE_BUILD = 1'b1;
+`else
+localparam bit MD_AUDIO_SYSOUT_FORCE_TONE_BUILD = 1'b0;
+`endif
+
+`ifdef MD_AUDIO_SYSOUT_GAIN_2X_SAT_TEST
+localparam bit MD_AUDIO_SYSOUT_GAIN_2X_SAT_BUILD = 1'b1;
+`else
+localparam bit MD_AUDIO_SYSOUT_GAIN_2X_SAT_BUILD = 1'b0;
+`endif
+
+`ifdef MD_AUDIO_SYSOUT_GAIN_4X_SAT_TEST
+localparam bit MD_AUDIO_SYSOUT_GAIN_4X_SAT_BUILD = 1'b1;
+`else
+localparam bit MD_AUDIO_SYSOUT_GAIN_4X_SAT_BUILD = 1'b0;
 `endif
 
 `ifdef MD_AUDIO_FM_ONLY_TEST
@@ -237,6 +269,36 @@ localparam bit MD_AUDIO_FM_DC_BLOCK_BUILD = 1'b0;
 localparam bit MD_AUDIO_PRE_GENMIX_FM_LPF_BUILD = 1'b1;
 `else
 localparam bit MD_AUDIO_PRE_GENMIX_FM_LPF_BUILD = 1'b0;
+`endif
+
+`ifdef MD_AUDIO_POST_FM_LPF_GAIN_TEST
+localparam bit MD_AUDIO_POST_FM_LPF_GAIN_BUILD = 1'b1;
+`else
+localparam bit MD_AUDIO_POST_FM_LPF_GAIN_BUILD = 1'b0;
+`endif
+
+`ifdef MD_AUDIO_GENMIX_OUTPUT_GAIN_2X_TEST
+localparam bit MD_AUDIO_GENMIX_OUTPUT_GAIN_2X_BUILD = 1'b1;
+`else
+localparam bit MD_AUDIO_GENMIX_OUTPUT_GAIN_2X_BUILD = 1'b0;
+`endif
+
+`ifdef MD_AUDIO_GENMIX_OUTPUT_GAIN_4X_TEST
+localparam bit MD_AUDIO_GENMIX_OUTPUT_GAIN_4X_BUILD = 1'b1;
+`else
+localparam bit MD_AUDIO_GENMIX_OUTPUT_GAIN_4X_BUILD = 1'b0;
+`endif
+
+`ifdef MD_AUDIO_GENMIX_OUTPUT_GAIN_6X_TEST
+localparam bit MD_AUDIO_GENMIX_OUTPUT_GAIN_6X_BUILD = 1'b1;
+`else
+localparam bit MD_AUDIO_GENMIX_OUTPUT_GAIN_6X_BUILD = 1'b0;
+`endif
+
+`ifdef MD_AUDIO_GENMIX_OUTPUT_GAIN_8X_TEST
+localparam bit MD_AUDIO_GENMIX_OUTPUT_GAIN_8X_BUILD = 1'b1;
+`else
+localparam bit MD_AUDIO_GENMIX_OUTPUT_GAIN_8X_BUILD = 1'b0;
 `endif
 
 `ifdef MD_AUDIO_LPF_MODEL1_TEST
@@ -420,23 +482,100 @@ module emu
         MD_AUDIO_FORCE_MUTE_BUILD ? 16'sd0 : audio_l_gated;
     wire signed [15:0] audio_r_final =
         MD_AUDIO_FORCE_MUTE_BUILD ? 16'sd0 : audio_r_gated;
+
+    function automatic [15:0] audio_abs16(input logic signed [15:0] value);
+        audio_abs16 = value[15] ? (~value + 16'd1) : value;
+    endfunction
+
+    (* keep = 1 *) wire signed [15:0] debug_md_sound_module_audio_l = md_audio_l;
+    (* keep = 1 *) wire signed [15:0] debug_md_sound_module_audio_r = md_audio_r;
+    (* keep = 1 *) wire signed [15:0] debug_emu_audio_l = audio_l_final;
+    (* keep = 1 *) wire signed [15:0] debug_emu_audio_r = audio_r_final;
+
+    wire [15:0] md_audio_l_abs = audio_abs16(md_audio_l);
+    wire [15:0] md_audio_r_abs = audio_abs16(md_audio_r);
+    wire [15:0] emu_audio_l_abs = audio_abs16(audio_l_final);
+    wire [15:0] emu_audio_r_abs = audio_abs16(audio_r_final);
     wire               md_audio_l_at_rail =
         (md_audio_l == 16'sd32767) || (md_audio_l == -16'sd32768);
     wire               md_audio_r_at_rail =
         (md_audio_r == 16'sd32767) || (md_audio_r == -16'sd32768);
+    wire               emu_audio_l_at_rail =
+        (audio_l_final == 16'sd32767) || (audio_l_final == -16'sd32768);
+    wire               emu_audio_r_at_rail =
+        (audio_r_final == 16'sd32767) || (audio_r_final == -16'sd32768);
+    (* keep = 1, noprune = 1 *) reg [15:0] md_audio_l_abs_peak = 16'd0;
+    (* keep = 1, noprune = 1 *) reg [15:0] md_audio_r_abs_peak = 16'd0;
+    (* keep = 1, noprune = 1 *) reg [15:0] emu_audio_l_abs_peak = 16'd0;
+    (* keep = 1, noprune = 1 *) reg [15:0] emu_audio_r_abs_peak = 16'd0;
+    (* keep = 1, noprune = 1 *) reg [15:0] md_audio_abs_avg = 16'd0;
+    (* keep = 1, noprune = 1 *) reg [15:0] emu_audio_abs_avg = 16'd0;
+    reg [27:0] md_audio_abs_sum = 28'd0;
+    reg [27:0] emu_audio_abs_sum = 28'd0;
+    reg [11:0] audio_abs_avg_count = 12'd0;
     reg         [15:0] md_audio_l_rail_count = 16'd0;
     reg         [15:0] md_audio_r_rail_count = 16'd0;
+    (* keep = 1, noprune = 1 *) reg [15:0] emu_audio_l_rail_count = 16'd0;
+    (* keep = 1, noprune = 1 *) reg [15:0] emu_audio_r_rail_count = 16'd0;
 
     always @(posedge clk_sys) begin
         if (reset) begin
+            md_audio_l_abs_peak <= 16'd0;
+            md_audio_r_abs_peak <= 16'd0;
+            emu_audio_l_abs_peak <= 16'd0;
+            emu_audio_r_abs_peak <= 16'd0;
+            md_audio_abs_avg <= 16'd0;
+            emu_audio_abs_avg <= 16'd0;
+            md_audio_abs_sum <= 28'd0;
+            emu_audio_abs_sum <= 28'd0;
+            audio_abs_avg_count <= 12'd0;
             md_audio_l_rail_count <= 16'd0;
             md_audio_r_rail_count <= 16'd0;
+            emu_audio_l_rail_count <= 16'd0;
+            emu_audio_r_rail_count <= 16'd0;
         end else if (audio_gate_open && audio_sample_valid) begin
+            logic [15:0] md_audio_abs_now;
+            logic [15:0] emu_audio_abs_now;
+
+            md_audio_abs_now =
+                (md_audio_l_abs > md_audio_r_abs) ? md_audio_l_abs : md_audio_r_abs;
+            emu_audio_abs_now =
+                (emu_audio_l_abs > emu_audio_r_abs) ? emu_audio_l_abs : emu_audio_r_abs;
+
+            if (md_audio_l_abs > md_audio_l_abs_peak) begin
+                md_audio_l_abs_peak <= md_audio_l_abs;
+            end
+            if (md_audio_r_abs > md_audio_r_abs_peak) begin
+                md_audio_r_abs_peak <= md_audio_r_abs;
+            end
+            if (emu_audio_l_abs > emu_audio_l_abs_peak) begin
+                emu_audio_l_abs_peak <= emu_audio_l_abs;
+            end
+            if (emu_audio_r_abs > emu_audio_r_abs_peak) begin
+                emu_audio_r_abs_peak <= emu_audio_r_abs;
+            end
+            if (&audio_abs_avg_count) begin
+                md_audio_abs_avg <= (md_audio_abs_sum + md_audio_abs_now) >> 12;
+                emu_audio_abs_avg <= (emu_audio_abs_sum + emu_audio_abs_now) >> 12;
+                md_audio_abs_sum <= 28'd0;
+                emu_audio_abs_sum <= 28'd0;
+                audio_abs_avg_count <= 12'd0;
+            end else begin
+                md_audio_abs_sum <= md_audio_abs_sum + md_audio_abs_now;
+                emu_audio_abs_sum <= emu_audio_abs_sum + emu_audio_abs_now;
+                audio_abs_avg_count <= audio_abs_avg_count + 12'd1;
+            end
             if (md_audio_l_at_rail && !(&md_audio_l_rail_count)) begin
                 md_audio_l_rail_count <= md_audio_l_rail_count + 16'd1;
             end
             if (md_audio_r_at_rail && !(&md_audio_r_rail_count)) begin
                 md_audio_r_rail_count <= md_audio_r_rail_count + 16'd1;
+            end
+            if (emu_audio_l_at_rail && !(&emu_audio_l_rail_count)) begin
+                emu_audio_l_rail_count <= emu_audio_l_rail_count + 16'd1;
+            end
+            if (emu_audio_r_at_rail && !(&emu_audio_r_rail_count)) begin
+                emu_audio_r_rail_count <= emu_audio_r_rail_count + 16'd1;
             end
         end
     end
@@ -517,6 +656,11 @@ module emu
     wire  [7:0] jt12_cen_interval_min;
     wire  [7:0] jt12_cen_interval_max;
     wire  [7:0] jt12_cen_interval_last;
+    wire [15:0] fm_raw_abs_peak;
+    wire [15:0] fm_adjust_abs_peak;
+    wire [15:0] fm_lpf_abs_peak;
+    wire [15:0] genmix_abs_peak;
+    wire [15:0] md_final_audio_abs_peak;
 
     wire [31:0] joystick_0;
     wire [31:0] joystick_1;
@@ -725,7 +869,12 @@ module emu
         .jt12_cen_interval_ge5_count(jt12_cen_interval_ge5_count),
         .jt12_cen_interval_min(jt12_cen_interval_min),
         .jt12_cen_interval_max(jt12_cen_interval_max),
-        .jt12_cen_interval_last(jt12_cen_interval_last)
+        .jt12_cen_interval_last(jt12_cen_interval_last),
+        .fm_raw_abs_peak      (fm_raw_abs_peak),
+        .fm_adjust_abs_peak   (fm_adjust_abs_peak),
+        .fm_lpf_abs_peak      (fm_lpf_abs_peak),
+        .genmix_abs_peak      (genmix_abs_peak),
+        .md_final_audio_abs_peak(md_final_audio_abs_peak)
     );
 
     reg [8:0] h_count;
@@ -772,6 +921,76 @@ module emu
     wire hblank = (h_count >= 9'd320);
     wire vblank = (v_count >= 9'd240);
     wire active = !hblank && !vblank;
+    wire [15:0] md_audio_abs_peak =
+        (md_audio_l_abs_peak > md_audio_r_abs_peak) ?
+        md_audio_l_abs_peak : md_audio_r_abs_peak;
+    wire [15:0] emu_audio_abs_peak =
+        (emu_audio_l_abs_peak > emu_audio_r_abs_peak) ?
+        emu_audio_l_abs_peak : emu_audio_r_abs_peak;
+    wire md_audio_rail_seen =
+        (md_audio_l_rail_count != 16'd0) || (md_audio_r_rail_count != 16'd0);
+    wire emu_audio_rail_seen =
+        (emu_audio_l_rail_count != 16'd0) || (emu_audio_r_rail_count != 16'd0);
+
+    wire [15:0] meter_x_level = h_count * 16'd102;
+    wire meter_x_active = (h_count < 9'd320);
+    wire meter_reference_marker = (h_count >= 9'd234) && (h_count < 9'd237);
+    wire meter_rail_block = (h_count >= 9'd312) && (h_count < 9'd320);
+    wire stage_fm_raw_row = (v_count >= 9'd184) && (v_count < 9'd188);
+    wire stage_fm_adjust_row = (v_count >= 9'd190) && (v_count < 9'd194);
+    wire stage_fm_lpf_row = (v_count >= 9'd196) && (v_count < 9'd200);
+    wire stage_genmix_row = (v_count >= 9'd202) && (v_count < 9'd206);
+    wire stage_final_row = (v_count >= 9'd208) && (v_count < 9'd212);
+    wire md_avg_meter_row = (v_count >= 9'd214) && (v_count < 9'd218);
+    wire md_meter_row = (v_count >= 9'd220) && (v_count < 9'd226);
+    wire emu_meter_row = (v_count >= 9'd230) && (v_count < 9'd236);
+    wire emu_avg_meter_row = (v_count >= 9'd236) && (v_count < 9'd240);
+    wire stage_meter_pixel =
+        meter_x_active &&
+        (stage_fm_raw_row ||
+         stage_fm_adjust_row ||
+         stage_fm_lpf_row ||
+         stage_genmix_row ||
+         stage_final_row);
+    wire md_meter_pixel = md_meter_row && meter_x_active;
+    wire emu_meter_pixel = emu_meter_row && meter_x_active;
+    wire md_avg_meter_pixel = md_avg_meter_row && meter_x_active;
+    wire emu_avg_meter_pixel = emu_avg_meter_row && meter_x_active;
+    wire stage_fm_raw_fill = fm_raw_abs_peak >= meter_x_level;
+    wire stage_fm_adjust_fill = fm_adjust_abs_peak >= meter_x_level;
+    wire stage_fm_lpf_fill = fm_lpf_abs_peak >= meter_x_level;
+    wire stage_genmix_fill = genmix_abs_peak >= meter_x_level;
+    wire stage_final_fill = md_final_audio_abs_peak >= meter_x_level;
+    wire md_meter_fill = md_audio_abs_peak >= meter_x_level;
+    wire emu_meter_fill = emu_audio_abs_peak >= meter_x_level;
+    wire md_avg_meter_fill = md_audio_abs_avg >= meter_x_level;
+    wire emu_avg_meter_fill = emu_audio_abs_avg >= meter_x_level;
+    wire [23:0] stage_meter_rgb =
+        meter_reference_marker ? 24'hffffff :
+        stage_fm_raw_row ? (stage_fm_raw_fill ? 24'h00c8ff : 24'h081018) :
+        stage_fm_adjust_row ? (stage_fm_adjust_fill ? 24'hff8000 : 24'h181000) :
+        stage_fm_lpf_row ? (stage_fm_lpf_fill ? 24'hc080ff : 24'h140818) :
+        stage_genmix_row ? (stage_genmix_fill ? 24'hff40c0 : 24'h180814) :
+        stage_final_fill ? 24'hc0c0c0 :
+                           24'h101010;
+    wire [23:0] md_meter_rgb =
+        (meter_rail_block && md_audio_rail_seen) ? 24'hff0000 :
+        meter_reference_marker ? 24'hffffff :
+        md_meter_fill ? 24'h2040ff :
+                        24'h101018;
+    wire [23:0] emu_meter_rgb =
+        (meter_rail_block && emu_audio_rail_seen) ? 24'hff0000 :
+        meter_reference_marker ? 24'hffffff :
+        emu_meter_fill ? 24'h00d060 :
+                         24'h101810;
+    wire [23:0] md_avg_meter_rgb =
+        meter_reference_marker ? 24'hffffff :
+        md_avg_meter_fill ? 24'h4080ff :
+                            24'h080c18;
+    wire [23:0] emu_avg_meter_rgb =
+        meter_reference_marker ? 24'hffffff :
+        emu_avg_meter_fill ? 24'h40ff80 :
+                             24'h081208;
     wire force_mute_build_marker = MD_AUDIO_FORCE_MUTE_BUILD && (v_count < 9'd12);
     wire ym_write_slow_build_marker = MD_YM_WRITE_SLOW_BUILD && (v_count < 9'd12);
     wire ym_force_lfo_off_build_marker =
@@ -784,7 +1003,17 @@ module emu
         MD_AUDIO_SYSOUT_ATTENUATE_24DB_BUILD && (v_count < 9'd12);
     wire sysout_attenuate_build_marker =
         MD_AUDIO_SYSOUT_ATTENUATE_BUILD && (v_count < 9'd12);
+    wire sysout_force_tone_build_marker =
+        MD_AUDIO_SYSOUT_FORCE_TONE_BUILD && (v_count < 9'd12);
+    wire sysout_gain_4x_sat_build_marker =
+        MD_AUDIO_SYSOUT_GAIN_4X_SAT_BUILD && (v_count < 9'd12);
+    wire sysout_gain_2x_sat_build_marker =
+        MD_AUDIO_SYSOUT_GAIN_2X_SAT_BUILD && (v_count < 9'd12);
     wire attenuate_6db_build_marker = MD_AUDIO_ATTENUATE_6DB_BUILD && (v_count < 9'd12);
+    wire output_shift_1_build_marker =
+        MD_AUDIO_OUTPUT_SHIFT_1_BUILD && (v_count < 9'd12);
+    wire output_shift_0_build_marker =
+        MD_AUDIO_OUTPUT_SHIFT_0_BUILD && (v_count < 9'd12);
     wire fm_force_mute_build_marker =
         MD_AUDIO_FM_FORCE_MUTE_BUILD && (v_count < 9'd12);
     wire fm_only_build_marker = MD_AUDIO_FM_ONLY_BUILD && (v_count < 9'd12);
@@ -831,6 +1060,16 @@ module emu
         MD_AUDIO_FM_DC_BLOCK_BUILD && (v_count < 9'd12);
     wire pre_genmix_fm_lpf_build_marker =
         MD_AUDIO_PRE_GENMIX_FM_LPF_BUILD && (v_count < 9'd12);
+    wire post_fm_lpf_gain_build_marker =
+        MD_AUDIO_POST_FM_LPF_GAIN_BUILD && (v_count < 9'd12);
+    wire genmix_output_gain_2x_build_marker =
+        MD_AUDIO_GENMIX_OUTPUT_GAIN_2X_BUILD && (v_count < 9'd12);
+    wire genmix_output_gain_4x_build_marker =
+        MD_AUDIO_GENMIX_OUTPUT_GAIN_4X_BUILD && (v_count < 9'd12);
+    wire genmix_output_gain_6x_build_marker =
+        MD_AUDIO_GENMIX_OUTPUT_GAIN_6X_BUILD && (v_count < 9'd12);
+    wire genmix_output_gain_8x_build_marker =
+        MD_AUDIO_GENMIX_OUTPUT_GAIN_8X_BUILD && (v_count < 9'd12);
     wire lpf_test_build_marker = MD_AUDIO_LPF_TEST_BUILD && (v_count < 9'd12);
 
     wire hsync = ~((h_count >= 9'd336) && (h_count < 9'd368));
@@ -858,8 +1097,12 @@ module emu
     // YM LFO-off paints black/yellow stripes, PMS/AMS mask paints cyan/yellow
     // stripes, ch3-normal paints red/blue stripes.
     // MD_AUDIO_SYSOUT_ATTENUATE_24DB paints a red/cyan stripe pattern,
-    // MD_AUDIO_SYSOUT_ATTENUATE_6DB paints yellow/magenta stripes, and
-    // MD_AUDIO_FINAL_ATTENUATE_6DB paints magenta. Upstream A/B markers:
+    // MD_AUDIO_SYSOUT_ATTENUATE_6DB paints yellow/magenta stripes,
+    // sysout force tone paints white/black/red stripes,
+    // sysout gain 2x paints green/white stripes, sysout gain 4x paints
+    // orange/blue stripes,
+    // MD_AUDIO_FINAL_ATTENUATE_6DB paints magenta, output shift=1 paints
+    // cyan/white stripes, output shift=0 paints red/green stripes. Upstream A/B markers:
     // FM force mute white/black stripes, FM-only red, PSG-only blue, FM channel
     // solo uses ch1 red / ch2 green / ch3 blue / ch4 yellow / ch5 magenta /
     // ch6 cyan, premix FM orange stripes, fm_adjust bypass purple stripes, low-gain green/blue
@@ -871,9 +1114,16 @@ module emu
     // JT12 forced YM2612 orange/white stripes, forced YM3438 cyan/blue
     // stripes, ladder-on magenta/white stripes, ladder-off green/black
     // stripes, hifi-PCM white/cyan stripes, FM DC-block yellow/green stripes,
-    // pre-genmix FM LPF purple/green stripes, JT12 ladder-effect magenta/cyan
-    // stripes, LPF green.
+    // pre-genmix FM LPF purple/green stripes, post-FM-LPF gain white/purple
+    // stripes, genmix-output gain 2x green/purple stripes, genmix-output gain
+    // 4x red/white/blue stripes, 6x amber/cyan stripes,
+    // 8x green/red/black stripes, JT12 ladder-effect magenta/cyan stripes, LPF green.
     wire [7:0] red =
+        stage_meter_pixel ? stage_meter_rgb[23:16] :
+        md_avg_meter_pixel ? md_avg_meter_rgb[23:16] :
+        md_meter_pixel ? md_meter_rgb[23:16] :
+        emu_meter_pixel ? emu_meter_rgb[23:16] :
+        emu_avg_meter_pixel ? emu_avg_meter_rgb[23:16] :
         force_mute_build_marker ? 8'hff :
         ym_write_slow_build_marker ? (h_count[4] ? 8'hff : 8'h00) :
         ym_force_lfo_off_build_marker ? (h_count[4] ? 8'h00 : 8'hff) :
@@ -881,7 +1131,12 @@ module emu
         ym_ch3_normal_build_marker ? (h_count[4] ? 8'hff : 8'h00) :
         sysout_attenuate_24db_build_marker ? (h_count[4] ? 8'hff : 8'h00) :
         sysout_attenuate_build_marker ? 8'hff :
+        sysout_force_tone_build_marker ? (h_count[5] ? 8'hff : (h_count[4] ? 8'h00 : 8'hff)) :
+        sysout_gain_4x_sat_build_marker ? (h_count[4] ? 8'hff : 8'h00) :
+        sysout_gain_2x_sat_build_marker ? (h_count[4] ? 8'h00 : 8'hff) :
         attenuate_6db_build_marker ? 8'hff :
+        output_shift_1_build_marker ? (h_count[4] ? 8'h00 : 8'hff) :
+        output_shift_0_build_marker ? (h_count[4] ? 8'hff : 8'h00) :
         fm_force_mute_build_marker ? (h_count[4] ? 8'hff : 8'h00) :
         fm_only_build_marker ? 8'hff :
         psg_only_build_marker ? 8'h00 :
@@ -903,6 +1158,11 @@ module emu
         jt12_hifi_pcm_build_marker ? (h_count[4] ? 8'hff : 8'h00) :
         fm_dc_block_build_marker ? (h_count[4] ? 8'hff : 8'h40) :
         pre_genmix_fm_lpf_build_marker ? (h_count[4] ? 8'h90 : 8'h00) :
+        post_fm_lpf_gain_build_marker ? (h_count[4] ? 8'hff : 8'h80) :
+        genmix_output_gain_8x_build_marker ? (h_count[5] ? 8'h00 : (h_count[4] ? 8'hff : 8'h00)) :
+        genmix_output_gain_6x_build_marker ? (h_count[4] ? 8'hff : 8'h00) :
+        genmix_output_gain_4x_build_marker ? (h_count[5] ? 8'hff : (h_count[4] ? 8'h00 : 8'hff)) :
+        genmix_output_gain_2x_build_marker ? (h_count[4] ? 8'h20 : 8'h90) :
         jt12_ladder_effect_build_marker ? (h_count[4] ? 8'hff : 8'h00) :
         normal_sample_latch_build_marker ? 8'h00 :
         raw_jt12_sample_latch_build_marker ? (h_count[4] ? 8'h00 : 8'hff) :
@@ -926,6 +1186,11 @@ module emu
                              8'h00;
 
     wire [7:0] green =
+        stage_meter_pixel ? stage_meter_rgb[15:8] :
+        md_avg_meter_pixel ? md_avg_meter_rgb[15:8] :
+        md_meter_pixel ? md_meter_rgb[15:8] :
+        emu_meter_pixel ? emu_meter_rgb[15:8] :
+        emu_avg_meter_pixel ? emu_avg_meter_rgb[15:8] :
         force_mute_build_marker ? 8'hff :
         ym_write_slow_build_marker ? 8'hff :
         ym_force_lfo_off_build_marker ? (h_count[4] ? 8'h00 : 8'hff) :
@@ -933,7 +1198,12 @@ module emu
         ym_ch3_normal_build_marker ? 8'h00 :
         sysout_attenuate_24db_build_marker ? (h_count[4] ? 8'h00 : 8'hff) :
         sysout_attenuate_build_marker ? (h_count[4] ? 8'hff : 8'h00) :
+        sysout_force_tone_build_marker ? (h_count[5] ? 8'hff : 8'h00) :
+        sysout_gain_4x_sat_build_marker ? (h_count[4] ? 8'h80 : 8'h00) :
+        sysout_gain_2x_sat_build_marker ? 8'hff :
         attenuate_6db_build_marker ? 8'h00 :
+        output_shift_1_build_marker ? 8'hff :
+        output_shift_0_build_marker ? (h_count[4] ? 8'h00 : 8'hff) :
         fm_force_mute_build_marker ? (h_count[4] ? 8'hff : 8'h00) :
         fm_only_build_marker ? 8'h00 :
         psg_only_build_marker ? 8'h00 :
@@ -955,6 +1225,11 @@ module emu
         jt12_hifi_pcm_build_marker ? 8'hff :
         fm_dc_block_build_marker ? (h_count[4] ? 8'hff : 8'h40) :
         pre_genmix_fm_lpf_build_marker ? (h_count[4] ? 8'h00 : 8'hff) :
+        post_fm_lpf_gain_build_marker ? (h_count[4] ? 8'hff : 8'h00) :
+        genmix_output_gain_8x_build_marker ? (h_count[5] ? 8'hff : 8'h00) :
+        genmix_output_gain_6x_build_marker ? (h_count[4] ? 8'hc0 : 8'hff) :
+        genmix_output_gain_4x_build_marker ? (h_count[5] ? 8'hff : 8'h00) :
+        genmix_output_gain_2x_build_marker ? (h_count[4] ? 8'hff : 8'h00) :
         jt12_ladder_effect_build_marker ? (h_count[4] ? 8'h00 : 8'hff) :
         normal_sample_latch_build_marker ? (h_count[4] ? 8'hff : 8'h40) :
         raw_jt12_sample_latch_build_marker ? (h_count[4] ? 8'h00 : 8'hff) :
@@ -978,6 +1253,11 @@ module emu
                              8'hb0;
 
     wire [7:0] blue =
+        stage_meter_pixel ? stage_meter_rgb[7:0] :
+        md_avg_meter_pixel ? md_avg_meter_rgb[7:0] :
+        md_meter_pixel ? md_meter_rgb[7:0] :
+        emu_meter_pixel ? emu_meter_rgb[7:0] :
+        emu_avg_meter_pixel ? emu_avg_meter_rgb[7:0] :
         force_mute_build_marker ? 8'h00 :
         ym_write_slow_build_marker ? (h_count[4] ? 8'hff : 8'h00) :
         ym_force_lfo_off_build_marker ? 8'h00 :
@@ -985,7 +1265,12 @@ module emu
         ym_ch3_normal_build_marker ? (h_count[4] ? 8'h00 : 8'hff) :
         sysout_attenuate_24db_build_marker ? (h_count[4] ? 8'h00 : 8'hff) :
         sysout_attenuate_build_marker ? (h_count[4] ? 8'h00 : 8'hff) :
+        sysout_force_tone_build_marker ? (h_count[5] ? 8'hff : 8'h00) :
+        sysout_gain_4x_sat_build_marker ? (h_count[4] ? 8'h00 : 8'hff) :
+        sysout_gain_2x_sat_build_marker ? (h_count[4] ? 8'h00 : 8'hff) :
         attenuate_6db_build_marker ? 8'hff :
+        output_shift_1_build_marker ? 8'hff :
+        output_shift_0_build_marker ? 8'h00 :
         fm_force_mute_build_marker ? (h_count[4] ? 8'hff : 8'h00) :
         fm_only_build_marker ? 8'h00 :
         psg_only_build_marker ? 8'hff :
@@ -1007,6 +1292,11 @@ module emu
         jt12_hifi_pcm_build_marker ? (h_count[4] ? 8'hff : 8'h80) :
         fm_dc_block_build_marker ? 8'h00 :
         pre_genmix_fm_lpf_build_marker ? (h_count[4] ? 8'hff : 8'h40) :
+        post_fm_lpf_gain_build_marker ? 8'hff :
+        genmix_output_gain_8x_build_marker ? 8'h00 :
+        genmix_output_gain_6x_build_marker ? (h_count[4] ? 8'h00 : 8'hff) :
+        genmix_output_gain_4x_build_marker ? (h_count[5] ? 8'hff : (h_count[4] ? 8'hff : 8'h00)) :
+        genmix_output_gain_2x_build_marker ? (h_count[4] ? 8'h40 : 8'hff) :
         jt12_ladder_effect_build_marker ? 8'hff :
         normal_sample_latch_build_marker ? (h_count[4] ? 8'hff : 8'h80) :
         raw_jt12_sample_latch_build_marker ? 8'hff :
@@ -1064,6 +1354,8 @@ module emu
         vgm_unsupported_pc,
         vgm_player_error_code,
         MD_AUDIO_ATTENUATE_6DB_BUILD,
+        MD_AUDIO_OUTPUT_SHIFT_0_BUILD,
+        MD_AUDIO_OUTPUT_SHIFT_1_BUILD,
         MD_AUDIO_OUTPUT_SHIFT,
         MD_YM_WRITE_SLOW_BUILD,
         MD_YM_FORCE_LFO_OFF_BUILD,
@@ -1072,6 +1364,9 @@ module emu
         MD_AUDIO_FORCE_MUTE_BUILD,
         MD_AUDIO_SYSOUT_ATTENUATE_BUILD,
         MD_AUDIO_SYSOUT_ATTENUATE_24DB_BUILD,
+        MD_AUDIO_SYSOUT_FORCE_TONE_BUILD,
+        MD_AUDIO_SYSOUT_GAIN_2X_SAT_BUILD,
+        MD_AUDIO_SYSOUT_GAIN_4X_SAT_BUILD,
         MD_AUDIO_FM_ONLY_BUILD,
         MD_AUDIO_FM_FORCE_MUTE_BUILD,
         MD_AUDIO_PSG_ONLY_BUILD,
@@ -1095,11 +1390,31 @@ module emu
         MD_JT12_HIFI_PCM_BUILD,
         MD_AUDIO_FM_DC_BLOCK_BUILD,
         MD_AUDIO_PRE_GENMIX_FM_LPF_BUILD,
+        MD_AUDIO_POST_FM_LPF_GAIN_BUILD,
+        MD_AUDIO_GENMIX_OUTPUT_GAIN_2X_BUILD,
+        MD_AUDIO_GENMIX_OUTPUT_GAIN_4X_BUILD,
+        MD_AUDIO_GENMIX_OUTPUT_GAIN_6X_BUILD,
+        MD_AUDIO_GENMIX_OUTPUT_GAIN_8X_BUILD,
         MD_AUDIO_LPF_TEST_BUILD,
+        debug_md_sound_module_audio_l,
+        debug_md_sound_module_audio_r,
+        debug_emu_audio_l,
+        debug_emu_audio_r,
+        fm_raw_abs_peak,
+        fm_adjust_abs_peak,
+        fm_lpf_abs_peak,
+        genmix_abs_peak,
+        md_final_audio_abs_peak,
+        md_audio_l_abs_peak,
+        md_audio_r_abs_peak,
+        emu_audio_l_abs_peak,
+        emu_audio_r_abs_peak,
         md_audio_l_at_rail,
         md_audio_r_at_rail,
         md_audio_l_rail_count,
         md_audio_r_rail_count,
+        emu_audio_l_rail_count,
+        emu_audio_r_rail_count,
         fm_adjust_clip_count_l,
         fm_adjust_clip_count_r,
         genmix_wrap_count_l,

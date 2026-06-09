@@ -130,7 +130,12 @@ module mister_vgm_md_top #(
     output logic [15:0]       jt12_cen_interval_ge5_count,
     output logic [7:0]        jt12_cen_interval_min,
     output logic [7:0]        jt12_cen_interval_max,
-    output logic [7:0]        jt12_cen_interval_last
+    output logic [7:0]        jt12_cen_interval_last,
+    output logic [15:0]       fm_raw_abs_peak,
+    output logic [15:0]       fm_adjust_abs_peak,
+    output logic [15:0]       fm_lpf_abs_peak,
+    output logic [15:0]       genmix_abs_peak,
+    output logic [15:0]       md_final_audio_abs_peak
 );
 
     logic        reset;
@@ -535,7 +540,12 @@ module mister_vgm_md_top #(
                 .jt12_cen_interval_ge5_count(jt12_cen_interval_ge5_count),
                 .jt12_cen_interval_min(jt12_cen_interval_min),
                 .jt12_cen_interval_max(jt12_cen_interval_max),
-                .jt12_cen_interval_last(jt12_cen_interval_last)
+                .jt12_cen_interval_last(jt12_cen_interval_last),
+                .fm_raw_abs_peak      (fm_raw_abs_peak),
+                .fm_adjust_abs_peak   (fm_adjust_abs_peak),
+                .fm_lpf_abs_peak      (fm_lpf_abs_peak),
+                .genmix_abs_peak      (genmix_abs_peak),
+                .final_audio_abs_peak (md_final_audio_abs_peak)
             );
         end else begin : fixed_region_mode
             assign vgm_load_busy = 1'b0;
@@ -594,7 +604,12 @@ module mister_vgm_md_top #(
                 .jt12_cen_interval_ge5_count(jt12_cen_interval_ge5_count),
                 .jt12_cen_interval_min(jt12_cen_interval_min),
                 .jt12_cen_interval_max(jt12_cen_interval_max),
-                .jt12_cen_interval_last(jt12_cen_interval_last)
+                .jt12_cen_interval_last(jt12_cen_interval_last),
+                .fm_raw_abs_peak      (fm_raw_abs_peak),
+                .fm_adjust_abs_peak   (fm_adjust_abs_peak),
+                .fm_lpf_abs_peak      (fm_lpf_abs_peak),
+                .genmix_abs_peak      (genmix_abs_peak),
+                .final_audio_abs_peak (md_final_audio_abs_peak)
             );
         end
     endgenerate

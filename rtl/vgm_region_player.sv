@@ -748,7 +748,12 @@ module md_sound_fixed_region_test #(
     output logic       [15:0] jt12_cen_interval_ge5_count,
     output logic        [7:0] jt12_cen_interval_min,
     output logic        [7:0] jt12_cen_interval_max,
-    output logic        [7:0] jt12_cen_interval_last
+    output logic        [7:0] jt12_cen_interval_last,
+    output logic       [15:0] fm_raw_abs_peak,
+    output logic       [15:0] fm_adjust_abs_peak,
+    output logic       [15:0] fm_lpf_abs_peak,
+    output logic       [15:0] genmix_abs_peak,
+    output logic       [15:0] final_audio_abs_peak
 );
 
     logic       ym_cmd_valid;
@@ -817,7 +822,12 @@ module md_sound_fixed_region_test #(
         .jt12_cen_interval_ge5_count(jt12_cen_interval_ge5_count),
         .jt12_cen_interval_min(jt12_cen_interval_min),
         .jt12_cen_interval_max(jt12_cen_interval_max),
-        .jt12_cen_interval_last(jt12_cen_interval_last)
+        .jt12_cen_interval_last(jt12_cen_interval_last),
+        .fm_raw_abs_peak      (fm_raw_abs_peak),
+        .fm_adjust_abs_peak   (fm_adjust_abs_peak),
+        .fm_lpf_abs_peak      (fm_lpf_abs_peak),
+        .genmix_abs_peak      (genmix_abs_peak),
+        .final_audio_abs_peak (final_audio_abs_peak)
     );
 
 endmodule

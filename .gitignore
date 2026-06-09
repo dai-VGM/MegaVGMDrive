@@ -27,3 +27,10 @@ tmp/
 !.vscode/extensions.json
 out/
 output_files/
+
+out/
+output_files/
+*.rbf
+*.sof
+*.jic
+*.pof

@@ -3248,6 +3248,208 @@ final wait before 0x66 end
 No RTL was changed for this note. This records the hardware pass result only.
 
 
+## 2026-06-09: Mode 5 Audio Path Hardware Status
+
+Current best audio configuration:
+
+```text
+FIXED_REGION_MODE=5
+MD_JT12_CEN_NTSC_TEST=1
+MD_JT12_LADDER_EFFECT_TEST=1
+MD_AUDIO_PRE_GENMIX_FM_LPF_TEST=1
+```
+
+Confirmed on real MiSTer hardware:
+
+```text
+OSD-loaded VGM playback works.
+fm_only_test.vgm plays full length and loops at the correct ~150s timing.
+Menu return remains OK.
+single_fm_sustain.vgm is clean.
+```
+
+Major audio fixes confirmed:
+
+```text
+MD_JT12_CEN_NTSC_TEST + MD_JT12_LADDER_EFFECT_TEST:
+  fixed the major snare / hi-hat / FM harshness.
+
+MD_AUDIO_PRE_GENMIX_FM_LPF_TEST:
+  fixed the patch104 / CH1 / OP1 feedback noise.
+  patch104 diagnostic VGMs now sound much closer to foobar/VGMRips.
+```
+
+Patch104 investigation summary:
+
+```text
+CH1 patch104 analysis showed the issue was strongly tied to OP1/operator
+interaction and feedback-heavy FM patch behavior.
+
+The simple DC-block / difference high-pass test did not fix the issue and made
+noise worse.
+
+The successful fix was the Genesis_MiSTer-style pre-genmix FM LPF:
+
+  JT12 raw FM
+    -> fm_adjust
+    -> genesis_fm_lpf
+    -> jt12_genmix
+    -> final genesis_lpf / audio output
+```
+
+Volume / loudness investigation:
+
+```text
+Force tone at sys_top/audio_out input is very loud.
+Therefore HDMI / analog audio_out path is healthy.
+
+Current FM-only playback remains quieter than Genesis_MiSTer.
+On-screen peak and average absolute-value meters were added.
+
+Genmix-output gain A/B was tested:
+  2x: meters moved upward slightly
+  4x: meters moved upward more
+  6x: current safer candidate for further listening
+  8x: meters moved upward significantly, but rail/clip red appeared
+
+8x still did not fully match Genesis_MiSTer perceived volume, and it already
+reached rail/clip peaks. Increasing this same stage further is unsafe.
+```
+
+Conclusion for volume:
+
+```text
+Do not pursue more gain changes for now.
+
+The remaining FM-only perceived loudness mismatch may be RMS / average level /
+dynamics related, not simply peak level.
+
+This should be deferred and re-evaluated after PCM/DAC support is implemented,
+because final Mega Drive balance needs FM + PSG + DAC together.
+```
+
+Next major task:
+
+```text
+Implement PCM/DAC support:
+  0x67 data block storage
+  0xE0 PCM seek
+  0x80-0x8F DAC stream to YM2612 DAC register 0x2A
+
+After PCM/DAC works:
+  re-evaluate FM / PSG / DAC balance
+  re-evaluate final perceived volume against Genesis_MiSTer
+```
+
+No RTL was changed for this note. This records the latest hardware result and
+the next direction only.
+
+
+## 2026-06-09: Mode 5 Loudness / Peak-vs-Average Diagnostic
+
+Current working audio baseline remains:
+
+```text
+FIXED_REGION_MODE=5
+MD_JT12_CEN_NTSC_TEST=1
+MD_JT12_LADDER_EFFECT_TEST=1
+MD_AUDIO_PRE_GENMIX_FM_LPF_TEST=1
+```
+
+Hardware observation with genmix-output gain A/B:
+
+```text
+2x after jt12_genmix / jt12_fm_uprate:
+  meters moved upward slightly
+  perceived volume increased slightly
+  still much quieter than Genesis_MiSTer
+
+4x after jt12_genmix / jt12_fm_uprate:
+  meters moved upward more
+  perceived volume increased
+  patch104 remained clean
+  no obvious rail/clip red indication
+
+8x after jt12_genmix / jt12_fm_uprate:
+  meters moved upward significantly
+  perceived volume increased
+  output still quieter than Genesis_MiSTer
+  rail/clip red appeared at the right edge
+  patch104 quality appeared preserved, but 8x is too aggressive as a pure peak gain
+```
+
+Conclusion:
+
+```text
+Genmix-output gain is on the real audio path and affects the measured signal.
+However, 8x already reaches signed 16-bit rail/clip peaks while perceived
+loudness remains below Genesis_MiSTer.
+
+The remaining perceived loudness mismatch is therefore probably not just a peak
+amplitude problem. It may be RMS / average level / dynamics related.
+Further gain at the same point is unsafe because it will mainly clip peaks.
+```
+
+Diagnostics added:
+
+```text
+Peak bars:
+  raw JT12 FM
+  fm_adjust
+  pre-genmix FM LPF
+  jt12_genmix output
+  md_sound_module final
+  emu output
+  sys_top/audio_out input
+
+Average absolute-value bars:
+  md_sound_module final, 4096 audio-sample window
+  emu output, 4096 audio-sample window
+  sys_top/audio_out input, 65536 clk_audio window
+```
+
+Current next A/B candidate:
+
+```text
+MD_AUDIO_GENMIX_OUTPUT_GAIN_6X_TEST
+```
+
+This is inserted at the same point as 2x/4x/8x:
+
+```text
+jt12_genmix / jt12_fm_uprate output
+  -> signed saturating gain
+  -> final genesis_lpf
+  -> md_sound_module audio_l/r
+```
+
+Priority order is:
+
+```text
+8x > 6x > 4x > 2x > normal
+```
+
+For the next hardware build, QSF is set to the safer 6x candidate by defining
+2x, 4x, and 6x, while leaving 8x disabled. 6x should be checked against:
+
+```text
+fm_only_test.vgm
+ch1_main_patch.vgm
+ch1_main_patch_fb7.vgm
+ch1_main_patch_op1_plus_op4.vgm
+```
+
+Pass conditions:
+
+```text
+volume closer to Genesis_MiSTer than 4x
+no rail/clip red indicators, or substantially less than 8x
+patch104 remains clean
+menu return remains OK
+average bars help judge whether RMS/average level is still low
+```
+
+
 ## 2026-06-08: JT12 Mode/Config Comparison A/B
 
 Hardware observation before this step:
@@ -3920,6 +4122,388 @@ Potential renames:
 Preserve the known-good mode3 and mode5 paths.
 Do not change PCM/DAC yet.
 ```
+
+
+## 2026-06-08: Post-FM-LPF Gain Staging Check
+
+Hardware result after enabling the current best audio configuration:
+
+```text
+FIXED_REGION_MODE=5
+MD_JT12_CEN_NTSC_TEST=1
+MD_JT12_LADDER_EFFECT_TEST=1
+MD_AUDIO_PRE_GENMIX_FM_LPF_TEST=1
+
+patch104 noise: fixed
+overall sound: much cleaner
+remaining issue: output volume seems significantly lower than foobar/VGMRips
+and normal MiSTer cores
+```
+
+QSF macro check:
+
+```text
+no leftover attenuation / mute / raw debug macros were found:
+  MD_AUDIO_RAW_JT12_FM_TEST
+  MD_AUDIO_SYSOUT_ATTENUATE_6DB
+  MD_AUDIO_SYSOUT_ATTENUATE_24DB
+  MD_AUDIO_FINAL_ATTENUATE_6DB
+  MD_AUDIO_FM_ADJUST_BYPASS_TEST
+  MD_AUDIO_FM_FORCE_MUTE_TEST
+  MD_AUDIO_FM_DC_BLOCK_TEST
+  MD_AUDIO_PREMIX_ATTENUATE_FM_6DB
+
+active audio-related QSF macros:
+  MD_JT12_CEN_NTSC_TEST=1
+  MD_JT12_LADDER_EFFECT_TEST=1
+  MD_AUDIO_PRE_GENMIX_FM_LPF_TEST=1
+```
+
+Current gain/scaling path:
+
+```text
+md_sound_module:
+  fm_left/right:
+    signed 16-bit from JT12 snd_left/snd_right
+
+  fm_adjust_l/r:
+    signed 16-bit result
+    expression matches Genesis_MiSTer:
+      (FM << 4) + (FM << 2) + (FM << 1) + (FM >>> 2)
+    effective gain: 22.25x before 16-bit truncation/saturation A/B options
+
+  genesis_fm_lpf output:
+    signed 16-bit
+    now inserted before jt12_genmix when MD_AUDIO_PRE_GENMIX_FM_LPF_TEST=1
+
+  jt12_genmix input:
+    fm_left/right signed 16-bit
+    psg_snd signed 11-bit
+
+  jt12_fm_uprate internal mix:
+    local diagnostic version widens FM+PSG sum to 17-bit for wrap counting,
+    then stores mixed as signed 16-bit, matching the original 16-bit output
+    width behavior
+
+  jt12_genmix output:
+    signed 16-bit pre_lpf_l/r
+
+  genesis_lpf final output:
+    signed 16-bit lpf_audio_l/r
+
+  md_sound_module audio_l/r:
+    signed 16-bit
+```
+
+Top-level output scaling:
+
+```text
+emu.sv:
+  md_audio_l/r from md_sound_module are shifted before AUDIO_L/R:
+    default MD_AUDIO_OUTPUT_SHIFT = 2
+    MD_AUDIO_FINAL_ATTENUATE_6DB would make it 3, but that macro is not active
+
+  AUDIO_L/R:
+    signed 16-bit after audio_gate_open
+
+sys_top/audio_out:
+  no sysout attenuation macro is active
+  audio_out_core_l/r = audio_l/r
+```
+
+Genesis_MiSTer comparison:
+
+```text
+Genesis_MiSTer system.sv:
+  JT12 raw FM
+    -> fm_adjust
+    -> optional genesis_fm_lpf when LPF_MODE == 2'b01
+    -> jt12_genmix
+    -> genesis_lpf
+    -> DAC_LDATA / DAC_RDATA
+
+No explicit gain compensation after genesis_fm_lpf was found in Genesis_MiSTer.
+```
+
+Interpretation:
+
+```text
+genesis_fm_lpf can reduce perceived level because it is a real FM-only
+low-pass stage before genmix.
+
+This project also has an existing emu-level safety shift:
+  md_audio_l/r >>> 2
+
+That shift predates the pre-genmix FM LPF and remains a likely contributor to
+lower-than-core volume, but it was not changed in this step.
+```
+
+Added A/B macro:
+
+```text
+MD_AUDIO_POST_FM_LPF_GAIN_TEST
+```
+
+Implementation:
+
+```text
+Only affects the pre-genmix FM LPF path:
+
+  JT12 raw FM
+    -> fm_adjust
+    -> genesis_fm_lpf
+    -> signed saturating x2 gain
+    -> jt12_genmix
+
+If MD_AUDIO_PRE_GENMIX_FM_LPF_TEST is not active, this macro has no audible
+effect on the FM path.
+```
+
+Saturation behavior:
+
+```text
+wide calculation:
+  signed 17-bit = signed 16-bit LPF output <<< 1
+
+clamp:
+  >  32767 ->  32767
+  < -32768 -> -32768
+```
+
+Expected marker:
+
+```text
+top 12 lines: white/purple stripe
+```
+
+Hardware A/B suggestion:
+
+```text
+baseline:
+  FIXED_REGION_MODE=5
+  MD_JT12_CEN_NTSC_TEST=1
+  MD_JT12_LADDER_EFFECT_TEST=1
+  MD_AUDIO_PRE_GENMIX_FM_LPF_TEST=1
+
+gain A/B:
+  add MD_AUDIO_POST_FM_LPF_GAIN_TEST=1
+
+Listen for:
+  overall level increase
+  whether patch104 remains clean
+  whether fm_only_test.vgm clips or becomes harsh again
+```
+
+Do not change VGM timing, loader, PCM/DAC, CEN, ladder, mode5 player, or JT12
+write logic for this gain A/B.
+
+
+## 2026-06-08: Final Output Shift A/B
+
+Hardware result:
+
+```text
+MD_AUDIO_POST_FM_LPF_GAIN_TEST:
+  x2 saturating gain after genesis_fm_lpf did not noticeably increase overall
+  volume
+
+Conclusion:
+  the main low-volume issue is probably not solved at the FM pre-genmix stage
+```
+
+Current remaining gain suspect:
+
+```text
+emu.sv:
+  md_audio_l/r >>> MD_AUDIO_OUTPUT_SHIFT
+
+default:
+  MD_AUDIO_OUTPUT_SHIFT = 2
+
+This divides final core audio by 4 before sys_top/audio_out. The observed volume
+is roughly 1/4 of Genesis_MiSTer, which matches this scaling.
+```
+
+QSF restored to current best FM path:
+
+```text
+FIXED_REGION_MODE=5
+MD_JT12_CEN_NTSC_TEST=1
+MD_JT12_LADDER_EFFECT_TEST=1
+MD_AUDIO_PRE_GENMIX_FM_LPF_TEST=1
+```
+
+The failed `MD_AUDIO_POST_FM_LPF_GAIN_TEST` A/B is no longer part of the current
+best QSF.
+
+Added final output shift A/B macros:
+
+```text
+MD_AUDIO_OUTPUT_SHIFT_1_TEST
+  sets MD_AUDIO_OUTPUT_SHIFT = 1
+  final output scale changes from /4 to /2
+  marker: cyan/white top stripe
+
+MD_AUDIO_OUTPUT_SHIFT_0_TEST
+  sets MD_AUDIO_OUTPUT_SHIFT = 0
+  final output scale changes from /4 to unity
+  marker: red/green top stripe
+```
+
+Priority:
+
+```text
+MD_AUDIO_OUTPUT_SHIFT_0_TEST
+MD_AUDIO_OUTPUT_SHIFT_1_TEST
+MD_AUDIO_FINAL_ATTENUATE_6DB
+default shift 2
+```
+
+Existing rail/clip counters remain available:
+
+```text
+md_audio_l_rail_count
+md_audio_r_rail_count
+fm_adjust_clip_count_l
+fm_adjust_clip_count_r
+genmix_wrap_count_l
+genmix_wrap_count_r
+```
+
+Hardware test order:
+
+```text
+1. Test SHIFT=1 first:
+   add MD_AUDIO_OUTPUT_SHIFT_1_TEST=1
+
+2. If still quiet and no clipping/harshness:
+   remove SHIFT=1
+   add MD_AUDIO_OUTPUT_SHIFT_0_TEST=1
+
+3. Compare volume to Genesis_MiSTer Super Hang-On on the same TV.
+
+4. Confirm:
+   patch104 noise remains fixed
+   fm_only_test.vgm remains clean
+   no clipping or harshness returns
+   MiSTer menu return remains OK
+```
+
+Do not change VGM timing, loader, mode5 player, PCM/DAC, JT12 CEN, ladder, or
+pre-genmix FM LPF for this A/B.
+
+
+## 2026-06-08: sys_top/audio_out Gain A/B
+
+Hardware result:
+
+```text
+MD_AUDIO_OUTPUT_SHIFT_1_TEST:
+  cyan/white top stripe visible
+  sound quality remains good
+  overall HDMI volume does not noticeably change
+```
+
+Conclusion:
+
+```text
+emu.sv MD_AUDIO_OUTPUT_SHIFT does not appear to be the effective final gain
+control for the audible HDMI path.
+
+Previous sys_top/audio_out-side tests did affect HDMI:
+  MD_AUDIO_FORCE_MUTE_TEST muted HDMI completely
+  MD_AUDIO_SYSOUT_ATTENUATE_24DB made HDMI much quieter
+
+Therefore the next gain A/B should be applied at the sys_top/audio_out input
+side, at the same point where force-mute and sysout attenuation worked.
+```
+
+Current best QSF remains:
+
+```text
+FIXED_REGION_MODE=5
+MD_JT12_CEN_NTSC_TEST=1
+MD_JT12_LADDER_EFFECT_TEST=1
+MD_AUDIO_PRE_GENMIX_FM_LPF_TEST=1
+```
+
+The `MD_AUDIO_OUTPUT_SHIFT_1_TEST` macro was removed from QSF after this
+hardware result.
+
+Added sys_top/audio_out-side gain A/B macros:
+
+```text
+MD_AUDIO_SYSOUT_GAIN_2X_SAT_TEST
+  applies signed saturating x2 gain to audio_out core_l/core_r inputs
+  marker: green/white top stripe
+
+MD_AUDIO_SYSOUT_GAIN_4X_SAT_TEST
+  applies signed saturating x4 gain to audio_out core_l/core_r inputs
+  marker: orange/blue top stripe
+```
+
+Implementation point:
+
+```text
+sys/sys_top.v:
+  audio_l/r
+    -> optional MD_AUDIO_FORCE_MUTE_TEST
+    -> optional MD_AUDIO_SYSOUT_ATTENUATE_24DB / 6DB
+    -> optional MD_AUDIO_SYSOUT_GAIN_4X_SAT_TEST
+    -> optional MD_AUDIO_SYSOUT_GAIN_2X_SAT_TEST
+    -> audio_out.core_l/core_r
+
+ALSA audio_out inputs use the same gain/mute/attenuation selection when ALSA
+is enabled.
+```
+
+Saturation behavior:
+
+```text
+wide signed calculation:
+  x2: sign-extended 18-bit sample <<< 1
+  x4: sign-extended 18-bit sample <<< 2
+
+clamp:
+  >  32767 ->  32767
+  < -32768 -> -32768
+
+No wrapping gain is used.
+```
+
+Priority:
+
+```text
+MD_AUDIO_FORCE_MUTE_TEST
+MD_AUDIO_SYSOUT_ATTENUATE_24DB
+MD_AUDIO_SYSOUT_ATTENUATE_6DB
+MD_AUDIO_SYSOUT_GAIN_4X_SAT_TEST
+MD_AUDIO_SYSOUT_GAIN_2X_SAT_TEST
+default passthrough
+```
+
+Hardware test order:
+
+```text
+1. Test 2x first:
+   add MD_AUDIO_SYSOUT_GAIN_2X_SAT_TEST=1
+
+2. If still too quiet and patch104 remains clean:
+   remove 2x
+   add MD_AUDIO_SYSOUT_GAIN_4X_SAT_TEST=1
+
+3. Compare volume to Genesis_MiSTer Super Hang-On on the same TV.
+
+4. Confirm:
+   ch1_main_patch.vgm remains clean
+   fm_only_test.vgm remains clean
+   snare / hi-hat harshness does not return
+   no obvious clipping or pumping appears
+   MiSTer menu return remains OK
+```
+
+Do not change VGM timing, loader, mode5 player, PCM/DAC, JT12 CEN, ladder,
+pre-genmix FM LPF, fm_adjust, or jt12_genmix for this A/B.
 
 
 ## 2026-06-08: Raw JT12 FM Still Distorted, JT12 Clock/CEN A/B Added

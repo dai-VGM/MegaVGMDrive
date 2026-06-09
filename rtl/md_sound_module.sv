@@ -76,7 +76,12 @@ module md_sound_module
 	    output logic       [15:0] jt12_cen_interval_ge5_count,
 	    output logic        [7:0] jt12_cen_interval_min,
 	    output logic        [7:0] jt12_cen_interval_max,
-	    output logic        [7:0] jt12_cen_interval_last
+	    output logic        [7:0] jt12_cen_interval_last,
+	    output logic       [15:0] fm_raw_abs_peak,
+	    output logic       [15:0] fm_adjust_abs_peak,
+	    output logic       [15:0] fm_lpf_abs_peak,
+	    output logic       [15:0] genmix_abs_peak,
+	    output logic       [15:0] final_audio_abs_peak
 	);
 
 `ifdef MD_YM_WRITE_SLOW_TEST
@@ -86,6 +91,35 @@ module md_sound_module
     localparam bit MD_YM_WRITE_SLOW_BUILD = 1'b0;
     localparam logic [7:0] YM_EXTRA_WRITE_GAP_CYCLES = 8'd0;
 `endif
+
+    function automatic [15:0] md_audio_abs16(input logic signed [15:0] value);
+        md_audio_abs16 = value[15] ? (~value + 16'd1) : value;
+    endfunction
+
+    function automatic [15:0] md_audio_abs_max16(
+        input logic signed [15:0] left,
+        input logic signed [15:0] right
+    );
+        logic [15:0] left_abs;
+        logic [15:0] right_abs;
+        begin
+            left_abs = md_audio_abs16(left);
+            right_abs = md_audio_abs16(right);
+            md_audio_abs_max16 = (left_abs > right_abs) ? left_abs : right_abs;
+        end
+    endfunction
+
+    function automatic signed [15:0] md_audio_sat21(input logic signed [20:0] value);
+        begin
+            if (value > 21'sd32767) begin
+                md_audio_sat21 = 16'sd32767;
+            end else if (value < -21'sd32768) begin
+                md_audio_sat21 = -16'sd32768;
+            end else begin
+                md_audio_sat21 = value[15:0];
+            end
+        end
+    endfunction
 
 `ifdef MD_YM_FORCE_LFO_OFF_TEST
     localparam bit MD_YM_FORCE_LFO_OFF_BUILD = 1'b1;
@@ -264,6 +298,36 @@ module md_sound_module
     localparam bit MD_AUDIO_PRE_GENMIX_FM_LPF_BUILD = 1'b1;
 `else
     localparam bit MD_AUDIO_PRE_GENMIX_FM_LPF_BUILD = 1'b0;
+`endif
+
+`ifdef MD_AUDIO_POST_FM_LPF_GAIN_TEST
+    localparam bit MD_AUDIO_POST_FM_LPF_GAIN_BUILD = 1'b1;
+`else
+    localparam bit MD_AUDIO_POST_FM_LPF_GAIN_BUILD = 1'b0;
+`endif
+
+`ifdef MD_AUDIO_GENMIX_OUTPUT_GAIN_2X_TEST
+    localparam bit MD_AUDIO_GENMIX_OUTPUT_GAIN_2X_BUILD = 1'b1;
+`else
+    localparam bit MD_AUDIO_GENMIX_OUTPUT_GAIN_2X_BUILD = 1'b0;
+`endif
+
+`ifdef MD_AUDIO_GENMIX_OUTPUT_GAIN_4X_TEST
+    localparam bit MD_AUDIO_GENMIX_OUTPUT_GAIN_4X_BUILD = 1'b1;
+`else
+    localparam bit MD_AUDIO_GENMIX_OUTPUT_GAIN_4X_BUILD = 1'b0;
+`endif
+
+`ifdef MD_AUDIO_GENMIX_OUTPUT_GAIN_6X_TEST
+    localparam bit MD_AUDIO_GENMIX_OUTPUT_GAIN_6X_BUILD = 1'b1;
+`else
+    localparam bit MD_AUDIO_GENMIX_OUTPUT_GAIN_6X_BUILD = 1'b0;
+`endif
+
+`ifdef MD_AUDIO_GENMIX_OUTPUT_GAIN_8X_TEST
+    localparam bit MD_AUDIO_GENMIX_OUTPUT_GAIN_8X_BUILD = 1'b1;
+`else
+    localparam bit MD_AUDIO_GENMIX_OUTPUT_GAIN_8X_BUILD = 1'b0;
 `endif
 
 `ifdef MD_AUDIO_LPF_MODEL1_TEST
@@ -838,10 +902,29 @@ module md_sound_module
 	        .out   (fm_pre_genmix_lpf_r)
 	    );
 
+	    wire signed [16:0] fm_post_lpf_gain_l_wide =
+	        {fm_pre_genmix_lpf_l[15], fm_pre_genmix_lpf_l} <<< 1;
+	    wire signed [16:0] fm_post_lpf_gain_r_wide =
+	        {fm_pre_genmix_lpf_r[15], fm_pre_genmix_lpf_r} <<< 1;
+	    wire signed [15:0] fm_post_lpf_gain_l =
+	        (fm_post_lpf_gain_l_wide > 17'sd32767)  ? 16'sd32767  :
+	        (fm_post_lpf_gain_l_wide < -17'sd32768) ? -16'sd32768 :
+	                                                   fm_post_lpf_gain_l_wide[15:0];
+	    wire signed [15:0] fm_post_lpf_gain_r =
+	        (fm_post_lpf_gain_r_wide > 17'sd32767)  ? 16'sd32767  :
+	        (fm_post_lpf_gain_r_wide < -17'sd32768) ? -16'sd32768 :
+	                                                   fm_post_lpf_gain_r_wide[15:0];
+	    wire signed [15:0] fm_pre_genmix_lpf_selected_l =
+	        MD_AUDIO_POST_FM_LPF_GAIN_BUILD ? fm_post_lpf_gain_l :
+	                                          fm_pre_genmix_lpf_l;
+	    wire signed [15:0] fm_pre_genmix_lpf_selected_r =
+	        MD_AUDIO_POST_FM_LPF_GAIN_BUILD ? fm_post_lpf_gain_r :
+	                                          fm_pre_genmix_lpf_r;
+
 	    wire signed [15:0] fm_pre_genmix_l =
-	        MD_AUDIO_PRE_GENMIX_FM_LPF_BUILD ? fm_pre_genmix_lpf_l : fm_adjust_l;
+	        MD_AUDIO_PRE_GENMIX_FM_LPF_BUILD ? fm_pre_genmix_lpf_selected_l : fm_adjust_l;
 	    wire signed [15:0] fm_pre_genmix_r =
-	        MD_AUDIO_PRE_GENMIX_FM_LPF_BUILD ? fm_pre_genmix_lpf_r : fm_adjust_r;
+	        MD_AUDIO_PRE_GENMIX_FM_LPF_BUILD ? fm_pre_genmix_lpf_selected_r : fm_adjust_r;
 
 	    wire signed [10:0] psg_adjust = psg_pre - (psg_pre >>> 5);
 
@@ -912,6 +995,16 @@ module md_sound_module
 
 	    wire signed [15:0] pre_lpf_l;
 	    wire signed [15:0] pre_lpf_r;
+	    wire signed [15:0] pre_lpf_gain_2x_l;
+	    wire signed [15:0] pre_lpf_gain_2x_r;
+	    wire signed [15:0] pre_lpf_gain_4x_l;
+	    wire signed [15:0] pre_lpf_gain_4x_r;
+	    wire signed [15:0] pre_lpf_gain_6x_l;
+	    wire signed [15:0] pre_lpf_gain_6x_r;
+	    wire signed [15:0] pre_lpf_gain_8x_l;
+	    wire signed [15:0] pre_lpf_gain_8x_r;
+	    wire signed [15:0] pre_lpf_selected_l;
+	    wire signed [15:0] pre_lpf_selected_r;
 	    wire signed [15:0] lpf_audio_l;
 	    wire signed [15:0] lpf_audio_r;
 	    logic signed [15:0] normal_latched_l;
@@ -965,6 +1058,37 @@ module md_sound_module
         .mixed_wrap_count_right (genmix_wrap_count_r)
     );
 
+    assign pre_lpf_gain_2x_l =
+        md_audio_sat21({{5{pre_lpf_l[15]}}, pre_lpf_l} <<< 1);
+    assign pre_lpf_gain_2x_r =
+        md_audio_sat21({{5{pre_lpf_r[15]}}, pre_lpf_r} <<< 1);
+    assign pre_lpf_gain_4x_l =
+        md_audio_sat21({{5{pre_lpf_l[15]}}, pre_lpf_l} <<< 2);
+    assign pre_lpf_gain_4x_r =
+        md_audio_sat21({{5{pre_lpf_r[15]}}, pre_lpf_r} <<< 2);
+    assign pre_lpf_gain_6x_l =
+        md_audio_sat21(({{5{pre_lpf_l[15]}}, pre_lpf_l} <<< 2) +
+                       ({{5{pre_lpf_l[15]}}, pre_lpf_l} <<< 1));
+    assign pre_lpf_gain_6x_r =
+        md_audio_sat21(({{5{pre_lpf_r[15]}}, pre_lpf_r} <<< 2) +
+                       ({{5{pre_lpf_r[15]}}, pre_lpf_r} <<< 1));
+    assign pre_lpf_gain_8x_l =
+        md_audio_sat21({{5{pre_lpf_l[15]}}, pre_lpf_l} <<< 3);
+    assign pre_lpf_gain_8x_r =
+        md_audio_sat21({{5{pre_lpf_r[15]}}, pre_lpf_r} <<< 3);
+    assign pre_lpf_selected_l =
+        MD_AUDIO_GENMIX_OUTPUT_GAIN_8X_BUILD ? pre_lpf_gain_8x_l :
+        MD_AUDIO_GENMIX_OUTPUT_GAIN_6X_BUILD ? pre_lpf_gain_6x_l :
+        MD_AUDIO_GENMIX_OUTPUT_GAIN_4X_BUILD ? pre_lpf_gain_4x_l :
+        MD_AUDIO_GENMIX_OUTPUT_GAIN_2X_BUILD ? pre_lpf_gain_2x_l :
+                                               pre_lpf_l;
+    assign pre_lpf_selected_r =
+        MD_AUDIO_GENMIX_OUTPUT_GAIN_8X_BUILD ? pre_lpf_gain_8x_r :
+        MD_AUDIO_GENMIX_OUTPUT_GAIN_6X_BUILD ? pre_lpf_gain_6x_r :
+        MD_AUDIO_GENMIX_OUTPUT_GAIN_4X_BUILD ? pre_lpf_gain_4x_r :
+        MD_AUDIO_GENMIX_OUTPUT_GAIN_2X_BUILD ? pre_lpf_gain_2x_r :
+                                               pre_lpf_r;
+
     // LPF mode from Genesis_MiSTer genesis_lpf.v:
     //   2'b00: Model 1 low-pass
     //   2'b01: Model 2 low-pass
@@ -977,19 +1101,19 @@ module md_sound_module
 
     genesis_lpf lpf_left
     (
-        .clk      (clk),
+	        .clk      (clk),
 	        .reset    (reset),
 	        .lpf_mode (MD_AUDIO_LPF_MODE),
-	        .in       (pre_lpf_l),
+	        .in       (pre_lpf_selected_l),
 	        .out      (lpf_audio_l)
 	    );
 
     genesis_lpf lpf_right
     (
-        .clk      (clk),
+	        .clk      (clk),
 	        .reset    (reset),
 	        .lpf_mode (MD_AUDIO_LPF_MODE),
-	        .in       (pre_lpf_r),
+	        .in       (pre_lpf_selected_r),
 	        .out      (lpf_audio_r)
 	    );
 
@@ -999,8 +1123,46 @@ module md_sound_module
 	        MD_AUDIO_NORMAL_SAMPLE_LATCH_BUILD ? normal_latched_l : lpf_audio_l;
 	    wire signed [15:0] normal_audio_r =
 	        MD_AUDIO_NORMAL_SAMPLE_LATCH_BUILD ? normal_latched_r : lpf_audio_r;
+	    wire signed [15:0] selected_audio_l =
+	        raw_jt12_output_build ? raw_jt12_audio_l : normal_audio_l;
+	    wire signed [15:0] selected_audio_r =
+	        raw_jt12_output_build ? raw_jt12_audio_r : normal_audio_r;
 
-	    assign audio_l = raw_jt12_output_build ? raw_jt12_audio_l : normal_audio_l;
-	    assign audio_r = raw_jt12_output_build ? raw_jt12_audio_r : normal_audio_r;
+	    wire [15:0] fm_raw_abs_now = md_audio_abs_max16(fm_left, fm_right);
+	    wire [15:0] fm_adjust_abs_now = md_audio_abs_max16(fm_adjust_l, fm_adjust_r);
+	    wire [15:0] fm_lpf_abs_now =
+	        md_audio_abs_max16(fm_pre_genmix_lpf_selected_l, fm_pre_genmix_lpf_selected_r);
+	    wire [15:0] genmix_abs_now = md_audio_abs_max16(pre_lpf_l, pre_lpf_r);
+	    wire [15:0] final_audio_abs_now =
+	        md_audio_abs_max16(selected_audio_l, selected_audio_r);
+
+	    always_ff @(posedge clk) begin
+	        if (reset) begin
+	            fm_raw_abs_peak <= 16'd0;
+	            fm_adjust_abs_peak <= 16'd0;
+	            fm_lpf_abs_peak <= 16'd0;
+	            genmix_abs_peak <= 16'd0;
+	            final_audio_abs_peak <= 16'd0;
+	        end else if (audio_sample_valid) begin
+	            if (fm_raw_abs_now > fm_raw_abs_peak) begin
+	                fm_raw_abs_peak <= fm_raw_abs_now;
+	            end
+	            if (fm_adjust_abs_now > fm_adjust_abs_peak) begin
+	                fm_adjust_abs_peak <= fm_adjust_abs_now;
+	            end
+	            if (fm_lpf_abs_now > fm_lpf_abs_peak) begin
+	                fm_lpf_abs_peak <= fm_lpf_abs_now;
+	            end
+	            if (genmix_abs_now > genmix_abs_peak) begin
+	                genmix_abs_peak <= genmix_abs_now;
+	            end
+	            if (final_audio_abs_now > final_audio_abs_peak) begin
+	                final_audio_abs_peak <= final_audio_abs_now;
+	            end
+	        end
+	    end
+
+	    assign audio_l = selected_audio_l;
+	    assign audio_r = selected_audio_r;
 
 endmodule
