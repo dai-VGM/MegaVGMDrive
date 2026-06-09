@@ -474,10 +474,13 @@ module emu
     wire signed [15:0] md_audio_l;
     wire signed [15:0] md_audio_r;
     wire               audio_gate_open;
+    wire               audio_muted;
     wire signed [15:0] audio_l_safe = md_audio_l >>> MD_AUDIO_OUTPUT_SHIFT;
     wire signed [15:0] audio_r_safe = md_audio_r >>> MD_AUDIO_OUTPUT_SHIFT;
-    wire signed [15:0] audio_l_gated = audio_gate_open ? audio_l_safe : 16'sd0;
-    wire signed [15:0] audio_r_gated = audio_gate_open ? audio_r_safe : 16'sd0;
+    wire signed [15:0] audio_l_gated =
+        (audio_gate_open && !audio_muted) ? audio_l_safe : 16'sd0;
+    wire signed [15:0] audio_r_gated =
+        (audio_gate_open && !audio_muted) ? audio_r_safe : 16'sd0;
     wire signed [15:0] audio_l_final =
         MD_AUDIO_FORCE_MUTE_BUILD ? 16'sd0 : audio_l_gated;
     wire signed [15:0] audio_r_final =
@@ -633,6 +636,8 @@ module emu
     wire        vgm_loop_taken_debug;
     wire        vgm_end_command_seen;
     wire        vgm_restarted_from_data_start;
+    wire        vgm_pcm_oob;
+    wire [31:0] vgm_pcm_oob_count;
     wire [31:0] vgm_wait_ticks_consumed_debug;
     wire        mode5_sound_reset_active;
     wire        mode5_player_start_pulse_debug;
@@ -824,6 +829,7 @@ module emu
         .startup_waiting       (startup_waiting),
         .startup_done          (startup_done),
         .audio_gate_open       (audio_gate_open),
+        .audio_muted           (audio_muted),
         .ioctl_download        (ioctl_download),
         .ioctl_wr              (ioctl_wr),
         .ioctl_addr            (ioctl_addr),
@@ -847,6 +853,8 @@ module emu
         .vgm_loop_taken_debug  (vgm_loop_taken_debug),
         .vgm_end_command_seen  (vgm_end_command_seen),
         .vgm_restarted_from_data_start(vgm_restarted_from_data_start),
+        .vgm_pcm_oob           (vgm_pcm_oob),
+        .vgm_pcm_oob_count     (vgm_pcm_oob_count),
         .vgm_wait_ticks_consumed_debug(vgm_wait_ticks_consumed_debug),
         .mode5_sound_reset_active(mode5_sound_reset_active),
         .mode5_player_start_pulse_debug(mode5_player_start_pulse_debug),
@@ -1349,6 +1357,8 @@ module emu
         vgm_loop_taken_debug,
         vgm_end_command_seen,
         vgm_restarted_from_data_start,
+        vgm_pcm_oob,
+        vgm_pcm_oob_count,
         vgm_wait_ticks_consumed_debug,
         vgm_unsupported_opcode,
         vgm_unsupported_pc,

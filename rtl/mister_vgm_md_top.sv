@@ -47,6 +47,11 @@ module mister_vgm_md_top #(
     // stale YM2612/JT12 and PSG state cannot bleed into the next VGM.
     parameter logic [31:0] MODE5_SOUND_RESET_CYCLES = 32'd32_768,
 
+    // REGION_MODE=5 final-output mute release delay. This keeps the MiSTer
+    // audio pins silent while the loaded player and sound core settle after a
+    // completed OSD load. 1,000,000 cycles is about 50 ms at 20 MHz.
+    parameter logic [31:0] MODE5_AUDIO_UNMUTE_DELAY_CYCLES = 32'd1_000_000,
+
     // Bring-up replay/retry support. If the fixed-region player misses the
     // first start or stalls before END, reset only the player wrapper and try
     // again without disturbing the JT12/JT89 audio path.
@@ -66,8 +71,8 @@ module mister_vgm_md_top #(
     // Signed stereo PCM from md_sound_module. A future MiSTer core skeleton
     // should route these to the platform AUDIO_L/AUDIO_R path with the expected
     // width/sign convention.
-    output signed      [15:0] audio_l,
-    output signed      [15:0] audio_r,
+    output logic signed [15:0] audio_l,
+    output logic signed [15:0] audio_r,
     output logic              audio_sample_valid,
 
     // Optional debug/status pins for early bring-up.
@@ -81,6 +86,7 @@ module mister_vgm_md_top #(
     output logic              startup_waiting,
     output logic              startup_done,
     output logic              audio_gate_open,
+    output logic              audio_muted,
 
     // MiSTer file download bus. Used only by REGION_MODE=5.
     input  logic              ioctl_download,
@@ -108,6 +114,8 @@ module mister_vgm_md_top #(
     output logic              vgm_loop_taken_debug,
     output logic              vgm_end_command_seen,
     output logic              vgm_restarted_from_data_start,
+    output logic              vgm_pcm_oob,
+    output logic [31:0]       vgm_pcm_oob_count,
     output logic [31:0]       vgm_wait_ticks_consumed_debug,
     output logic              mode5_sound_reset_active,
     output logic              mode5_player_start_pulse_debug,
@@ -162,6 +170,10 @@ module mister_vgm_md_top #(
     logic [31:0] start_accept_counter = 32'd0;
     logic [31:0] player_done_timeout_ticks = 32'd0;
     logic [31:0] replay_delay_ticks = 32'd0;
+    logic signed [15:0] raw_audio_l;
+    logic signed [15:0] raw_audio_r;
+    logic               raw_audio_sample_valid;
+    logic               audio_runtime_open;
 
     typedef enum logic [3:0] {
         STARTUP_RESET,
@@ -201,6 +213,11 @@ module mister_vgm_md_top #(
                              (startup_state == STARTUP_REPLAY_WAIT);
     assign startup_done = (startup_state == STARTUP_PLAYING) ||
                           (startup_state == STARTUP_REPLAY_WAIT);
+
+    assign audio_sample_valid = raw_audio_sample_valid;
+    assign audio_muted = !audio_runtime_open;
+    assign audio_l = audio_runtime_open ? raw_audio_l : 16'sd0;
+    assign audio_r = audio_runtime_open ? raw_audio_r : 16'sd0;
 
     always_ff @(posedge clk) begin
         if (reset) begin
@@ -401,6 +418,9 @@ module mister_vgm_md_top #(
             logic mode5_sound_core_reset;
             logic mode5_player_start_pulse = 1'b0;
             logic [31:0] mode5_sound_reset_counter = 32'd0;
+            logic [31:0] mode5_audio_unmute_counter = 32'd0;
+            logic mode5_audio_unmute_ready = 1'b0;
+            logic mode5_audio_pre_unmute;
 
             always_ff @(posedge clk) begin
                 if (reset) begin
@@ -442,6 +462,32 @@ module mister_vgm_md_top #(
                                             vgm_load_overflow;
             assign mode5_sound_reset_active = mode5_sound_reset_active_i;
             assign mode5_player_start_pulse_debug = mode5_player_start_pulse;
+            assign mode5_audio_pre_unmute = audio_gate_open &&
+                                            vgm_load_done &&
+                                            vgm_header_valid &&
+                                            !vgm_load_busy &&
+                                            !vgm_load_error &&
+                                            !vgm_load_overflow &&
+                                            !vgm_player_error &&
+                                            !mode5_sound_core_reset &&
+                                            player_busy;
+            assign audio_runtime_open = mode5_audio_pre_unmute &&
+                                        mode5_audio_unmute_ready;
+
+            always_ff @(posedge clk) begin
+                if (reset || !mode5_audio_pre_unmute) begin
+                    mode5_audio_unmute_counter <= 32'd0;
+                    mode5_audio_unmute_ready <= 1'b0;
+                end else if (MODE5_AUDIO_UNMUTE_DELAY_CYCLES == 32'd0) begin
+                    mode5_audio_unmute_counter <= 32'd0;
+                    mode5_audio_unmute_ready <= 1'b1;
+                end else if (mode5_audio_unmute_counter >= (MODE5_AUDIO_UNMUTE_DELAY_CYCLES - 32'd1)) begin
+                    mode5_audio_unmute_ready <= 1'b1;
+                end else begin
+                    mode5_audio_unmute_counter <= mode5_audio_unmute_counter + 32'd1;
+                    mode5_audio_unmute_ready <= 1'b0;
+                end
+            end
 
             vgm_file_loader #(
                 .ADDR_WIDTH       (VGM_LOAD_ADDR_WIDTH),
@@ -502,6 +548,8 @@ module mister_vgm_md_top #(
                 .loop_taken_debug      (vgm_loop_taken_debug),
                 .end_command_seen      (vgm_end_command_seen),
                 .restarted_from_data_start(vgm_restarted_from_data_start),
+                .pcm_oob               (vgm_pcm_oob),
+                .pcm_oob_count         (vgm_pcm_oob_count),
                 .wait_ticks_consumed_debug(vgm_wait_ticks_consumed_debug),
                 .pc_debug              (player_pc_debug),
                 .last_cmd_debug        (player_last_cmd_debug)
@@ -518,9 +566,9 @@ module mister_vgm_md_top #(
                 .psg_cmd_data          (psg_cmd_data),
                 .ym_cmd_ready          (ym_cmd_ready),
                 .psg_cmd_ready         (psg_cmd_ready),
-                .audio_l               (audio_l),
-                .audio_r               (audio_r),
-                .audio_sample_valid    (audio_sample_valid),
+                .audio_l               (raw_audio_l),
+                .audio_r               (raw_audio_r),
+                .audio_sample_valid    (raw_audio_sample_valid),
                 .fm_adjust_clip_count_l(fm_adjust_clip_count_l),
                 .fm_adjust_clip_count_r(fm_adjust_clip_count_r),
                 .genmix_wrap_count_l   (genmix_wrap_count_l),
@@ -566,9 +614,12 @@ module mister_vgm_md_top #(
             assign vgm_loop_taken_debug = 1'b0;
             assign vgm_end_command_seen = 1'b0;
             assign vgm_restarted_from_data_start = 1'b0;
+            assign vgm_pcm_oob = 1'b0;
+            assign vgm_pcm_oob_count = 32'd0;
             assign vgm_wait_ticks_consumed_debug = 32'd0;
             assign mode5_sound_reset_active = 1'b0;
             assign mode5_player_start_pulse_debug = 1'b0;
+            assign audio_runtime_open = audio_gate_open;
 
             md_sound_fixed_region_test #(
                 .REGION_MODE (REGION_MODE)
@@ -578,9 +629,9 @@ module mister_vgm_md_top #(
                 .player_reset          (player_reset_active),
                 .start                 (start_pulse),
                 .vgm_wait_tick         (vgm_wait_tick),
-                .audio_l               (audio_l),
-                .audio_r               (audio_r),
-                .audio_sample_valid    (audio_sample_valid),
+                .audio_l               (raw_audio_l),
+                .audio_r               (raw_audio_r),
+                .audio_sample_valid    (raw_audio_sample_valid),
                 .player_busy           (player_busy),
                 .player_done           (player_done),
                 .player_pc_debug       (player_pc_debug),
