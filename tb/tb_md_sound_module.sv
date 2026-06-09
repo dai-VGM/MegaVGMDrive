@@ -84,7 +84,32 @@ module tb_md_sound_module;
 
         .audio_l            (audio_l),
         .audio_r            (audio_r),
-        .audio_sample_valid (audio_sample_valid)
+        .audio_sample_valid (audio_sample_valid),
+        .fm_adjust_clip_count_l(),
+        .fm_adjust_clip_count_r(),
+        .genmix_wrap_count_l(),
+        .genmix_wrap_count_r(),
+        .ym_write_requested_count(),
+        .ym_write_accepted_count(),
+        .ym_write_dropped_or_busy_count(),
+        .ym_port0_count(),
+        .ym_port1_count(),
+        .last_ym_port(),
+        .last_ym_addr(),
+        .last_ym_data(),
+        .jt12_cen_interval_1_count(),
+        .jt12_cen_interval_2_count(),
+        .jt12_cen_interval_3_count(),
+        .jt12_cen_interval_4_count(),
+        .jt12_cen_interval_ge5_count(),
+        .jt12_cen_interval_min(),
+        .jt12_cen_interval_max(),
+        .jt12_cen_interval_last(),
+        .fm_raw_abs_peak(),
+        .fm_adjust_abs_peak(),
+        .fm_lpf_abs_peak(),
+        .genmix_abs_peak(),
+        .final_audio_abs_peak()
     );
 
     // 100 MHz simulation clock. This is not the final Mega Drive master clock;

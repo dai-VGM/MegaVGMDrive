@@ -15,15 +15,15 @@ module tb_vgm_file_loader;
     logic load_done_pulse;
     logic load_error;
     logic overflow_error;
-    logic [4:0] file_size;
+    logic [18:0] file_size;
     logic [31:0] magic_debug;
-    logic [3:0] rd_addr = 4'd0;
-    logic [4:0] normal_file_size;
+    logic [17:0] rd_addr = 18'd0;
+    logic [18:0] normal_file_size;
     logic [31:0] normal_magic_debug;
     integer load_done_pulse_count = 0;
 
     vgm_file_loader #(
-        .ADDR_WIDTH       (4),
+        .ADDR_WIDTH       (18),
         .ACCEPT_ANY_INDEX (1'b0),
         .FILE_INDEX       (16'd1)
     ) dut (
@@ -88,7 +88,7 @@ module tb_vgm_file_loader;
 
         download_tiny_vgm(16'd0);
 
-        if (load_done || load_busy || load_error || file_size != 5'd0) begin
+        if (load_done || load_busy || load_error || file_size != 19'd0) begin
             $display("FAIL index_mismatch done=%0b busy=%0b error=%0b size=%0d",
                      load_done, load_busy, load_error, file_size);
             $finish;
@@ -96,7 +96,7 @@ module tb_vgm_file_loader;
 
         download_tiny_vgm(16'd1);
 
-        if (!load_done || load_error || overflow_error || file_size != 5'd5 || load_done_pulse_count != 1) begin
+        if (!load_done || load_error || overflow_error || file_size != 19'd5 || load_done_pulse_count != 1) begin
             $display("FAIL normal_load done=%0b error=%0b overflow=%0b size=%0d",
                      load_done, load_error, overflow_error, file_size);
             $finish;
@@ -110,7 +110,7 @@ module tb_vgm_file_loader;
         normal_file_size = file_size;
         normal_magic_debug = magic_debug;
 
-        rd_addr <= 4'd4;
+        rd_addr <= 18'd4;
         repeat (2) @(posedge clk);
         if (rd_data != 8'h66) begin
             $display("FAIL rd_data=%02h", rd_data);
@@ -118,7 +118,26 @@ module tb_vgm_file_loader;
         end
 
         ioctl_download <= 1'b1;
-        write_byte(27'd16, 8'haa);
+        write_byte(27'd70000, 8'haa);
+        @(posedge clk);
+        ioctl_download <= 1'b0;
+        repeat (3) @(posedge clk);
+
+        if (!load_done || load_error || overflow_error || file_size != 19'd70001) begin
+            $display("FAIL above_64k_load done=%0b error=%0b overflow=%0b size=%0d",
+                     load_done, load_error, overflow_error, file_size);
+            $finish;
+        end
+
+        rd_addr <= 18'd70000;
+        repeat (2) @(posedge clk);
+        if (rd_data != 8'haa) begin
+            $display("FAIL above_64k_rd_data=%02h", rd_data);
+            $finish;
+        end
+
+        ioctl_download <= 1'b1;
+        write_byte(27'd262144, 8'hbb);
         @(posedge clk);
         ioctl_download <= 1'b0;
         repeat (3) @(posedge clk);
