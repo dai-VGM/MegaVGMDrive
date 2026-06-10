@@ -52,6 +52,12 @@ module mister_vgm_md_top #(
     // completed OSD load. 1,000,000 cycles is about 50 ms at 20 MHz.
     parameter logic [31:0] MODE5_AUDIO_UNMUTE_DELAY_CYCLES = 32'd1_000_000,
 
+    // REGION_MODE=5 explicit END repeat policy. This is intentionally separate
+    // from the one-shot load-session start path: disabled means END stays
+    // stopped/muted, enabled means a player_done edge schedules one reset/start
+    // through the dedicated repeat path.
+    parameter bit          MODE5_REPEAT_ENABLE = 1'b0,
+
     // Bring-up replay/retry support. If the fixed-region player misses the
     // first start or stalls before END, reset only the player wrapper and try
     // again without disturbing the JT12/JT89 audio path.
@@ -105,6 +111,14 @@ module mister_vgm_md_top #(
     output logic        [7:0] vgm_unsupported_opcode,
     output logic [VGM_LOAD_ADDR_WIDTH-1:0] vgm_unsupported_pc,
     output logic        [7:0] vgm_player_error_code,
+    output logic [VGM_LOAD_ADDR_WIDTH-1:0] vgm_error_pc_debug,
+    output logic        [7:0] vgm_error_cmd_debug,
+    output logic        [31:0] vgm_error_session_id,
+    output logic        [5:0] vgm_player_state_debug,
+    output logic              vgm_mem_rd_req_debug,
+    output logic              vgm_mem_rd_ready_debug,
+    output logic              vgm_mem_rd_valid_debug,
+    output logic [VGM_LOAD_ADDR_WIDTH-1:0] vgm_mem_rd_addr_debug,
     output logic [VGM_LOAD_ADDR_WIDTH:0] vgm_load_size,
     output logic [31:0]       vgm_load_magic,
     output logic [VGM_LOAD_ADDR_WIDTH-1:0] vgm_data_start_debug,
@@ -119,6 +133,21 @@ module mister_vgm_md_top #(
     output logic [31:0]       vgm_wait_ticks_consumed_debug,
     output logic              mode5_sound_reset_active,
     output logic              mode5_player_start_pulse_debug,
+    output logic [31:0]       mode5_load_begin_count,
+    output logic [31:0]       mode5_load_done_edge_count,
+    output logic [31:0]       mode5_sound_reset_start_count,
+    output logic [31:0]       mode5_player_start_count,
+    output logic [31:0]       mode5_player_reset_count,
+    output logic [31:0]       mode5_playback_session_id,
+    output logic [31:0]       mode5_duplicate_start_blocked_count,
+    output logic [31:0]       mode5_player_end_count,
+    output logic [31:0]       mode5_repeat_restart_count,
+    output logic              mode5_done_armed_debug,
+    output logic [31:0]       mode5_repeat_session_id,
+    output logic [31:0]       mode5_done_session_id,
+    output logic [31:0]       mode5_cycles_since_start,
+    output logic [VGM_LOAD_ADDR_WIDTH-1:0] mode5_done_pc_debug,
+    output logic [7:0]        mode5_done_cmd_debug,
     output logic [15:0]       fm_adjust_clip_count_l,
     output logic [15:0]       fm_adjust_clip_count_r,
     output logic [15:0]       genmix_wrap_count_l,
@@ -343,7 +372,7 @@ module mister_vgm_md_top #(
                 STARTUP_PLAYING: begin
                     audio_gate_open <= 1'b1;
 
-                    if (player_done) begin
+                    if ((REGION_MODE != 5) && player_done) begin
                         if (REPLAY_ENABLE) begin
                             replay_delay_ticks <= 32'd0;
                             startup_state <= STARTUP_REPLAY_WAIT;
@@ -405,6 +434,11 @@ module mister_vgm_md_top #(
         if (REGION_MODE == 5) begin : loaded_vgm_mode
             logic [VGM_LOAD_ADDR_WIDTH-1:0] ram_rd_addr;
             logic [7:0] ram_rd_data;
+            logic mem_rd_req;
+            logic [VGM_LOAD_ADDR_WIDTH-1:0] mem_rd_addr;
+            logic mem_rd_ready;
+            logic mem_rd_valid;
+            logic [7:0] mem_rd_data;
             logic load_done_pulse;
             logic ym_cmd_valid;
             logic ym_cmd_port;
@@ -418,50 +452,301 @@ module mister_vgm_md_top #(
             logic mode5_sound_core_reset;
             logic mode5_player_start_pulse = 1'b0;
             logic [31:0] mode5_sound_reset_counter = 32'd0;
+            logic ioctl_download_d = 1'b0;
+            logic mode5_load_begin_pulse;
+            logic mode5_load_session_active = 1'b0;
+            logic mode5_playback_armed = 1'b0;
+            logic mode5_playback_started = 1'b0;
+            logic mode5_player_session_reset = 1'b0;
             logic [31:0] mode5_audio_unmute_counter = 32'd0;
             logic mode5_audio_unmute_ready = 1'b0;
             logic mode5_audio_pre_unmute;
+            logic [31:0] mode5_load_begin_count_i = 32'd0;
+            logic [31:0] mode5_load_done_edge_count_i = 32'd0;
+            logic [31:0] mode5_sound_reset_start_count_i = 32'd0;
+            logic [31:0] mode5_player_start_count_i = 32'd0;
+            logic [31:0] mode5_player_reset_count_i = 32'd0;
+            logic [31:0] mode5_playback_session_id_i = 32'd0;
+            logic [31:0] mode5_duplicate_start_blocked_count_i = 32'd0;
+            logic [31:0] mode5_player_end_count_i = 32'd0;
+            logic [31:0] mode5_repeat_restart_count_i = 32'd0;
+            logic mode5_done_armed_i = 1'b0;
+            logic [31:0] mode5_done_armed_session_id_i = 32'd0;
+            logic [31:0] mode5_repeat_session_id_i = 32'd0;
+            logic [31:0] mode5_done_session_id_i = 32'd0;
+            logic [31:0] mode5_cycles_since_start_i = 32'd0;
+            logic [VGM_LOAD_ADDR_WIDTH-1:0] mode5_done_pc_debug_i = '0;
+            logic [7:0] mode5_done_cmd_debug_i = 8'd0;
+            logic [VGM_LOAD_ADDR_WIDTH-1:0] player_done_pc_debug;
+            logic [7:0] player_done_cmd_debug;
+            logic loaded_player_done;
+            logic player_done_d = 1'b0;
+            logic mode5_player_done_latched = 1'b0;
+            logic vgm_player_error_d = 1'b0;
+            logic [31:0] mode5_error_session_id_i = 32'd0;
+            logic mode5_done_edge;
+            logic mode5_player_error_edge;
+            localparam logic [1:0] MODE5_REPEAT_IDLE       = 2'd0;
+            localparam logic [1:0] MODE5_REPEAT_RESET      = 2'd1;
+            localparam logic [1:0] MODE5_REPEAT_WAIT_CLEAR = 2'd2;
+            logic [1:0] mode5_repeat_state = MODE5_REPEAT_IDLE;
+
+            assign mode5_load_begin_pulse =
+                ioctl_download && !ioctl_download_d &&
+                (ioctl_index == VGM_LOAD_FILE_INDEX);
+            assign mode5_done_edge =
+                loaded_player_done &&
+                !player_done_d &&
+                mode5_playback_started &&
+                mode5_done_armed_i &&
+                (mode5_done_armed_session_id_i == mode5_playback_session_id_i) &&
+                !mode5_load_session_active &&
+                !vgm_load_busy &&
+                !vgm_load_error &&
+                !vgm_load_overflow &&
+                !vgm_player_error;
+            assign mode5_player_error_edge =
+                vgm_player_error && !vgm_player_error_d;
 
             always_ff @(posedge clk) begin
                 if (reset) begin
+                    ioctl_download_d <= 1'b0;
                     mode5_sound_reset_active_i <= 1'b0;
                     mode5_player_start_pulse <= 1'b0;
                     mode5_sound_reset_counter <= 32'd0;
+                    mode5_load_session_active <= 1'b0;
+                    mode5_playback_armed <= 1'b0;
+                    mode5_playback_started <= 1'b0;
+                    mode5_player_session_reset <= 1'b0;
+                    mode5_load_begin_count_i <= 32'd0;
+                    mode5_load_done_edge_count_i <= 32'd0;
+                    mode5_sound_reset_start_count_i <= 32'd0;
+                    mode5_player_start_count_i <= 32'd0;
+                    mode5_player_reset_count_i <= 32'd0;
+                    mode5_playback_session_id_i <= 32'd0;
+                    mode5_duplicate_start_blocked_count_i <= 32'd0;
+                    mode5_player_end_count_i <= 32'd0;
+                    mode5_repeat_restart_count_i <= 32'd0;
+                    mode5_done_armed_i <= 1'b0;
+                    mode5_done_armed_session_id_i <= 32'd0;
+                    mode5_repeat_session_id_i <= 32'd0;
+                    mode5_done_session_id_i <= 32'd0;
+                    mode5_cycles_since_start_i <= 32'd0;
+                    mode5_done_pc_debug_i <= '0;
+                    mode5_done_cmd_debug_i <= 8'd0;
+                    mode5_player_done_latched <= 1'b0;
+                    player_done_d <= 1'b0;
+                    vgm_player_error_d <= 1'b0;
+                    mode5_error_session_id_i <= 32'd0;
+                    mode5_repeat_state <= MODE5_REPEAT_IDLE;
                 end else begin
+                    ioctl_download_d <= ioctl_download;
+                    player_done_d <= loaded_player_done;
+                    vgm_player_error_d <= vgm_player_error;
                     mode5_player_start_pulse <= 1'b0;
+                    mode5_player_session_reset <= 1'b0;
 
-                    if (vgm_load_busy || vgm_load_error || vgm_load_overflow) begin
+                    if (mode5_playback_started && player_busy && !loaded_player_done) begin
+                        mode5_done_armed_i <= 1'b1;
+                        mode5_done_armed_session_id_i <= mode5_playback_session_id_i;
+                    end
+
+                    if (mode5_playback_started && !loaded_player_done) begin
+                        mode5_cycles_since_start_i <=
+                            mode5_cycles_since_start_i + 32'd1;
+                    end
+
+                    if (mode5_done_edge) begin
+                        mode5_player_end_count_i <=
+                            mode5_player_end_count_i + 32'd1;
+                        mode5_done_armed_i <= 1'b0;
+                        mode5_done_armed_session_id_i <= 32'd0;
+                        mode5_done_session_id_i <= mode5_playback_session_id_i;
+                        mode5_done_pc_debug_i <= player_done_pc_debug;
+                        mode5_done_cmd_debug_i <= player_done_cmd_debug;
+                        mode5_player_done_latched <= 1'b1;
+                    end
+
+                    if (mode5_player_error_edge) begin
+                        mode5_error_session_id_i <= mode5_playback_session_id_i;
+                        mode5_playback_armed <= 1'b0;
+                        mode5_playback_started <= 1'b0;
+                        mode5_done_armed_i <= 1'b0;
+                        mode5_done_armed_session_id_i <= 32'd0;
+                        mode5_player_done_latched <= 1'b0;
+                        mode5_repeat_state <= MODE5_REPEAT_IDLE;
                         mode5_sound_reset_active_i <= 1'b0;
                         mode5_sound_reset_counter <= 32'd0;
+                    end
+
+                    if (mode5_load_begin_pulse) begin
+                        mode5_load_begin_count_i <= mode5_load_begin_count_i + 32'd1;
+                        mode5_playback_session_id_i <= mode5_playback_session_id_i + 32'd1;
+                        mode5_load_session_active <= 1'b1;
+                        mode5_playback_armed <= 1'b0;
+                        mode5_playback_started <= 1'b0;
+                        mode5_done_armed_i <= 1'b0;
+                        mode5_done_armed_session_id_i <= 32'd0;
+                        mode5_player_done_latched <= 1'b0;
+                        mode5_repeat_state <= MODE5_REPEAT_IDLE;
+                        player_done_d <= loaded_player_done;
+                        mode5_cycles_since_start_i <= 32'd0;
+                        mode5_player_session_reset <= 1'b1;
+                        mode5_player_reset_count_i <= mode5_player_reset_count_i + 32'd1;
+                        mode5_sound_reset_active_i <= 1'b0;
+                        mode5_sound_reset_counter <= 32'd0;
+                    end else if (mode5_done_edge &&
+                                 MODE5_REPEAT_ENABLE &&
+                                 vgm_load_done &&
+                                 vgm_header_valid &&
+                                 !vgm_load_busy &&
+                                 !vgm_load_error &&
+                                 !vgm_load_overflow &&
+                                 !vgm_player_error &&
+                                 !mode5_load_session_active) begin
+                        mode5_playback_armed <= 1'b0;
+                        mode5_playback_started <= 1'b0;
+                        mode5_done_armed_i <= 1'b0;
+                        mode5_done_armed_session_id_i <= 32'd0;
+                        mode5_player_done_latched <= 1'b0;
+                        mode5_cycles_since_start_i <= 32'd0;
+                        mode5_repeat_restart_count_i <=
+                            mode5_repeat_restart_count_i + 32'd1;
+                        mode5_playback_session_id_i <=
+                            mode5_playback_session_id_i + 32'd1;
+                        mode5_repeat_session_id_i <=
+                            mode5_playback_session_id_i + 32'd1;
+                        mode5_player_reset_count_i <=
+                            mode5_player_reset_count_i + 32'd1;
+                        mode5_sound_reset_counter <= 32'd0;
+                        mode5_sound_reset_active_i <= 1'b0;
+                        mode5_repeat_state <= MODE5_REPEAT_RESET;
                     end else if (load_done_pulse) begin
+                        mode5_load_done_edge_count_i <= mode5_load_done_edge_count_i + 32'd1;
+                        mode5_load_session_active <= 1'b0;
+                        mode5_playback_armed <= 1'b1;
+                        mode5_playback_started <= 1'b0;
+                        mode5_done_armed_i <= 1'b0;
+                        mode5_done_armed_session_id_i <= 32'd0;
+                        mode5_player_done_latched <= 1'b0;
+                        mode5_repeat_state <= MODE5_REPEAT_IDLE;
+                        mode5_repeat_session_id_i <= mode5_playback_session_id_i;
+                        player_done_d <= loaded_player_done;
+                        mode5_cycles_since_start_i <= 32'd0;
+                        mode5_sound_reset_counter <= 32'd0;
+
                         if (MODE5_SOUND_RESET_CYCLES == 32'd0) begin
                             mode5_sound_reset_active_i <= 1'b0;
                             mode5_player_start_pulse <= 1'b1;
-                            mode5_sound_reset_counter <= 32'd0;
+                            mode5_playback_started <= 1'b1;
+                            mode5_done_armed_i <= 1'b0;
+                            mode5_done_armed_session_id_i <= 32'd0;
+                            mode5_cycles_since_start_i <= 32'd0;
+                            mode5_player_start_count_i <= mode5_player_start_count_i + 32'd1;
                         end else begin
                             mode5_sound_reset_active_i <= 1'b1;
-                            mode5_sound_reset_counter <= 32'd0;
+                            mode5_sound_reset_start_count_i <=
+                                mode5_sound_reset_start_count_i + 32'd1;
+                        end
+                    end else if (vgm_load_busy || vgm_load_error || vgm_load_overflow) begin
+                        mode5_sound_reset_active_i <= 1'b0;
+                        mode5_sound_reset_counter <= 32'd0;
+                        if (vgm_load_error || vgm_load_overflow) begin
+                            mode5_load_session_active <= 1'b0;
+                            mode5_playback_armed <= 1'b0;
+                            mode5_playback_started <= 1'b0;
+                            mode5_done_armed_i <= 1'b0;
+                            mode5_done_armed_session_id_i <= 32'd0;
+                            mode5_repeat_state <= MODE5_REPEAT_IDLE;
+                            mode5_player_session_reset <= 1'b1;
+                            mode5_player_reset_count_i <= mode5_player_reset_count_i + 32'd1;
+                        end
+                    end else if (mode5_repeat_state == MODE5_REPEAT_RESET) begin
+                        mode5_player_session_reset <= 1'b1;
+                        mode5_sound_reset_active_i <= 1'b0;
+                        mode5_sound_reset_counter <= 32'd0;
+                        mode5_repeat_state <= MODE5_REPEAT_WAIT_CLEAR;
+                    end else if (mode5_repeat_state == MODE5_REPEAT_WAIT_CLEAR) begin
+                        if (!loaded_player_done && !player_busy) begin
+                            mode5_playback_armed <= 1'b1;
+                            mode5_playback_started <= 1'b0;
+                            mode5_cycles_since_start_i <= 32'd0;
+                            if (MODE5_SOUND_RESET_CYCLES == 32'd0) begin
+                                mode5_sound_reset_active_i <= 1'b0;
+                                mode5_player_start_pulse <= 1'b1;
+                                mode5_playback_started <= 1'b1;
+                                mode5_done_armed_i <= 1'b0;
+                                mode5_done_armed_session_id_i <= 32'd0;
+                                mode5_player_start_count_i <=
+                                    mode5_player_start_count_i + 32'd1;
+                            end else begin
+                                mode5_sound_reset_active_i <= 1'b1;
+                                mode5_sound_reset_start_count_i <=
+                                    mode5_sound_reset_start_count_i + 32'd1;
+                            end
+                            mode5_repeat_state <= MODE5_REPEAT_IDLE;
                         end
                     end else if (mode5_sound_reset_active_i) begin
                         if (mode5_sound_reset_counter >= (MODE5_SOUND_RESET_CYCLES - 32'd1)) begin
                             mode5_sound_reset_active_i <= 1'b0;
                             mode5_sound_reset_counter <= 32'd0;
-                            if (vgm_load_done) begin
+                            if (mode5_playback_armed &&
+                                !mode5_playback_started &&
+                                vgm_load_done &&
+                                !vgm_load_error &&
+                                !vgm_load_overflow) begin
                                 mode5_player_start_pulse <= 1'b1;
+                                mode5_playback_started <= 1'b1;
+                                mode5_done_armed_i <= 1'b0;
+                                mode5_done_armed_session_id_i <= 32'd0;
+                                mode5_cycles_since_start_i <= 32'd0;
+                                mode5_player_start_count_i <=
+                                    mode5_player_start_count_i + 32'd1;
+                            end else if (mode5_playback_started) begin
+                                mode5_duplicate_start_blocked_count_i <=
+                                    mode5_duplicate_start_blocked_count_i + 32'd1;
                             end
                         end else begin
                             mode5_sound_reset_counter <= mode5_sound_reset_counter + 32'd1;
                         end
+                    end else if (mode5_playback_armed &&
+                                 mode5_playback_started &&
+                                 vgm_load_done &&
+                                 vgm_header_valid &&
+                                 !player_busy &&
+                                 !loaded_player_done) begin
+                        mode5_duplicate_start_blocked_count_i <=
+                            mode5_duplicate_start_blocked_count_i + 32'd1;
                     end
                 end
             end
 
             assign mode5_sound_core_reset = mode5_sound_reset_active_i |
                                             vgm_load_busy |
+                                            mode5_load_session_active |
+                                            mode5_player_session_reset |
                                             vgm_load_error |
                                             vgm_load_overflow;
             assign mode5_sound_reset_active = mode5_sound_reset_active_i;
             assign mode5_player_start_pulse_debug = mode5_player_start_pulse;
+            assign mode5_load_begin_count = mode5_load_begin_count_i;
+            assign mode5_load_done_edge_count = mode5_load_done_edge_count_i;
+            assign mode5_sound_reset_start_count = mode5_sound_reset_start_count_i;
+            assign mode5_player_start_count = mode5_player_start_count_i;
+            assign mode5_player_reset_count = mode5_player_reset_count_i;
+            assign mode5_playback_session_id = mode5_playback_session_id_i;
+            assign mode5_duplicate_start_blocked_count =
+                mode5_duplicate_start_blocked_count_i;
+            assign mode5_player_end_count = mode5_player_end_count_i;
+            assign mode5_repeat_restart_count = mode5_repeat_restart_count_i;
+            assign mode5_done_armed_debug = mode5_done_armed_i;
+            assign mode5_repeat_session_id = mode5_repeat_session_id_i;
+            assign mode5_done_session_id = mode5_done_session_id_i;
+            assign mode5_cycles_since_start = mode5_cycles_since_start_i;
+            assign mode5_done_pc_debug = mode5_done_pc_debug_i;
+            assign mode5_done_cmd_debug = mode5_done_cmd_debug_i;
+            assign vgm_error_session_id = mode5_error_session_id_i;
+            assign player_done = mode5_player_done_latched;
             assign mode5_audio_pre_unmute = audio_gate_open &&
                                             vgm_load_done &&
                                             vgm_header_valid &&
@@ -512,20 +797,39 @@ module mister_vgm_md_top #(
                 .magic_debug      (vgm_load_magic)
             );
 
+            vgm_bram_read_adapter #(
+                .ADDR_WIDTH       (VGM_LOAD_ADDR_WIDTH)
+            ) bram_read_adapter (
+                .clk              (clk),
+                .reset            (reset),
+                .mem_rd_req       (mem_rd_req),
+                .mem_rd_addr      (mem_rd_addr),
+                .mem_rd_ready     (mem_rd_ready),
+                .mem_rd_valid     (mem_rd_valid),
+                .mem_rd_data      (mem_rd_data),
+                .bram_rd_addr     (ram_rd_addr),
+                .bram_rd_data     (ram_rd_data)
+            );
+
             vgm_loaded_player #(
                 .ADDR_WIDTH (VGM_LOAD_ADDR_WIDTH)
             ) loaded_player (
                 .clk                   (clk),
-                .reset                 (reset | player_reset_active | mode5_sound_core_reset),
-                .start                 (start_pulse | mode5_player_start_pulse),
+                .reset                 (reset |
+                                         player_reset_active |
+                                         mode5_sound_core_reset),
+                .start                 (mode5_player_start_pulse),
                 .load_done             (vgm_load_done),
                 .load_done_pulse       (1'b0),
                 .load_error            (vgm_load_error),
                 .overflow_error        (vgm_load_overflow),
                 .file_size             (vgm_load_size),
                 .vgm_wait_tick         (vgm_wait_tick),
-                .rd_addr               (ram_rd_addr),
-                .rd_data               (ram_rd_data),
+                .mem_rd_req            (mem_rd_req),
+                .mem_rd_addr           (mem_rd_addr),
+                .mem_rd_ready          (mem_rd_ready),
+                .mem_rd_valid          (mem_rd_valid),
+                .mem_rd_data           (mem_rd_data),
                 .ym_cmd_ready          (ym_cmd_ready),
                 .psg_cmd_ready         (psg_cmd_ready),
                 .ym_cmd_valid          (ym_cmd_valid),
@@ -535,12 +839,19 @@ module mister_vgm_md_top #(
                 .psg_cmd_valid         (psg_cmd_valid),
                 .psg_cmd_data          (psg_cmd_data),
                 .busy                  (player_busy),
-                .done                  (player_done),
+                .done                  (loaded_player_done),
                 .header_valid          (vgm_header_valid),
                 .player_error          (vgm_player_error),
                 .unsupported_opcode    (vgm_unsupported_opcode),
                 .unsupported_pc        (vgm_unsupported_pc),
                 .player_error_code     (vgm_player_error_code),
+                .error_pc_debug        (vgm_error_pc_debug),
+                .error_cmd_debug       (vgm_error_cmd_debug),
+                .state_debug           (vgm_player_state_debug),
+                .mem_rd_req_debug      (vgm_mem_rd_req_debug),
+                .mem_rd_ready_debug    (vgm_mem_rd_ready_debug),
+                .mem_rd_valid_debug    (vgm_mem_rd_valid_debug),
+                .mem_rd_addr_debug     (vgm_mem_rd_addr_debug),
                 .data_start_debug      (vgm_data_start_debug),
                 .current_pc_debug      (vgm_current_pc_debug),
                 .loop_pc_debug         (vgm_loop_pc_debug),
@@ -551,6 +862,8 @@ module mister_vgm_md_top #(
                 .pcm_oob               (vgm_pcm_oob),
                 .pcm_oob_count         (vgm_pcm_oob_count),
                 .wait_ticks_consumed_debug(vgm_wait_ticks_consumed_debug),
+                .done_pc_debug         (player_done_pc_debug),
+                .done_cmd_debug        (player_done_cmd_debug),
                 .pc_debug              (player_pc_debug),
                 .last_cmd_debug        (player_last_cmd_debug)
             );
@@ -605,6 +918,14 @@ module mister_vgm_md_top #(
             assign vgm_unsupported_opcode = 8'd0;
             assign vgm_unsupported_pc = '0;
             assign vgm_player_error_code = 8'd0;
+            assign vgm_error_pc_debug = '0;
+            assign vgm_error_cmd_debug = 8'd0;
+            assign vgm_error_session_id = 32'd0;
+            assign vgm_player_state_debug = 6'd0;
+            assign vgm_mem_rd_req_debug = 1'b0;
+            assign vgm_mem_rd_ready_debug = 1'b0;
+            assign vgm_mem_rd_valid_debug = 1'b0;
+            assign vgm_mem_rd_addr_debug = '0;
             assign vgm_load_size = '0;
             assign vgm_load_magic = 32'd0;
             assign vgm_data_start_debug = '0;
@@ -619,6 +940,21 @@ module mister_vgm_md_top #(
             assign vgm_wait_ticks_consumed_debug = 32'd0;
             assign mode5_sound_reset_active = 1'b0;
             assign mode5_player_start_pulse_debug = 1'b0;
+            assign mode5_load_begin_count = 32'd0;
+            assign mode5_load_done_edge_count = 32'd0;
+            assign mode5_sound_reset_start_count = 32'd0;
+            assign mode5_player_start_count = 32'd0;
+            assign mode5_player_reset_count = 32'd0;
+            assign mode5_playback_session_id = 32'd0;
+            assign mode5_duplicate_start_blocked_count = 32'd0;
+            assign mode5_player_end_count = 32'd0;
+            assign mode5_repeat_restart_count = 32'd0;
+            assign mode5_done_armed_debug = 1'b0;
+            assign mode5_repeat_session_id = 32'd0;
+            assign mode5_done_session_id = 32'd0;
+            assign mode5_cycles_since_start = 32'd0;
+            assign mode5_done_pc_debug = '0;
+            assign mode5_done_cmd_debug = 8'd0;
             assign audio_runtime_open = audio_gate_open;
 
             md_sound_fixed_region_test #(
