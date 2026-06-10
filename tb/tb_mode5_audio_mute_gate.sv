@@ -29,6 +29,8 @@ module tb_mode5_audio_mute_gate;
     wire mode5_sound_reset_active;
     wire mode5_player_start_pulse_debug;
 
+    localparam int TEST_TIMEOUT_CYCLES = 100_000;
+
     always #5 clk = ~clk;
 
     mister_vgm_md_top #(
@@ -78,6 +80,14 @@ module tb_mode5_audio_mute_gate;
         .vgm_unsupported_opcode         (),
         .vgm_unsupported_pc             (),
         .vgm_player_error_code          (),
+        .vgm_error_pc_debug            (),
+        .vgm_error_cmd_debug           (),
+        .vgm_error_session_id          (),
+        .vgm_player_state_debug        (),
+        .vgm_mem_rd_req_debug          (),
+        .vgm_mem_rd_ready_debug        (),
+        .vgm_mem_rd_valid_debug        (),
+        .vgm_mem_rd_addr_debug         (),
         .vgm_load_size                  (),
         .vgm_load_magic                 (),
         .vgm_data_start_debug           (),
@@ -142,10 +152,92 @@ module tb_mode5_audio_mute_gate;
     task automatic assert_silent(input string label);
         begin
             if (!audio_muted || audio_l !== 16'sd0 || audio_r !== 16'sd0) begin
-                $display("FAIL %s muted=%0b audio_l=%0d audio_r=%0d",
-                         label, audio_muted, audio_l, audio_r);
+                $display("FAIL %s muted=%0b audio_l=%0d audio_r=%0d gate=%0b busy=%0b header=%0b load_done=%0b load_busy=%0b reset_active=%0b player_error=%0b",
+                         label, audio_muted, audio_l, audio_r, audio_gate_open,
+                         player_busy, vgm_header_valid, vgm_load_done,
+                         vgm_load_busy, mode5_sound_reset_active,
+                         vgm_player_error);
                 $finish;
             end
+        end
+    endtask
+
+    task automatic fail_timeout(input string label);
+        begin
+            $display("FAIL timeout %s gate=%0b muted=%0b audio_l=%0d audio_r=%0d busy=%0b done=%0b header=%0b load_done=%0b load_busy=%0b load_error=%0b overflow=%0b player_error=%0b reset_active=%0b start_pulse=%0b sample_valid=%0b startup_waiting=%0b startup_done=%0b",
+                     label, audio_gate_open, audio_muted, audio_l, audio_r,
+                     player_busy, player_done, vgm_header_valid, vgm_load_done,
+                     vgm_load_busy, vgm_load_error, vgm_load_overflow,
+                     vgm_player_error, mode5_sound_reset_active,
+                     mode5_player_start_pulse_debug, audio_sample_valid,
+                     startup_waiting, startup_done);
+            $finish;
+        end
+    endtask
+
+    task automatic wait_for_reset_active;
+        int i;
+        begin
+            for (i = 0; i < 256; i = i + 1) begin
+                @(posedge clk);
+                if (mode5_sound_reset_active) begin
+                    assert_silent("sound reset active");
+                    return;
+                end
+            end
+            fail_timeout("mode5_sound_reset_active");
+        end
+    endtask
+
+    task automatic wait_for_player_start_pulse;
+        int i;
+        begin
+            for (i = 0; i < 512; i = i + 1) begin
+                @(posedge clk);
+                if (mode5_player_start_pulse_debug) begin
+                    assert_silent("player start pulse");
+                    return;
+                end
+            end
+            fail_timeout("mode5_player_start_pulse_debug");
+        end
+    endtask
+
+    task automatic wait_for_player_running;
+        int i;
+        begin
+            for (i = 0; i < 2048; i = i + 1) begin
+                @(posedge clk);
+                if (player_busy && vgm_header_valid) begin
+                    assert_silent("before unmute delay");
+                    return;
+                end
+            end
+            fail_timeout("player_busy && vgm_header_valid");
+        end
+    endtask
+
+    task automatic wait_for_unmute;
+        int i;
+        begin
+            for (i = 0; i < 4096; i = i + 1) begin
+                @(posedge clk);
+                if (!audio_muted) begin
+                    if (!audio_gate_open || !player_busy || !vgm_load_done ||
+                        !vgm_header_valid || vgm_load_busy || vgm_load_error ||
+                        vgm_load_overflow || vgm_player_error ||
+                        mode5_sound_reset_active) begin
+                        $display("FAIL unmuted with bad state gate=%0b busy=%0b header=%0b load_done=%0b load_busy=%0b load_error=%0b overflow=%0b player_error=%0b reset_active=%0b",
+                                 audio_gate_open, player_busy, vgm_header_valid,
+                                 vgm_load_done, vgm_load_busy, vgm_load_error,
+                                 vgm_load_overflow, vgm_player_error,
+                                 mode5_sound_reset_active);
+                        $finish;
+                    end
+                    return;
+                end
+            end
+            fail_timeout("audio unmute");
         end
     endtask
 
@@ -177,7 +269,12 @@ module tb_mode5_audio_mute_gate;
         end
     endtask
 
-    initial begin
+    initial begin : watchdog
+        repeat (TEST_TIMEOUT_CYCLES) @(posedge clk);
+        fail_timeout("global watchdog");
+    end
+
+    initial begin : test
         repeat (4) @(posedge clk);
         assert_silent("reset asserted");
 
@@ -193,40 +290,17 @@ module tb_mode5_audio_mute_gate;
 
         load_wait_vgm();
 
-        wait (mode5_sound_reset_active);
-        assert_silent("sound reset active");
-        wait (mode5_player_start_pulse_debug);
-        assert_silent("player start pulse");
-        wait (player_busy && vgm_header_valid);
-        assert_silent("before unmute delay");
+        wait_for_reset_active();
+        wait_for_player_start_pulse();
+        wait_for_player_running();
 
         repeat (7) begin
             @(posedge clk);
             assert_silent("unmute delay");
         end
 
-        repeat (20000) begin
-            @(posedge clk);
-            if (!audio_muted) begin
-                if (!audio_gate_open || !player_busy || !vgm_load_done ||
-                    vgm_load_busy || vgm_load_error || vgm_load_overflow ||
-                    vgm_player_error) begin
-                    $display("FAIL unmuted with bad state gate=%0b busy=%0b done=%0b load_busy=%0b load_error=%0b overflow=%0b player_error=%0b",
-                             audio_gate_open, player_busy, vgm_load_done,
-                             vgm_load_busy, vgm_load_error, vgm_load_overflow,
-                             vgm_player_error);
-                    $finish;
-                end
-                $display("PASS tb_mode5_audio_mute_gate");
-                $finish;
-            end
-        end
-
-        $display("FAIL audio did not unmute gate=%0b muted=%0b busy=%0b done=%0b header=%0b load_done=%0b load_busy=%0b load_error=%0b overflow=%0b player_error=%0b sample_valid=%0b startup_waiting=%0b startup_done=%0b",
-                 audio_gate_open, audio_muted, player_busy, player_done,
-                 vgm_header_valid, vgm_load_done, vgm_load_busy,
-                 vgm_load_error, vgm_load_overflow, vgm_player_error,
-                 audio_sample_valid, startup_waiting, startup_done);
+        wait_for_unmute();
+        $display("PASS tb_mode5_audio_mute_gate");
         $finish;
     end
 

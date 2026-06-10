@@ -11,8 +11,11 @@ module tb_vgm_loaded_player;
     logic overflow_error = 1'b0;
     logic [8:0] file_size = 9'd0;
     logic vgm_wait_tick = 1'b0;
-    wire [7:0] rd_addr;
-    logic [7:0] rd_data;
+    wire mem_rd_req;
+    wire [7:0] mem_rd_addr;
+    logic mem_rd_ready = 1'b1;
+    logic mem_rd_valid = 1'b0;
+    logic [7:0] mem_rd_data = 8'd0;
     logic ym_cmd_ready = 1'b1;
     logic psg_cmd_ready = 1'b1;
     wire ym_cmd_valid;
@@ -28,6 +31,9 @@ module tb_vgm_loaded_player;
     wire [7:0] unsupported_opcode;
     wire [7:0] unsupported_pc;
     wire [7:0] player_error_code;
+    wire [7:0] error_pc_debug;
+    wire [7:0] error_cmd_debug;
+    wire [5:0] state_debug;
     wire [7:0] data_start_debug;
     wire [7:0] current_pc_debug;
     wire [7:0] loop_pc_debug;
@@ -42,6 +48,8 @@ module tb_vgm_loaded_player;
     wire [7:0] last_cmd_debug;
 
     logic [7:0] mem [0:255];
+    logic mem_rd_pending = 1'b0;
+    logic [7:0] mem_rd_pending_data = 8'd0;
     integer ym_count = 0;
     integer psg_count = 0;
     integer dac_count = 0;
@@ -60,8 +68,11 @@ module tb_vgm_loaded_player;
         .overflow_error      (overflow_error),
         .file_size           (file_size),
         .vgm_wait_tick       (vgm_wait_tick),
-        .rd_addr             (rd_addr),
-        .rd_data             (rd_data),
+        .mem_rd_req          (mem_rd_req),
+        .mem_rd_addr         (mem_rd_addr),
+        .mem_rd_ready        (mem_rd_ready),
+        .mem_rd_valid        (mem_rd_valid),
+        .mem_rd_data         (mem_rd_data),
         .ym_cmd_ready        (ym_cmd_ready),
         .psg_cmd_ready       (psg_cmd_ready),
         .ym_cmd_valid        (ym_cmd_valid),
@@ -77,6 +88,13 @@ module tb_vgm_loaded_player;
         .unsupported_opcode  (unsupported_opcode),
         .unsupported_pc      (unsupported_pc),
         .player_error_code   (player_error_code),
+        .error_pc_debug      (error_pc_debug),
+        .error_cmd_debug     (error_cmd_debug),
+        .state_debug         (state_debug),
+        .mem_rd_req_debug    (),
+        .mem_rd_ready_debug  (),
+        .mem_rd_valid_debug  (),
+        .mem_rd_addr_debug   (),
         .data_start_debug    (data_start_debug),
         .current_pc_debug    (current_pc_debug),
         .loop_pc_debug       (loop_pc_debug),
@@ -87,6 +105,8 @@ module tb_vgm_loaded_player;
         .pcm_oob             (pcm_oob),
         .pcm_oob_count       (pcm_oob_count),
         .wait_ticks_consumed_debug(wait_ticks_consumed_debug),
+        .done_pc_debug       (),
+        .done_cmd_debug      (),
         .pc_debug            (pc_debug),
         .last_cmd_debug      (last_cmd_debug)
     );
@@ -94,7 +114,24 @@ module tb_vgm_loaded_player;
     always #5 clk = ~clk;
 
     always_ff @(posedge clk) begin
-        rd_data <= mem[rd_addr];
+        if (reset) begin
+            mem_rd_pending <= 1'b0;
+            mem_rd_ready <= 1'b1;
+            mem_rd_valid <= 1'b0;
+            mem_rd_data <= 8'd0;
+        end else begin
+            mem_rd_valid <= 1'b0;
+            mem_rd_ready <= !mem_rd_pending;
+            if (mem_rd_pending) begin
+                mem_rd_data <= mem_rd_pending_data;
+                mem_rd_valid <= 1'b1;
+                mem_rd_pending <= 1'b0;
+            end
+            if (mem_rd_req && !mem_rd_pending) begin
+                mem_rd_pending_data <= mem[mem_rd_addr];
+                mem_rd_pending <= 1'b1;
+            end
+        end
         if (ym_cmd_valid) begin
             ym_count <= ym_count + 1;
             if (!ym_cmd_port && ym_cmd_reg == 8'h2A) begin

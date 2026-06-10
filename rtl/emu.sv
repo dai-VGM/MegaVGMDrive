@@ -315,6 +315,18 @@ localparam bit MD_AUDIO_LPF_TEST_BUILD = 1'b0;
 `endif
 `endif
 
+`ifdef MODE5_DEBUG_OVERLAY_ALWAYS_ON
+localparam bit MODE5_DEBUG_OVERLAY_FORCED = 1'b1;
+`else
+localparam bit MODE5_DEBUG_OVERLAY_FORCED = 1'b0;
+`endif
+
+`ifdef MODE5_REPEAT_ENABLE_TEST
+localparam bit MODE5_REPEAT_ENABLE_BUILD = 1'b1;
+`else
+localparam bit MODE5_REPEAT_ENABLE_BUILD = 1'b0;
+`endif
+
 module emu
 (
     input         CLK_50M,
@@ -601,6 +613,7 @@ module emu
     localparam CONF_STR = {
         "VGM_MD;;",
         "F1,VGM,Load VGM;",
+        "O1,Mode5 debug,Off,On;",
         "-;",
         "R0,Reset;",
         "V,v",`BUILD_DATE
@@ -627,6 +640,14 @@ module emu
     wire  [7:0] vgm_unsupported_opcode;
     wire [17:0] vgm_unsupported_pc;
     wire  [7:0] vgm_player_error_code;
+    wire [17:0] vgm_error_pc_debug;
+    wire  [7:0] vgm_error_cmd_debug;
+    wire [31:0] vgm_error_session_id;
+    wire  [5:0] vgm_player_state_debug;
+    wire        vgm_mem_rd_req_debug;
+    wire        vgm_mem_rd_ready_debug;
+    wire        vgm_mem_rd_valid_debug;
+    wire [17:0] vgm_mem_rd_addr_debug;
     wire [18:0] vgm_load_size;
     wire [31:0] vgm_load_magic;
     wire [17:0] vgm_data_start_debug;
@@ -641,6 +662,21 @@ module emu
     wire [31:0] vgm_wait_ticks_consumed_debug;
     wire        mode5_sound_reset_active;
     wire        mode5_player_start_pulse_debug;
+    wire [31:0] mode5_load_begin_count;
+    wire [31:0] mode5_load_done_edge_count;
+    wire [31:0] mode5_sound_reset_start_count;
+    wire [31:0] mode5_player_start_count;
+    wire [31:0] mode5_player_reset_count;
+    wire [31:0] mode5_playback_session_id;
+    wire [31:0] mode5_duplicate_start_blocked_count;
+    wire [31:0] mode5_player_end_count;
+    wire [31:0] mode5_repeat_restart_count;
+    wire        mode5_done_armed_debug;
+    wire [31:0] mode5_repeat_session_id;
+    wire [31:0] mode5_done_session_id;
+    wire [31:0] mode5_cycles_since_start;
+    wire [17:0] mode5_done_pc_debug;
+    wire  [7:0] mode5_done_cmd_debug;
     wire [15:0] fm_adjust_clip_count_l;
     wire [15:0] fm_adjust_clip_count_r;
     wire [15:0] genmix_wrap_count_l;
@@ -666,6 +702,7 @@ module emu
     wire [15:0] fm_lpf_abs_peak;
     wire [15:0] genmix_abs_peak;
     wire [15:0] md_final_audio_abs_peak;
+    reg   [7:0] mode5_last_error_code = 8'd0;
 
     wire [31:0] joystick_0;
     wire [31:0] joystick_1;
@@ -815,7 +852,9 @@ module emu
     wire               startup_waiting;
     wire               startup_done;
 
-    mister_vgm_md_top md_sound (
+    mister_vgm_md_top #(
+        .MODE5_REPEAT_ENABLE(MODE5_REPEAT_ENABLE_BUILD)
+    ) md_sound (
         .clk                   (clk_sys),
         .reset_n               (vgm_reset_n),
         .audio_l               (md_audio_l),
@@ -844,6 +883,14 @@ module emu
         .vgm_unsupported_opcode(vgm_unsupported_opcode),
         .vgm_unsupported_pc    (vgm_unsupported_pc),
         .vgm_player_error_code (vgm_player_error_code),
+        .vgm_error_pc_debug    (vgm_error_pc_debug),
+        .vgm_error_cmd_debug   (vgm_error_cmd_debug),
+        .vgm_error_session_id  (vgm_error_session_id),
+        .vgm_player_state_debug(vgm_player_state_debug),
+        .vgm_mem_rd_req_debug  (vgm_mem_rd_req_debug),
+        .vgm_mem_rd_ready_debug(vgm_mem_rd_ready_debug),
+        .vgm_mem_rd_valid_debug(vgm_mem_rd_valid_debug),
+        .vgm_mem_rd_addr_debug (vgm_mem_rd_addr_debug),
         .vgm_load_size         (vgm_load_size),
         .vgm_load_magic        (vgm_load_magic),
         .vgm_data_start_debug  (vgm_data_start_debug),
@@ -858,6 +905,21 @@ module emu
         .vgm_wait_ticks_consumed_debug(vgm_wait_ticks_consumed_debug),
         .mode5_sound_reset_active(mode5_sound_reset_active),
         .mode5_player_start_pulse_debug(mode5_player_start_pulse_debug),
+        .mode5_load_begin_count(mode5_load_begin_count),
+        .mode5_load_done_edge_count(mode5_load_done_edge_count),
+        .mode5_sound_reset_start_count(mode5_sound_reset_start_count),
+        .mode5_player_start_count(mode5_player_start_count),
+        .mode5_player_reset_count(mode5_player_reset_count),
+        .mode5_playback_session_id(mode5_playback_session_id),
+        .mode5_duplicate_start_blocked_count(mode5_duplicate_start_blocked_count),
+        .mode5_player_end_count(mode5_player_end_count),
+        .mode5_repeat_restart_count(mode5_repeat_restart_count),
+        .mode5_done_armed_debug(mode5_done_armed_debug),
+        .mode5_repeat_session_id(mode5_repeat_session_id),
+        .mode5_done_session_id(mode5_done_session_id),
+        .mode5_cycles_since_start(mode5_cycles_since_start),
+        .mode5_done_pc_debug(mode5_done_pc_debug),
+        .mode5_done_cmd_debug(mode5_done_cmd_debug),
         .fm_adjust_clip_count_l(fm_adjust_clip_count_l),
         .fm_adjust_clip_count_r(fm_adjust_clip_count_r),
         .genmix_wrap_count_l   (genmix_wrap_count_l),
@@ -923,6 +985,16 @@ module emu
             if (audio_sample_valid) begin
                 audio_seen_latched <= 1'b1;
             end
+        end
+
+        if (reset) begin
+            mode5_last_error_code <= 8'd0;
+        end else if (vgm_player_error) begin
+            mode5_last_error_code <= vgm_player_error_code;
+        end else if (vgm_load_overflow) begin
+            mode5_last_error_code <= 8'hf2;
+        end else if (vgm_load_error) begin
+            mode5_last_error_code <= 8'hf1;
         end
     end
 
@@ -1079,6 +1151,192 @@ module emu
     wire genmix_output_gain_8x_build_marker =
         MD_AUDIO_GENMIX_OUTPUT_GAIN_8X_BUILD && (v_count < 9'd12);
     wire lpf_test_build_marker = MD_AUDIO_LPF_TEST_BUILD && (v_count < 9'd12);
+    wire mode5_debug_overlay_enable =
+        LOADED_VGM_MODE && (status[1] || MODE5_DEBUG_OVERLAY_FORCED);
+
+    function automatic [34:0] font5x7_bits(input logic [7:0] ch);
+        begin
+            unique case (ch)
+                "0": font5x7_bits = 35'b01110_10001_10011_10101_11001_10001_01110;
+                "1": font5x7_bits = 35'b00100_01100_00100_00100_00100_00100_01110;
+                "2": font5x7_bits = 35'b01110_10001_00001_00010_00100_01000_11111;
+                "3": font5x7_bits = 35'b11110_00001_00001_01110_00001_00001_11110;
+                "4": font5x7_bits = 35'b00010_00110_01010_10010_11111_00010_00010;
+                "5": font5x7_bits = 35'b11111_10000_11110_00001_00001_10001_01110;
+                "6": font5x7_bits = 35'b00110_01000_10000_11110_10001_10001_01110;
+                "7": font5x7_bits = 35'b11111_00001_00010_00100_01000_01000_01000;
+                "8": font5x7_bits = 35'b01110_10001_10001_01110_10001_10001_01110;
+                "9": font5x7_bits = 35'b01110_10001_10001_01111_00001_00010_01100;
+                "A": font5x7_bits = 35'b01110_10001_10001_11111_10001_10001_10001;
+                "B": font5x7_bits = 35'b11110_10001_10001_11110_10001_10001_11110;
+                "C": font5x7_bits = 35'b01110_10001_10000_10000_10000_10001_01110;
+                "D": font5x7_bits = 35'b11110_10001_10001_10001_10001_10001_11110;
+                "E": font5x7_bits = 35'b11111_10000_10000_11110_10000_10000_11111;
+                "F": font5x7_bits = 35'b11111_10000_10000_11110_10000_10000_10000;
+                "I": font5x7_bits = 35'b01110_00100_00100_00100_00100_00100_01110;
+                "L": font5x7_bits = 35'b10000_10000_10000_10000_10000_10000_11111;
+                "M": font5x7_bits = 35'b10001_11011_10101_10101_10001_10001_10001;
+                "P": font5x7_bits = 35'b11110_10001_10001_11110_10000_10000_10000;
+                "R": font5x7_bits = 35'b11110_10001_10001_11110_10100_10010_10001;
+                "S": font5x7_bits = 35'b01111_10000_10000_01110_00001_00001_11110;
+                "T": font5x7_bits = 35'b11111_00100_00100_00100_00100_00100_00100;
+                "U": font5x7_bits = 35'b10001_10001_10001_10001_10001_10001_01110;
+                "V": font5x7_bits = 35'b10001_10001_10001_10001_10001_01010_00100;
+                "W": font5x7_bits = 35'b10001_10001_10001_10101_10101_10101_01010;
+                "X": font5x7_bits = 35'b10001_10001_01010_00100_01010_10001_10001;
+                "Y": font5x7_bits = 35'b10001_10001_01010_00100_00100_00100_00100;
+                default: font5x7_bits = 35'b00000_00000_00000_00000_00000_00000_00000;
+            endcase
+        end
+    endfunction
+
+    function automatic logic font5x7_pixel(
+        input logic [7:0] ch,
+        input logic [2:0] x,
+        input logic [2:0] y
+    );
+        logic [34:0] bits;
+        int idx;
+        begin
+            bits = font5x7_bits(ch);
+            idx = 34 - ((y * 5) + x);
+            font5x7_pixel = bits[idx];
+        end
+    endfunction
+
+    function automatic [7:0] mode5_debug_label_char(
+        input logic [4:0] row,
+        input logic [1:0] col
+    );
+        begin
+            unique case (row)
+                5'd0:  mode5_debug_label_char = (col == 2'd0) ? "S" : (col == 2'd1) ? "I" : " ";
+                5'd1:  mode5_debug_label_char = (col == 2'd0) ? "L" : (col == 2'd1) ? "B" : " ";
+                5'd2:  mode5_debug_label_char = (col == 2'd0) ? "L" : (col == 2'd1) ? "D" : " ";
+                5'd3:  mode5_debug_label_char = (col == 2'd0) ? "S" : (col == 2'd1) ? "R" : " ";
+                5'd4:  mode5_debug_label_char = (col == 2'd0) ? "S" : (col == 2'd1) ? "T" : " ";
+                5'd5:  mode5_debug_label_char = (col == 2'd0) ? "P" : (col == 2'd1) ? "R" : " ";
+                5'd6:  mode5_debug_label_char = (col == 2'd0) ? "D" : (col == 2'd1) ? "U" : " ";
+                5'd7:  mode5_debug_label_char = (col == 2'd0) ? "P" : (col == 2'd1) ? "E" : " ";
+                5'd8:  mode5_debug_label_char = (col == 2'd0) ? "E" : (col == 2'd1) ? "R" : " ";
+                5'd9:  mode5_debug_label_char = (col == 2'd0) ? "A" : (col == 2'd1) ? "M" : " ";
+                5'd10: mode5_debug_label_char = (col == 2'd0) ? "P" : (col == 2'd1) ? "B" : " ";
+                5'd11: mode5_debug_label_char = (col == 2'd0) ? "C" : (col == 2'd1) ? "P" : " ";
+                5'd12: mode5_debug_label_char = (col == 2'd0) ? "L" : (col == 2'd1) ? "C" : " ";
+                5'd13: mode5_debug_label_char = (col == 2'd0) ? "D" : (col == 2'd1) ? "P" : " ";
+                5'd14: mode5_debug_label_char = (col == 2'd0) ? "D" : (col == 2'd1) ? "C" : " ";
+                5'd15: mode5_debug_label_char = (col == 2'd0) ? "D" : (col == 2'd1) ? "S" : " ";
+                5'd16: mode5_debug_label_char = (col == 2'd0) ? "F" : (col == 2'd1) ? "S" : " ";
+                5'd17: mode5_debug_label_char = (col == 2'd0) ? "W" : (col == 2'd1) ? "T" : " ";
+                5'd18: mode5_debug_label_char = (col == 2'd0) ? "C" : (col == 2'd1) ? "Y" : " ";
+                5'd19: mode5_debug_label_char = (col == 2'd0) ? "E" : (col == 2'd1) ? "C" : " ";
+                5'd20: mode5_debug_label_char = (col == 2'd0) ? "E" : (col == 2'd1) ? "P" : " ";
+                5'd21: mode5_debug_label_char = (col == 2'd0) ? "E" : (col == 2'd1) ? "X" : " ";
+                5'd22: mode5_debug_label_char = (col == 2'd0) ? "E" : (col == 2'd1) ? "S" : " ";
+                5'd23: mode5_debug_label_char = (col == 2'd0) ? "P" : (col == 2'd1) ? "S" : " ";
+                5'd24: mode5_debug_label_char = (col == 2'd0) ? "M" : (col == 2'd1) ? "R" : " ";
+                5'd25: mode5_debug_label_char = (col == 2'd0) ? "M" : (col == 2'd1) ? "Y" : " ";
+                5'd26: mode5_debug_label_char = (col == 2'd0) ? "M" : (col == 2'd1) ? "V" : " ";
+                5'd27: mode5_debug_label_char = (col == 2'd0) ? "M" : (col == 2'd1) ? "A" : " ";
+                5'd28: mode5_debug_label_char = (col == 2'd0) ? "R" : (col == 2'd1) ? "C" : " ";
+                5'd29: mode5_debug_label_char = (col == 2'd0) ? "D" : (col == 2'd1) ? "A" : " ";
+                5'd30: mode5_debug_label_char = (col == 2'd0) ? "R" : (col == 2'd1) ? "S" : " ";
+                default: mode5_debug_label_char = " ";
+            endcase
+        end
+    endfunction
+
+    function automatic [15:0] mode5_debug_value(
+        input logic [4:0] row
+    );
+        begin
+            unique case (row)
+                5'd0:  mode5_debug_value = mode5_playback_session_id[15:0];
+                5'd1:  mode5_debug_value = mode5_load_begin_count[15:0];
+                5'd2:  mode5_debug_value = mode5_load_done_edge_count[15:0];
+                5'd3:  mode5_debug_value = mode5_sound_reset_start_count[15:0];
+                5'd4:  mode5_debug_value = mode5_player_start_count[15:0];
+                5'd5:  mode5_debug_value = mode5_player_reset_count[15:0];
+                5'd6:  mode5_debug_value = mode5_duplicate_start_blocked_count[15:0];
+                5'd7:  mode5_debug_value = mode5_player_end_count[15:0];
+                5'd8:  mode5_debug_value = {8'd0, vgm_player_error_code};
+                5'd9:  mode5_debug_value = {15'd0, audio_muted};
+                5'd10: mode5_debug_value = {15'd0, player_busy};
+                5'd11: mode5_debug_value = vgm_current_pc_debug[15:0];
+                5'd12: mode5_debug_value = {8'd0, player_last_cmd_debug};
+                5'd13: mode5_debug_value = mode5_done_pc_debug[15:0];
+                5'd14: mode5_debug_value = {8'd0, mode5_done_cmd_debug};
+                5'd15: mode5_debug_value = mode5_done_session_id[15:0];
+                5'd16: mode5_debug_value = vgm_load_size[15:0];
+                5'd17: mode5_debug_value = vgm_wait_ticks_consumed_debug[15:0];
+                5'd18: mode5_debug_value = mode5_cycles_since_start[15:0];
+                5'd19: mode5_debug_value = {8'd0, vgm_player_error_code};
+                5'd20: mode5_debug_value = vgm_error_pc_debug[15:0];
+                5'd21: mode5_debug_value = {8'd0, vgm_error_cmd_debug};
+                5'd22: mode5_debug_value = vgm_error_session_id[15:0];
+                5'd23: mode5_debug_value = {10'd0, vgm_player_state_debug};
+                5'd24: mode5_debug_value = {15'd0, vgm_mem_rd_req_debug};
+                5'd25: mode5_debug_value = {15'd0, vgm_mem_rd_ready_debug};
+                5'd26: mode5_debug_value = {15'd0, vgm_mem_rd_valid_debug};
+                5'd27: mode5_debug_value = vgm_mem_rd_addr_debug[15:0];
+                5'd28: mode5_debug_value = mode5_repeat_restart_count[15:0];
+                5'd29: mode5_debug_value = {15'd0, mode5_done_armed_debug};
+                5'd30: mode5_debug_value = mode5_repeat_session_id[15:0];
+                default: mode5_debug_value = 16'd0;
+            endcase
+        end
+    endfunction
+
+    function automatic [7:0] hex_char(input logic [3:0] nibble);
+        begin
+            hex_char = (nibble < 4'd10) ?
+                ("0" + {4'd0, nibble}) :
+                ("A" + {4'd0, nibble - 4'd10});
+        end
+    endfunction
+
+    function automatic [7:0] mode5_debug_char(
+        input logic [4:0] row,
+        input logic [3:0] col
+    );
+        logic [15:0] value;
+        begin
+            value = mode5_debug_value(row);
+            unique case (col)
+                4'd0: mode5_debug_char = mode5_debug_label_char(row, 2'd0);
+                4'd1: mode5_debug_char = mode5_debug_label_char(row, 2'd1);
+                4'd2: mode5_debug_char = " ";
+                4'd3: mode5_debug_char = hex_char(value[15:12]);
+                4'd4: mode5_debug_char = hex_char(value[11:8]);
+                4'd5: mode5_debug_char = hex_char(value[7:4]);
+                4'd6: mode5_debug_char = hex_char(value[3:0]);
+                default: mode5_debug_char = " ";
+            endcase
+        end
+    endfunction
+
+    wire [8:0] mode5_dbg_x = h_count - 9'd8;
+    wire [8:0] mode5_dbg_y = v_count - 9'd8;
+    wire [4:0] mode5_dbg_row = mode5_dbg_y[7:3];
+    wire [3:0] mode5_dbg_col = mode5_dbg_x[6:3];
+    wire [2:0] mode5_dbg_char_x = mode5_dbg_x[2:0];
+    wire [2:0] mode5_dbg_char_y = mode5_dbg_y[2:0];
+    wire mode5_dbg_back =
+        mode5_debug_overlay_enable &&
+        (h_count >= 9'd8) && (h_count < 9'd64) &&
+        (v_count >= 9'd8) && (v_count < 9'd256);
+    wire mode5_dbg_region =
+        mode5_dbg_back &&
+        (mode5_dbg_row <= 5'd30) &&
+        (mode5_dbg_col <= 4'd6) &&
+        (mode5_dbg_char_x < 3'd5) &&
+        (mode5_dbg_char_y < 3'd7);
+    wire mode5_debug_pixel =
+        mode5_dbg_region &&
+        font5x7_pixel(mode5_debug_char(mode5_dbg_row,
+                                       mode5_dbg_col),
+                      mode5_dbg_char_x,
+                      mode5_dbg_char_y);
 
     wire hsync = ~((h_count >= 9'd336) && (h_count < 9'd368));
     wire vsync = ~((v_count >= 9'd244) && (v_count < 9'd248));
@@ -1127,6 +1385,8 @@ module emu
     // 4x red/white/blue stripes, 6x amber/cyan stripes,
     // 8x green/red/black stripes, JT12 ladder-effect magenta/cyan stripes, LPF green.
     wire [7:0] red =
+        mode5_debug_pixel ? 8'hff :
+        mode5_dbg_back ? 8'h00 :
         stage_meter_pixel ? stage_meter_rgb[23:16] :
         md_avg_meter_pixel ? md_avg_meter_rgb[23:16] :
         md_meter_pixel ? md_meter_rgb[23:16] :
@@ -1194,6 +1454,8 @@ module emu
                              8'h00;
 
     wire [7:0] green =
+        mode5_debug_pixel ? 8'hff :
+        mode5_dbg_back ? 8'h00 :
         stage_meter_pixel ? stage_meter_rgb[15:8] :
         md_avg_meter_pixel ? md_avg_meter_rgb[15:8] :
         md_meter_pixel ? md_meter_rgb[15:8] :
@@ -1261,6 +1523,8 @@ module emu
                              8'hb0;
 
     wire [7:0] blue =
+        mode5_debug_pixel ? 8'hff :
+        mode5_dbg_back ? 8'h00 :
         stage_meter_pixel ? stage_meter_rgb[7:0] :
         md_avg_meter_pixel ? md_avg_meter_rgb[7:0] :
         md_meter_pixel ? md_meter_rgb[7:0] :
@@ -1360,6 +1624,13 @@ module emu
         vgm_pcm_oob,
         vgm_pcm_oob_count,
         vgm_wait_ticks_consumed_debug,
+        mode5_repeat_restart_count,
+        mode5_done_armed_debug,
+        mode5_repeat_session_id,
+        mode5_done_session_id,
+        mode5_cycles_since_start,
+        mode5_done_pc_debug,
+        mode5_done_cmd_debug,
         vgm_unsupported_opcode,
         vgm_unsupported_pc,
         vgm_player_error_code,
@@ -1367,6 +1638,7 @@ module emu
         MD_AUDIO_OUTPUT_SHIFT_0_BUILD,
         MD_AUDIO_OUTPUT_SHIFT_1_BUILD,
         MD_AUDIO_OUTPUT_SHIFT,
+        MODE5_REPEAT_ENABLE_BUILD,
         MD_YM_WRITE_SLOW_BUILD,
         MD_YM_FORCE_LFO_OFF_BUILD,
         MD_YM_MASK_PMS_AMS_BUILD,

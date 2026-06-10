@@ -22,8 +22,11 @@ module vgm_loaded_player #(
 
     input  logic                  vgm_wait_tick,
 
-    output logic [ADDR_WIDTH-1:0] rd_addr,
-    input  logic [7:0]            rd_data,
+    output logic                  mem_rd_req,
+    output logic [ADDR_WIDTH-1:0] mem_rd_addr,
+    input  logic                  mem_rd_ready,
+    input  logic                  mem_rd_valid,
+    input  logic [7:0]            mem_rd_data,
 
     input  logic                  ym_cmd_ready,
     input  logic                  psg_cmd_ready,
@@ -41,6 +44,13 @@ module vgm_loaded_player #(
     output logic [7:0]            unsupported_opcode,
     output logic [ADDR_WIDTH-1:0] unsupported_pc,
     output logic [7:0]            player_error_code,
+    output logic [ADDR_WIDTH-1:0] error_pc_debug,
+    output logic [7:0]            error_cmd_debug,
+    output logic [5:0]            state_debug,
+    output logic                  mem_rd_req_debug,
+    output logic                  mem_rd_ready_debug,
+    output logic                  mem_rd_valid_debug,
+    output logic [ADDR_WIDTH-1:0] mem_rd_addr_debug,
     output logic [ADDR_WIDTH-1:0] data_start_debug,
     output logic [ADDR_WIDTH-1:0] current_pc_debug,
     output logic [ADDR_WIDTH-1:0] loop_pc_debug,
@@ -51,6 +61,8 @@ module vgm_loaded_player #(
     output logic                  pcm_oob,
     output logic [31:0]           pcm_oob_count,
     output logic [31:0]           wait_ticks_consumed_debug,
+    output logic [ADDR_WIDTH-1:0] done_pc_debug,
+    output logic [7:0]            done_cmd_debug,
     output logic [9:0]            pc_debug,
     output logic [7:0]            last_cmd_debug
 );
@@ -58,6 +70,7 @@ module vgm_loaded_player #(
     typedef enum logic [5:0] {
         ST_IDLE,
         ST_READ_WAIT,
+        ST_READ_DATA,
         ST_CHECK_MAGIC0,
         ST_CHECK_MAGIC1,
         ST_CHECK_MAGIC2,
@@ -98,6 +111,7 @@ module vgm_loaded_player #(
     state_t read_return_state;
 
     logic [ADDR_WIDTH-1:0] pc;
+    logic [7:0] read_data;
     logic [7:0] cmd;
     logic [7:0] arg1;
     logic [7:0] block_type;
@@ -118,17 +132,17 @@ module vgm_loaded_player #(
     wire file_ok = load_done && !load_error && !overflow_error && (file_size > 17'd64);
     wire pc_in_range = ({1'b0, pc} < file_size);
     wire [31:0] pc_32 = {{(32-ADDR_WIDTH){1'b0}}, pc};
-    wire [31:0] current_block_size = {rd_data, block_size[23:0]};
+    wire [31:0] current_block_size = {read_data, block_size[23:0]};
     wire [31:0] block_data_start_32 = pc_32 + 32'd7;
     wire [31:0] block_skip_end_32 = block_data_start_32 + current_block_size;
     wire block_skip_in_range =
         (block_skip_end_32 <= file_size) && (block_skip_end_32[31:ADDR_WIDTH] == '0);
-    wire [31:0] header_data_offset = {rd_data, data_offset[23:0]};
+    wire [31:0] header_data_offset = {read_data, data_offset[23:0]};
     wire [31:0] selected_data_start =
         (header_data_offset == 32'd0) ? 32'h0000_0040 : (32'h0000_0034 + header_data_offset);
     wire selected_data_start_in_range =
         (selected_data_start < file_size) && (selected_data_start[31:ADDR_WIDTH] == '0);
-    wire [31:0] header_loop_offset = {rd_data, loop_offset[23:0]};
+    wire [31:0] header_loop_offset = {read_data, loop_offset[23:0]};
     wire [31:0] selected_loop_pc = 32'h0000_001c + header_loop_offset;
     wire selected_loop_valid =
         (header_loop_offset != 32'd0) && (selected_loop_pc < file_size) &&
@@ -138,6 +152,12 @@ module vgm_loaded_player #(
         (pcm_pos < pcm_data_size) &&
         (pcm_read_addr_32 < file_size) &&
         (pcm_read_addr_32[31:ADDR_WIDTH] == '0);
+
+    assign state_debug = state;
+    assign mem_rd_req_debug = mem_rd_req;
+    assign mem_rd_ready_debug = mem_rd_ready;
+    assign mem_rd_valid_debug = mem_rd_valid;
+    assign mem_rd_addr_debug = mem_rd_addr;
 
     generate
         if (ADDR_WIDTH >= 10) begin : wide_pc_debug
@@ -149,7 +169,8 @@ module vgm_loaded_player #(
 
     task automatic request_byte(input logic [ADDR_WIDTH-1:0] addr, input state_t return_state);
         begin
-            rd_addr <= addr;
+            mem_rd_req <= 1'b1;
+            mem_rd_addr <= addr;
             read_return_state <= return_state;
             state <= ST_READ_WAIT;
         end
@@ -166,11 +187,14 @@ module vgm_loaded_player #(
 
     task automatic enter_error(input logic [7:0] error_code);
         begin
+            mem_rd_req <= 1'b0;
             busy <= 1'b0;
             done <= 1'b0;
             header_valid <= 1'b0;
             player_error <= 1'b1;
             player_error_code <= error_code;
+            error_pc_debug <= pc;
+            error_cmd_debug <= cmd;
             state <= ST_ERROR;
         end
     endtask
@@ -188,6 +212,7 @@ module vgm_loaded_player #(
             state <= ST_IDLE;
             read_return_state <= ST_IDLE;
             pc <= '0;
+            read_data <= 8'd0;
             cmd <= 8'd0;
             arg1 <= 8'd0;
             block_type <= 8'd0;
@@ -202,7 +227,8 @@ module vgm_loaded_player #(
             wait_remaining <= 16'd0;
             vgm_wait_tick_d <= 1'b0;
             start_d <= 1'b0;
-            rd_addr <= '0;
+            mem_rd_req <= 1'b0;
+            mem_rd_addr <= '0;
             ym_cmd_valid <= 1'b0;
             ym_cmd_port <= 1'b0;
             ym_cmd_reg <= 8'd0;
@@ -216,6 +242,8 @@ module vgm_loaded_player #(
             unsupported_opcode <= 8'd0;
             unsupported_pc <= '0;
             player_error_code <= ERR_NONE;
+            error_pc_debug <= '0;
+            error_cmd_debug <= 8'd0;
             data_start_debug <= '0;
             current_pc_debug <= '0;
             loop_pc_debug <= '0;
@@ -226,6 +254,8 @@ module vgm_loaded_player #(
             pcm_oob <= 1'b0;
             pcm_oob_count <= 32'd0;
             wait_ticks_consumed_debug <= 32'd0;
+            done_pc_debug <= '0;
+            done_cmd_debug <= 8'd0;
             last_cmd_debug <= 8'd0;
         end else begin
             vgm_wait_tick_d <= vgm_wait_tick;
@@ -234,11 +264,14 @@ module vgm_loaded_player #(
             psg_cmd_valid <= 1'b0;
 
             if (load_error || overflow_error) begin
+                mem_rd_req <= 1'b0;
                 busy <= 1'b0;
                 done <= 1'b0;
                 header_valid <= 1'b0;
                 player_error <= 1'b1;
                 player_error_code <= ERR_LOAD;
+                error_pc_debug <= pc;
+                error_cmd_debug <= cmd;
                 state <= ST_IDLE;
             end else begin
                 case (state)
@@ -252,6 +285,10 @@ module vgm_loaded_player #(
                             unsupported_opcode <= 8'd0;
                             unsupported_pc <= '0;
                             player_error_code <= ERR_NONE;
+                            error_pc_debug <= '0;
+                            error_cmd_debug <= 8'd0;
+                            done_pc_debug <= '0;
+                            done_cmd_debug <= 8'd0;
                             data_offset <= 32'd0;
                             loop_offset <= 32'd0;
                             loop_pc <= '0;
@@ -274,11 +311,26 @@ module vgm_loaded_player #(
                     end
 
                     ST_READ_WAIT: begin
-                        state <= read_return_state;
+                        if (mem_rd_ready) begin
+                            mem_rd_req <= 1'b0;
+                            if (mem_rd_valid) begin
+                                read_data <= mem_rd_data;
+                                state <= read_return_state;
+                            end else begin
+                                state <= ST_READ_DATA;
+                            end
+                        end
+                    end
+
+                    ST_READ_DATA: begin
+                        if (mem_rd_valid) begin
+                            read_data <= mem_rd_data;
+                            state <= read_return_state;
+                        end
                     end
 
                     ST_CHECK_MAGIC0: begin
-                        if (rd_data == 8'h56) begin
+                        if (read_data == 8'h56) begin
                             request_byte({{(ADDR_WIDTH-1){1'b0}}, 1'b1}, ST_CHECK_MAGIC1);
                         end else begin
                             enter_error(ERR_BAD_MAGIC);
@@ -286,7 +338,7 @@ module vgm_loaded_player #(
                     end
 
                     ST_CHECK_MAGIC1: begin
-                        if (rd_data == 8'h67) begin
+                        if (read_data == 8'h67) begin
                             request_byte({{(ADDR_WIDTH-2){1'b0}}, 2'd2}, ST_CHECK_MAGIC2);
                         end else begin
                             enter_error(ERR_BAD_MAGIC);
@@ -294,7 +346,7 @@ module vgm_loaded_player #(
                     end
 
                     ST_CHECK_MAGIC2: begin
-                        if (rd_data == 8'h6d) begin
+                        if (read_data == 8'h6d) begin
                             request_byte({{(ADDR_WIDTH-2){1'b0}}, 2'd3}, ST_CHECK_MAGIC3);
                         end else begin
                             enter_error(ERR_BAD_MAGIC);
@@ -302,7 +354,7 @@ module vgm_loaded_player #(
                     end
 
                     ST_CHECK_MAGIC3: begin
-                        if (rd_data == 8'h20) begin
+                        if (read_data == 8'h20) begin
                             request_byte({{(ADDR_WIDTH-5){1'b0}}, 5'h1c}, ST_READ_LOOP0);
                         end else begin
                             enter_error(ERR_BAD_MAGIC);
@@ -310,22 +362,22 @@ module vgm_loaded_player #(
                     end
 
                     ST_READ_LOOP0: begin
-                        loop_offset[7:0] <= rd_data;
+                        loop_offset[7:0] <= read_data;
                         request_byte({{(ADDR_WIDTH-5){1'b0}}, 5'h1d}, ST_READ_LOOP1);
                     end
 
                     ST_READ_LOOP1: begin
-                        loop_offset[15:8] <= rd_data;
+                        loop_offset[15:8] <= read_data;
                         request_byte({{(ADDR_WIDTH-5){1'b0}}, 5'h1e}, ST_READ_LOOP2);
                     end
 
                     ST_READ_LOOP2: begin
-                        loop_offset[23:16] <= rd_data;
+                        loop_offset[23:16] <= read_data;
                         request_byte({{(ADDR_WIDTH-5){1'b0}}, 5'h1f}, ST_READ_LOOP3);
                     end
 
                     ST_READ_LOOP3: begin
-                        loop_offset[31:24] <= rd_data;
+                        loop_offset[31:24] <= read_data;
                         if (selected_loop_valid) begin
                             loop_pc <= selected_loop_pc[ADDR_WIDTH-1:0];
                             loop_pc_debug <= selected_loop_pc[ADDR_WIDTH-1:0];
@@ -341,22 +393,22 @@ module vgm_loaded_player #(
                     end
 
                     ST_READ_OFF0: begin
-                        data_offset[7:0] <= rd_data;
+                        data_offset[7:0] <= read_data;
                         request_byte({{(ADDR_WIDTH-6){1'b0}}, 6'h35}, ST_READ_OFF1);
                     end
 
                     ST_READ_OFF1: begin
-                        data_offset[15:8] <= rd_data;
+                        data_offset[15:8] <= read_data;
                         request_byte({{(ADDR_WIDTH-6){1'b0}}, 6'h36}, ST_READ_OFF2);
                     end
 
                     ST_READ_OFF2: begin
-                        data_offset[23:16] <= rd_data;
+                        data_offset[23:16] <= read_data;
                         request_byte({{(ADDR_WIDTH-6){1'b0}}, 6'h37}, ST_READ_OFF3);
                     end
 
                     ST_READ_OFF3: begin
-                        data_offset[31:24] <= rd_data;
+                        data_offset[31:24] <= read_data;
                         if (!selected_data_start_in_range) begin
                             enter_error(ERR_BAD_DATA_START);
                         end else begin
@@ -370,8 +422,8 @@ module vgm_loaded_player #(
                     end
 
                     ST_FETCH_CMD: begin
-                        cmd <= rd_data;
-                        last_cmd_debug <= rd_data;
+                        cmd <= read_data;
+                        last_cmd_debug <= read_data;
                         current_pc_debug <= pc;
                         state <= ST_DECODE;
                     end
@@ -417,6 +469,8 @@ module vgm_loaded_player #(
                                     end else begin
                                         busy <= 1'b0;
                                         done <= 1'b1;
+                                        done_pc_debug <= pc;
+                                        done_cmd_debug <= cmd;
                                         state <= ST_DONE;
                                     end
                                 end
@@ -450,11 +504,11 @@ module vgm_loaded_player #(
                     end
 
                     ST_ARG1: begin
-                        arg1 <= rd_data;
+                        arg1 <= read_data;
                         if ((cmd == 8'h52) || (cmd == 8'h53) || (cmd == 8'h61)) begin
                             request_byte(pc + {{(ADDR_WIDTH-2){1'b0}}, 2'd2}, ST_ARG2);
                         end else if (cmd == 8'h50) begin
-                            psg_cmd_data <= rd_data;
+                            psg_cmd_data <= read_data;
                             state <= ST_PSG_WAIT_READY;
                         end else begin
                             pc <= pc + {{(ADDR_WIDTH-2){1'b0}}, 2'd2};
@@ -467,10 +521,10 @@ module vgm_loaded_player #(
                         if ((cmd == 8'h52) || (cmd == 8'h53)) begin
                             ym_cmd_port <= (cmd == 8'h53);
                             ym_cmd_reg <= arg1;
-                            ym_cmd_data <= rd_data;
+                            ym_cmd_data <= read_data;
                             state <= ST_YM_WAIT_READY;
                         end else begin
-                            wait_remaining <= {rd_data, arg1};
+                            wait_remaining <= {read_data, arg1};
                             pc <= pc + {{(ADDR_WIDTH-2){1'b0}}, 2'd3};
                             current_pc_debug <= pc + {{(ADDR_WIDTH-2){1'b0}}, 2'd3};
                             state <= ST_WAIT_SAMPLES;
@@ -478,7 +532,7 @@ module vgm_loaded_player #(
                     end
 
                     ST_BLOCK_MARKER: begin
-                        if (rd_data == 8'h66) begin
+                        if (read_data == 8'h66) begin
                             request_byte(pc + {{(ADDR_WIDTH-2){1'b0}}, 2'd2}, ST_BLOCK_TYPE);
                         end else begin
                             enter_error(ERR_BAD_DATA_BLOCK);
@@ -486,27 +540,27 @@ module vgm_loaded_player #(
                     end
 
                     ST_BLOCK_TYPE: begin
-                        block_type <= rd_data;
+                        block_type <= read_data;
                         request_byte(pc + {{(ADDR_WIDTH-2){1'b0}}, 2'd3}, ST_BLOCK_SIZE0);
                     end
 
                     ST_BLOCK_SIZE0: begin
-                        block_size[7:0] <= rd_data;
+                        block_size[7:0] <= read_data;
                         request_byte(pc + {{(ADDR_WIDTH-3){1'b0}}, 3'd4}, ST_BLOCK_SIZE1);
                     end
 
                     ST_BLOCK_SIZE1: begin
-                        block_size[15:8] <= rd_data;
+                        block_size[15:8] <= read_data;
                         request_byte(pc + {{(ADDR_WIDTH-3){1'b0}}, 3'd5}, ST_BLOCK_SIZE2);
                     end
 
                     ST_BLOCK_SIZE2: begin
-                        block_size[23:16] <= rd_data;
+                        block_size[23:16] <= read_data;
                         request_byte(pc + {{(ADDR_WIDTH-3){1'b0}}, 3'd6}, ST_BLOCK_SIZE3);
                     end
 
                     ST_BLOCK_SIZE3: begin
-                        block_size[31:24] <= rd_data;
+                        block_size[31:24] <= read_data;
                         if (!block_skip_in_range) begin
                             enter_error(ERR_DATA_BLOCK_RANGE);
                         end else begin
@@ -521,22 +575,22 @@ module vgm_loaded_player #(
                     end
 
                     ST_SEEK0: begin
-                        pcm_pos[7:0] <= rd_data;
+                        pcm_pos[7:0] <= read_data;
                         request_byte(pc + {{(ADDR_WIDTH-2){1'b0}}, 2'd2}, ST_SEEK1);
                     end
 
                     ST_SEEK1: begin
-                        pcm_pos[15:8] <= rd_data;
+                        pcm_pos[15:8] <= read_data;
                         request_byte(pc + {{(ADDR_WIDTH-2){1'b0}}, 2'd3}, ST_SEEK2);
                     end
 
                     ST_SEEK2: begin
-                        pcm_pos[23:16] <= rd_data;
+                        pcm_pos[23:16] <= read_data;
                         request_byte(pc + {{(ADDR_WIDTH-3){1'b0}}, 3'd4}, ST_SEEK3);
                     end
 
                     ST_SEEK3: begin
-                        pcm_pos[31:24] <= rd_data;
+                        pcm_pos[31:24] <= read_data;
                         pc <= pc + {{(ADDR_WIDTH-3){1'b0}}, 3'd5};
                         current_pc_debug <= pc + {{(ADDR_WIDTH-3){1'b0}}, 3'd5};
                         request_byte(pc + {{(ADDR_WIDTH-3){1'b0}}, 3'd5}, ST_FETCH_CMD);
@@ -545,7 +599,7 @@ module vgm_loaded_player #(
                     ST_DAC_READ: begin
                         ym_cmd_port <= 1'b0;
                         ym_cmd_reg <= 8'h2A;
-                        ym_cmd_data <= rd_data;
+                        ym_cmd_data <= read_data;
                         pcm_pos <= pcm_pos + 32'd1;
                         state <= ST_YM_WAIT_READY;
                     end

@@ -11,8 +11,11 @@ module tb_vgm_loaded_player_boundary;
     logic load_done_pulse = 1'b0;
     logic [ADDR_WIDTH:0] file_size = '0;
     logic vgm_wait_tick = 1'b0;
-    wire [ADDR_WIDTH-1:0] rd_addr;
-    logic [7:0] rd_data;
+    wire mem_rd_req;
+    wire [ADDR_WIDTH-1:0] mem_rd_addr;
+    logic mem_rd_ready = 1'b1;
+    logic mem_rd_valid = 1'b0;
+    logic [7:0] mem_rd_data = 8'd0;
     logic ym_cmd_ready = 1'b1;
     logic psg_cmd_ready = 1'b1;
     wire ym_cmd_valid;
@@ -30,6 +33,8 @@ module tb_vgm_loaded_player_boundary;
     wire [31:0] wait_ticks_consumed_debug;
 
     logic [7:0] mem [0:MEM_BYTES-1];
+    logic mem_rd_pending = 1'b0;
+    logic [7:0] mem_rd_pending_data = 8'd0;
     integer psg_count = 0;
 
     vgm_loaded_player #(
@@ -44,8 +49,11 @@ module tb_vgm_loaded_player_boundary;
         .overflow_error      (1'b0),
         .file_size           (file_size),
         .vgm_wait_tick       (vgm_wait_tick),
-        .rd_addr             (rd_addr),
-        .rd_data             (rd_data),
+        .mem_rd_req          (mem_rd_req),
+        .mem_rd_addr         (mem_rd_addr),
+        .mem_rd_ready        (mem_rd_ready),
+        .mem_rd_valid        (mem_rd_valid),
+        .mem_rd_data         (mem_rd_data),
         .ym_cmd_ready        (ym_cmd_ready),
         .psg_cmd_ready       (psg_cmd_ready),
         .ym_cmd_valid        (ym_cmd_valid),
@@ -61,6 +69,13 @@ module tb_vgm_loaded_player_boundary;
         .unsupported_opcode  (),
         .unsupported_pc      (),
         .player_error_code   (player_error_code),
+        .error_pc_debug      (),
+        .error_cmd_debug     (),
+        .state_debug         (),
+        .mem_rd_req_debug    (),
+        .mem_rd_ready_debug  (),
+        .mem_rd_valid_debug  (),
+        .mem_rd_addr_debug   (),
         .data_start_debug    (),
         .current_pc_debug    (current_pc_debug),
         .loop_pc_debug       (),
@@ -71,6 +86,8 @@ module tb_vgm_loaded_player_boundary;
         .pcm_oob             (),
         .pcm_oob_count       (),
         .wait_ticks_consumed_debug(wait_ticks_consumed_debug),
+        .done_pc_debug       (),
+        .done_cmd_debug      (),
         .pc_debug            (),
         .last_cmd_debug      ()
     );
@@ -78,7 +95,24 @@ module tb_vgm_loaded_player_boundary;
     always #5 clk = ~clk;
 
     always_ff @(posedge clk) begin
-        rd_data <= mem[rd_addr];
+        if (reset) begin
+            mem_rd_pending <= 1'b0;
+            mem_rd_ready <= 1'b1;
+            mem_rd_valid <= 1'b0;
+            mem_rd_data <= 8'd0;
+        end else begin
+            mem_rd_valid <= 1'b0;
+            mem_rd_ready <= !mem_rd_pending;
+            if (mem_rd_pending) begin
+                mem_rd_data <= mem_rd_pending_data;
+                mem_rd_valid <= 1'b1;
+                mem_rd_pending <= 1'b0;
+            end
+            if (mem_rd_req && !mem_rd_pending) begin
+                mem_rd_pending_data <= mem[mem_rd_addr];
+                mem_rd_pending <= 1'b1;
+            end
+        end
         if (psg_cmd_valid) begin
             psg_count <= psg_count + 1;
         end
