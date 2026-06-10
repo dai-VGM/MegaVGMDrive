@@ -16,6 +16,7 @@ module mister_vgm_md_top #(
     parameter int REGION_MODE = `FIXED_REGION_MODE,
     parameter int VGM_LOAD_ADDR_WIDTH = 18,
     parameter logic [15:0] VGM_LOAD_FILE_INDEX = 16'd1,
+    parameter int MODE5_VGM_BACKEND = 0,
 
     // Internal reset hold after FPGA configuration or external core reset.
     // The current MiSTer shell PLL drives clk_sys at 20 MHz
@@ -174,6 +175,9 @@ module mister_vgm_md_top #(
     output logic [15:0]       genmix_abs_peak,
     output logic [15:0]       md_final_audio_abs_peak
 );
+
+    localparam int MODE5_BACKEND_BRAM  = 0;
+    localparam int MODE5_BACKEND_DDRAM = 1;
 
     logic        reset;
     logic [2:0]  reset_sync = 3'b111;
@@ -774,42 +778,57 @@ module mister_vgm_md_top #(
                 end
             end
 
-            vgm_file_loader #(
-                .ADDR_WIDTH       (VGM_LOAD_ADDR_WIDTH),
-                .ACCEPT_ANY_INDEX (1'b0),
-                .FILE_INDEX       (VGM_LOAD_FILE_INDEX)
-            ) loader (
-                .clk              (clk),
-                .reset            (reset),
-                .ioctl_download   (ioctl_download),
-                .ioctl_wr         (ioctl_wr),
-                .ioctl_addr       (ioctl_addr),
-                .ioctl_dout       (ioctl_dout),
-                .ioctl_index      (ioctl_index),
-                .rd_addr          (ram_rd_addr),
-                .rd_data          (ram_rd_data),
-                .load_busy        (vgm_load_busy),
-                .load_done        (vgm_load_done),
-                .load_done_pulse  (load_done_pulse),
-                .load_error       (vgm_load_error),
-                .overflow_error   (vgm_load_overflow),
-                .file_size        (vgm_load_size),
-                .magic_debug      (vgm_load_magic)
-            );
+            if (MODE5_VGM_BACKEND == MODE5_BACKEND_BRAM) begin : backend_bram
+                vgm_file_loader #(
+                    .ADDR_WIDTH       (VGM_LOAD_ADDR_WIDTH),
+                    .ACCEPT_ANY_INDEX (1'b0),
+                    .FILE_INDEX       (VGM_LOAD_FILE_INDEX)
+                ) loader (
+                    .clk              (clk),
+                    .reset            (reset),
+                    .ioctl_download   (ioctl_download),
+                    .ioctl_wr         (ioctl_wr),
+                    .ioctl_addr       (ioctl_addr),
+                    .ioctl_dout       (ioctl_dout),
+                    .ioctl_index      (ioctl_index),
+                    .rd_addr          (ram_rd_addr),
+                    .rd_data          (ram_rd_data),
+                    .load_busy        (vgm_load_busy),
+                    .load_done        (vgm_load_done),
+                    .load_done_pulse  (load_done_pulse),
+                    .load_error       (vgm_load_error),
+                    .overflow_error   (vgm_load_overflow),
+                    .file_size        (vgm_load_size),
+                    .magic_debug      (vgm_load_magic)
+                );
 
-            vgm_bram_read_adapter #(
-                .ADDR_WIDTH       (VGM_LOAD_ADDR_WIDTH)
-            ) bram_read_adapter (
-                .clk              (clk),
-                .reset            (reset),
-                .mem_rd_req       (mem_rd_req),
-                .mem_rd_addr      (mem_rd_addr),
-                .mem_rd_ready     (mem_rd_ready),
-                .mem_rd_valid     (mem_rd_valid),
-                .mem_rd_data      (mem_rd_data),
-                .bram_rd_addr     (ram_rd_addr),
-                .bram_rd_data     (ram_rd_data)
-            );
+                vgm_bram_read_adapter #(
+                    .ADDR_WIDTH       (VGM_LOAD_ADDR_WIDTH)
+                ) bram_read_adapter (
+                    .clk              (clk),
+                    .reset            (reset),
+                    .mem_rd_req       (mem_rd_req),
+                    .mem_rd_addr      (mem_rd_addr),
+                    .mem_rd_ready     (mem_rd_ready),
+                    .mem_rd_valid     (mem_rd_valid),
+                    .mem_rd_data      (mem_rd_data),
+                    .bram_rd_addr     (ram_rd_addr),
+                    .bram_rd_data     (ram_rd_data)
+                );
+            end else begin : backend_reserved
+                assign mem_rd_ready = 1'b0;
+                assign mem_rd_valid = 1'b0;
+                assign mem_rd_data = 8'd0;
+                assign load_done_pulse = 1'b0;
+                assign vgm_load_busy = 1'b0;
+                assign vgm_load_done = 1'b0;
+                assign vgm_load_error =
+                    (MODE5_VGM_BACKEND == MODE5_BACKEND_DDRAM);
+                assign vgm_load_overflow =
+                    (MODE5_VGM_BACKEND != MODE5_BACKEND_DDRAM);
+                assign vgm_load_size = '0;
+                assign vgm_load_magic = 32'd0;
+            end
 
             vgm_loaded_player #(
                 .ADDR_WIDTH (VGM_LOAD_ADDR_WIDTH)
