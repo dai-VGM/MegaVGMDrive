@@ -55,19 +55,52 @@ def psg_write(commands: bytearray, value: int, stats: Stats) -> None:
     stats.psg_writes += 1
 
 
-def psg_ch0_tone(commands: bytearray, divider: int, volume: int, stats: Stats) -> None:
+def psg_tone(
+    commands: bytearray,
+    channel: int,
+    divider: int,
+    volume: int,
+    stats: Stats,
+) -> None:
+    if channel < 0 or channel > 2:
+        raise ValueError("PSG tone channel must be in 0..2")
     if divider < 1 or divider > 0x3FF:
         raise ValueError("PSG tone divider must be in 1..0x3ff")
     if volume < 0 or volume > 0x0F:
         raise ValueError("PSG volume must be in 0..0x0f")
 
-    psg_write(commands, 0x80 | (divider & 0x0F), stats)
+    tone_latch = 0x80 | (channel << 5)
+    volume_latch = 0x90 | (channel << 5)
+    psg_write(commands, volume_latch | 0x0F, stats)
+    psg_write(commands, tone_latch | (divider & 0x0F), stats)
     psg_write(commands, (divider >> 4) & 0x3F, stats)
-    psg_write(commands, 0x90 | volume, stats)
+    psg_write(commands, volume_latch | volume, stats)
+
+
+def psg_ch0_tone(commands: bytearray, divider: int, volume: int, stats: Stats) -> None:
+    psg_tone(commands, channel=0, divider=divider, volume=volume, stats=stats)
 
 
 def psg_ch0_mute(commands: bytearray, stats: Stats) -> None:
     psg_write(commands, 0x90 | 0x0F, stats)
+
+
+def psg_all_silence(commands: bytearray, stats: Stats) -> None:
+    psg_write(commands, 0x9F, stats)
+    psg_write(commands, 0xBF, stats)
+    psg_write(commands, 0xDF, stats)
+    psg_write(commands, 0xFF, stats)
+
+
+def psg_known_init(commands: bytearray, stats: Stats) -> None:
+    psg_all_silence(commands, stats)
+    psg_write(commands, 0x80, stats)
+    psg_write(commands, 0x08, stats)
+    psg_write(commands, 0xA0, stats)
+    psg_write(commands, 0x10, stats)
+    psg_write(commands, 0xC0, stats)
+    psg_write(commands, 0x18, stats)
+    psg_write(commands, 0xE0, stats)
 
 
 def psg_beep(
@@ -125,11 +158,13 @@ def make_vgm(commands: bytes, stats: Stats) -> bytes:
 def build_short_end() -> tuple[bytes, Stats]:
     stats = Stats()
     commands = bytearray()
+    psg_known_init(commands, stats)
+    wait_samples(commands, 735, stats)
     psg_ch0_tone(commands, divider=0x050, volume=0x02, stats=stats)
     wait_samples(commands, 30_870, stats)
     psg_ch0_tone(commands, divider=0x180, volume=0x02, stats=stats)
     wait_samples(commands, 52_920, stats)
-    psg_ch0_mute(commands, stats)
+    psg_all_silence(commands, stats)
     wait_samples(commands, 8_820, stats)
     end(commands, stats)
     return make_vgm(commands, stats), stats
