@@ -1,8 +1,8 @@
 // Minimal DDRAM backend for mode5 VGM loading/playback.
 //
-// This first version intentionally uses byte-write FIFO entries instead of
-// 8-byte packing. It is simple and keeps parser/audio/session semantics out of
-// scope. Later optimization can coalesce writes into full 64-bit words.
+// The write side packs sequential ioctl bytes into 64-bit DDRAM words before
+// enqueueing writes. The read side keeps the byte-read behavior expected by
+// vgm_loaded_player.
 
 module vgm_ddram_backend #(
     parameter int ADDR_WIDTH        = 18,
@@ -69,6 +69,11 @@ module vgm_ddram_backend #(
     logic [FIFO_AW-1:0]          fifo_rd_ptr;
     logic [FIFO_AW:0]            fifo_count;
 
+    logic                        pack_valid;
+    logic [DDRAM_ADDR_WIDTH-1:0] pack_addr;
+    logic [63:0]                 pack_word;
+    logic [7:0]                  pack_be;
+
     logic [2:0]                  read_lane;
     logic [RD_TIMEOUT_AW-1:0]    rd_wait_count;
     rd_state_t                   rd_state;
@@ -82,8 +87,10 @@ module vgm_ddram_backend #(
 
     wire accept_wr = ioctl_download && ioctl_wr && file_accept && download_active;
     wire write_pop = !fifo_empty && !ddram_busy;
+    wire fifo_space_after_pop = !fifo_full || write_pop;
 
     wire [31:0] ioctl_addr_plus_one = ioctl_addr + 32'd1;
+    wire ioctl_addr_in_range = ioctl_addr < (32'd1 << ADDR_WIDTH);
 
     wire [DDRAM_ADDR_WIDTH-1:0] ioctl_word_addr =
         DDRAM_BASE_ADDR + ioctl_addr[BYTE_ADDR_WIDTH-1:3];
@@ -94,11 +101,21 @@ module vgm_ddram_backend #(
     wire [DDRAM_ADDR_WIDTH-1:0] read_word_addr =
         DDRAM_BASE_ADDR + mem_rd_addr32[BYTE_ADDR_WIDTH-1:3];
 
+    wire accept_wr_in_range = accept_wr && ioctl_addr_in_range;
+    wire pack_word_changed =
+        accept_wr_in_range && pack_valid && (pack_addr != ioctl_word_addr);
+    wire download_end_flush = download_end && download_active && pack_valid;
+    wire finish_flush = finish_pending && pack_valid;
+    wire pack_flush_requested = pack_word_changed || download_end_flush || finish_flush;
+    wire pack_flush_fire = pack_flush_requested && fifo_space_after_pop;
+    wire pack_flush_blocked = pack_flush_requested && !fifo_space_after_pop;
+
     wire read_can_accept =
         (rd_state == RD_IDLE) &&
         !ioctl_download &&
         !download_active &&
         !finish_pending &&
+        !pack_valid &&
         fifo_empty &&
         !ddram_busy;
 
@@ -142,6 +159,26 @@ module vgm_ddram_backend #(
         end
     endfunction
 
+    function automatic [63:0] merge_lane(
+        input logic [63:0] word_data,
+        input logic [7:0] byte_data,
+        input logic [2:0] lane
+    );
+        begin
+            merge_lane = word_data;
+            case (lane)
+                3'd0: merge_lane[7:0]   = byte_data;
+                3'd1: merge_lane[15:8]  = byte_data;
+                3'd2: merge_lane[23:16] = byte_data;
+                3'd3: merge_lane[31:24] = byte_data;
+                3'd4: merge_lane[39:32] = byte_data;
+                3'd5: merge_lane[47:40] = byte_data;
+                3'd6: merge_lane[55:48] = byte_data;
+                default: merge_lane[63:56] = byte_data;
+            endcase
+        end
+    endfunction
+
     function automatic [7:0] lane_dout(
         input logic [63:0] word_data,
         input logic [2:0] lane
@@ -179,6 +216,10 @@ module vgm_ddram_backend #(
             fifo_wr_ptr <= '0;
             fifo_rd_ptr <= '0;
             fifo_count <= '0;
+            pack_valid <= 1'b0;
+            pack_addr <= '0;
+            pack_word <= 64'd0;
+            pack_be <= 8'd0;
 
             rd_state <= RD_IDLE;
             read_lane <= 3'd0;
@@ -218,6 +259,10 @@ module vgm_ddram_backend #(
                 fifo_wr_ptr <= '0;
                 fifo_rd_ptr <= '0;
                 fifo_count <= '0;
+                pack_valid <= 1'b0;
+                pack_addr <= '0;
+                pack_word <= 64'd0;
+                pack_be <= 8'd0;
 
                 rd_state <= RD_IDLE;
                 read_lane <= 3'd0;
@@ -247,16 +292,47 @@ module vgm_ddram_backend #(
                     fifo_rd_ptr <= fifo_ptr_inc(fifo_rd_ptr);
                 end
 
-                if (accept_wr) begin
-                    if (ioctl_addr >= (32'd1 << ADDR_WIDTH)) begin
-                        overflow_error <= 1'b1;
-                    end else if (fifo_full) begin
-                        overflow_error <= 1'b1;
+                if (pack_flush_blocked) begin
+                    overflow_error <= 1'b1;
+                end
+
+                if (pack_flush_fire) begin
+                    fifo_addr[fifo_wr_ptr] <= pack_addr;
+                    fifo_din[fifo_wr_ptr] <= pack_word;
+                    fifo_be[fifo_wr_ptr] <= pack_be;
+                    fifo_wr_ptr <= fifo_ptr_inc(fifo_wr_ptr);
+
+                    if (pack_word_changed) begin
+                        pack_valid <= 1'b1;
+                        pack_addr <= ioctl_word_addr;
+                        pack_word <= lane_din(ioctl_dout, ioctl_addr[2:0]);
+                        pack_be <= lane_be(ioctl_addr[2:0]);
                     end else begin
-                        fifo_addr[fifo_wr_ptr] <= ioctl_word_addr;
-                        fifo_din[fifo_wr_ptr] <= lane_din(ioctl_dout, ioctl_addr[2:0]);
-                        fifo_be[fifo_wr_ptr] <= lane_be(ioctl_addr[2:0]);
-                        fifo_wr_ptr <= fifo_ptr_inc(fifo_wr_ptr);
+                        pack_valid <= 1'b0;
+                        pack_addr <= '0;
+                        pack_word <= 64'd0;
+                        pack_be <= 8'd0;
+                    end
+                end
+
+                if (accept_wr) begin
+                    if (!ioctl_addr_in_range) begin
+                        overflow_error <= 1'b1;
+                    end else if (pack_word_changed && !pack_flush_fire) begin
+                        overflow_error <= 1'b1;
+                    end else if (!pack_word_changed) begin
+                        pack_valid <= 1'b1;
+                        pack_addr <= ioctl_word_addr;
+                        pack_word <= merge_lane(
+                            pack_valid ? pack_word : 64'd0,
+                            ioctl_dout,
+                            ioctl_addr[2:0]
+                        );
+                        pack_be <= (pack_valid ? pack_be : 8'd0) |
+                                   lane_be(ioctl_addr[2:0]);
+                    end
+
+                    if (ioctl_addr_in_range) begin
 
                         if (ioctl_addr_plus_one > file_size) begin
                             file_size <= ioctl_addr_plus_one;
@@ -272,8 +348,7 @@ module vgm_ddram_backend #(
                     end
                 end
 
-                case ({(accept_wr && !fifo_full &&
-                        (ioctl_addr < (32'd1 << ADDR_WIDTH))), write_pop})
+                case ({pack_flush_fire, write_pop})
                     2'b10: fifo_count <= fifo_count + {{FIFO_AW{1'b0}}, 1'b1};
                     2'b01: fifo_count <= fifo_count - {{FIFO_AW{1'b0}}, 1'b1};
                     default: fifo_count <= fifo_count;
@@ -312,7 +387,7 @@ module vgm_ddram_backend #(
                     end
                 end
 
-                if (finish_pending && fifo_empty) begin
+                if (finish_pending && !pack_valid && fifo_empty) begin
                     finish_pending <= 1'b0;
                     load_done <= !overflow_error && !load_error;
                     load_done_pulse <= !overflow_error && !load_error;
