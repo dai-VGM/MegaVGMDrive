@@ -839,6 +839,7 @@ module mister_vgm_md_top #(
                     .ADDR_WIDTH       (VGM_LOAD_ADDR_WIDTH),
                     .ACCEPT_ANY_INDEX (1'b0),
                     .FILE_INDEX       (VGM_LOAD_FILE_INDEX),
+                    .WRITE_FIFO_DEPTH (1024),
                     // Avoid low DDRAM addresses which may be used by MiSTer
                     // framebuffer/framework paths when MISTER_FB is enabled.
                     // DDRAM_ADDR is 64-bit word addressed: 0x00400000 = 32MB.
