@@ -123,7 +123,17 @@ module tb_mister_vgm_md_top;
         .fm_adjust_abs_peak(),
         .fm_lpf_abs_peak(),
         .genmix_abs_peak(),
-        .md_final_audio_abs_peak()
+        .md_final_audio_abs_peak(),
+
+        .ddram_busy           (1'b0),
+        .ddram_burstcnt       (),
+        .ddram_addr           (),
+        .ddram_dout           (64'd0),
+        .ddram_dout_ready     (1'b0),
+        .ddram_rd             (),
+        .ddram_din            (),
+        .ddram_be             (),
+        .ddram_we             ()
     );
 
     // Simple simulation clock. The exact frequency is not important for this

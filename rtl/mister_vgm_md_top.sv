@@ -191,15 +191,6 @@ module mister_vgm_md_top #(
     localparam int MODE5_BACKEND_BRAM  = 0;
     localparam int MODE5_BACKEND_DDRAM = 1;
 
-    // DDRAM is not used by the current BRAM backend.
-    // Keep the external DDRAM port idle until MODE5_BACKEND_DDRAM is implemented.
-    assign ddram_burstcnt = 8'd0;
-    assign ddram_addr     = 29'd0;
-    assign ddram_rd       = 1'b0;
-    assign ddram_din      = 64'd0;
-    assign ddram_be       = 8'd0;
-    assign ddram_we       = 1'b0;
-
     logic        reset;
     logic [2:0]  reset_sync = 3'b111;
     logic        external_reset;
@@ -836,6 +827,51 @@ module mister_vgm_md_top #(
                     .bram_rd_addr     (ram_rd_addr),
                     .bram_rd_data     (ram_rd_data)
                 );
+
+                assign ddram_burstcnt = 8'd0;
+                assign ddram_addr     = 29'd0;
+                assign ddram_rd       = 1'b0;
+                assign ddram_din      = 64'd0;
+                assign ddram_be       = 8'd0;
+                assign ddram_we       = 1'b0;
+            end else if (MODE5_VGM_BACKEND == MODE5_BACKEND_DDRAM) begin : backend_ddram
+                vgm_ddram_backend #(
+                    .ADDR_WIDTH       (VGM_LOAD_ADDR_WIDTH),
+                    .ACCEPT_ANY_INDEX (1'b0),
+                    .FILE_INDEX       (VGM_LOAD_FILE_INDEX)
+                ) ddram_backend (
+                    .clk              (clk),
+                    .reset            (reset),
+                    .ioctl_download   (ioctl_download),
+                    .ioctl_wr         (ioctl_wr),
+                    .ioctl_addr       (ioctl_addr),
+                    .ioctl_dout       (ioctl_dout),
+                    .ioctl_index      (ioctl_index),
+
+                    .mem_rd_req       (mem_rd_req),
+                    .mem_rd_addr      (mem_rd_addr),
+                    .mem_rd_ready     (mem_rd_ready),
+                    .mem_rd_valid     (mem_rd_valid),
+                    .mem_rd_data      (mem_rd_data),
+
+                    .load_busy        (vgm_load_busy),
+                    .load_done        (vgm_load_done),
+                    .load_done_pulse  (load_done_pulse),
+                    .load_error       (vgm_load_error),
+                    .overflow_error   (vgm_load_overflow),
+                    .file_size        (vgm_load_size),
+                    .magic_debug      (vgm_load_magic),
+
+                    .ddram_busy       (ddram_busy),
+                    .ddram_burstcnt   (ddram_burstcnt),
+                    .ddram_addr       (ddram_addr),
+                    .ddram_dout       (ddram_dout),
+                    .ddram_dout_ready (ddram_dout_ready),
+                    .ddram_rd         (ddram_rd),
+                    .ddram_din        (ddram_din),
+                    .ddram_be         (ddram_be),
+                    .ddram_we         (ddram_we)
+                );
             end else begin : backend_reserved
                 assign mem_rd_ready = 1'b0;
                 assign mem_rd_valid = 1'b0;
@@ -843,12 +879,17 @@ module mister_vgm_md_top #(
                 assign load_done_pulse = 1'b0;
                 assign vgm_load_busy = 1'b0;
                 assign vgm_load_done = 1'b0;
-                assign vgm_load_error =
-                    (MODE5_VGM_BACKEND == MODE5_BACKEND_DDRAM);
-                assign vgm_load_overflow =
-                    (MODE5_VGM_BACKEND != MODE5_BACKEND_DDRAM);
+                assign vgm_load_error = 1'b1;
+                assign vgm_load_overflow = 1'b1;
                 assign vgm_load_size = '0;
                 assign vgm_load_magic = 32'd0;
+
+                assign ddram_burstcnt = 8'd0;
+                assign ddram_addr     = 29'd0;
+                assign ddram_rd       = 1'b0;
+                assign ddram_din      = 64'd0;
+                assign ddram_be       = 8'd0;
+                assign ddram_we       = 1'b0;
             end
 
             vgm_loaded_player #(
