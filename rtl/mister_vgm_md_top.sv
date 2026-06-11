@@ -842,7 +842,7 @@ module mister_vgm_md_top #(
                     // Avoid low DDRAM addresses which may be used by MiSTer
                     // framebuffer/framework paths when MISTER_FB is enabled.
                     // DDRAM_ADDR is 64-bit word addressed: 0x00400000 = 32MB.
-                    .DDRAM_BASE_ADDR  (29'h00400000)
+                    .DDRAM_BASE_ADDR  (29'h01000000)
                 ) ddram_backend (
                     .clk              (clk),
                     .reset            (reset),
