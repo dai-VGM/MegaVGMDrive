@@ -103,7 +103,10 @@ module vgm_ddram_backend #(
         !ddram_busy;
 
     assign mem_rd_ready = read_can_accept;
-    assign load_busy = download_active || finish_pending || !fifo_empty;
+
+    // Report load busy only for the actual download/finalization window.
+    // Keep post-load read/write internals from perturbing mode5 session control.
+    assign load_busy = ioctl_download || download_active || finish_pending;
 
     function automatic [7:0] lane_be(input logic [2:0] lane);
         begin
