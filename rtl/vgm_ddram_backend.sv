@@ -10,7 +10,8 @@ module vgm_ddram_backend #(
     parameter logic [7:0] FILE_INDEX = 8'd0,
     parameter int DDRAM_ADDR_WIDTH  = 29,
     parameter logic [28:0] DDRAM_BASE_ADDR = 29'd0,
-    parameter int WRITE_FIFO_DEPTH  = 64
+    parameter int WRITE_FIFO_DEPTH  = 64,
+    parameter int READ_TIMEOUT_CYCLES = 1024
 ) (
     input  logic                     clk,
     input  logic                     reset,
@@ -49,6 +50,8 @@ module vgm_ddram_backend #(
     localparam int FIFO_AW = (WRITE_FIFO_DEPTH <= 2) ? 1 : $clog2(WRITE_FIFO_DEPTH);
     localparam logic [FIFO_AW:0] FIFO_DEPTH_COUNT = WRITE_FIFO_DEPTH[FIFO_AW:0];
     localparam int BYTE_ADDR_WIDTH = DDRAM_ADDR_WIDTH + 3;
+    localparam int RD_TIMEOUT_AW = (READ_TIMEOUT_CYCLES <= 2) ? 1 : $clog2(READ_TIMEOUT_CYCLES);
+    localparam logic [RD_TIMEOUT_AW-1:0] RD_TIMEOUT_LAST = READ_TIMEOUT_CYCLES - 1;
 
     typedef enum logic [0:0] {
         RD_IDLE = 1'b0,
@@ -67,6 +70,7 @@ module vgm_ddram_backend #(
     logic [FIFO_AW:0]            fifo_count;
 
     logic [2:0]                  read_lane;
+    logic [RD_TIMEOUT_AW-1:0]    rd_wait_count;
     rd_state_t                   rd_state;
 
     wire file_accept = ACCEPT_ANY_INDEX || (ioctl_index == FILE_INDEX);
@@ -175,6 +179,7 @@ module vgm_ddram_backend #(
 
             rd_state <= RD_IDLE;
             read_lane <= 3'd0;
+            rd_wait_count <= '0;
 
             mem_rd_valid <= 1'b0;
             mem_rd_data <= 8'd0;
@@ -213,6 +218,7 @@ module vgm_ddram_backend #(
 
                 rd_state <= RD_IDLE;
                 read_lane <= 3'd0;
+                rd_wait_count <= '0;
 
                 mem_rd_valid <= 1'b0;
                 mem_rd_data <= 8'd0;
@@ -283,12 +289,24 @@ module vgm_ddram_backend #(
                         ddram_addr <= read_word_addr;
                         ddram_rd <= 1'b1;
                         read_lane <= mem_rd_addr[2:0];
+                        rd_wait_count <= '0;
                         rd_state <= RD_WAIT;
                     end
                 end else if (rd_state == RD_WAIT && ddram_dout_ready) begin
                     mem_rd_data <= lane_dout(ddram_dout, read_lane);
                     mem_rd_valid <= 1'b1;
+                    rd_wait_count <= '0;
                     rd_state <= RD_IDLE;
+                end else if (rd_state == RD_WAIT) begin
+                    if (rd_wait_count >= RD_TIMEOUT_LAST) begin
+                        // If DDRAM never returns data, fail safe as VGM end.
+                        mem_rd_data <= 8'h66;
+                        mem_rd_valid <= 1'b1;
+                        rd_wait_count <= '0;
+                        rd_state <= RD_IDLE;
+                    end else begin
+                        rd_wait_count <= rd_wait_count + {{(RD_TIMEOUT_AW-1){1'b0}}, 1'b1};
+                    end
                 end
 
                 if (finish_pending && fifo_empty) begin
