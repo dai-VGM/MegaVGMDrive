@@ -870,7 +870,17 @@ module emu
     localparam int VGM_MODE5_BACKEND_PARAM = 0;
 `endif
 
+`ifdef MODE5_VGM_ADDR_WIDTH
+    localparam int VGM_LOAD_ADDR_WIDTH_PARAM = `MODE5_VGM_ADDR_WIDTH;
+`else
+    // Keep the BRAM backend at the proven 256KiB size.
+    // The DDRAM backend can safely use a wider VGM address space.
+    localparam int VGM_LOAD_ADDR_WIDTH_PARAM =
+        (VGM_MODE5_BACKEND_PARAM == 1) ? 22 : 18;
+`endif
+
     mister_vgm_md_top #(
+        .VGM_LOAD_ADDR_WIDTH(VGM_LOAD_ADDR_WIDTH_PARAM),
         .MODE5_REPEAT_ENABLE(MODE5_REPEAT_ENABLE_BUILD),
         .MODE5_VGM_BACKEND(VGM_MODE5_BACKEND_PARAM)
     ) md_sound (
