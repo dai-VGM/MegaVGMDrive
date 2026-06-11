@@ -173,11 +173,32 @@ module mister_vgm_md_top #(
     output logic [15:0]       fm_adjust_abs_peak,
     output logic [15:0]       fm_lpf_abs_peak,
     output logic [15:0]       genmix_abs_peak,
-    output logic [15:0]       md_final_audio_abs_peak
+    output logic [15:0]       md_final_audio_abs_peak,
+
+    // DDRAM interface for future mode5 backend.
+    // Backend 0 (BRAM) keeps these inactive.
+    input  logic              ddram_busy,
+    output logic [7:0]        ddram_burstcnt,
+    output logic [28:0]       ddram_addr,
+    input  logic [63:0]       ddram_dout,
+    input  logic              ddram_dout_ready,
+    output logic              ddram_rd,
+    output logic [63:0]       ddram_din,
+    output logic [7:0]        ddram_be,
+    output logic              ddram_we
 );
 
     localparam int MODE5_BACKEND_BRAM  = 0;
     localparam int MODE5_BACKEND_DDRAM = 1;
+
+    // DDRAM is not used by the current BRAM backend.
+    // Keep the external DDRAM port idle until MODE5_BACKEND_DDRAM is implemented.
+    assign ddram_burstcnt = 8'd0;
+    assign ddram_addr     = 29'd0;
+    assign ddram_rd       = 1'b0;
+    assign ddram_din      = 64'd0;
+    assign ddram_be       = 8'd0;
+    assign ddram_we       = 1'b0;
 
     logic        reset;
     logic [2:0]  reset_sync = 3'b111;

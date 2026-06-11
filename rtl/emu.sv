@@ -452,8 +452,20 @@ module emu
     assign {SDRAM_DQ, SDRAM_A, SDRAM_BA, SDRAM_CLK, SDRAM_CKE,
             SDRAM_DQML, SDRAM_DQMH, SDRAM_nWE, SDRAM_nCAS,
             SDRAM_nRAS, SDRAM_nCS} = 'Z;
-    assign {DDRAM_CLK, DDRAM_BURSTCNT, DDRAM_ADDR, DDRAM_DIN,
-            DDRAM_BE, DDRAM_RD, DDRAM_WE} = '0;
+    wire [7:0]  vgm_ddram_burstcnt;
+    wire [28:0] vgm_ddram_addr;
+    wire [63:0] vgm_ddram_din;
+    wire [7:0]  vgm_ddram_be;
+    wire        vgm_ddram_rd;
+    wire        vgm_ddram_we;
+
+    assign DDRAM_CLK      = clk_sys;
+    assign DDRAM_BURSTCNT = vgm_ddram_burstcnt;
+    assign DDRAM_ADDR     = vgm_ddram_addr;
+    assign DDRAM_DIN      = vgm_ddram_din;
+    assign DDRAM_BE       = vgm_ddram_be;
+    assign DDRAM_RD       = vgm_ddram_rd;
+    assign DDRAM_WE       = vgm_ddram_we;
 
 `ifdef MISTER_DUAL_SDRAM
     assign {SDRAM2_CLK, SDRAM2_A, SDRAM2_BA, SDRAM2_DQ,
@@ -944,7 +956,17 @@ module emu
         .fm_adjust_abs_peak   (fm_adjust_abs_peak),
         .fm_lpf_abs_peak      (fm_lpf_abs_peak),
         .genmix_abs_peak      (genmix_abs_peak),
-        .md_final_audio_abs_peak(md_final_audio_abs_peak)
+        .md_final_audio_abs_peak(md_final_audio_abs_peak),
+
+        .ddram_busy           (DDRAM_BUSY),
+        .ddram_burstcnt       (vgm_ddram_burstcnt),
+        .ddram_addr           (vgm_ddram_addr),
+        .ddram_dout           (DDRAM_DOUT),
+        .ddram_dout_ready     (DDRAM_DOUT_READY),
+        .ddram_rd             (vgm_ddram_rd),
+        .ddram_din            (vgm_ddram_din),
+        .ddram_be             (vgm_ddram_be),
+        .ddram_we             (vgm_ddram_we)
     );
 
     reg [8:0] h_count;
