@@ -864,8 +864,15 @@ module emu
     wire               startup_waiting;
     wire               startup_done;
 
+`ifdef MODE5_VGM_BACKEND
+    localparam int VGM_MODE5_BACKEND_PARAM = `MODE5_VGM_BACKEND;
+`else
+    localparam int VGM_MODE5_BACKEND_PARAM = 0;
+`endif
+
     mister_vgm_md_top #(
-        .MODE5_REPEAT_ENABLE(MODE5_REPEAT_ENABLE_BUILD)
+        .MODE5_REPEAT_ENABLE(MODE5_REPEAT_ENABLE_BUILD),
+        .MODE5_VGM_BACKEND(VGM_MODE5_BACKEND_PARAM)
     ) md_sound (
         .clk                   (clk_sys),
         .reset_n               (vgm_reset_n),
