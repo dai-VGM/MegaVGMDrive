@@ -271,11 +271,20 @@ module vgm_ddram_backend #(
                 endcase
 
                 if (read_can_accept && mem_rd_req) begin
-                    ddram_burstcnt <= 8'd1;
-                    ddram_addr <= read_word_addr;
-                    ddram_rd <= 1'b1;
-                    read_lane <= mem_rd_addr[2:0];
-                    rd_state <= RD_WAIT;
+                    // Safety guard: if the player ever asks past the loaded VGM
+                    // image, synthesize VGM end (0x66) instead of reading
+                    // undefined DDRAM contents or waiting on an invalid read.
+                    if (mem_rd_addr32 >= file_size) begin
+                        mem_rd_data <= 8'h66;
+                        mem_rd_valid <= 1'b1;
+                        rd_state <= RD_IDLE;
+                    end else begin
+                        ddram_burstcnt <= 8'd1;
+                        ddram_addr <= read_word_addr;
+                        ddram_rd <= 1'b1;
+                        read_lane <= mem_rd_addr[2:0];
+                        rd_state <= RD_WAIT;
+                    end
                 end else if (rd_state == RD_WAIT && ddram_dout_ready) begin
                     mem_rd_data <= lane_dout(ddram_dout, read_lane);
                     mem_rd_valid <= 1'b1;
