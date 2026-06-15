@@ -643,6 +643,7 @@ module emu
     wire [26:0] ioctl_addr;
     wire  [7:0] ioctl_dout;
     wire [15:0] ioctl_index;
+    wire        ioctl_wait;
     wire        vgm_load_busy;
     wire        vgm_load_done;
     wire        vgm_load_error;
@@ -766,6 +767,7 @@ module emu
         .ioctl_addr(ioctl_addr),
         .ioctl_dout(ioctl_dout),
         .ioctl_index(ioctl_index),
+        .ioctl_wait(ioctl_wait),
 
         .joystick_0(joystick_0),
         .joystick_1(joystick_1),
@@ -903,6 +905,7 @@ module emu
         .ioctl_addr            (ioctl_addr),
         .ioctl_dout            (ioctl_dout),
         .ioctl_index           (ioctl_index),
+        .ioctl_wait            (ioctl_wait),
         .vgm_load_busy         (vgm_load_busy),
         .vgm_load_done         (vgm_load_done),
         .vgm_load_error        (vgm_load_error),

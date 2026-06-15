@@ -101,6 +101,7 @@ module mister_vgm_md_top #(
     input  logic [26:0]       ioctl_addr,
     input  logic [7:0]        ioctl_dout,
     input  logic [15:0]       ioctl_index,
+    output logic              ioctl_wait,
 
     // REGION_MODE=5 loader/player status for hardware debug colors.
     output logic              vgm_load_busy,
@@ -456,6 +457,7 @@ module mister_vgm_md_top #(
             logic mem_rd_valid;
             logic [7:0] mem_rd_data;
             logic load_done_pulse;
+            logic play_ready_pulse;
             logic ym_cmd_valid;
             logic ym_cmd_port;
             logic [7:0] ym_cmd_reg;
@@ -637,7 +639,7 @@ module mister_vgm_md_top #(
                         mode5_sound_reset_counter <= 32'd0;
                         mode5_sound_reset_active_i <= 1'b0;
                         mode5_repeat_state <= MODE5_REPEAT_RESET;
-                    end else if (load_done_pulse) begin
+                    end else if (play_ready_pulse) begin
                         mode5_load_done_edge_count_i <= mode5_load_done_edge_count_i + 32'd1;
                         mode5_load_session_active <= 1'b0;
                         mode5_playback_armed <= 1'b1;
@@ -814,6 +816,9 @@ module mister_vgm_md_top #(
                     .magic_debug      (vgm_load_magic)
                 );
 
+                assign play_ready_pulse = load_done_pulse;
+                assign ioctl_wait = 1'b0;
+
                 vgm_bram_read_adapter #(
                     .ADDR_WIDTH       (VGM_LOAD_ADDR_WIDTH)
                 ) bram_read_adapter (
@@ -852,6 +857,7 @@ module mister_vgm_md_top #(
                     .ioctl_addr       (ioctl_addr),
                     .ioctl_dout       (ioctl_dout),
                     .ioctl_index      (ioctl_index),
+                    .ioctl_wait       (ioctl_wait),
 
                     .mem_rd_req       (mem_rd_req),
                     .mem_rd_addr      (mem_rd_addr),
@@ -862,6 +868,7 @@ module mister_vgm_md_top #(
                     .load_busy        (vgm_load_busy),
                     .load_done        (vgm_load_done),
                     .load_done_pulse  (load_done_pulse),
+                    .play_ready_pulse (play_ready_pulse),
                     .load_error       (vgm_load_error),
                     .overflow_error   (vgm_load_overflow),
                     .file_size        (vgm_load_size),
@@ -882,6 +889,8 @@ module mister_vgm_md_top #(
                 assign mem_rd_valid = 1'b0;
                 assign mem_rd_data = 8'd0;
                 assign load_done_pulse = 1'b0;
+                assign play_ready_pulse = 1'b0;
+                assign ioctl_wait = 1'b0;
                 assign vgm_load_busy = 1'b0;
                 assign vgm_load_done = 1'b0;
                 assign vgm_load_error = 1'b1;
@@ -1042,6 +1051,7 @@ module mister_vgm_md_top #(
             assign mode5_done_pc_debug = '0;
             assign mode5_done_cmd_debug = 8'd0;
             assign audio_runtime_open = audio_gate_open;
+            assign ioctl_wait = 1'b0;
 
             md_sound_fixed_region_test #(
                 .REGION_MODE (REGION_MODE)

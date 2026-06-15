@@ -21,6 +21,7 @@ module vgm_ddram_backend #(
     input  logic [31:0]              ioctl_addr,
     input  logic [7:0]               ioctl_dout,
     input  logic [7:0]               ioctl_index,
+    output logic                     ioctl_wait,
 
     input  logic                     mem_rd_req,
     input  logic [ADDR_WIDTH-1:0]    mem_rd_addr,
@@ -31,6 +32,7 @@ module vgm_ddram_backend #(
     output logic                     load_busy,
     output logic                     load_done,
     output logic                     load_done_pulse,
+    output logic                     play_ready_pulse,
     output logic                     load_error,
     output logic                     overflow_error,
     output logic [31:0]              file_size,
@@ -61,6 +63,7 @@ module vgm_ddram_backend #(
     logic ioctl_download_q;
     logic download_active;
     logic finish_pending;
+    logic write_pending;
 
     logic [DDRAM_ADDR_WIDTH-1:0] fifo_addr [0:WRITE_FIFO_DEPTH-1];
     logic [63:0]                 fifo_din  [0:WRITE_FIFO_DEPTH-1];
@@ -109,6 +112,14 @@ module vgm_ddram_backend #(
     wire pack_flush_requested = pack_word_changed || download_end_flush || finish_flush;
     wire pack_flush_fire = pack_flush_requested && fifo_space_after_pop;
     wire pack_flush_blocked = pack_flush_requested && !fifo_space_after_pop;
+    wire write_waiting_for_ddram = !fifo_empty && ddram_busy;
+    wire load_can_finish =
+        finish_pending &&
+        !pack_valid &&
+        fifo_empty &&
+        !write_pending &&
+        !write_pop &&
+        !ddram_busy;
 
     wire read_can_accept =
         (rd_state == RD_IDLE) &&
@@ -120,10 +131,17 @@ module vgm_ddram_backend #(
         !ddram_busy;
 
     assign mem_rd_ready = read_can_accept;
+    assign ioctl_wait =
+        ioctl_download &&
+        file_accept &&
+        (fifo_full || pack_flush_blocked || write_waiting_for_ddram);
 
     // Report load busy only for the actual download/finalization window.
     // Keep post-load read/write internals from perturbing mode5 session control.
-    assign load_busy = ioctl_download || download_active || finish_pending;
+    assign load_busy = ioctl_download ||
+                       download_active ||
+                       finish_pending ||
+                       write_pending;
 
     function automatic [7:0] lane_be(input logic [2:0] lane);
         begin
@@ -230,6 +248,7 @@ module vgm_ddram_backend #(
 
             load_done <= 1'b0;
             load_done_pulse <= 1'b0;
+            play_ready_pulse <= 1'b0;
             load_error <= 1'b0;
             overflow_error <= 1'b0;
             file_size <= 32'd0;
@@ -241,11 +260,13 @@ module vgm_ddram_backend #(
             ddram_din <= 64'd0;
             ddram_be <= 8'd0;
             ddram_we <= 1'b0;
+            write_pending <= 1'b0;
         end else begin
             ioctl_download_q <= ioctl_download;
 
             mem_rd_valid <= 1'b0;
             load_done_pulse <= 1'b0;
+            play_ready_pulse <= 1'b0;
 
             ddram_burstcnt <= 8'd0;
             ddram_rd <= 1'b0;
@@ -255,6 +276,7 @@ module vgm_ddram_backend #(
             if (download_start) begin
                 download_active <= file_accept;
                 finish_pending <= 1'b0;
+                write_pending <= 1'b0;
 
                 fifo_wr_ptr <= '0;
                 fifo_rd_ptr <= '0;
@@ -273,6 +295,7 @@ module vgm_ddram_backend #(
 
                 load_done <= 1'b0;
                 load_done_pulse <= 1'b0;
+                play_ready_pulse <= 1'b0;
                 load_error <= 1'b0;
                 overflow_error <= 1'b0;
                 file_size <= 32'd0;
@@ -289,7 +312,10 @@ module vgm_ddram_backend #(
                     ddram_din <= fifo_din[fifo_rd_ptr];
                     ddram_be <= fifo_be[fifo_rd_ptr];
                     ddram_we <= 1'b1;
+                    write_pending <= 1'b1;
                     fifo_rd_ptr <= fifo_ptr_inc(fifo_rd_ptr);
+                end else if (write_pending && !ddram_busy) begin
+                    write_pending <= 1'b0;
                 end
 
                 if (pack_flush_blocked) begin
@@ -387,10 +413,11 @@ module vgm_ddram_backend #(
                     end
                 end
 
-                if (finish_pending && !pack_valid && fifo_empty) begin
+                if (load_can_finish) begin
                     finish_pending <= 1'b0;
                     load_done <= !overflow_error && !load_error;
                     load_done_pulse <= !overflow_error && !load_error;
+                    play_ready_pulse <= !overflow_error && !load_error;
                 end
             end
         end

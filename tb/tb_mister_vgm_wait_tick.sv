@@ -55,6 +55,7 @@ module tb_mister_vgm_wait_tick;
         .ioctl_addr            (27'd0),
         .ioctl_dout            (8'd0),
         .ioctl_index           (16'd0),
+        .ioctl_wait            (),
         .vgm_load_busy         (),
         .vgm_load_done         (),
         .vgm_load_error        (),

@@ -71,6 +71,7 @@ module tb_mode5_audio_mute_gate;
         .ioctl_addr                     (ioctl_addr),
         .ioctl_dout                     (ioctl_dout),
         .ioctl_index                    (ioctl_index),
+        .ioctl_wait                     (),
         .vgm_load_busy                  (vgm_load_busy),
         .vgm_load_done                  (vgm_load_done),
         .vgm_load_error                 (vgm_load_error),
