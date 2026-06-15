@@ -845,10 +845,9 @@ module mister_vgm_md_top #(
                     .ACCEPT_ANY_INDEX (1'b0),
                     .FILE_INDEX       (VGM_LOAD_FILE_INDEX),
                     .WRITE_FIFO_DEPTH (1024),
-                    // Avoid low DDRAM addresses which may be used by MiSTer
-                    // framebuffer/framework paths when MISTER_FB is enabled.
-                    // DDRAM_ADDR is 64-bit word addressed: 0x00400000 = 32MB.
-                    .DDRAM_BASE_ADDR  (29'h01000000)
+                    // Match the common MiSTer DDRAM window used by PSX/GBA:
+                    // DDRAM_ADDR[28:25] = 4'b0011 maps to 0x30000000.
+                    .DDRAM_BASE_ADDR  ({4'b0011, 25'd0})
                 ) ddram_backend (
                     .clk              (clk),
                     .reset            (reset),
