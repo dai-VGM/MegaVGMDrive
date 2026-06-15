@@ -210,6 +210,12 @@ module md_sound_module
     localparam bit MD_AUDIO_PREMIX_ATTENUATE_PSG_BUILD = 1'b0;
 `endif
 
+`ifdef MD_PSG_CEN_LEGACY_DIV15_TEST
+    localparam bit MD_PSG_CEN_LEGACY_DIV15_BUILD = 1'b1;
+`else
+    localparam bit MD_PSG_CEN_LEGACY_DIV15_BUILD = 1'b0;
+`endif
+
 `ifdef MD_AUDIO_RAW_JT12_FM_TEST
     localparam bit MD_AUDIO_RAW_JT12_FM_BUILD = 1'b1;
 `else
@@ -467,20 +473,33 @@ module md_sound_module
         end
     end
 
-    logic [3:0] psg_clk_cnt;
-    logic       psg_clken;
+    logic [3:0]  psg_clk_cnt;
+    logic        psg_clken;
+    logic [23:0] psg_cen_accum;
+
+    // Approximate the Mega Drive NTSC SN76489 input enable from the current
+    // 20 MHz clk_sys. Target: 3,579,545 Hz.
+    localparam logic [24:0] JT89_NTSC_CEN_INC = 25'd3002740;
+    wire [24:0] jt89_ntsc_cen_sum =
+        {1'b0, psg_cen_accum} + JT89_NTSC_CEN_INC;
 
     always_ff @(posedge clk) begin
         if (reset) begin
-            psg_clk_cnt <= 4'd0;
-            psg_clken   <= 1'b0;
+            psg_clk_cnt   <= 4'd0;
+            psg_clken     <= 1'b0;
+            psg_cen_accum <= 24'd0;
         end else begin
             psg_clken <= 1'b0;
-            if (psg_clk_cnt == 4'd14) begin
-                psg_clk_cnt <= 4'd0;
-                psg_clken   <= 1'b1;
+            if (MD_PSG_CEN_LEGACY_DIV15_BUILD) begin
+                if (psg_clk_cnt == 4'd14) begin
+                    psg_clk_cnt <= 4'd0;
+                    psg_clken   <= 1'b1;
+                end else begin
+                    psg_clk_cnt <= psg_clk_cnt + 4'd1;
+                end
             end else begin
-                psg_clk_cnt <= psg_clk_cnt + 4'd1;
+                psg_cen_accum <= jt89_ntsc_cen_sum[23:0];
+                psg_clken     <= jt89_ntsc_cen_sum[24];
             end
         end
     end
