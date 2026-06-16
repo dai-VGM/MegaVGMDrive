@@ -210,6 +210,18 @@ module md_sound_module
     localparam bit MD_AUDIO_PREMIX_ATTENUATE_PSG_BUILD = 1'b0;
 `endif
 
+`ifdef MD_AUDIO_PSG_MEGADRIVE_GAIN_TEST
+    localparam bit MD_AUDIO_PSG_MEGADRIVE_GAIN_BUILD = 1'b1;
+`else
+    localparam bit MD_AUDIO_PSG_MEGADRIVE_GAIN_BUILD = 1'b0;
+`endif
+
+`ifdef MD_AUDIO_PSG_ATTEN_075_TEST
+    localparam bit MD_AUDIO_PSG_ATTEN_075_BUILD = 1'b1;
+`else
+    localparam bit MD_AUDIO_PSG_ATTEN_075_BUILD = 1'b0;
+`endif
+
 `ifdef MD_PSG_CEN_LEGACY_DIV15_TEST
     localparam bit MD_PSG_CEN_LEGACY_DIV15_BUILD = 1'b1;
 `else
@@ -945,7 +957,10 @@ module md_sound_module
 	    wire signed [15:0] fm_pre_genmix_r =
 	        MD_AUDIO_PRE_GENMIX_FM_LPF_BUILD ? fm_pre_genmix_lpf_selected_r : fm_adjust_r;
 
-	    wire signed [10:0] psg_adjust = psg_pre - (psg_pre >>> 5);
+	    wire signed [10:0] psg_adjust =
+	        MD_AUDIO_PSG_ATTEN_075_BUILD ? (psg_pre - (psg_pre >>> 2)) :
+	        MD_AUDIO_PSG_MEGADRIVE_GAIN_BUILD ? (psg_pre + (psg_pre >>> 1)) :
+	                                            (psg_pre - (psg_pre >>> 5));
 
 	    wire fm_path_enabled =
 	        !MD_AUDIO_PSG_ONLY_BUILD && !MD_AUDIO_FM_FORCE_MUTE_BUILD;

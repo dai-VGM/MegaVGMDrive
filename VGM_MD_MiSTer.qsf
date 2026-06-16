@@ -56,12 +56,14 @@ set_global_assignment -name VERILOG_MACRO "MISTER_FB=1"
 set_global_assignment -name VERILOG_MACRO "FIXED_REGION_MODE=5"
 set_global_assignment -name VERILOG_MACRO "MD_JT12_CEN_NTSC_TEST=1"
 set_global_assignment -name VERILOG_MACRO "MD_JT12_LADDER_EFFECT_TEST=1"
-#set_global_assignment -name VERILOG_MACRO "MD_AUDIO_GENMIX_OUTPUT_GAIN_6X_TEST=1"
+ #set_global_assignment -name VERILOG_MACRO "MD_AUDIO_GENMIX_OUTPUT_GAIN_6X_TEST=1"
+set_global_assignment -name VERILOG_MACRO "MD_AUDIO_GENMIX_OUTPUT_GAIN_2X_TEST=1"
 set_global_assignment -name VERILOG_MACRO "MODE5_VGM_BACKEND=1"
 set_global_assignment -name VERILOG_MACRO "MODE5_VGM_ADDR_WIDTH=23"
 set_global_assignment -name VERILOG_MACRO "MD_AUDIO_OUTPUT_SHIFT_0_TEST=1"
-#set_global_assignment -name VERILOG_MACRO "MD_AUDIO_LPF_MODEL1_TEST=1"
+set_global_assignment -name VERILOG_MACRO "MD_AUDIO_LPF_MODEL1_TEST=1"
 set_global_assignment -name VERILOG_MACRO "MD_JT12_HIFI_PCM_TEST=1"
+set_global_assignment -name VERILOG_MACRO "MD_AUDIO_PSG_ATTEN_075_TEST=1"
 # Keep HDMI/video framework enabled. The current hardware goal is stable
 # video/menu first; do not enable MISTER_DEBUG_NOHDMI.
 
