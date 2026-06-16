@@ -81,6 +81,7 @@ module mister_vgm_md_top #(
     output logic signed [15:0] audio_l,
     output logic signed [15:0] audio_r,
     output logic              audio_sample_valid,
+    input  logic        [1:0] audio_lpf_mode,
 
     // Optional debug/status pins for early bring-up.
     output logic              player_busy,
@@ -976,6 +977,7 @@ module mister_vgm_md_top #(
                 .audio_l               (raw_audio_l),
                 .audio_r               (raw_audio_r),
                 .audio_sample_valid    (raw_audio_sample_valid),
+                .audio_lpf_mode        (audio_lpf_mode),
                 .fm_adjust_clip_count_l(fm_adjust_clip_count_l),
                 .fm_adjust_clip_count_r(fm_adjust_clip_count_r),
                 .genmix_wrap_count_l   (genmix_wrap_count_l),
@@ -1063,6 +1065,7 @@ module mister_vgm_md_top #(
                 .audio_l               (raw_audio_l),
                 .audio_r               (raw_audio_r),
                 .audio_sample_valid    (raw_audio_sample_valid),
+                .audio_lpf_mode        (audio_lpf_mode),
                 .player_busy           (player_busy),
                 .player_done           (player_done),
                 .player_pc_debug       (player_pc_debug),

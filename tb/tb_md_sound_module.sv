@@ -85,6 +85,7 @@ module tb_md_sound_module;
         .audio_l            (audio_l),
         .audio_r            (audio_r),
         .audio_sample_valid (audio_sample_valid),
+        .audio_lpf_mode     (2'b00),
         .fm_adjust_clip_count_l(),
         .fm_adjust_clip_count_r(),
         .genmix_wrap_count_l(),

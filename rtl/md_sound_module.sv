@@ -55,6 +55,7 @@ module md_sound_module
 	    // Pulses when a new jt12 FM sample is available after the startup guard.
 	    // Testbenches can use this as a practical audio dump strobe.
 	    output logic              audio_sample_valid,
+	    input  logic        [1:0] audio_lpf_mode,
 
 	    // Upstream mix diagnostics. These counters saturate at 16'hffff.
 	    output logic       [15:0] fm_adjust_clip_count_l,
@@ -356,6 +357,12 @@ module md_sound_module
     localparam logic [1:0] MD_AUDIO_LPF_MODE = 2'b10;
 `else
     localparam logic [1:0] MD_AUDIO_LPF_MODE = 2'b11;
+`endif
+
+`ifdef MD_AUDIO_LPF_OSD_TEST
+    wire [1:0] md_audio_lpf_mode_selected = audio_lpf_mode;
+`else
+    wire [1:0] md_audio_lpf_mode_selected = MD_AUDIO_LPF_MODE;
 `endif
 
     //----------------------------------------------------------------------
@@ -1129,15 +1136,11 @@ module md_sound_module
     //   2'b10: minimal 8.5 kHz low-pass
     //   2'b11: bypass
     //
-    // Use bypass for the first bring-up so we can verify that sound appears
-    // before tuning the final Genesis-style filter response.
-    // TODO: Expose lpf_mode as an input if this module becomes a real core.
-
     genesis_lpf lpf_left
     (
 	        .clk      (clk),
 	        .reset    (reset),
-	        .lpf_mode (MD_AUDIO_LPF_MODE),
+	        .lpf_mode (md_audio_lpf_mode_selected),
 	        .in       (pre_lpf_selected_l),
 	        .out      (lpf_audio_l)
 	    );
@@ -1146,7 +1149,7 @@ module md_sound_module
     (
 	        .clk      (clk),
 	        .reset    (reset),
-	        .lpf_mode (MD_AUDIO_LPF_MODE),
+	        .lpf_mode (md_audio_lpf_mode_selected),
 	        .in       (pre_lpf_selected_r),
 	        .out      (lpf_audio_r)
 	    );

@@ -626,6 +626,7 @@ module emu
         "VGM_MD;;",
         "F1,VGM,Load VGM;",
         "O1,Mode5 debug,Off,On;",
+        "O23,Audio Filter,Model 1,Model 2,Minimal,No Filter;",
         "-;",
         "R0,Reset;",
         "V,v",`BUILD_DATE
@@ -856,6 +857,7 @@ module emu
 
     wire vgm_reset = vgm_reset_req | vgm_reset_hold_active;
     wire vgm_reset_n = !vgm_reset;
+    wire [1:0] audio_lpf_mode = status[3:2];
 
     wire               audio_sample_valid;
     wire               player_busy;
@@ -891,6 +893,7 @@ module emu
         .audio_l               (md_audio_l),
         .audio_r               (md_audio_r),
         .audio_sample_valid    (audio_sample_valid),
+        .audio_lpf_mode        (audio_lpf_mode),
         .player_busy           (player_busy),
         .player_done           (player_done),
         .player_pc_debug       (player_pc_debug),
@@ -1638,9 +1641,19 @@ module emu
     assign VGA_DE = active;
     assign VGA_HS = hsync;
     assign VGA_VS = vsync;
-    assign VGA_R = active ? red : 8'd0;
-    assign VGA_G = active ? green : 8'd0;
-    assign VGA_B = active ? blue : 8'd0;
+`ifdef MISTER_VGM_DEBUG_VIDEO_ENABLE
+    wire [7:0] video_red   = red;
+    wire [7:0] video_green = green;
+    wire [7:0] video_blue  = blue;
+`else
+    // Keep the normal player screen quiet; the OSD is overlaid later in sys_top.
+    wire [7:0] video_red   = 8'h00;
+    wire [7:0] video_green = 8'h08;
+    wire [7:0] video_blue  = 8'h18;
+`endif
+    assign VGA_R = active ? video_red : 8'd0;
+    assign VGA_G = active ? video_green : 8'd0;
+    assign VGA_B = active ? video_blue : 8'd0;
 
     reg [26:0] act_cnt;
     always @(posedge clk_sys) begin

@@ -61,6 +61,7 @@ module tb_mode5_repeat_policy;
         .audio_l                        (audio_l),
         .audio_r                        (audio_r),
         .audio_sample_valid             (),
+        .audio_lpf_mode                 (2'b00),
         .player_busy                    (player_busy),
         .player_done                    (player_done),
         .player_pc_debug                (),

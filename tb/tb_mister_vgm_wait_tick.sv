@@ -42,6 +42,7 @@ module tb_mister_vgm_wait_tick;
         .audio_l               (audio_l),
         .audio_r               (audio_r),
         .audio_sample_valid    (audio_sample_valid),
+        .audio_lpf_mode        (2'b00),
         .player_busy           (player_busy),
         .player_done           (player_done),
         .player_pc_debug       (player_pc_debug),

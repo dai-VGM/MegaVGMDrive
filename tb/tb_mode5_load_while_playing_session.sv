@@ -71,6 +71,7 @@ module tb_mode5_load_while_playing_session;
         .audio_l                        (audio_l),
         .audio_r                        (audio_r),
         .audio_sample_valid             (audio_sample_valid),
+        .audio_lpf_mode                 (2'b00),
         .player_busy                    (player_busy),
         .player_done                    (player_done),
         .player_pc_debug                (),
