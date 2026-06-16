@@ -1267,10 +1267,22 @@ reg hdmi_out_hs;
 reg hdmi_out_vs;
 reg hdmi_out_de;
 reg [23:0] hdmi_out_d;
+`ifdef MISTER_VGM_AUDIO_METER_ENABLE
 reg [11:0] md_audio_meter_x;
 reg [11:0] md_audio_meter_y;
 reg        md_audio_meter_de_d;
 reg        md_audio_meter_vs_d;
+reg [15:0] audio_core_abs_peak_hdmi_meta;
+reg [15:0] audio_core_abs_peak_hdmi;
+reg [15:0] audio_core_abs_avg_hdmi_meta;
+reg [15:0] audio_core_abs_avg_hdmi;
+reg        audio_core_rail_seen_hdmi_meta;
+reg        audio_core_rail_seen_hdmi;
+reg        sys_meter_pixel_q;
+reg        sys_meter_avg_pixel_q;
+reg [23:0] sys_meter_rgb_q;
+reg [23:0] sys_meter_avg_rgb_q;
+`endif
 
 always @(posedge hdmi_tx_clk) begin
 	reg [23:0] hdmi_dv_data;
@@ -1278,6 +1290,7 @@ always @(posedge hdmi_tx_clk) begin
 
 	reg hs,vs,de;
 	reg [23:0] d;
+`ifdef MISTER_VGM_AUDIO_METER_ENABLE
 	reg [15:0] sys_meter_x_level;
 	reg sys_meter_bar;
 	reg sys_meter_avg_bar;
@@ -1287,11 +1300,21 @@ always @(posedge hdmi_tx_clk) begin
 	reg sys_meter_avg_pixel;
 	reg [23:0] sys_meter_rgb;
 	reg [23:0] sys_meter_avg_rgb;
+`endif
 		
 	hdmi_dv_data <= dv_data;
 	hdmi_dv_hs   <= dv_hs;
 	hdmi_dv_vs   <= dv_vs;
 	hdmi_dv_de   <= dv_de;
+
+`ifdef MISTER_VGM_AUDIO_METER_ENABLE
+	audio_core_abs_peak_hdmi_meta <= audio_core_abs_peak;
+	audio_core_abs_peak_hdmi      <= audio_core_abs_peak_hdmi_meta;
+	audio_core_abs_avg_hdmi_meta  <= audio_core_abs_avg;
+	audio_core_abs_avg_hdmi       <= audio_core_abs_avg_hdmi_meta;
+	audio_core_rail_seen_hdmi_meta <= audio_core_rail_seen;
+	audio_core_rail_seen_hdmi      <= audio_core_rail_seen_hdmi_meta;
+`endif
 	
 `ifndef MISTER_DEBUG_NOHDMI
 	hs <= (~vga_fb & direct_video) ? hdmi_dv_hs   : (direct_video & csync_en) ? hdmi_cs_osd : hdmi_hs_osd;
@@ -1305,6 +1328,7 @@ always @(posedge hdmi_tx_clk) begin
 	d  <= hdmi_dv_data;
 	`endif
 
+`ifdef MISTER_VGM_AUDIO_METER_ENABLE
 	if (~md_audio_meter_vs_d && vs) begin
 		md_audio_meter_y <= 12'd0;
 	end else if (de && !md_audio_meter_de_d) begin
@@ -1328,9 +1352,9 @@ always @(posedge hdmi_tx_clk) begin
 
 	sys_meter_x_level = md_audio_meter_x * 16'd102;
 	sys_meter_bar = (md_audio_meter_x < 12'd320) &&
-		(audio_core_abs_peak >= sys_meter_x_level);
+		(audio_core_abs_peak_hdmi >= sys_meter_x_level);
 	sys_meter_avg_bar = (md_audio_meter_x < 12'd320) &&
-		(audio_core_abs_avg >= sys_meter_x_level);
+		(audio_core_abs_avg_hdmi >= sys_meter_x_level);
 	sys_meter_reference_marker =
 		(md_audio_meter_x >= 12'd234) && (md_audio_meter_x < 12'd237);
 	sys_meter_rail_block =
@@ -1346,7 +1370,7 @@ always @(posedge hdmi_tx_clk) begin
 		(md_audio_meter_y < 12'd42) &&
 		(md_audio_meter_x < 12'd320);
 	sys_meter_rgb =
-		(sys_meter_rail_block && audio_core_rail_seen) ? 24'hff0000 :
+		(sys_meter_rail_block && audio_core_rail_seen_hdmi) ? 24'hff0000 :
 		sys_meter_reference_marker ? 24'hffffff :
 		sys_meter_bar ? 24'hffb000 :
 		                24'h181000;
@@ -1354,13 +1378,22 @@ always @(posedge hdmi_tx_clk) begin
 		sys_meter_reference_marker ? 24'hffffff :
 		sys_meter_avg_bar ? 24'hffd060 :
 		                    24'h181408;
+	sys_meter_pixel_q <= sys_meter_pixel;
+	sys_meter_avg_pixel_q <= sys_meter_avg_pixel;
+	sys_meter_rgb_q <= sys_meter_rgb;
+	sys_meter_avg_rgb_q <= sys_meter_avg_rgb;
+`endif
 
 	hdmi_out_hs <= hs;
 	hdmi_out_vs <= vs;
 	hdmi_out_de <= de;
-	hdmi_out_d  <= sys_meter_pixel ? sys_meter_rgb :
-	               sys_meter_avg_pixel ? sys_meter_avg_rgb :
+`ifdef MISTER_VGM_AUDIO_METER_ENABLE
+	hdmi_out_d  <= sys_meter_pixel_q ? sys_meter_rgb_q :
+	               sys_meter_avg_pixel_q ? sys_meter_avg_rgb_q :
 	                                     d;
+`else
+	hdmi_out_d  <= d;
+`endif
 end
 
 assign HDMI_TX_HS = hdmi_out_hs;
