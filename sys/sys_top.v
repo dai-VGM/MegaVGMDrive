@@ -1267,6 +1267,18 @@ reg hdmi_out_hs;
 reg hdmi_out_vs;
 reg hdmi_out_de;
 reg [23:0] hdmi_out_d;
+reg [11:0] vgm_status_x;
+reg [11:0] vgm_status_y;
+reg [11:0] vgm_status_height;
+reg        vgm_status_de_d;
+reg        vgm_status_vs_d;
+reg [1:0]  vgm_player_state_hdmi_meta;
+reg [1:0]  vgm_player_state_hdmi;
+reg        osd_status_hdmi_meta;
+reg        osd_status_hdmi;
+reg [27:0] vgm_heartbeat_count;
+reg        vgm_status_pixel_q;
+reg [23:0] vgm_status_rgb_q;
 `ifdef MISTER_VGM_AUDIO_METER_ENABLE
 reg [11:0] md_audio_meter_x;
 reg [11:0] md_audio_meter_y;
@@ -1284,12 +1296,89 @@ reg [23:0] sys_meter_rgb_q;
 reg [23:0] sys_meter_avg_rgb_q;
 `endif
 
+function [4:0] vgm_status_font_row;
+	input [7:0] ch;
+	input [2:0] row;
+	begin
+		case (ch)
+			8'h41: case (row) 3'd0: vgm_status_font_row = 5'b01110; 3'd1: vgm_status_font_row = 5'b10001; 3'd2: vgm_status_font_row = 5'b10001; 3'd3: vgm_status_font_row = 5'b11111; 3'd4: vgm_status_font_row = 5'b10001; 3'd5: vgm_status_font_row = 5'b10001; 3'd6: vgm_status_font_row = 5'b10001; default: vgm_status_font_row = 5'b00000; endcase
+			8'h42: case (row) 3'd0: vgm_status_font_row = 5'b11110; 3'd1: vgm_status_font_row = 5'b10001; 3'd2: vgm_status_font_row = 5'b10001; 3'd3: vgm_status_font_row = 5'b11110; 3'd4: vgm_status_font_row = 5'b10001; 3'd5: vgm_status_font_row = 5'b10001; 3'd6: vgm_status_font_row = 5'b11110; default: vgm_status_font_row = 5'b00000; endcase
+			8'h43: case (row) 3'd0: vgm_status_font_row = 5'b01111; 3'd1: vgm_status_font_row = 5'b10000; 3'd2: vgm_status_font_row = 5'b10000; 3'd3: vgm_status_font_row = 5'b10000; 3'd4: vgm_status_font_row = 5'b10000; 3'd5: vgm_status_font_row = 5'b10000; 3'd6: vgm_status_font_row = 5'b01111; default: vgm_status_font_row = 5'b00000; endcase
+			8'h44: case (row) 3'd0: vgm_status_font_row = 5'b11110; 3'd1: vgm_status_font_row = 5'b10001; 3'd2: vgm_status_font_row = 5'b10001; 3'd3: vgm_status_font_row = 5'b10001; 3'd4: vgm_status_font_row = 5'b10001; 3'd5: vgm_status_font_row = 5'b10001; 3'd6: vgm_status_font_row = 5'b11110; default: vgm_status_font_row = 5'b00000; endcase
+			8'h45: case (row) 3'd0: vgm_status_font_row = 5'b11111; 3'd1: vgm_status_font_row = 5'b10000; 3'd2: vgm_status_font_row = 5'b10000; 3'd3: vgm_status_font_row = 5'b11110; 3'd4: vgm_status_font_row = 5'b10000; 3'd5: vgm_status_font_row = 5'b10000; 3'd6: vgm_status_font_row = 5'b11111; default: vgm_status_font_row = 5'b00000; endcase
+			8'h47: case (row) 3'd0: vgm_status_font_row = 5'b01111; 3'd1: vgm_status_font_row = 5'b10000; 3'd2: vgm_status_font_row = 5'b10000; 3'd3: vgm_status_font_row = 5'b10111; 3'd4: vgm_status_font_row = 5'b10001; 3'd5: vgm_status_font_row = 5'b10001; 3'd6: vgm_status_font_row = 5'b01111; default: vgm_status_font_row = 5'b00000; endcase
+			8'h4B: case (row) 3'd0: vgm_status_font_row = 5'b10001; 3'd1: vgm_status_font_row = 5'b10010; 3'd2: vgm_status_font_row = 5'b10100; 3'd3: vgm_status_font_row = 5'b11000; 3'd4: vgm_status_font_row = 5'b10100; 3'd5: vgm_status_font_row = 5'b10010; 3'd6: vgm_status_font_row = 5'b10001; default: vgm_status_font_row = 5'b00000; endcase
+			8'h4C: case (row) 3'd0: vgm_status_font_row = 5'b10000; 3'd1: vgm_status_font_row = 5'b10000; 3'd2: vgm_status_font_row = 5'b10000; 3'd3: vgm_status_font_row = 5'b10000; 3'd4: vgm_status_font_row = 5'b10000; 3'd5: vgm_status_font_row = 5'b10000; 3'd6: vgm_status_font_row = 5'b11111; default: vgm_status_font_row = 5'b00000; endcase
+			8'h4D: case (row) 3'd0: vgm_status_font_row = 5'b10001; 3'd1: vgm_status_font_row = 5'b11011; 3'd2: vgm_status_font_row = 5'b10101; 3'd3: vgm_status_font_row = 5'b10101; 3'd4: vgm_status_font_row = 5'b10001; 3'd5: vgm_status_font_row = 5'b10001; 3'd6: vgm_status_font_row = 5'b10001; default: vgm_status_font_row = 5'b00000; endcase
+			8'h4E: case (row) 3'd0: vgm_status_font_row = 5'b10001; 3'd1: vgm_status_font_row = 5'b11001; 3'd2: vgm_status_font_row = 5'b10101; 3'd3: vgm_status_font_row = 5'b10011; 3'd4: vgm_status_font_row = 5'b10001; 3'd5: vgm_status_font_row = 5'b10001; 3'd6: vgm_status_font_row = 5'b10001; default: vgm_status_font_row = 5'b00000; endcase
+			8'h4F: case (row) 3'd0: vgm_status_font_row = 5'b01110; 3'd1: vgm_status_font_row = 5'b10001; 3'd2: vgm_status_font_row = 5'b10001; 3'd3: vgm_status_font_row = 5'b10001; 3'd4: vgm_status_font_row = 5'b10001; 3'd5: vgm_status_font_row = 5'b10001; 3'd6: vgm_status_font_row = 5'b01110; default: vgm_status_font_row = 5'b00000; endcase
+			8'h50: case (row) 3'd0: vgm_status_font_row = 5'b11110; 3'd1: vgm_status_font_row = 5'b10001; 3'd2: vgm_status_font_row = 5'b10001; 3'd3: vgm_status_font_row = 5'b11110; 3'd4: vgm_status_font_row = 5'b10000; 3'd5: vgm_status_font_row = 5'b10000; 3'd6: vgm_status_font_row = 5'b10000; default: vgm_status_font_row = 5'b00000; endcase
+			8'h52: case (row) 3'd0: vgm_status_font_row = 5'b11110; 3'd1: vgm_status_font_row = 5'b10001; 3'd2: vgm_status_font_row = 5'b10001; 3'd3: vgm_status_font_row = 5'b11110; 3'd4: vgm_status_font_row = 5'b10100; 3'd5: vgm_status_font_row = 5'b10010; 3'd6: vgm_status_font_row = 5'b10001; default: vgm_status_font_row = 5'b00000; endcase
+			8'h53: case (row) 3'd0: vgm_status_font_row = 5'b01111; 3'd1: vgm_status_font_row = 5'b10000; 3'd2: vgm_status_font_row = 5'b10000; 3'd3: vgm_status_font_row = 5'b01110; 3'd4: vgm_status_font_row = 5'b00001; 3'd5: vgm_status_font_row = 5'b00001; 3'd6: vgm_status_font_row = 5'b11110; default: vgm_status_font_row = 5'b00000; endcase
+			8'h54: case (row) 3'd0: vgm_status_font_row = 5'b11111; 3'd1: vgm_status_font_row = 5'b00100; 3'd2: vgm_status_font_row = 5'b00100; 3'd3: vgm_status_font_row = 5'b00100; 3'd4: vgm_status_font_row = 5'b00100; 3'd5: vgm_status_font_row = 5'b00100; 3'd6: vgm_status_font_row = 5'b00100; default: vgm_status_font_row = 5'b00000; endcase
+			8'h55: case (row) 3'd0: vgm_status_font_row = 5'b10001; 3'd1: vgm_status_font_row = 5'b10001; 3'd2: vgm_status_font_row = 5'b10001; 3'd3: vgm_status_font_row = 5'b10001; 3'd4: vgm_status_font_row = 5'b10001; 3'd5: vgm_status_font_row = 5'b10001; 3'd6: vgm_status_font_row = 5'b01110; default: vgm_status_font_row = 5'b00000; endcase
+			8'h56: case (row) 3'd0: vgm_status_font_row = 5'b10001; 3'd1: vgm_status_font_row = 5'b10001; 3'd2: vgm_status_font_row = 5'b10001; 3'd3: vgm_status_font_row = 5'b10001; 3'd4: vgm_status_font_row = 5'b10001; 3'd5: vgm_status_font_row = 5'b01010; 3'd6: vgm_status_font_row = 5'b00100; default: vgm_status_font_row = 5'b00000; endcase
+			8'h59: case (row) 3'd0: vgm_status_font_row = 5'b10001; 3'd1: vgm_status_font_row = 5'b10001; 3'd2: vgm_status_font_row = 5'b01010; 3'd3: vgm_status_font_row = 5'b00100; 3'd4: vgm_status_font_row = 5'b00100; 3'd5: vgm_status_font_row = 5'b00100; 3'd6: vgm_status_font_row = 5'b00100; default: vgm_status_font_row = 5'b00000; endcase
+			8'h3A: case (row) 3'd0: vgm_status_font_row = 5'b00000; 3'd1: vgm_status_font_row = 5'b00100; 3'd2: vgm_status_font_row = 5'b00100; 3'd3: vgm_status_font_row = 5'b00000; 3'd4: vgm_status_font_row = 5'b00100; 3'd5: vgm_status_font_row = 5'b00100; 3'd6: vgm_status_font_row = 5'b00000; default: vgm_status_font_row = 5'b00000; endcase
+			default: vgm_status_font_row = 5'b00000;
+		endcase
+	end
+endfunction
+
+function [7:0] vgm_status_char;
+	input [1:0] line;
+	input [4:0] idx;
+	input [1:0] state;
+	begin
+		vgm_status_char = 8'h20;
+		case (line)
+			2'd0: case (idx)
+				5'd0: vgm_status_char = "V"; 5'd1: vgm_status_char = "G"; 5'd2: vgm_status_char = "M";
+				5'd4: vgm_status_char = "P"; 5'd5: vgm_status_char = "L"; 5'd6: vgm_status_char = "A";
+				5'd7: vgm_status_char = "Y"; 5'd8: vgm_status_char = "E"; 5'd9: vgm_status_char = "R";
+				default: vgm_status_char = 8'h20;
+			endcase
+			2'd1: case (idx)
+				5'd0: vgm_status_char = "S"; 5'd1: vgm_status_char = "T"; 5'd2: vgm_status_char = "A";
+				5'd3: vgm_status_char = "T"; 5'd4: vgm_status_char = "U"; 5'd5: vgm_status_char = "S";
+				5'd6: vgm_status_char = ":"; 5'd8: vgm_status_char = (state == 2'd1) ? "L" : (state == 2'd2) ? "P" : "S";
+				5'd9: vgm_status_char = (state == 2'd1) ? "O" : (state == 2'd2) ? "L" : "T";
+				5'd10: vgm_status_char = (state == 2'd1) ? "A" : (state == 2'd2) ? "A" : "O";
+				5'd11: vgm_status_char = (state == 2'd1) ? "D" : (state == 2'd2) ? "Y" : "P";
+				default: vgm_status_char = 8'h20;
+			endcase
+			2'd2: case (idx)
+				5'd0: vgm_status_char = "B"; 5'd1: vgm_status_char = "A"; 5'd2: vgm_status_char = "C";
+				5'd3: vgm_status_char = "K"; 5'd4: vgm_status_char = "E"; 5'd5: vgm_status_char = "N";
+				5'd6: vgm_status_char = "D"; 5'd7: vgm_status_char = ":"; 5'd9: vgm_status_char = "D";
+				5'd10: vgm_status_char = "D"; 5'd11: vgm_status_char = "R"; 5'd12: vgm_status_char = "A";
+				5'd13: vgm_status_char = "M";
+				default: vgm_status_char = 8'h20;
+			endcase
+			default: vgm_status_char = 8'h20;
+		endcase
+	end
+endfunction
+
 always @(posedge hdmi_tx_clk) begin
 	reg [23:0] hdmi_dv_data;
 	reg        hdmi_dv_hs, hdmi_dv_vs, hdmi_dv_de;
 
 	reg hs,vs,de;
 	reg [23:0] d;
+	reg [11:0] vgm_status_x_rel;
+	reg [11:0] vgm_status_y_rel;
+	reg [11:0] vgm_heartbeat_y_base;
+	reg [4:0] vgm_status_char_idx;
+	reg [2:0] vgm_status_glyph_x;
+	reg [2:0] vgm_status_glyph_y;
+	reg [1:0] vgm_status_line;
+	reg [7:0] vgm_status_glyph_char;
+	reg [4:0] vgm_status_glyph_row;
+	reg       vgm_status_text_area;
+	reg       vgm_status_glyph_dot;
+	reg       vgm_status_text_pixel;
+	reg       vgm_status_heartbeat_pixel;
 `ifdef MISTER_VGM_AUDIO_METER_ENABLE
 	reg [15:0] sys_meter_x_level;
 	reg sys_meter_bar;
@@ -1327,6 +1416,97 @@ always @(posedge hdmi_tx_clk) begin
 	de <= hdmi_dv_de;
 	d  <= hdmi_dv_data;
 	`endif
+
+	vgm_player_state_hdmi_meta <= vgm_player_state;
+	vgm_player_state_hdmi      <= vgm_player_state_hdmi_meta;
+	osd_status_hdmi_meta       <= osd_status;
+	osd_status_hdmi            <= osd_status_hdmi_meta;
+
+	if (vgm_player_state_hdmi == 2'd2) begin
+		vgm_heartbeat_count <= vgm_heartbeat_count + 28'd1;
+	end else begin
+		vgm_heartbeat_count <= 28'd0;
+	end
+
+	if (~vgm_status_vs_d && vs) begin
+		vgm_status_height <= vgm_status_y;
+		vgm_status_y <= 12'd0;
+	end else if (de && !vgm_status_de_d) begin
+		if (!(&vgm_status_y)) begin
+			vgm_status_y <= vgm_status_y + 12'd1;
+		end
+	end
+
+	if (de) begin
+		if (!vgm_status_de_d) begin
+			vgm_status_x <= 12'd0;
+		end else if (!(&vgm_status_x)) begin
+			vgm_status_x <= vgm_status_x + 12'd1;
+		end
+	end else begin
+		vgm_status_x <= 12'd0;
+	end
+
+	vgm_status_de_d <= de;
+	vgm_status_vs_d <= vs;
+
+	vgm_status_text_area = 1'b0;
+	vgm_status_line = 2'd0;
+	vgm_status_y_rel = 12'd0;
+	if ((vgm_status_y >= 12'd48) && (vgm_status_y < 12'd64)) begin
+		vgm_status_text_area = 1'b1;
+		vgm_status_line = 2'd0;
+		vgm_status_y_rel = vgm_status_y - 12'd48;
+	end else if ((vgm_status_y >= 12'd80) && (vgm_status_y < 12'd96)) begin
+		vgm_status_text_area = 1'b1;
+		vgm_status_line = 2'd1;
+		vgm_status_y_rel = vgm_status_y - 12'd80;
+	end else if ((vgm_status_y >= 12'd112) && (vgm_status_y < 12'd128)) begin
+		vgm_status_text_area = 1'b1;
+		vgm_status_line = 2'd2;
+		vgm_status_y_rel = vgm_status_y - 12'd112;
+	end
+
+	vgm_status_x_rel = (vgm_status_x >= 12'd48) ? (vgm_status_x - 12'd48) : 12'd0;
+	vgm_status_char_idx = vgm_status_x_rel[8:4];
+	vgm_status_glyph_x = vgm_status_x_rel[3:1];
+	vgm_status_glyph_y = vgm_status_y_rel[3:1];
+	vgm_status_glyph_char = vgm_status_char(vgm_status_line, vgm_status_char_idx, vgm_player_state_hdmi);
+	vgm_status_glyph_row = vgm_status_font_row(vgm_status_glyph_char, vgm_status_glyph_y);
+	case (vgm_status_glyph_x)
+		3'd0: vgm_status_glyph_dot = vgm_status_glyph_row[4];
+		3'd1: vgm_status_glyph_dot = vgm_status_glyph_row[3];
+		3'd2: vgm_status_glyph_dot = vgm_status_glyph_row[2];
+		3'd3: vgm_status_glyph_dot = vgm_status_glyph_row[1];
+		3'd4: vgm_status_glyph_dot = vgm_status_glyph_row[0];
+		default: vgm_status_glyph_dot = 1'b0;
+	endcase
+	vgm_status_text_pixel =
+		de &&
+		!osd_status_hdmi &&
+		vgm_status_text_area &&
+		(vgm_status_x >= 12'd48) &&
+		(vgm_status_x < 12'd336) &&
+		(vgm_status_glyph_x < 3'd5) &&
+		(vgm_status_glyph_y < 3'd7) &&
+		vgm_status_glyph_dot;
+
+	vgm_heartbeat_y_base =
+		(vgm_status_height > 12'd96) ? (vgm_status_height - 12'd48) : 12'd192;
+	vgm_status_heartbeat_pixel =
+		de &&
+		!osd_status_hdmi &&
+		(vgm_player_state_hdmi == 2'd2) &&
+		vgm_heartbeat_count[26] &&
+		(vgm_status_x >= 12'd48) &&
+		(vgm_status_x < 12'd64) &&
+		(vgm_status_y >= vgm_heartbeat_y_base) &&
+		(vgm_status_y < (vgm_heartbeat_y_base + 12'd16));
+
+	vgm_status_pixel_q <= vgm_status_text_pixel || vgm_status_heartbeat_pixel;
+	vgm_status_rgb_q <= vgm_status_heartbeat_pixel ? 24'h40d878 :
+	                    vgm_status_text_pixel      ? 24'he8f0ff :
+	                                                 24'h000000;
 
 `ifdef MISTER_VGM_AUDIO_METER_ENABLE
 	if (~md_audio_meter_vs_d && vs) begin
@@ -1390,9 +1570,10 @@ always @(posedge hdmi_tx_clk) begin
 `ifdef MISTER_VGM_AUDIO_METER_ENABLE
 	hdmi_out_d  <= sys_meter_pixel_q ? sys_meter_rgb_q :
 	               sys_meter_avg_pixel_q ? sys_meter_avg_rgb_q :
+	               vgm_status_pixel_q ? vgm_status_rgb_q :
 	                                     d;
 `else
-	hdmi_out_d  <= d;
+	hdmi_out_d  <= vgm_status_pixel_q ? vgm_status_rgb_q : d;
 `endif
 end
 
@@ -1945,6 +2126,7 @@ sync_fix sync_v(clk_vid, vs_emu, vs_fix);
 sync_fix sync_h(clk_vid, hs_emu, hs_fix);
 
 wire  [6:0] user_out, user_in;
+wire  [1:0] vgm_player_state;
 
 assign clk_ihdmi= clk_vid;
 assign ce_hpix  = vga_ce_sl;
@@ -2112,6 +2294,7 @@ emu emu
 	.UART_DSR(uart_dtr),
 
 	.USER_OUT(user_out),
+	.VGM_PLAYER_STATE(vgm_player_state),
 	.USER_IN(user_in)
 );
 

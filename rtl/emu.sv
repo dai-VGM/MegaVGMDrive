@@ -439,6 +439,7 @@ module emu
 
     input   [6:0] USER_IN,
     output  [6:0] USER_OUT,
+    output  [1:0] VGM_PLAYER_STATE,
 
     input         OSD_STATUS
 );
@@ -447,6 +448,10 @@ module emu
 
     assign ADC_BUS  = 'Z;
     assign USER_OUT = '1;
+    assign VGM_PLAYER_STATE =
+        (LOADED_VGM_MODE && (ioctl_download || vgm_load_busy)) ? 2'd1 :
+        (player_busy && audio_gate_open && !audio_muted && !vgm_player_error) ? 2'd2 :
+                                                                              2'd0;
     assign {UART_RTS, UART_TXD, UART_DTR} = 3'b000;
     assign {SD_SCK, SD_MOSI, SD_CS} = 'Z;
     assign {SDRAM_DQ, SDRAM_A, SDRAM_BA, SDRAM_CLK, SDRAM_CKE,
