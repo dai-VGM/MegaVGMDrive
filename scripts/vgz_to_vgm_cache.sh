@@ -47,6 +47,19 @@ find "$SRC" -type f \( -name '*.vgz' -o -name '*.VGZ' \) -exec sh -c '
 			rel=${src_file##*/}
 		fi
 
+		# Collapse zip-style duplicate top folders:
+		#   Album/Album/Track.vgz -> Album/Track.vgm
+		# Leave normal Album/Track.vgz and Series/Album/Track.vgz unchanged.
+		first_dir=${rel%%/*}
+		after_first=${rel#*/}
+		if [ "$after_first" != "$rel" ]; then
+			second_dir=${after_first%%/*}
+			after_second=${after_first#*/}
+			if [ "$after_second" != "$after_first" ] && [ "$first_dir" = "$second_dir" ]; then
+				rel=$first_dir/$after_second
+			fi
+		fi
+
 		rel_no_ext=${rel%.[vV][gG][zZ]}
 		dst_file=$DST/$rel_no_ext.vgm
 		dst_dir=${dst_file%/*}
