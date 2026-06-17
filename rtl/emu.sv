@@ -632,6 +632,8 @@ module emu
         "F1,VGM,Load VGM;",
         "O1,Mode5 debug,Off,On;",
         "O23,Audio Filter,Model 1,Model 2,Minimal,No Filter;",
+        "O4,Audio Gain,Clean,Boost;",
+        "O56,PSG Level,Low,Normal,High;",
         "-;",
         "R0,Reset;",
         "V,v",`BUILD_DATE
@@ -863,6 +865,8 @@ module emu
     wire vgm_reset = vgm_reset_req | vgm_reset_hold_active;
     wire vgm_reset_n = !vgm_reset;
     wire [1:0] audio_lpf_mode = status[3:2];
+    wire       audio_gain_boost = status[4];
+    wire [1:0] audio_psg_level = status[6:5];
 
     wire               audio_sample_valid;
     wire               player_busy;
@@ -899,6 +903,8 @@ module emu
         .audio_r               (md_audio_r),
         .audio_sample_valid    (audio_sample_valid),
         .audio_lpf_mode        (audio_lpf_mode),
+        .audio_gain_boost      (audio_gain_boost),
+        .audio_psg_level       (audio_psg_level),
         .player_busy           (player_busy),
         .player_done           (player_done),
         .player_pc_debug       (player_pc_debug),

@@ -56,6 +56,8 @@ module md_sound_module
 	    // Testbenches can use this as a practical audio dump strobe.
 	    output logic              audio_sample_valid,
 	    input  logic        [1:0] audio_lpf_mode,
+	    input  logic              audio_gain_boost,
+	    input  logic        [1:0] audio_psg_level,
 
 	    // Upstream mix diagnostics. These counters saturate at 16'hffff.
 	    output logic       [15:0] fm_adjust_clip_count_l,
@@ -965,9 +967,15 @@ module md_sound_module
 	        MD_AUDIO_PRE_GENMIX_FM_LPF_BUILD ? fm_pre_genmix_lpf_selected_r : fm_adjust_r;
 
 	    wire signed [10:0] psg_adjust =
+`ifdef MD_AUDIO_PSG_LEVEL_OSD_TEST
+	        (audio_psg_level == 2'd0) ? (psg_pre - (psg_pre >>> 2)) :
+	        (audio_psg_level == 2'd2) ? (psg_pre + (psg_pre >>> 1)) :
+	                                    (psg_pre - (psg_pre >>> 5));
+`else
 	        MD_AUDIO_PSG_ATTEN_075_BUILD ? (psg_pre - (psg_pre >>> 2)) :
 	        MD_AUDIO_PSG_MEGADRIVE_GAIN_BUILD ? (psg_pre + (psg_pre >>> 1)) :
 	                                            (psg_pre - (psg_pre >>> 5));
+`endif
 
 	    wire fm_path_enabled =
 	        !MD_AUDIO_PSG_ONLY_BUILD && !MD_AUDIO_FM_FORCE_MUTE_BUILD;
@@ -1118,17 +1126,27 @@ module md_sound_module
     assign pre_lpf_gain_8x_r =
         md_audio_sat21({{5{pre_lpf_r[15]}}, pre_lpf_r} <<< 3);
     assign pre_lpf_selected_l =
+`ifdef MD_AUDIO_GAIN_OSD_TEST
+        audio_gain_boost ? pre_lpf_gain_2x_l :
+                           pre_lpf_l;
+`else
         MD_AUDIO_GENMIX_OUTPUT_GAIN_8X_BUILD ? pre_lpf_gain_8x_l :
         MD_AUDIO_GENMIX_OUTPUT_GAIN_6X_BUILD ? pre_lpf_gain_6x_l :
         MD_AUDIO_GENMIX_OUTPUT_GAIN_4X_BUILD ? pre_lpf_gain_4x_l :
         MD_AUDIO_GENMIX_OUTPUT_GAIN_2X_BUILD ? pre_lpf_gain_2x_l :
                                                pre_lpf_l;
+`endif
     assign pre_lpf_selected_r =
+`ifdef MD_AUDIO_GAIN_OSD_TEST
+        audio_gain_boost ? pre_lpf_gain_2x_r :
+                           pre_lpf_r;
+`else
         MD_AUDIO_GENMIX_OUTPUT_GAIN_8X_BUILD ? pre_lpf_gain_8x_r :
         MD_AUDIO_GENMIX_OUTPUT_GAIN_6X_BUILD ? pre_lpf_gain_6x_r :
         MD_AUDIO_GENMIX_OUTPUT_GAIN_4X_BUILD ? pre_lpf_gain_4x_r :
         MD_AUDIO_GENMIX_OUTPUT_GAIN_2X_BUILD ? pre_lpf_gain_2x_r :
                                                pre_lpf_r;
+`endif
 
     // LPF mode from Genesis_MiSTer genesis_lpf.v:
     //   2'b00: Model 1 low-pass

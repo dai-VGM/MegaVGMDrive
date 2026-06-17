@@ -65,6 +65,8 @@ module tb_md_sound_fixed_region_test;
         .audio_r               (audio_r),
         .audio_sample_valid    (audio_sample_valid),
         .audio_lpf_mode        (2'b00),
+        .audio_gain_boost      (1'b0),
+        .audio_psg_level       (2'b00),
         .player_busy           (player_busy),
         .player_done           (player_done),
         .player_pc_debug       (player_pc_debug),
