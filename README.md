@@ -2,6 +2,8 @@
 
 A personal VGM / YM2612 / JT12 experiment workspace for MiSTer FPGA audio exploration.
 
+Japanese project notes: [README.ja.md](README.ja.md)
+
 This project is focused on testing how VGM command streams can drive a JT12/YM2612-compatible FPGA audio core.
 
 ## Purpose
