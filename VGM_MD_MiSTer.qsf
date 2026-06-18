@@ -52,21 +52,89 @@ set_global_assignment -name PHYSICAL_SYNTHESIS_ASYNCHRONOUS_SIGNAL_PIPELINING ON
 set_global_assignment -name ALM_REGISTER_PACKING_EFFORT MEDIUM
 set_global_assignment -name SEED 1
 
+#
+# VGM audio compare builds
+#
+# Build one RBF at a time from Quartus GUI / normal Quartus flow.
+# For each build, leave the common macro block enabled, then enable only the
+# selected A/B/C/D block below. Rename/copy the generated RBF as:
+#
+#   A raw        -> VGM_MD_audio_A_raw.rbf
+#   B genmix     -> VGM_MD_audio_B_genmix.rbf
+#   C lpf        -> VGM_MD_audio_C_lpf.rbf
+#   D ladder_lpf -> VGM_MD_audio_D_ladder_lpf.rbf
+#
+# These compare builds intentionally leave feedback-register limits, JT12
+# internal feedback saturation, PMS/AMS masking, and audio_cond postmix off.
+# Audio Filter OSD is also off here so B/C/D are fixed, not status-dependent.
+#
+
+# ---- Common macros for all A/B/C/D audio compare builds ----
 set_global_assignment -name VERILOG_MACRO "MISTER_FB=1"
 set_global_assignment -name VERILOG_MACRO "FIXED_REGION_MODE=5"
-set_global_assignment -name VERILOG_MACRO "MD_JT12_CEN_NTSC_TEST=1"
-set_global_assignment -name VERILOG_MACRO "MD_JT12_LADDER_EFFECT_TEST=1"
- #set_global_assignment -name VERILOG_MACRO "MD_AUDIO_GENMIX_OUTPUT_GAIN_6X_TEST=1"
-set_global_assignment -name VERILOG_MACRO "MD_AUDIO_GENMIX_OUTPUT_GAIN_2X_TEST=1"
 set_global_assignment -name VERILOG_MACRO "MODE5_VGM_BACKEND=1"
 set_global_assignment -name VERILOG_MACRO "MODE5_VGM_ADDR_WIDTH=23"
-set_global_assignment -name VERILOG_MACRO "MD_AUDIO_OUTPUT_SHIFT_0_TEST=1"
-set_global_assignment -name VERILOG_MACRO "MD_AUDIO_LPF_MODEL1_TEST=1"
-set_global_assignment -name VERILOG_MACRO "MD_AUDIO_LPF_OSD_TEST=1"
-set_global_assignment -name VERILOG_MACRO "MD_AUDIO_GAIN_OSD_TEST=1"
+set_global_assignment -name VERILOG_MACRO "MD_JT12_CEN_NTSC_TEST=1"
 set_global_assignment -name VERILOG_MACRO "MD_JT12_HIFI_PCM_TEST=1"
+set_global_assignment -name VERILOG_MACRO "MD_AUDIO_OUTPUT_SHIFT_0_TEST=1"
+set_global_assignment -name VERILOG_MACRO "MD_AUDIO_GENMIX_OUTPUT_GAIN_2X_TEST=1"
+set_global_assignment -name VERILOG_MACRO "MD_AUDIO_GAIN_OSD_TEST=1"
 set_global_assignment -name VERILOG_MACRO "MD_AUDIO_PSG_ATTEN_075_TEST=1"
 set_global_assignment -name VERILOG_MACRO "MD_AUDIO_PSG_LEVEL_OSD_TEST=1"
+
+# ---- Select exactly one audio compare block ----
+
+# ACTIVE: A_raw -> VGM_MD_audio_A_raw.rbf
+# JT12 raw FM direct to final audio. This bypasses genmix/final LPF.
+#set_global_assignment -name VERILOG_MACRO "MD_AUDIO_RAW_JT12_FM_TEST=1"
+
+# B_genmix -> VGM_MD_audio_B_genmix.rbf
+# Genmix path, final LPF bypass. Enable no extra macro in this block.
+# To build B, comment A/C/D-specific macros and leave only the common block.
+
+# B_genmix + fm_adjust 16x compare
+# Suggested RBF name: VGM_MD_audio_B_genmix_fm_adjust_16x.rbf
+#set_global_assignment -name VERILOG_MACRO "MD_AUDIO_FM_ADJUST_16X_TEST=1"
+
+# B_genmix + fm_adjust 8x compare
+# Suggested RBF name: VGM_MD_audio_B_genmix_fm_adjust_8x.rbf
+#set_global_assignment -name VERILOG_MACRO "MD_AUDIO_FM_ADJUST_8X_TEST=1"
+
+# B_genmix + fm_adjust 4x compare
+# Suggested RBF name: VGM_MD_audio_B_genmix_fm_adjust_4x.rbf
+#set_global_assignment -name VERILOG_MACRO "MD_AUDIO_FM_ADJUST_4X_TEST=1"
+
+# B_genmix + no PSG into genmix
+# Suggested RBF name: VGM_MD_audio_B_genmix_no_psg.rbf
+#set_global_assignment -name VERILOG_MACRO "MD_AUDIO_GENMIX_NO_PSG_TEST=1"
+
+# ACTIVE: B_genmix + no jt12_fm_uprate/interpolation chain
+# Suggested RBF name: VGM_MD_audio_B_genmix_no_uprate.rbf
+set_global_assignment -name VERILOG_MACRO "MD_AUDIO_GENMIX_NO_UPRATE_TEST=1"
+
+# C_lpf -> VGM_MD_audio_C_lpf.rbf
+# Genmix path + fixed Model 1 final LPF.
+#set_global_assignment -name VERILOG_MACRO "MD_AUDIO_LPF_MODEL1_TEST=1"
+
+# D_ladder_lpf -> VGM_MD_audio_D_ladder_lpf.rbf
+# JT12 ladder enabled + genmix path + fixed Model 1 final LPF.
+#set_global_assignment -name VERILOG_MACRO "MD_JT12_LADDER_EFFECT_TEST=1"
+#set_global_assignment -name VERILOG_MACRO "MD_AUDIO_LPF_MODEL1_TEST=1"
+
+# ---- Keep disabled during A/B/C/D audio compare builds ----
+#set_global_assignment -name VERILOG_MACRO "MD_AUDIO_LPF_OSD_TEST=1"
+#set_global_assignment -name VERILOG_MACRO "MD_AUDIO_COND_POSTMIX_TEST=1"
+#set_global_assignment -name VERILOG_MACRO "MD_YM_MASK_PMS_AMS_TEST=1"
+#set_global_assignment -name VERILOG_MACRO "MD_YM_CH2_FEEDBACK_LIMIT_TEST=1"
+#set_global_assignment -name VERILOG_MACRO "MD_YM_CH0_FEEDBACK_LIMIT_TEST=1"
+#set_global_assignment -name VERILOG_MACRO "MD_YM_FEEDBACK_LIMIT_6_TEST=1"
+#set_global_assignment -name VERILOG_MACRO "MD_YM_FEEDBACK_LIMIT_5_TEST=1"
+#set_global_assignment -name VERILOG_MACRO "MD_YM_FEEDBACK_LIMIT_4_TEST=1"
+#set_global_assignment -name VERILOG_MACRO "MD_JT12_FEEDBACK_SATURATE_TEST=1"
+#set_global_assignment -name VERILOG_MACRO "MD_AUDIO_GENMIX_OUTPUT_GAIN_6X_TEST=1"
+#set_global_assignment -name VERILOG_MACRO "MD_AUDIO_FM_ADJUST_SATURATE_TEST=1"
+#set_global_assignment -name VERILOG_MACRO "MD_AUDIO_FM_ADJUST_SAT_ONLY_TEST=1"
+#set_global_assignment -name VERILOG_MACRO "MD_AUDIO_MIXED_SAT_ONLY_TEST=1"
 # Keep HDMI/video framework enabled. The current hardware goal is stable
 # video/menu first; do not enable MISTER_DEBUG_NOHDMI.
 

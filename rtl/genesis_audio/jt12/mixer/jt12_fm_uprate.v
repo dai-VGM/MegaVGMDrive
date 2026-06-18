@@ -51,13 +51,21 @@ wire signed [16:0] fm_snd_wide = fm_en ? {fm_snd[15], fm_snd} : 17'sd0;
 wire signed [16:0] psg_snd_wide = {{2{psg_snd[11]}}, psg_snd, 3'b0};
 wire signed [16:0] mixed_wide = fm_snd_wide + psg_snd_wide;
 wire mixed_wrap = (mixed_wide > 17'sd32767) || (mixed_wide < -17'sd32768);
+wire signed [15:0] mixed_sat =
+    (mixed_wide > 17'sd32767)  ? 16'sd32767  :
+    (mixed_wide < -17'sd32768) ? -16'sd32768 :
+                                  mixed_wide[15:0];
 
 always @(posedge clk) begin
     if (rst) begin
         mixed <= 16'sd0;
         mixed_wrap_count <= 16'd0;
     end else begin
+`ifdef MD_AUDIO_MIXED_SAT_ONLY_TEST
+        mixed <= mixed_sat;
+`else
         mixed <= mixed_wide[15:0];
+`endif
         if (cen_1008 && mixed_wrap && !(&mixed_wrap_count)) begin
             mixed_wrap_count <= mixed_wrap_count + 16'd1;
         end

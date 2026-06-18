@@ -136,6 +136,47 @@ module md_sound_module
     localparam bit MD_YM_MASK_PMS_AMS_BUILD = 1'b0;
 `endif
 
+`ifdef MD_YM_CH2_FEEDBACK_LIMIT_TEST
+    localparam bit MD_YM_CH2_FEEDBACK_LIMIT_BUILD = 1'b1;
+`else
+    localparam bit MD_YM_CH2_FEEDBACK_LIMIT_BUILD = 1'b0;
+`endif
+
+`ifdef MD_YM_CH0_FEEDBACK_LIMIT_TEST
+    localparam bit MD_YM_CH0_FEEDBACK_LIMIT_BUILD = 1'b1;
+`else
+    localparam bit MD_YM_CH0_FEEDBACK_LIMIT_BUILD = 1'b0;
+`endif
+
+`ifdef MD_YM_FEEDBACK_LIMIT_6_TEST
+    localparam bit MD_YM_FEEDBACK_LIMIT_6_BUILD = 1'b1;
+`else
+    localparam bit MD_YM_FEEDBACK_LIMIT_6_BUILD = 1'b0;
+`endif
+
+`ifdef MD_YM_FEEDBACK_LIMIT_5_TEST
+    localparam bit MD_YM_FEEDBACK_LIMIT_5_BUILD = 1'b1;
+`else
+    localparam bit MD_YM_FEEDBACK_LIMIT_5_BUILD = 1'b0;
+`endif
+
+`ifdef MD_YM_FEEDBACK_LIMIT_4_TEST
+    localparam bit MD_YM_FEEDBACK_LIMIT_4_BUILD = 1'b1;
+`else
+    localparam bit MD_YM_FEEDBACK_LIMIT_4_BUILD = 1'b0;
+`endif
+
+    // If multiple global feedback limits are defined, use the strongest one.
+    localparam bit MD_YM_FEEDBACK_LIMIT_BUILD =
+        MD_YM_FEEDBACK_LIMIT_6_BUILD ||
+        MD_YM_FEEDBACK_LIMIT_5_BUILD ||
+        MD_YM_FEEDBACK_LIMIT_4_BUILD;
+    localparam logic [2:0] MD_YM_FEEDBACK_LIMIT_VALUE =
+        MD_YM_FEEDBACK_LIMIT_4_BUILD ? 3'd4 :
+        MD_YM_FEEDBACK_LIMIT_5_BUILD ? 3'd5 :
+        MD_YM_FEEDBACK_LIMIT_6_BUILD ? 3'd6 :
+                                       3'd7;
+
 `ifdef MD_YM_CH3_NORMAL_TEST
     localparam bit MD_YM_CH3_NORMAL_BUILD = 1'b1;
 `else
@@ -207,6 +248,42 @@ module md_sound_module
     localparam bit MD_AUDIO_FM_ADJUST_SATURATE_BUILD = 1'b0;
 `endif
 
+`ifdef MD_AUDIO_FM_ADJUST_SAT_ONLY_TEST
+    localparam bit MD_AUDIO_FM_ADJUST_SAT_ONLY_BUILD = 1'b1;
+`else
+    localparam bit MD_AUDIO_FM_ADJUST_SAT_ONLY_BUILD = 1'b0;
+`endif
+
+`ifdef MD_AUDIO_FM_ADJUST_1X_TEST
+    localparam bit MD_AUDIO_FM_ADJUST_1X_BUILD = 1'b1;
+`else
+    localparam bit MD_AUDIO_FM_ADJUST_1X_BUILD = 1'b0;
+`endif
+
+`ifdef MD_AUDIO_FM_ADJUST_4X_TEST
+    localparam bit MD_AUDIO_FM_ADJUST_4X_BUILD = 1'b1;
+`else
+    localparam bit MD_AUDIO_FM_ADJUST_4X_BUILD = 1'b0;
+`endif
+
+`ifdef MD_AUDIO_FM_ADJUST_8X_TEST
+    localparam bit MD_AUDIO_FM_ADJUST_8X_BUILD = 1'b1;
+`else
+    localparam bit MD_AUDIO_FM_ADJUST_8X_BUILD = 1'b0;
+`endif
+
+`ifdef MD_AUDIO_FM_ADJUST_16X_TEST
+    localparam bit MD_AUDIO_FM_ADJUST_16X_BUILD = 1'b1;
+`else
+    localparam bit MD_AUDIO_FM_ADJUST_16X_BUILD = 1'b0;
+`endif
+
+    localparam bit MD_AUDIO_FM_ADJUST_GAIN_TEST_BUILD =
+        MD_AUDIO_FM_ADJUST_1X_BUILD ||
+        MD_AUDIO_FM_ADJUST_4X_BUILD ||
+        MD_AUDIO_FM_ADJUST_8X_BUILD ||
+        MD_AUDIO_FM_ADJUST_16X_BUILD;
+
 `ifdef MD_AUDIO_PREMIX_ATTENUATE_PSG_6DB
     localparam bit MD_AUDIO_PREMIX_ATTENUATE_PSG_BUILD = 1'b1;
 `else
@@ -223,6 +300,18 @@ module md_sound_module
     localparam bit MD_AUDIO_PSG_ATTEN_075_BUILD = 1'b1;
 `else
     localparam bit MD_AUDIO_PSG_ATTEN_075_BUILD = 1'b0;
+`endif
+
+`ifdef MD_AUDIO_GENMIX_NO_PSG_TEST
+    localparam bit MD_AUDIO_GENMIX_NO_PSG_BUILD = 1'b1;
+`else
+    localparam bit MD_AUDIO_GENMIX_NO_PSG_BUILD = 1'b0;
+`endif
+
+`ifdef MD_AUDIO_GENMIX_NO_UPRATE_TEST
+    localparam bit MD_AUDIO_GENMIX_NO_UPRATE_BUILD = 1'b1;
+`else
+    localparam bit MD_AUDIO_GENMIX_NO_UPRATE_BUILD = 1'b0;
 `endif
 
 `ifdef MD_PSG_CEN_LEGACY_DIV15_TEST
@@ -349,6 +438,18 @@ module md_sound_module
     localparam bit MD_AUDIO_GENMIX_OUTPUT_GAIN_8X_BUILD = 1'b1;
 `else
     localparam bit MD_AUDIO_GENMIX_OUTPUT_GAIN_8X_BUILD = 1'b0;
+`endif
+
+`ifdef MD_AUDIO_MEGADRIVE_POSTMIX_TEST
+    localparam bit MD_AUDIO_MEGADRIVE_POSTMIX_BUILD = 1'b1;
+`else
+    localparam bit MD_AUDIO_MEGADRIVE_POSTMIX_BUILD = 1'b0;
+`endif
+
+`ifdef MD_AUDIO_COND_POSTMIX_TEST
+    localparam bit MD_AUDIO_COND_POSTMIX_BUILD = 1'b1;
+`else
+    localparam bit MD_AUDIO_COND_POSTMIX_BUILD = 1'b0;
 `endif
 
 `ifdef MD_AUDIO_LPF_MODEL1_TEST
@@ -568,6 +669,29 @@ module md_sound_module
         MD_YM_MASK_PMS_AMS_BUILD &&
         ((ym_cmd_reg == 8'hB4) || (ym_cmd_reg == 8'hB5) ||
          (ym_cmd_reg == 8'hB6));
+    wire ym_filter_ch2_feedback_limit =
+        MD_YM_CH2_FEEDBACK_LIMIT_BUILD && !ym_cmd_port &&
+        (ym_cmd_reg == 8'hB2);
+    wire ym_filter_ch0_feedback_limit =
+        MD_YM_CH0_FEEDBACK_LIMIT_BUILD && !ym_cmd_port &&
+        (ym_cmd_reg == 8'hB0);
+    wire ym_filter_feedback_limit =
+        MD_YM_FEEDBACK_LIMIT_BUILD &&
+        ((ym_cmd_reg == 8'hB0) || (ym_cmd_reg == 8'hB1) ||
+         (ym_cmd_reg == 8'hB2));
+    wire [2:0] ym_feedback_limited =
+        (ym_cmd_data[5:3] > MD_YM_FEEDBACK_LIMIT_VALUE) ?
+            MD_YM_FEEDBACK_LIMIT_VALUE : ym_cmd_data[5:3];
+    wire [7:0] ym_feedback_limit_data =
+        {ym_cmd_data[7:6], ym_feedback_limited, ym_cmd_data[2:0]};
+    wire [2:0] ym_ch0_feedback_limited =
+        (ym_cmd_data[5:3] > 3'd4) ? 3'd4 : ym_cmd_data[5:3];
+    wire [7:0] ym_ch0_feedback_data =
+        {ym_cmd_data[7:6], ym_ch0_feedback_limited, ym_cmd_data[2:0]};
+    wire [2:0] ym_ch2_feedback_limited =
+        (ym_cmd_data[5:3] > 3'd4) ? 3'd4 : ym_cmd_data[5:3];
+    wire [7:0] ym_ch2_feedback_data =
+        {ym_cmd_data[7:6], ym_ch2_feedback_limited, ym_cmd_data[2:0]};
     wire ym_filter_ch3_mode =
         MD_YM_CH3_NORMAL_BUILD && !ym_cmd_port && (ym_cmd_reg == 8'h27);
     wire ym_filter_fm_ch_solo_keyon =
@@ -576,6 +700,9 @@ module md_sound_module
     wire [7:0] ym_cmd_data_filtered =
         ym_filter_lfo_off ? 8'h00 :
         ym_filter_pms_ams ? (ym_cmd_data & 8'hC0) :
+        ym_filter_feedback_limit ? ym_feedback_limit_data :
+        ym_filter_ch0_feedback_limit ? ym_ch0_feedback_data :
+        ym_filter_ch2_feedback_limit ? ym_ch2_feedback_data :
         ym_filter_ch3_mode ? (ym_cmd_data & 8'h3F) :
         ym_filter_fm_ch_solo_keyon ? {4'h0, ym_cmd_data[3:0]} :
                               ym_cmd_data;
@@ -881,16 +1008,28 @@ module md_sound_module
 	    wire signed [21:0] fm_pre_l_wide = {{6{fm_pre_l[15]}}, fm_pre_l};
 	    wire signed [21:0] fm_pre_r_wide = {{6{fm_pre_r[15]}}, fm_pre_r};
 
-	    wire signed [21:0] fm_adjust_l_wide =
+	    wire signed [21:0] fm_adjust_l_wide_22x =
 	        (fm_pre_l_wide <<< 4) +
 	        (fm_pre_l_wide <<< 2) +
 	        (fm_pre_l_wide <<< 1) +
 	        (fm_pre_l_wide >>> 2);
-	    wire signed [21:0] fm_adjust_r_wide =
+	    wire signed [21:0] fm_adjust_r_wide_22x =
 	        (fm_pre_r_wide <<< 4) +
 	        (fm_pre_r_wide <<< 2) +
 	        (fm_pre_r_wide <<< 1) +
 	        (fm_pre_r_wide >>> 2);
+	    wire signed [21:0] fm_adjust_l_wide =
+	        MD_AUDIO_FM_ADJUST_1X_BUILD  ? fm_pre_l_wide :
+	        MD_AUDIO_FM_ADJUST_4X_BUILD  ? (fm_pre_l_wide <<< 2) :
+	        MD_AUDIO_FM_ADJUST_8X_BUILD  ? (fm_pre_l_wide <<< 3) :
+	        MD_AUDIO_FM_ADJUST_16X_BUILD ? (fm_pre_l_wide <<< 4) :
+	                                       fm_adjust_l_wide_22x;
+	    wire signed [21:0] fm_adjust_r_wide =
+	        MD_AUDIO_FM_ADJUST_1X_BUILD  ? fm_pre_r_wide :
+	        MD_AUDIO_FM_ADJUST_4X_BUILD  ? (fm_pre_r_wide <<< 2) :
+	        MD_AUDIO_FM_ADJUST_8X_BUILD  ? (fm_pre_r_wide <<< 3) :
+	        MD_AUDIO_FM_ADJUST_16X_BUILD ? (fm_pre_r_wide <<< 4) :
+	                                       fm_adjust_r_wide_22x;
 
 	    localparam signed [21:0] MIX_INT16_MAX = 22'sd32767;
 	    localparam signed [21:0] MIX_INT16_MIN = -22'sd32768;
@@ -915,13 +1054,17 @@ module md_sound_module
 	    wire signed [15:0] fm_adjust_l =
 	        MD_AUDIO_FM_ADJUST_BYPASS_BUILD ? fm_pre_l :
 	        MD_AUDIO_FM_ADJUST_LOW_GAIN_BUILD ? (fm_pre_l >>> 1) :
-	        MD_AUDIO_FM_ADJUST_SATURATE_BUILD ? fm_adjust_l_sat :
-	                                            fm_adjust_l_trunc;
+	        (MD_AUDIO_FM_ADJUST_SATURATE_BUILD ||
+	         MD_AUDIO_FM_ADJUST_SAT_ONLY_BUILD ||
+	         MD_AUDIO_FM_ADJUST_GAIN_TEST_BUILD) ? fm_adjust_l_sat :
+	                                               fm_adjust_l_trunc;
 	    wire signed [15:0] fm_adjust_r =
 	        MD_AUDIO_FM_ADJUST_BYPASS_BUILD ? fm_pre_r :
 	        MD_AUDIO_FM_ADJUST_LOW_GAIN_BUILD ? (fm_pre_r >>> 1) :
-	        MD_AUDIO_FM_ADJUST_SATURATE_BUILD ? fm_adjust_r_sat :
-	                                            fm_adjust_r_trunc;
+	        (MD_AUDIO_FM_ADJUST_SATURATE_BUILD ||
+	         MD_AUDIO_FM_ADJUST_SAT_ONLY_BUILD ||
+	         MD_AUDIO_FM_ADJUST_GAIN_TEST_BUILD) ? fm_adjust_r_sat :
+	                                               fm_adjust_r_trunc;
 
 	    wire signed [15:0] fm_pre_genmix_lpf_l;
 	    wire signed [15:0] fm_pre_genmix_lpf_r;
@@ -981,7 +1124,8 @@ module md_sound_module
 	        !MD_AUDIO_PSG_ONLY_BUILD && !MD_AUDIO_FM_FORCE_MUTE_BUILD;
 	    wire psg_path_enabled = !MD_AUDIO_FM_ONLY_BUILD;
 	    wire signed [10:0] psg_mixer_snd =
-	        psg_path_enabled ? psg_adjust : 11'sd0;
+	        (psg_path_enabled && !MD_AUDIO_GENMIX_NO_PSG_BUILD) ?
+	            psg_adjust : 11'sd0;
 
 	    //----------------------------------------------------------------------
 	    // Audio path startup guard
@@ -1042,8 +1186,18 @@ module md_sound_module
 
 	    assign audio_sample_valid = audio_path_enable && jt12_sample;
 
+	    wire signed [15:0] genmix_audio_l;
+	    wire signed [15:0] genmix_audio_r;
+	    wire signed [15:0] genmix_psg_only_l;
+	    wire signed [15:0] genmix_psg_only_r;
+	    wire signed [20:0] no_uprate_mix_l_wide;
+	    wire signed [20:0] no_uprate_mix_r_wide;
+	    wire signed [15:0] no_uprate_mix_l;
+	    wire signed [15:0] no_uprate_mix_r;
 	    wire signed [15:0] pre_lpf_l;
 	    wire signed [15:0] pre_lpf_r;
+	    wire signed [15:0] pre_lpf_postmix_l;
+	    wire signed [15:0] pre_lpf_postmix_r;
 	    wire signed [15:0] pre_lpf_gain_2x_l;
 	    wire signed [15:0] pre_lpf_gain_2x_r;
 	    wire signed [15:0] pre_lpf_gain_4x_l;
@@ -1101,51 +1255,100 @@ module md_sound_module
 	        .psg_snd   (psg_mixer_snd),
 	        .fm_en     (fm_path_enabled),
         .psg_en    (psg_path_enabled),
-        .snd_left  (pre_lpf_l),
-        .snd_right (pre_lpf_r),
+        .snd_left  (genmix_audio_l),
+        .snd_right (genmix_audio_r),
         .mixed_wrap_count_left  (genmix_wrap_count_l),
         .mixed_wrap_count_right (genmix_wrap_count_r)
     );
 
+    generate
+        if (MD_AUDIO_GENMIX_NO_UPRATE_BUILD) begin : no_uprate_psg_path
+            jt12_genmix genmix_psg_only
+            (
+                .rst       (reset),
+                .clk       (clk),
+                .fm_left   (16'sd0),
+                .fm_right  (16'sd0),
+                .psg_snd   (psg_mixer_snd),
+                .fm_en     (1'b0),
+                .psg_en    (psg_path_enabled),
+                .snd_left  (genmix_psg_only_l),
+                .snd_right (genmix_psg_only_r),
+                .mixed_wrap_count_left  (),
+                .mixed_wrap_count_right ()
+            );
+
+            assign no_uprate_mix_l_wide =
+                {{5{fm_mixer_l[15]}}, fm_mixer_l} +
+                {{5{genmix_psg_only_l[15]}}, genmix_psg_only_l};
+            assign no_uprate_mix_r_wide =
+                {{5{fm_mixer_r[15]}}, fm_mixer_r} +
+                {{5{genmix_psg_only_r[15]}}, genmix_psg_only_r};
+            assign no_uprate_mix_l = md_audio_sat21(no_uprate_mix_l_wide);
+            assign no_uprate_mix_r = md_audio_sat21(no_uprate_mix_r_wide);
+        end else begin : no_uprate_psg_path_off
+            assign genmix_psg_only_l = 16'sd0;
+            assign genmix_psg_only_r = 16'sd0;
+            assign no_uprate_mix_l_wide = 21'sd0;
+            assign no_uprate_mix_r_wide = 21'sd0;
+            assign no_uprate_mix_l = 16'sd0;
+            assign no_uprate_mix_r = 16'sd0;
+        end
+    endgenerate
+
+    assign pre_lpf_l =
+        MD_AUDIO_GENMIX_NO_UPRATE_BUILD ? no_uprate_mix_l : genmix_audio_l;
+    assign pre_lpf_r =
+        MD_AUDIO_GENMIX_NO_UPRATE_BUILD ? no_uprate_mix_r : genmix_audio_r;
+
+    assign pre_lpf_postmix_l =
+        (MD_AUDIO_MEGADRIVE_POSTMIX_BUILD || MD_AUDIO_COND_POSTMIX_BUILD) ?
+            md_audio_sat21({{5{pre_lpf_l[15]}}, pre_lpf_l} <<< 1) :
+            pre_lpf_l;
+    assign pre_lpf_postmix_r =
+        (MD_AUDIO_MEGADRIVE_POSTMIX_BUILD || MD_AUDIO_COND_POSTMIX_BUILD) ?
+            md_audio_sat21({{5{pre_lpf_r[15]}}, pre_lpf_r} <<< 1) :
+            pre_lpf_r;
+
     assign pre_lpf_gain_2x_l =
-        md_audio_sat21({{5{pre_lpf_l[15]}}, pre_lpf_l} <<< 1);
+        md_audio_sat21({{5{pre_lpf_postmix_l[15]}}, pre_lpf_postmix_l} <<< 1);
     assign pre_lpf_gain_2x_r =
-        md_audio_sat21({{5{pre_lpf_r[15]}}, pre_lpf_r} <<< 1);
+        md_audio_sat21({{5{pre_lpf_postmix_r[15]}}, pre_lpf_postmix_r} <<< 1);
     assign pre_lpf_gain_4x_l =
-        md_audio_sat21({{5{pre_lpf_l[15]}}, pre_lpf_l} <<< 2);
+        md_audio_sat21({{5{pre_lpf_postmix_l[15]}}, pre_lpf_postmix_l} <<< 2);
     assign pre_lpf_gain_4x_r =
-        md_audio_sat21({{5{pre_lpf_r[15]}}, pre_lpf_r} <<< 2);
+        md_audio_sat21({{5{pre_lpf_postmix_r[15]}}, pre_lpf_postmix_r} <<< 2);
     assign pre_lpf_gain_6x_l =
-        md_audio_sat21(({{5{pre_lpf_l[15]}}, pre_lpf_l} <<< 2) +
-                       ({{5{pre_lpf_l[15]}}, pre_lpf_l} <<< 1));
+        md_audio_sat21(({{5{pre_lpf_postmix_l[15]}}, pre_lpf_postmix_l} <<< 2) +
+                       ({{5{pre_lpf_postmix_l[15]}}, pre_lpf_postmix_l} <<< 1));
     assign pre_lpf_gain_6x_r =
-        md_audio_sat21(({{5{pre_lpf_r[15]}}, pre_lpf_r} <<< 2) +
-                       ({{5{pre_lpf_r[15]}}, pre_lpf_r} <<< 1));
+        md_audio_sat21(({{5{pre_lpf_postmix_r[15]}}, pre_lpf_postmix_r} <<< 2) +
+                       ({{5{pre_lpf_postmix_r[15]}}, pre_lpf_postmix_r} <<< 1));
     assign pre_lpf_gain_8x_l =
-        md_audio_sat21({{5{pre_lpf_l[15]}}, pre_lpf_l} <<< 3);
+        md_audio_sat21({{5{pre_lpf_postmix_l[15]}}, pre_lpf_postmix_l} <<< 3);
     assign pre_lpf_gain_8x_r =
-        md_audio_sat21({{5{pre_lpf_r[15]}}, pre_lpf_r} <<< 3);
+        md_audio_sat21({{5{pre_lpf_postmix_r[15]}}, pre_lpf_postmix_r} <<< 3);
     assign pre_lpf_selected_l =
 `ifdef MD_AUDIO_GAIN_OSD_TEST
         audio_gain_boost ? pre_lpf_gain_2x_l :
-                           pre_lpf_l;
+                           pre_lpf_postmix_l;
 `else
         MD_AUDIO_GENMIX_OUTPUT_GAIN_8X_BUILD ? pre_lpf_gain_8x_l :
         MD_AUDIO_GENMIX_OUTPUT_GAIN_6X_BUILD ? pre_lpf_gain_6x_l :
         MD_AUDIO_GENMIX_OUTPUT_GAIN_4X_BUILD ? pre_lpf_gain_4x_l :
         MD_AUDIO_GENMIX_OUTPUT_GAIN_2X_BUILD ? pre_lpf_gain_2x_l :
-                                               pre_lpf_l;
+                                               pre_lpf_postmix_l;
 `endif
     assign pre_lpf_selected_r =
 `ifdef MD_AUDIO_GAIN_OSD_TEST
         audio_gain_boost ? pre_lpf_gain_2x_r :
-                           pre_lpf_r;
+                           pre_lpf_postmix_r;
 `else
         MD_AUDIO_GENMIX_OUTPUT_GAIN_8X_BUILD ? pre_lpf_gain_8x_r :
         MD_AUDIO_GENMIX_OUTPUT_GAIN_6X_BUILD ? pre_lpf_gain_6x_r :
         MD_AUDIO_GENMIX_OUTPUT_GAIN_4X_BUILD ? pre_lpf_gain_4x_r :
         MD_AUDIO_GENMIX_OUTPUT_GAIN_2X_BUILD ? pre_lpf_gain_2x_r :
-                                               pre_lpf_r;
+                                               pre_lpf_postmix_r;
 `endif
 
     // LPF mode from Genesis_MiSTer genesis_lpf.v:

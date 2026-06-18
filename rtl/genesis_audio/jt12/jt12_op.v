@@ -118,6 +118,25 @@ reg [13:0]  x,  y;
 reg [14:0]  xs, ys, pm_preshift_II;
 reg         s1_II;
 
+`ifdef MD_JT12_FEEDBACK_SATURATE_TEST
+wire signed [14:0] pm_preshift_signed = pm_preshift_II;
+wire signed [14:0] pm_fb6_shifted = pm_preshift_signed >>> 4;
+wire signed [14:0] pm_fb7_shifted = pm_preshift_signed >>> 3;
+
+function [9:0] sat10_signed;
+    input signed [14:0] value;
+    begin
+        if (value > 15'sd511) begin
+            sat10_signed = 10'sd511;
+        end else if (value < -15'sd512) begin
+            sat10_signed = -10'sd512;
+        end else begin
+            sat10_signed = value[9:0];
+        end
+    end
+endfunction
+`endif
+
 always @(*) begin
     casez( {xuse_prevprev1, xuse_prev2, xuse_internal })
         3'b1??: x = prevprev1;
@@ -162,8 +181,13 @@ always @(*) begin
             3'd3: phasemod_II = { {2{pm_preshift_II[14]}}, pm_preshift_II[14:7] };
             3'd4: phasemod_II = {    pm_preshift_II[14],   pm_preshift_II[14:6] };
             3'd5: phasemod_II = pm_preshift_II[14:5];
+`ifdef MD_JT12_FEEDBACK_SATURATE_TEST
+            3'd6: phasemod_II = sat10_signed(pm_fb6_shifted);
+            3'd7: phasemod_II = sat10_signed(pm_fb7_shifted);
+`else
             3'd6: phasemod_II = pm_preshift_II[13:4];
             3'd7: phasemod_II = pm_preshift_II[12:3];
+`endif
         endcase
 end
 
