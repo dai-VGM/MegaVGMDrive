@@ -53,10 +53,18 @@ Validation examples:
 
 The core loads uncompressed `.vgm` files. `.vgz` and `.zip` files should be prepared outside the FPGA before playback.
 
-The importer script is:
+`scripts/vgm_md_import.sh` prepares playback-ready `.vgm` files for the MODE5 OSD loader. It copies plain `.vgm` files, expands `.vgz` files with `gzip`, and extracts `.vgm` / `.vgz` entries from `.zip` archives.
 
 ```sh
 scripts/vgm_md_import.sh [SRC] [DST_DIR]
+```
+
+Example runs:
+
+```sh
+scripts/vgm_md_import.sh /path/Hang-On ./vgm_cache
+scripts/vgm_md_import.sh "/path/Thunder Force IV.zip" ./vgm_cache
+scripts/vgm_md_import.sh /path/song.vgm ./vgm_cache
 ```
 
 Default MiSTer-side paths:
@@ -75,7 +83,7 @@ Typical Samba workflow:
 
 The importer writes cache output into collection subdirectories instead of placing all files directly under `vgm_cache`.
 
-Examples:
+Input and output examples:
 
 ```text
 Input:  /path/Hang-On/
@@ -87,6 +95,8 @@ Output: vgm_cache/Thunder Force IV/*.vgm
 Input:  /path/song.vgm
 Output: vgm_cache/song/song.vgm
 ```
+
+After importing, copy the resulting `vgm_cache/<collection>/...` directories to the MiSTer SD card, for example under `/media/fat/VGM_MD/vgm_cache`. Start MegaVGMDrive on MiSTer, open the OSD, choose `Load VGM`, and select one of the imported `.vgm` files.
 
 ## Repository Layout
 

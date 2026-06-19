@@ -53,10 +53,18 @@ Validation examples:
 
 core が直接ロードする対象は非圧縮 `.vgm` です。`.vgz` や `.zip` は FPGA 内で展開せず、再生前に準備します。
 
-importer script:
+`scripts/vgm_md_import.sh` は、MODE5 OSD loader で読み込める `.vgm` cache を作るための importer です。通常の `.vgm` はコピーし、`.vgz` は `gzip` で展開し、`.zip` 内の `.vgm` / `.vgz` entry も取り出します。
 
 ```sh
 scripts/vgm_md_import.sh [SRC] [DST_DIR]
+```
+
+実行例:
+
+```sh
+scripts/vgm_md_import.sh /path/Hang-On ./vgm_cache
+scripts/vgm_md_import.sh "/path/Thunder Force IV.zip" ./vgm_cache
+scripts/vgm_md_import.sh /path/song.vgm ./vgm_cache
 ```
 
 MiSTer 側の default path:
@@ -75,7 +83,7 @@ DST_DIR=/media/fat/VGM_MD/vgm_cache
 
 importer は `vgm_cache` 直下に全ファイルを置かず、collection ごとの subdirectory に出力します。
 
-例:
+入力と出力の例:
 
 ```text
 Input:  /path/Hang-On/
@@ -87,6 +95,8 @@ Output: vgm_cache/Thunder Force IV/*.vgm
 Input:  /path/song.vgm
 Output: vgm_cache/song/song.vgm
 ```
+
+import 後は、生成された `vgm_cache/<collection>/...` を MiSTer SD card へコピーします。たとえば `/media/fat/VGM_MD/vgm_cache` 配下に置き、MiSTer で MegaVGMDrive を起動して、OSD の `Load VGM` から import 済み `.vgm` を選択します。
 
 ## Repository Layout
 
