@@ -1,8 +1,10 @@
-# MiSTer VGM Player
+# MegaVGMDrive
+
+MiSTer FPGA向けの単体VGMプレイヤーコア
 
 English README: [README.md](README.md)
 
-MiSTer VGM Player は、MiSTer FPGA 上で VGM command stream を再生するための実験的な core です。現在は Mega Drive / Genesis 系 VGM を主な対象に、JT12/YM2612 互換の FM 音源 path と PSG を組み合わせて再生します。
+MegaVGMDrive は、MiSTer FPGA 上で VGM command stream を再生するための実験的な core です。現在は Mega Drive / Genesis 系 VGM を主な対象に、JT12/YM2612 互換の FM 音源 path と PSG を組み合わせて再生します。
 
 ゲーム本体を動かす console core ではありません。VGM data をロードし、register write と wait timing を再生して、単体の VGM player として音源を駆動します。
 
