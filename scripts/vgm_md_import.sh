@@ -3,10 +3,10 @@
 # Import loose .vgm/.vgz files and .zip archives into the VGM_MD cache.
 #
 # Usage:
-#   scripts/vgm_md_import.sh [SRC_DIR] [DST_DIR]
+#   scripts/vgm_md_import.sh [SRC] [DST_DIR]
 #
 # Defaults:
-#   SRC_DIR=/media/fat/VGM_MD/inbox
+#   SRC=/media/fat/VGM_MD/inbox
 #   DST_DIR=/media/fat/VGM_MD/vgm_cache
 #
 # Windows/Samba workflow:
@@ -23,8 +23,8 @@ set -u
 SRC=${1:-/media/fat/VGM_MD/inbox}
 DST=${2:-/media/fat/VGM_MD/vgm_cache}
 
-if [ ! -d "$SRC" ]; then
-	echo "source directory not found: $SRC" >&2
+if [ ! -d "$SRC" ] && [ ! -f "$SRC" ]; then
+	echo "source not found: $SRC" >&2
 	exit 1
 fi
 
@@ -59,8 +59,47 @@ collapse_duplicate_top_dir() {
 	printf '%s\n' "$rel"
 }
 
+strip_vgm_ext() {
+	name=$1
+
+	case "$name" in
+		*.[vV][gG][mM]) name=${name%.[vV][gG][mM]} ;;
+		*.[vV][gG][zZ]) name=${name%.[vV][gG][zZ]} ;;
+		*.[zZ][iI][pP]) name=${name%.[zZ][iI][pP]} ;;
+	esac
+
+	printf '%s\n' "$name"
+}
+
+basename_no_vgm_ext() {
+	path=$1
+	base=${path%/}
+	base=${base##*/}
+	strip_vgm_ext "$base"
+}
+
+is_inbox_dir_name() {
+	case "$1" in
+		[iI][nN][bB][oO][xX]) return 0 ;;
+		*) return 1 ;;
+	esac
+}
+
+strip_duplicate_collection_prefix() {
+	collection=$1
+	rel=$2
+
+	case "$rel" in
+		"$collection"/*) rel=${rel#"$collection"/} ;;
+	esac
+
+	printf '%s\n' "$rel"
+}
+
 vgm_dst_for_rel() {
-	rel=$(collapse_duplicate_top_dir "$1")
+	collection=$1
+	rel=$(collapse_duplicate_top_dir "$2")
+	rel=$(strip_duplicate_collection_prefix "$collection" "$rel")
 
 	case "$rel" in
 		*.[vV][gG][mM]) rel_no_ext=${rel%.[vV][gG][mM]} ;;
@@ -68,7 +107,7 @@ vgm_dst_for_rel() {
 		*) rel_no_ext=$rel ;;
 	esac
 
-	printf '%s/%s.vgm\n' "$DST" "$rel_no_ext"
+	printf '%s/%s/%s.vgm\n' "$DST" "$collection" "$rel_no_ext"
 }
 
 prepare_tmp() {
@@ -101,8 +140,9 @@ finish_tmp() {
 
 copy_vgm_file() {
 	src_file=$1
-	rel=$2
-	dst_file=$(vgm_dst_for_rel "$rel")
+	collection=$2
+	rel=$3
+	dst_file=$(vgm_dst_for_rel "$collection" "$rel")
 
 	if [ -f "$dst_file" ] && [ "$dst_file" -nt "$src_file" ]; then
 		echo "skip: $dst_file"
@@ -121,8 +161,9 @@ copy_vgm_file() {
 
 expand_vgz_file() {
 	src_file=$1
-	rel=$2
-	dst_file=$(vgm_dst_for_rel "$rel")
+	collection=$2
+	rel=$3
+	dst_file=$(vgm_dst_for_rel "$collection" "$rel")
 
 	if [ -f "$dst_file" ] && [ "$dst_file" -nt "$src_file" ]; then
 		echo "skip: $dst_file"
@@ -141,8 +182,9 @@ expand_vgz_file() {
 
 copy_zip_vgm_entry() {
 	zip_file=$1
-	entry=$2
-	dst_file=$(vgm_dst_for_rel "$entry")
+	collection=$2
+	entry=$3
+	dst_file=$(vgm_dst_for_rel "$collection" "$entry")
 
 	if [ -f "$dst_file" ] && [ "$dst_file" -nt "$zip_file" ]; then
 		echo "skip: $dst_file"
@@ -161,8 +203,9 @@ copy_zip_vgm_entry() {
 
 expand_zip_vgz_entry() {
 	zip_file=$1
-	entry=$2
-	dst_file=$(vgm_dst_for_rel "$entry")
+	collection=$2
+	entry=$3
+	dst_file=$(vgm_dst_for_rel "$collection" "$entry")
 
 	if [ -f "$dst_file" ] && [ "$dst_file" -nt "$zip_file" ]; then
 		echo "skip: $dst_file"
@@ -181,6 +224,7 @@ expand_zip_vgz_entry() {
 
 import_zip_file() {
 	zip_file=$1
+	collection=$2
 	entries=$(unzip -Z1 "$zip_file") || {
 		echo "failed to list zip file: $zip_file" >&2
 		return 1
@@ -191,10 +235,10 @@ import_zip_file() {
 		case "$entry" in
 			''|*/) continue ;;
 			*.[vV][gG][mM])
-				copy_zip_vgm_entry "$zip_file" "$entry" || zip_status=1
+				copy_zip_vgm_entry "$zip_file" "$collection" "$entry" || zip_status=1
 				;;
 			*.[vV][gG][zZ])
-				expand_zip_vgz_entry "$zip_file" "$entry" || zip_status=1
+				expand_zip_vgz_entry "$zip_file" "$collection" "$entry" || zip_status=1
 				;;
 			*) ;;
 		esac
@@ -212,30 +256,57 @@ status=0
 find_list=${TMPDIR:-/tmp}/vgm_md_import_find.$$.list
 trap 'rm -f "$find_list"' EXIT HUP INT TERM
 
-find "$SRC" -type f \( \
-	-name '*.vgm' -o -name '*.VGM' -o \
-	-name '*.vgz' -o -name '*.VGZ' -o \
-	-name '*.zip' -o -name '*.ZIP' \
-\) > "$find_list" || {
-	echo "failed to scan source directory: $SRC" >&2
-	exit 1
-}
+if [ -f "$SRC" ]; then
+	printf '%s\n' "$SRC" > "$find_list" || {
+		echo "failed to prepare source file list: $SRC" >&2
+		exit 1
+	}
+else
+	find "$SRC" -type f \( \
+		-name '*.vgm' -o -name '*.VGM' -o \
+		-name '*.vgz' -o -name '*.VGZ' -o \
+		-name '*.zip' -o -name '*.ZIP' \
+	\) > "$find_list" || {
+		echo "failed to scan source directory: $SRC" >&2
+		exit 1
+	}
+fi
 
 while IFS= read -r src_file; do
-	rel=${src_file#"$SRC"/}
-	if [ "$rel" = "$src_file" ]; then
+	if [ -f "$SRC" ]; then
+		collection=$(basename_no_vgm_ext "$SRC")
 		rel=${src_file##*/}
+	else
+		src_collection=$(basename_no_vgm_ext "$SRC")
+		rel=${src_file#"$SRC"/}
+		if [ "$rel" = "$src_file" ]; then
+			rel=${src_file##*/}
+		fi
+
+		if is_inbox_dir_name "$src_collection"; then
+			case "$rel" in
+				*/*)
+					collection=${rel%%/*}
+					rel=${rel#*/}
+					;;
+				*)
+					collection=$(basename_no_vgm_ext "$rel")
+					;;
+			esac
+		else
+			collection=$src_collection
+		fi
 	fi
 
 	case "$src_file" in
 		*.[vV][gG][mM])
-			copy_vgm_file "$src_file" "$rel" || status=1
+			copy_vgm_file "$src_file" "$collection" "$rel" || status=1
 			;;
 		*.[vV][gG][zZ])
-			expand_vgz_file "$src_file" "$rel" || status=1
+			expand_vgz_file "$src_file" "$collection" "$rel" || status=1
 			;;
 		*.[zZ][iI][pP])
-			import_zip_file "$src_file" || status=1
+			import_zip_file "$src_file" "$collection" || status=1
 			;;
 	esac
 done < "$find_list"
