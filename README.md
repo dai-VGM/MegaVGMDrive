@@ -112,3 +112,22 @@ commit: 91193848fa85e8f2e7964628a5f792890dac4300
 ```
 
 This checkpoint preserves the FM/PCM `jt12_fm_uprate` bypass path with PSG restored.
+
+## Credits
+
+This project is built for the MiSTer FPGA platform.
+
+Third-party open-source components and references used by this project include:
+
+- MiSTer FPGA project
+- Genesis_MiSTer project
+- JT12 FM core by Jose Tejada Gomez (Jotego)
+
+JT12 is used under its original open-source license. Original copyright notices and license headers for third-party code are preserved.
+
+This repository contains original work together with modifications and integrations based on the above projects.
+
+Links:
+- https://github.com/MiSTer-devel/Main_MiSTer
+- https://github.com/MiSTer-devel/Genesis_MiSTer
+- https://github.com/jotego/jt12

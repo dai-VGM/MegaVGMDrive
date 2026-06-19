@@ -630,10 +630,7 @@ module emu
     localparam CONF_STR = {
         "VGM_MD;;",
         "F1,VGM,Load VGM;",
-        "O1,Mode5 debug,Off,On;",
-        "O23,Audio Filter,Model 1,Model 2,Minimal,No Filter;",
-        "O4,Audio Gain,Clean,Boost;",
-        "O56,PSG Level,Low,Normal,High;",
+        "O1,Audio Gain,Clean,Boost;",
         "-;",
         "R0,Reset;",
         "V,v",`BUILD_DATE
@@ -864,9 +861,12 @@ module emu
 
     wire vgm_reset = vgm_reset_req | vgm_reset_hold_active;
     wire vgm_reset_n = !vgm_reset;
-    wire [1:0] audio_lpf_mode = status[3:2];
-    wire       audio_gain_boost = status[4];
-    wire [1:0] audio_psg_level = status[6:5];
+    // Public OSD keeps only the user-facing gain switch. The gold audio path
+    // stays fixed at no LPF and PSG 0.75 unless a development build overrides
+    // these through compile-time macros inside md_sound_module.
+    wire [1:0] audio_lpf_mode = 2'd3;
+    wire       audio_gain_boost = status[1];
+    wire [1:0] audio_psg_level = 2'd0;
 
     wire               audio_sample_valid;
     wire               player_busy;
@@ -1208,7 +1208,7 @@ module emu
         MD_AUDIO_GENMIX_OUTPUT_GAIN_8X_BUILD && (v_count < 9'd12);
     wire lpf_test_build_marker = MD_AUDIO_LPF_TEST_BUILD && (v_count < 9'd12);
     wire mode5_debug_overlay_enable =
-        LOADED_VGM_MODE && (status[1] || MODE5_DEBUG_OVERLAY_FORCED);
+        LOADED_VGM_MODE && MODE5_DEBUG_OVERLAY_FORCED;
 
     function automatic [34:0] font5x7_bits(input logic [7:0] ch);
         begin
