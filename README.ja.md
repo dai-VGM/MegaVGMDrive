@@ -1,94 +1,110 @@
-# MiSTer VGM Player Core
+# MiSTer VGM Player
 
-MiSTer VGM Player Core は、MiSTer FPGA 上で VGM を再生するための実験的な core です。
+English README: [README.md](README.md)
 
-現状は Mega Drive / Genesis 系の VGM を中心に、YM2612/YM3438 互換の JT12 FM 音源と PSG/JT89 系の音源を FPGA 上で駆動して鳴らすことを目的にしています。ゲーム本体を動かす core ではなく、VGM のコマンド列を読み込み、音源レジスタ write と wait timing を再現する VGM プレイヤーです。
+MiSTer VGM Player は、MiSTer FPGA 上で VGM command stream を再生するための実験的な core です。現在は Mega Drive / Genesis 系 VGM を主な対象に、JT12/YM2612 互換の FM 音源 path と PSG を組み合わせて再生します。
 
-## 現在の到達点
+ゲーム本体を動かす console core ではありません。VGM data をロードし、register write と wait timing を再生して、単体の VGM player として音源を駆動します。
 
-現在の gold checkpoint では、Mode 5 の DDRAM backend を使った大きめの VGM 再生が安定しています。
+## プロジェクト概要
 
-- DDRAM 4MB+ / `addr23` 構成で安定確認
-- 1.1MB 級、3.9MB 級、4.3MB 級の VGM 再生を実機 MiSTer で確認
-- `ioctl_wait` / `play_ready` によるロード完了待ちを実装
+- MiSTer FPGA 上での VGM 再生 core
+- YM2612/JT12 FM と PSG の音源構成
+- MODE5 OSD file loading path
+- DDRAM-backed VGM storage
+- 非圧縮 `.vgm` 再生を主対象
+- `.zip` / `.vgz` / `.vgm` 準備用 importer script
+
+## Current Status
+
+現在の gold 状態では、MODE5 loader と DDRAM backend を使った VGM 再生が安定しています。
+
+- DDRAM backend stable
+- 4 MiB+ VGM playback verified
+- 1.1 MB、3.9 MB、4.3 MB 級 VGM の実機 MiSTer 再生を確認済み
+- MiSTer OSD 経由の MODE5 file loading
+- cache 用 `.vgm` を準備する importer available
+- `ioctl_wait` / `play_ready` によるロード完了待ちを実装済み
 - DDRAM address window は MiSTer 慣例に寄せた `0x30000000` 系
-- PSG clock を Mega Drive 相当の 3.579545MHz に修正
-- PSG level は現状 Low 相当、約 0.75x を標準評価
-- Audio gold: `NO_UPRATE + PSG fix`
+- PSG clock は Mega Drive 相当の 3.579545 MHz
 
-音質評価済みの代表例:
+## Audio Gold
 
-- Hang-On: リードのノイズ解消
-- Thunder Force IV: ギター / アルペジオ良好
-- Go Straight: 良好
-- Gunstar Heroes: 良好
-- 全体として foobar2000 VGM plugin に近いクリーンな傾向
+現在の preferred audio configuration:
 
-## 音質 gold について
+- `audio-gold-no-uprate-psgfix`
+- FM/PCM は `jt12_fm_uprate` interpolation chain を bypass
+- PSG preserved
+- PSG level 0.75
+- LPF disabled by default
 
-現在の音質 gold は、Genesis 用の `jt12_fm_uprate` / interpolation chain を FM/PCM 側では使わない構成です。
+この構成では PSG path を残しつつ、VGM player path の FM/PCM については Genesis core 向けの interpolation chain を通さない構成にしています。現在の検証では、確認済み VGM の再生においてこの path がよりクリーンな結果になっています。
 
-JT12 由来の `jt12_fm_uprate` は、Genesis core の master clock / clock enable 構成で FM と PSG を高速な内部 sample stream へ補間するための処理です。一方、この VGM player では VGM wait timing に従って音源を駆動するため、FM/PCM をその補間 chain に通すより、JT12 出力をより直接扱う方が良好な結果になりました。
+Validation examples:
 
-gold 状態の要点:
+- Hang-On
+- Thunder Force IV
+- Streets of Rage
+- Gunstar Heroes
 
-- `MD_AUDIO_GENMIX_NO_UPRATE_TEST=1`
-- FM/PCM は `jt12_fm_uprate` / interpolation bypass
-- PSG は消さずに残す
-- LPF なし
-- ladder なし
-- feedback 制限なし
-- saturate 系 test なし
-- PMS/AMS mask なし
+## VGM Import Workflow
 
-この構成で Hang-On、Thunder Force IV、Go Straight、Gunstar Heroes などを確認し、現時点の音質基準としています。
+core が直接ロードする対象は非圧縮 `.vgm` です。`.vgz` や `.zip` は FPGA 内で展開せず、再生前に準備します。
 
-## 注意
+importer script:
 
-このプロジェクトは実験的な MiSTer core です。
-
-- すべての VGM の完全再生を保証するものではありません。
-- 現状の主な対象は Mega Drive / Genesis 系 VGM です。
-- `.vgz` の FPGA 内 native 展開には対応していません。
-- `.vgz` は事前に `.vgm` へ展開して使う想定です。
-- Quartus build は Windows 環境で行う想定です。
-- Mac 側では通常、Quartus compile / TimeQuest 確認は行いません。
-
-## ビルドと配置
-
-1. Windows 側で Quartus project を開き、通常手順で compile します。
-2. `.sof` 生成後、`quartus_cpf` などで `.rbf` を生成します。
-3. 生成した `.rbf` を MiSTer の `/media/fat/_Console/` など、利用する core 配置先へコピーします。
-4. MiSTer の OSD から core を起動します。
-5. VGM file は OSD file load から読み込みます。
-
-gold checkpoint 用の RBF 名候補:
-
-```text
-VGM_MD_audio_gold_no_uprate_psgfix.rbf
+```sh
+scripts/vgm_md_import.sh [SRC] [DST_DIR]
 ```
 
-## VGM / VGZ の準備
+MiSTer 側の default path:
 
-VGM は非圧縮 `.vgm` をロード対象にします。
+```text
+SRC=/media/fat/VGM_MD/inbox
+DST_DIR=/media/fat/VGM_MD/vgm_cache
+```
 
-`.vgz` を使う場合は、事前に展開して `.vgm` にしてください。補助スクリプトとして、`scripts/vgz_to_vgm_cache.sh` や `scripts/vgm_md_import.sh` を用意しています。
-
-想定運用例:
+典型的な Samba workflow:
 
 ```text
 \\mister\sdcard\VGM_MD\inbox
-```
-
-へ `.zip` / `.vgz` / `.vgm` を入れ、MiSTer 側で importer script を実行して、
-
-```text
 \\mister\sdcard\VGM_MD\vgm_cache
 ```
 
-に展開済み `.vgm` を作る運用です。
+importer は `vgm_cache` 直下に全ファイルを置かず、collection ごとの subdirectory に出力します。
 
-## 現在の gold checkpoint
+例:
+
+```text
+Input:  /path/Hang-On/
+Output: vgm_cache/Hang-On/*.vgm
+
+Input:  /path/Thunder Force IV.zip
+Output: vgm_cache/Thunder Force IV/*.vgm
+
+Input:  /path/song.vgm
+Output: vgm_cache/song/song.vgm
+```
+
+## Repository Layout
+
+- `rtl/` - synthesis 対象 RTL、VGM loader/player logic、DDRAM backend、audio integration
+- `sys/` - MiSTer framework support modules
+- `tb/` - loader、player、timing、mode behavior 用 SystemVerilog testbench
+- `tools/` - test / bring-up data 用 VGM 生成・抽出 helper
+- `scripts/` - MiSTer 側および host 側 utility script
+- `docs/` - bring-up note、audio note、backend plan
+- `testdata/` - 小さな VGM probe と生成 test input
+
+## 注意
+
+- 現在の主対象は Mega Drive / Genesis 系 VGM です。
+- FPGA 内 native `.vgz` gzip 展開は未実装です。
+- 大きな VGM の再生は DDRAM-backed MODE5 path を使います。
+- Quartus build は Windows 環境で行う想定です。
+- この project では通常、macOS 側で Quartus compile / TimeQuest 確認は行いません。
+
+## Gold Checkpoint
 
 ```text
 tag: audio-gold-no-uprate-psgfix

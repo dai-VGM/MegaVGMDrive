@@ -1,60 +1,114 @@
-# MiSTer VGM Workbench
+# MiSTer VGM Player
 
-A personal VGM / YM2612 / JT12 experiment workspace for MiSTer FPGA audio exploration.
+Japanese README: [README.ja.md](README.ja.md)
 
-Japanese project notes: [README.ja.md](README.ja.md)
+MiSTer VGM Player is an experimental MiSTer FPGA core for playing VGM command streams directly on hardware. The current focus is Mega Drive / Genesis style VGM playback using a JT12/YM2612-compatible FM path together with PSG output.
 
-This project is focused on testing how VGM command streams can drive a JT12/YM2612-compatible FPGA audio core.
+The core is not a full game console implementation. It loads VGM data, replays register writes and waits, and drives the sound hardware as a standalone VGM player.
 
-## Purpose
+## Project Overview
 
-- Explore VGM playback behavior
-- Test YM2612 register writes
-- Investigate JT12 timing and initialization behavior
-- Build small SystemVerilog testbenches
-- Keep notes, tools, and experiments in one clean workspace
+- MiSTer FPGA VGM playback core
+- YM2612/JT12 FM plus PSG audio
+- MODE5 OSD file loading path
+- DDRAM-backed VGM storage
+- Plain `.vgm` playback target
+- Import helper for `.zip` / `.vgz` / `.vgm` file preparation
 
-## Layout
+## Current Status
 
-- `docs/` - notes and experiment logs
-- `rtl/` - HDL modules and audio/control experiments
-- `tb/` - testbenches
-- `tools/` - helper scripts for VGM parsing/conversion
-- `testdata/` - small tracked VGM probes for simulation and MiSTer checks
+The current gold state uses the MODE5 loader with a DDRAM backend.
 
-This is not a NanoDrive source tree.
+- DDRAM backend stable
+- 4 MiB+ VGM playback verified
+- 1.1 MB, 3.9 MB, and 4.3 MB VGM playback verified on MiSTer hardware
+- MODE5 file loading through the MiSTer OSD
+- Importer available for preparing cached `.vgm` files
+- `ioctl_wait` / `play_ready` load-complete gating implemented
+- DDRAM address window follows the MiSTer-style `0x30000000` range
+- PSG clock set to the Mega Drive rate, 3.579545 MHz
 
-## Mode5 PCM Probe
+## Audio Gold
 
-`testdata/mode5_pcm_probe.vgm` is a tiny uncompressed YM2612 DAC-stream VGM
-for real MiSTer `REGION_MODE=5` BRAM-loaded playback checks. It contains a
-valid VGM header, YM2612 DAC enable (`52 2B 80`), one type-0 PCM data block,
-`E0` seek-to-zero, many `0x80..0x8f` DAC stream commands, and `66` end.
+Current preferred audio configuration:
 
-`testdata/test_pcm_excerpt.vgm` is a short real-PCM excerpt generated from the
-larger `/Users/daizo/Downloads/test.vgm` source with:
+- `audio-gold-no-uprate-psgfix`
+- FM/PCM bypass of the `jt12_fm_uprate` interpolation chain
+- PSG preserved
+- PSG level 0.75
+- LPF disabled by default
+
+This configuration keeps the PSG path active while avoiding the Genesis-oriented FM/PCM interpolation chain for the VGM player path. Current testing indicates that this path is cleaner for the verified VGM playback cases.
+
+Validation examples:
+
+- Hang-On
+- Thunder Force IV
+- Streets of Rage
+- Gunstar Heroes
+
+## VGM Import Workflow
+
+The core loads uncompressed `.vgm` files. `.vgz` and `.zip` files should be prepared outside the FPGA before playback.
+
+The importer script is:
 
 ```sh
-python3 tools/extract_mode5_pcm_excerpt_vgm.py
+scripts/vgm_md_import.sh [SRC] [DST_DIR]
 ```
 
-The extractor prints the output size, PCM bank size, first source/output `E0`
-positions, DAC stream count, total wait samples, and whether the result is below
-the current 256 KiB limit.
+Default MiSTer-side paths:
 
-`testdata/test_stable_demo.vgm` is the preferred small mode5 hardware demo VGM.
-It is generated from `/Users/daizo/Downloads/test.vgm` starting from the song
-head: the original type-0 PCM data block is kept, then the following FM, PSG,
-wait, `E0`, and `0x80..0x8f` DAC stream commands are copied in their original
-order and timing. It avoids zero-time bulk setup writes and ends with `66`.
-
-```sh
-python3 tools/extract_mode5_stable_demo_vgm.py
+```text
+SRC=/media/fat/VGM_MD/inbox
+DST_DIR=/media/fat/VGM_MD/vgm_cache
 ```
 
-The default output is about 20 seconds and remains well below the current
-256 KiB mode5 BRAM limit.
+Typical Samba workflow:
 
-Current mode5 VGM RAM is BRAM-backed with `ADDR_WIDTH=18`, so the loaded file
-capacity is 256 KiB. Full 1 MiB+ PCM VGM files exceed this path and are expected
-to hit loader overflow/error until a later SDRAM/DDR/streaming loader exists.
+```text
+\\mister\sdcard\VGM_MD\inbox
+\\mister\sdcard\VGM_MD\vgm_cache
+```
+
+The importer writes cache output into collection subdirectories instead of placing all files directly under `vgm_cache`.
+
+Examples:
+
+```text
+Input:  /path/Hang-On/
+Output: vgm_cache/Hang-On/*.vgm
+
+Input:  /path/Thunder Force IV.zip
+Output: vgm_cache/Thunder Force IV/*.vgm
+
+Input:  /path/song.vgm
+Output: vgm_cache/song/song.vgm
+```
+
+## Repository Layout
+
+- `rtl/` - synthesis-visible core RTL, VGM loader/player logic, DDRAM backend, audio integration
+- `sys/` - MiSTer framework support modules
+- `tb/` - SystemVerilog testbenches for loader, player, timing, and mode behavior
+- `tools/` - VGM generation/extraction helpers used for test and bring-up data
+- `scripts/` - MiSTer-side and host-side utility scripts
+- `docs/` - bring-up notes, audio notes, and backend planning notes
+- `testdata/` - small VGM probes and generated test inputs
+
+## Notes
+
+- The main target is currently Mega Drive / Genesis style VGM data.
+- Native FPGA-side `.vgz` gzip decompression is not implemented.
+- Large VGM playback uses the DDRAM-backed MODE5 path.
+- Quartus builds are expected to be performed on Windows.
+- Quartus compile and TimeQuest checks are not normally run on macOS for this project.
+
+## Gold Checkpoint
+
+```text
+tag: audio-gold-no-uprate-psgfix
+commit: 91193848fa85e8f2e7964628a5f792890dac4300
+```
+
+This checkpoint preserves the FM/PCM `jt12_fm_uprate` bypass path with PSG restored.
