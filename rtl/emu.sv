@@ -630,7 +630,7 @@ module emu
     localparam CONF_STR = {
         "VGM_MD;;",
         "F1,VGM,Load VGM;",
-        "O1,Audio Gain,Clean,Boost;",
+        "O1,Audio Gain,Normal,Boost;",
         "-;",
         "R0,Reset;",
         "V,v",`BUILD_DATE
@@ -678,6 +678,13 @@ module emu
     wire        vgm_pcm_oob;
     wire [31:0] vgm_pcm_oob_count;
     wire [31:0] vgm_wait_ticks_consumed_debug;
+    wire [31:0] dac_stream_cmd_count;
+    wire [31:0] dac_stream_wait_samples_total;
+    wire [31:0] dac_stream_clk_cycles_total;
+    wire [31:0] dac_stream_overhead_cycles_total;
+    wire [31:0] max_dac_stream_cmd_cycles;
+    wire [31:0] count_wait0_dac_stream_cmd;
+    wire [31:0] count_wait0_overhead_nonzero;
     wire        mode5_sound_reset_active;
     wire        mode5_player_start_pulse_debug;
     wire [31:0] mode5_load_begin_count;
@@ -949,6 +956,13 @@ module emu
         .vgm_pcm_oob           (vgm_pcm_oob),
         .vgm_pcm_oob_count     (vgm_pcm_oob_count),
         .vgm_wait_ticks_consumed_debug(vgm_wait_ticks_consumed_debug),
+        .dac_stream_cmd_count  (dac_stream_cmd_count),
+        .dac_stream_wait_samples_total(dac_stream_wait_samples_total),
+        .dac_stream_clk_cycles_total(dac_stream_clk_cycles_total),
+        .dac_stream_overhead_cycles_total(dac_stream_overhead_cycles_total),
+        .max_dac_stream_cmd_cycles(max_dac_stream_cmd_cycles),
+        .count_wait0_dac_stream_cmd(count_wait0_dac_stream_cmd),
+        .count_wait0_overhead_nonzero(count_wait0_overhead_nonzero),
         .mode5_sound_reset_active(mode5_sound_reset_active),
         .mode5_player_start_pulse_debug(mode5_player_start_pulse_debug),
         .mode5_load_begin_count(mode5_load_begin_count),
@@ -1209,6 +1223,12 @@ module emu
     wire lpf_test_build_marker = MD_AUDIO_LPF_TEST_BUILD && (v_count < 9'd12);
     wire mode5_debug_overlay_enable =
         LOADED_VGM_MODE && MODE5_DEBUG_OVERLAY_FORCED;
+    wire [31:0] dac_stream_avg_cmd_cycles =
+        (dac_stream_cmd_count == 32'd0) ? 32'd0 :
+        (dac_stream_clk_cycles_total / dac_stream_cmd_count);
+    wire [31:0] dac_stream_avg_overhead_cycles =
+        (dac_stream_cmd_count == 32'd0) ? 32'd0 :
+        (dac_stream_overhead_cycles_total / dac_stream_cmd_count);
 
     function automatic [34:0] font5x7_bits(input logic [7:0] ch);
         begin
@@ -1229,9 +1249,11 @@ module emu
                 "D": font5x7_bits = 35'b11110_10001_10001_10001_10001_10001_11110;
                 "E": font5x7_bits = 35'b11111_10000_10000_11110_10000_10000_11111;
                 "F": font5x7_bits = 35'b11111_10000_10000_11110_10000_10000_10000;
+                "H": font5x7_bits = 35'b10001_10001_10001_11111_10001_10001_10001;
                 "I": font5x7_bits = 35'b01110_00100_00100_00100_00100_00100_01110;
                 "L": font5x7_bits = 35'b10000_10000_10000_10000_10000_10000_11111;
                 "M": font5x7_bits = 35'b10001_11011_10101_10101_10001_10001_10001;
+                "O": font5x7_bits = 35'b01110_10001_10001_10001_10001_10001_01110;
                 "P": font5x7_bits = 35'b11110_10001_10001_11110_10000_10000_10000;
                 "R": font5x7_bits = 35'b11110_10001_10001_11110_10100_10010_10001;
                 "S": font5x7_bits = 35'b01111_10000_10000_01110_00001_00001_11110;
@@ -1289,10 +1311,10 @@ module emu
                 5'd20: mode5_debug_label_char = (col == 2'd0) ? "E" : (col == 2'd1) ? "P" : " ";
                 5'd21: mode5_debug_label_char = (col == 2'd0) ? "E" : (col == 2'd1) ? "X" : " ";
                 5'd22: mode5_debug_label_char = (col == 2'd0) ? "E" : (col == 2'd1) ? "S" : " ";
-                5'd23: mode5_debug_label_char = (col == 2'd0) ? "P" : (col == 2'd1) ? "S" : " ";
-                5'd24: mode5_debug_label_char = (col == 2'd0) ? "M" : (col == 2'd1) ? "R" : " ";
-                5'd25: mode5_debug_label_char = (col == 2'd0) ? "M" : (col == 2'd1) ? "Y" : " ";
-                5'd26: mode5_debug_label_char = (col == 2'd0) ? "M" : (col == 2'd1) ? "V" : " ";
+                5'd23: mode5_debug_label_char = (col == 2'd0) ? "D" : (col == 2'd1) ? "C" : " ";
+                5'd24: mode5_debug_label_char = (col == 2'd0) ? "A" : (col == 2'd1) ? "V" : " ";
+                5'd25: mode5_debug_label_char = (col == 2'd0) ? "O" : (col == 2'd1) ? "H" : " ";
+                5'd26: mode5_debug_label_char = (col == 2'd0) ? "W" : (col == 2'd1) ? "0" : " ";
                 5'd27: mode5_debug_label_char = (col == 2'd0) ? "M" : (col == 2'd1) ? "A" : " ";
                 5'd28: mode5_debug_label_char = (col == 2'd0) ? "R" : (col == 2'd1) ? "C" : " ";
                 5'd29: mode5_debug_label_char = (col == 2'd0) ? "D" : (col == 2'd1) ? "A" : " ";
@@ -1330,10 +1352,10 @@ module emu
                 5'd20: mode5_debug_value = vgm_error_pc_debug[15:0];
                 5'd21: mode5_debug_value = {8'd0, vgm_error_cmd_debug};
                 5'd22: mode5_debug_value = vgm_error_session_id[15:0];
-                5'd23: mode5_debug_value = {10'd0, vgm_player_state_debug};
-                5'd24: mode5_debug_value = {15'd0, vgm_mem_rd_req_debug};
-                5'd25: mode5_debug_value = {15'd0, vgm_mem_rd_ready_debug};
-                5'd26: mode5_debug_value = {15'd0, vgm_mem_rd_valid_debug};
+                5'd23: mode5_debug_value = dac_stream_cmd_count[15:0];
+                5'd24: mode5_debug_value = dac_stream_avg_cmd_cycles[15:0];
+                5'd25: mode5_debug_value = dac_stream_avg_overhead_cycles[15:0];
+                5'd26: mode5_debug_value = count_wait0_dac_stream_cmd[15:0];
                 5'd27: mode5_debug_value = vgm_mem_rd_addr_debug[15:0];
                 5'd28: mode5_debug_value = mode5_repeat_restart_count[15:0];
                 5'd29: mode5_debug_value = {15'd0, mode5_done_armed_debug};
@@ -1658,9 +1680,14 @@ module emu
     wire [7:0] video_blue  = blue;
 `else
     // Keep the normal player screen quiet; the OSD is overlaid later in sys_top.
-    wire [7:0] video_red   = 8'h00;
-    wire [7:0] video_green = 8'h08;
-    wire [7:0] video_blue  = 8'h18;
+    // MODE5_DEBUG_OVERLAY_ALWAYS_ON is a special debug build escape hatch that
+    // lets the text overlay reach video without restoring public OSD controls.
+    wire [7:0] video_red   = mode5_debug_pixel ? 8'hff :
+                             mode5_dbg_back ? 8'h00 : 8'h00;
+    wire [7:0] video_green = mode5_debug_pixel ? 8'hff :
+                             mode5_dbg_back ? 8'h00 : 8'h08;
+    wire [7:0] video_blue  = mode5_debug_pixel ? 8'hff :
+                             mode5_dbg_back ? 8'h00 : 8'h18;
 `endif
     assign VGA_R = active ? video_red : 8'd0;
     assign VGA_G = active ? video_green : 8'd0;
@@ -1690,6 +1717,9 @@ module emu
         vgm_pcm_oob,
         vgm_pcm_oob_count,
         vgm_wait_ticks_consumed_debug,
+        dac_stream_wait_samples_total,
+        max_dac_stream_cmd_cycles,
+        count_wait0_overhead_nonzero,
         mode5_repeat_restart_count,
         mode5_done_armed_debug,
         mode5_repeat_session_id,

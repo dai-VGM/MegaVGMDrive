@@ -398,6 +398,30 @@ module md_sound_module
     localparam bit MD_JT12_HIFI_PCM_BUILD = 1'b0;
 `endif
 
+`ifdef MD_AUDIO_DAC_LEVEL_2X_TEST
+    localparam bit MD_AUDIO_DAC_LEVEL_2X_BUILD = 1'b1;
+`else
+    localparam bit MD_AUDIO_DAC_LEVEL_2X_BUILD = 1'b0;
+`endif
+
+`ifdef MD_AUDIO_DAC_LEVEL_HALF_TEST
+    localparam bit MD_AUDIO_DAC_LEVEL_HALF_BUILD = 1'b1;
+`else
+    localparam bit MD_AUDIO_DAC_LEVEL_HALF_BUILD = 1'b0;
+`endif
+
+`ifdef MD_AUDIO_DAC_UNSIGNED_CENTER_TEST
+    localparam bit MD_AUDIO_DAC_UNSIGNED_CENTER_BUILD = 1'b1;
+`else
+    localparam bit MD_AUDIO_DAC_UNSIGNED_CENTER_BUILD = 1'b0;
+`endif
+
+`ifdef MD_AUDIO_DAC_RAW_MONO_TEST
+    localparam bit MD_AUDIO_DAC_RAW_MONO_BUILD = 1'b1;
+`else
+    localparam bit MD_AUDIO_DAC_RAW_MONO_BUILD = 1'b0;
+`endif
+
 `ifdef MD_AUDIO_FM_DC_BLOCK_TEST
     localparam bit MD_AUDIO_FM_DC_BLOCK_BUILD = 1'b1;
 `else
@@ -697,6 +721,63 @@ module md_sound_module
     wire ym_filter_fm_ch_solo_keyon =
         MD_AUDIO_FM_CH_SOLO_BUILD && !ym_cmd_port && (ym_cmd_reg == 8'h28) &&
         (ym_cmd_data[2:0] != MD_AUDIO_FM_CH_SOLO_KEYON_CH);
+    wire ym_filter_dac_pcm = !ym_cmd_port && (ym_cmd_reg == 8'h2A);
+
+    function automatic logic signed [9:0] md_dac_centered(
+        input logic [7:0] dac_u8
+    );
+        begin
+            md_dac_centered = {2'b00, dac_u8} - 10'sd128;
+        end
+    endfunction
+
+    function automatic [7:0] md_dac_uncentered(input logic signed [9:0] dac_s10);
+        logic signed [10:0] shifted;
+        begin
+            if (dac_s10 > 10'sd127) begin
+                md_dac_uncentered = 8'hff;
+            end else if (dac_s10 < -10'sd128) begin
+                md_dac_uncentered = 8'h00;
+            end else begin
+                shifted = {dac_s10[9], dac_s10} + 11'sd128;
+                md_dac_uncentered = shifted[7:0];
+            end
+        end
+    endfunction
+
+    function automatic [7:0] md_dac_compare_data(input logic [7:0] dac_u8);
+        logic [7:0] centered_source;
+        logic signed [9:0] dac_s10;
+        begin
+            // JT12 expects YM2612 DAC register 0x2A as unsigned 8-bit PCM.
+            // The unsigned-center compare intentionally flips signed/center
+            // interpretation before the level compare so bad centering is easy
+            // to hear on PCM-heavy VGMs.
+            centered_source =
+                MD_AUDIO_DAC_UNSIGNED_CENTER_BUILD ? (dac_u8 ^ 8'h80) : dac_u8;
+            dac_s10 = md_dac_centered(centered_source);
+
+            if (MD_AUDIO_DAC_LEVEL_2X_BUILD) begin
+                md_dac_compare_data = md_dac_uncentered(dac_s10 <<< 1);
+            end else if (MD_AUDIO_DAC_LEVEL_HALF_BUILD) begin
+                md_dac_compare_data = md_dac_uncentered(dac_s10 >>> 1);
+            end else begin
+                md_dac_compare_data = centered_source;
+            end
+        end
+    endfunction
+
+    function automatic logic signed [15:0] md_dac_raw_mono_sample(
+        input logic [7:0] dac_u8
+    );
+        logic signed [9:0] dac_s10;
+        begin
+            dac_s10 = md_dac_centered(dac_u8);
+            md_dac_raw_mono_sample = {{6{dac_s10[9]}}, dac_s10} <<< 7;
+        end
+    endfunction
+
+    wire [7:0] ym_cmd_data_dac_filtered = md_dac_compare_data(ym_cmd_data);
     wire [7:0] ym_cmd_data_filtered =
         ym_filter_lfo_off ? 8'h00 :
         ym_filter_pms_ams ? (ym_cmd_data & 8'hC0) :
@@ -705,7 +786,18 @@ module md_sound_module
         ym_filter_ch2_feedback_limit ? ym_ch2_feedback_data :
         ym_filter_ch3_mode ? (ym_cmd_data & 8'h3F) :
         ym_filter_fm_ch_solo_keyon ? {4'h0, ym_cmd_data[3:0]} :
+        ym_filter_dac_pcm ? ym_cmd_data_dac_filtered :
                               ym_cmd_data;
+    wire ym_dac_cmd_accept = ym_cmd_valid && ym_cmd_ready && ym_filter_dac_pcm;
+    logic signed [15:0] dac_raw_mono_latched;
+
+    always_ff @(posedge clk) begin
+        if (reset || jt12_reset) begin
+            dac_raw_mono_latched <= 16'sd0;
+        end else if (ym_dac_cmd_accept) begin
+            dac_raw_mono_latched <= md_dac_raw_mono_sample(ym_cmd_data_dac_filtered);
+        end
+    end
 
 `ifdef SIMULATION
     logic [15:0] ym_wait_cen_count;
@@ -1198,6 +1290,10 @@ module md_sound_module
 	    wire signed [15:0] pre_lpf_r;
 	    wire signed [15:0] pre_lpf_postmix_l;
 	    wire signed [15:0] pre_lpf_postmix_r;
+	    wire signed [20:0] pre_lpf_postmix_l_wide;
+	    wire signed [20:0] pre_lpf_postmix_r_wide;
+	    wire signed [15:0] pre_lpf_gain_1p5x_l;
+	    wire signed [15:0] pre_lpf_gain_1p5x_r;
 	    wire signed [15:0] pre_lpf_gain_2x_l;
 	    wire signed [15:0] pre_lpf_gain_2x_r;
 	    wire signed [15:0] pre_lpf_gain_4x_l;
@@ -1309,11 +1405,17 @@ module md_sound_module
         (MD_AUDIO_MEGADRIVE_POSTMIX_BUILD || MD_AUDIO_COND_POSTMIX_BUILD) ?
             md_audio_sat21({{5{pre_lpf_r[15]}}, pre_lpf_r} <<< 1) :
             pre_lpf_r;
+    assign pre_lpf_postmix_l_wide = {{5{pre_lpf_postmix_l[15]}}, pre_lpf_postmix_l};
+    assign pre_lpf_postmix_r_wide = {{5{pre_lpf_postmix_r[15]}}, pre_lpf_postmix_r};
 
+    assign pre_lpf_gain_1p5x_l =
+        md_audio_sat21(pre_lpf_postmix_l_wide + (pre_lpf_postmix_l_wide >>> 1));
+    assign pre_lpf_gain_1p5x_r =
+        md_audio_sat21(pre_lpf_postmix_r_wide + (pre_lpf_postmix_r_wide >>> 1));
     assign pre_lpf_gain_2x_l =
-        md_audio_sat21({{5{pre_lpf_postmix_l[15]}}, pre_lpf_postmix_l} <<< 1);
+        md_audio_sat21(pre_lpf_postmix_l_wide <<< 1);
     assign pre_lpf_gain_2x_r =
-        md_audio_sat21({{5{pre_lpf_postmix_r[15]}}, pre_lpf_postmix_r} <<< 1);
+        md_audio_sat21(pre_lpf_postmix_r_wide <<< 1);
     assign pre_lpf_gain_4x_l =
         md_audio_sat21({{5{pre_lpf_postmix_l[15]}}, pre_lpf_postmix_l} <<< 2);
     assign pre_lpf_gain_4x_r =
@@ -1331,7 +1433,7 @@ module md_sound_module
     assign pre_lpf_selected_l =
 `ifdef MD_AUDIO_GAIN_OSD_TEST
         audio_gain_boost ? pre_lpf_gain_2x_l :
-                           pre_lpf_postmix_l;
+                           pre_lpf_gain_1p5x_l;
 `else
         MD_AUDIO_GENMIX_OUTPUT_GAIN_8X_BUILD ? pre_lpf_gain_8x_l :
         MD_AUDIO_GENMIX_OUTPUT_GAIN_6X_BUILD ? pre_lpf_gain_6x_l :
@@ -1342,7 +1444,7 @@ module md_sound_module
     assign pre_lpf_selected_r =
 `ifdef MD_AUDIO_GAIN_OSD_TEST
         audio_gain_boost ? pre_lpf_gain_2x_r :
-                           pre_lpf_postmix_r;
+                           pre_lpf_gain_1p5x_r;
 `else
         MD_AUDIO_GENMIX_OUTPUT_GAIN_8X_BUILD ? pre_lpf_gain_8x_r :
         MD_AUDIO_GENMIX_OUTPUT_GAIN_6X_BUILD ? pre_lpf_gain_6x_r :
@@ -1377,13 +1479,17 @@ module md_sound_module
 
 	    wire raw_jt12_output_build =
 	        MD_AUDIO_RAW_JT12_FM_BUILD || MD_AUDIO_RAW_JT12_SAMPLE_LATCH_BUILD;
+	    wire signed [15:0] dac_raw_mono_audio =
+	        audio_path_enable ? dac_raw_mono_latched : 16'sd0;
 	    wire signed [15:0] normal_audio_l =
 	        MD_AUDIO_NORMAL_SAMPLE_LATCH_BUILD ? normal_latched_l : lpf_audio_l;
 	    wire signed [15:0] normal_audio_r =
 	        MD_AUDIO_NORMAL_SAMPLE_LATCH_BUILD ? normal_latched_r : lpf_audio_r;
 	    wire signed [15:0] selected_audio_l =
+	        MD_AUDIO_DAC_RAW_MONO_BUILD ? dac_raw_mono_audio :
 	        raw_jt12_output_build ? raw_jt12_audio_l : normal_audio_l;
 	    wire signed [15:0] selected_audio_r =
+	        MD_AUDIO_DAC_RAW_MONO_BUILD ? dac_raw_mono_audio :
 	        raw_jt12_output_build ? raw_jt12_audio_r : normal_audio_r;
 
 	    wire [15:0] fm_raw_abs_now = md_audio_abs_max16(fm_left, fm_right);
