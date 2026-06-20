@@ -628,7 +628,7 @@ module emu
 
     `include "build_id.v"
     localparam CONF_STR = {
-        "VGM_MD;;",
+        "MegaVGMDrive;;",
         "F1,VGM,Load VGM;",
         "O1,Audio Gain,Normal,Boost;",
         "-;",

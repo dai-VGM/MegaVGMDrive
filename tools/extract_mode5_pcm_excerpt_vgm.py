@@ -9,7 +9,7 @@ import struct
 
 
 DEFAULT_INPUT = Path("/Users/daizo/Downloads/test.vgm")
-DEFAULT_OUTPUT = Path("testdata/test_pcm_excerpt.vgm")
+DEFAULT_OUTPUT = Path("/tmp/mister_vgm_local_pcm_excerpt.vgm")
 DATA_OFFSET = 0x40
 DEFAULT_TARGET_SAMPLES = 44_100 * 2
 DEFAULT_MAX_SIZE = 240 * 1024

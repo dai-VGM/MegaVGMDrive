@@ -112,6 +112,23 @@ set_global_assignment -name VERILOG_MACRO "MD_AUDIO_PSG_LEVEL_OSD_TEST=1"
 # Suggested RBF name: VGM_MD_audio_B_genmix_no_uprate.rbf
 set_global_assignment -name VERILOG_MACRO "MD_AUDIO_GENMIX_NO_UPRATE_TEST=1"
 
+# DAC overhead debug overlay. Keep disabled for public builds.
+# Uncomment only for debug builds that need DC/AV/OH/W0 counters on screen.
+# Suggested RBF name: VGM_MD_debug_dac_overhead.rbf
+#set_global_assignment -name VERILOG_MACRO "MODE5_DEBUG_OVERLAY_ALWAYS_ON=1"
+
+# DAC/PCM texture compare builds. Keep audio gold/no-uprate/PSG-fix macros
+# above enabled, then uncomment exactly one of these for a debug RBF.
+# Suggested RBF names:
+#   VGM_MD_debug_dac_level_2x.rbf
+#   VGM_MD_debug_dac_level_half.rbf
+#   VGM_MD_debug_dac_unsigned_center.rbf
+#   VGM_MD_debug_dac_raw_mono.rbf
+#set_global_assignment -name VERILOG_MACRO "MD_AUDIO_DAC_LEVEL_2X_TEST=1"
+#set_global_assignment -name VERILOG_MACRO "MD_AUDIO_DAC_LEVEL_HALF_TEST=1"
+#set_global_assignment -name VERILOG_MACRO "MD_AUDIO_DAC_UNSIGNED_CENTER_TEST=1"
+#set_global_assignment -name VERILOG_MACRO "MD_AUDIO_DAC_RAW_MONO_TEST=1"
+
 # C_lpf -> VGM_MD_audio_C_lpf.rbf
 # Genmix path + fixed Model 1 final LPF.
 #set_global_assignment -name VERILOG_MACRO "MD_AUDIO_LPF_MODEL1_TEST=1"

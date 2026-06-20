@@ -136,6 +136,13 @@ module mister_vgm_md_top #(
     output logic              vgm_pcm_oob,
     output logic [31:0]       vgm_pcm_oob_count,
     output logic [31:0]       vgm_wait_ticks_consumed_debug,
+    output logic [31:0]       dac_stream_cmd_count,
+    output logic [31:0]       dac_stream_wait_samples_total,
+    output logic [31:0]       dac_stream_clk_cycles_total,
+    output logic [31:0]       dac_stream_overhead_cycles_total,
+    output logic [31:0]       max_dac_stream_cmd_cycles,
+    output logic [31:0]       count_wait0_dac_stream_cmd,
+    output logic [31:0]       count_wait0_overhead_nonzero,
     output logic              mode5_sound_reset_active,
     output logic              mode5_player_start_pulse_debug,
     output logic [31:0]       mode5_load_begin_count,
@@ -959,6 +966,13 @@ module mister_vgm_md_top #(
                 .pcm_oob               (vgm_pcm_oob),
                 .pcm_oob_count         (vgm_pcm_oob_count),
                 .wait_ticks_consumed_debug(vgm_wait_ticks_consumed_debug),
+                .dac_stream_cmd_count  (dac_stream_cmd_count),
+                .dac_stream_wait_samples_total(dac_stream_wait_samples_total),
+                .dac_stream_clk_cycles_total(dac_stream_clk_cycles_total),
+                .dac_stream_overhead_cycles_total(dac_stream_overhead_cycles_total),
+                .max_dac_stream_cmd_cycles(max_dac_stream_cmd_cycles),
+                .count_wait0_dac_stream_cmd(count_wait0_dac_stream_cmd),
+                .count_wait0_overhead_nonzero(count_wait0_overhead_nonzero),
                 .done_pc_debug         (player_done_pc_debug),
                 .done_cmd_debug        (player_done_cmd_debug),
                 .pc_debug              (player_pc_debug),
@@ -1038,6 +1052,13 @@ module mister_vgm_md_top #(
             assign vgm_pcm_oob = 1'b0;
             assign vgm_pcm_oob_count = 32'd0;
             assign vgm_wait_ticks_consumed_debug = 32'd0;
+            assign dac_stream_cmd_count = 32'd0;
+            assign dac_stream_wait_samples_total = 32'd0;
+            assign dac_stream_clk_cycles_total = 32'd0;
+            assign dac_stream_overhead_cycles_total = 32'd0;
+            assign max_dac_stream_cmd_cycles = 32'd0;
+            assign count_wait0_dac_stream_cmd = 32'd0;
+            assign count_wait0_overhead_nonzero = 32'd0;
             assign mode5_sound_reset_active = 1'b0;
             assign mode5_player_start_pulse_debug = 1'b0;
             assign mode5_load_begin_count = 32'd0;

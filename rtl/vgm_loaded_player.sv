@@ -61,6 +61,13 @@ module vgm_loaded_player #(
     output logic                  pcm_oob,
     output logic [31:0]           pcm_oob_count,
     output logic [31:0]           wait_ticks_consumed_debug,
+    output logic [31:0]           dac_stream_cmd_count,
+    output logic [31:0]           dac_stream_wait_samples_total,
+    output logic [31:0]           dac_stream_clk_cycles_total,
+    output logic [31:0]           dac_stream_overhead_cycles_total,
+    output logic [31:0]           max_dac_stream_cmd_cycles,
+    output logic [31:0]           count_wait0_dac_stream_cmd,
+    output logic [31:0]           count_wait0_overhead_nonzero,
     output logic [ADDR_WIDTH-1:0] done_pc_debug,
     output logic [7:0]            done_cmd_debug,
     output logic [9:0]            pc_debug,
@@ -126,6 +133,10 @@ module vgm_loaded_player #(
     logic [15:0] wait_remaining;
     logic vgm_wait_tick_d;
     logic start_d;
+    logic dac_stream_measure_active;
+    logic dac_stream_wait0_current;
+    logic [31:0] dac_stream_cmd_cycles;
+    logic [31:0] dac_stream_cmd_wait_cycles;
 
     wire start_edge = start && !start_d;
     wire vgm_wait_tick_edge = vgm_wait_tick && !vgm_wait_tick_d;
@@ -207,6 +218,36 @@ module vgm_loaded_player #(
         end
     endtask
 
+    task automatic finish_dac_stream_measurement;
+        logic [31:0] cmd_cycles_done;
+        logic [31:0] overhead_cycles_done;
+        begin
+            cmd_cycles_done = dac_stream_cmd_cycles + 32'd1;
+            overhead_cycles_done =
+                (cmd_cycles_done > dac_stream_cmd_wait_cycles) ?
+                (cmd_cycles_done - dac_stream_cmd_wait_cycles) : 32'd0;
+
+            dac_stream_clk_cycles_total <=
+                dac_stream_clk_cycles_total + cmd_cycles_done;
+            dac_stream_overhead_cycles_total <=
+                dac_stream_overhead_cycles_total + overhead_cycles_done;
+
+            if (cmd_cycles_done > max_dac_stream_cmd_cycles) begin
+                max_dac_stream_cmd_cycles <= cmd_cycles_done;
+            end
+
+            if (dac_stream_wait0_current && (overhead_cycles_done != 32'd0)) begin
+                count_wait0_overhead_nonzero <=
+                    count_wait0_overhead_nonzero + 32'd1;
+            end
+
+            dac_stream_measure_active <= 1'b0;
+            dac_stream_wait0_current <= 1'b0;
+            dac_stream_cmd_cycles <= 32'd0;
+            dac_stream_cmd_wait_cycles <= 32'd0;
+        end
+    endtask
+
     always_ff @(posedge clk) begin
         if (reset) begin
             state <= ST_IDLE;
@@ -254,6 +295,17 @@ module vgm_loaded_player #(
             pcm_oob <= 1'b0;
             pcm_oob_count <= 32'd0;
             wait_ticks_consumed_debug <= 32'd0;
+            dac_stream_cmd_count <= 32'd0;
+            dac_stream_wait_samples_total <= 32'd0;
+            dac_stream_clk_cycles_total <= 32'd0;
+            dac_stream_overhead_cycles_total <= 32'd0;
+            max_dac_stream_cmd_cycles <= 32'd0;
+            count_wait0_dac_stream_cmd <= 32'd0;
+            count_wait0_overhead_nonzero <= 32'd0;
+            dac_stream_measure_active <= 1'b0;
+            dac_stream_wait0_current <= 1'b0;
+            dac_stream_cmd_cycles <= 32'd0;
+            dac_stream_cmd_wait_cycles <= 32'd0;
             done_pc_debug <= '0;
             done_cmd_debug <= 8'd0;
             last_cmd_debug <= 8'd0;
@@ -262,6 +314,14 @@ module vgm_loaded_player #(
             start_d <= start;
             ym_cmd_valid <= 1'b0;
             psg_cmd_valid <= 1'b0;
+
+            if (dac_stream_measure_active) begin
+                dac_stream_cmd_cycles <= dac_stream_cmd_cycles + 32'd1;
+                if ((state == ST_WAIT_SAMPLES) && (wait_remaining != 16'd0)) begin
+                    dac_stream_cmd_wait_cycles <=
+                        dac_stream_cmd_wait_cycles + 32'd1;
+                end
+            end
 
             if (load_error || overflow_error) begin
                 mem_rd_req <= 1'b0;
@@ -301,6 +361,17 @@ module vgm_loaded_player #(
                             pcm_oob <= 1'b0;
                             pcm_oob_count <= 32'd0;
                             wait_ticks_consumed_debug <= 32'd0;
+                            dac_stream_cmd_count <= 32'd0;
+                            dac_stream_wait_samples_total <= 32'd0;
+                            dac_stream_clk_cycles_total <= 32'd0;
+                            dac_stream_overhead_cycles_total <= 32'd0;
+                            max_dac_stream_cmd_cycles <= 32'd0;
+                            count_wait0_dac_stream_cmd <= 32'd0;
+                            count_wait0_overhead_nonzero <= 32'd0;
+                            dac_stream_measure_active <= 1'b0;
+                            dac_stream_wait0_current <= 1'b0;
+                            dac_stream_cmd_cycles <= 32'd0;
+                            dac_stream_cmd_wait_cycles <= 32'd0;
                             block_size <= 32'd0;
                             block_type <= 8'd0;
                             pcm_data_start <= 32'd0;
@@ -482,6 +553,20 @@ module vgm_loaded_player #(
                                         current_pc_debug <= pc + {{(ADDR_WIDTH-1){1'b0}}, 1'b1};
                                         state <= ST_WAIT_SAMPLES;
                                     end else if (cmd[7:4] == 4'h8) begin
+                                        dac_stream_measure_active <= 1'b1;
+                                        dac_stream_wait0_current <= (cmd[3:0] == 4'd0);
+                                        dac_stream_cmd_cycles <= 32'd1;
+                                        dac_stream_cmd_wait_cycles <= 32'd0;
+                                        dac_stream_cmd_count <=
+                                            dac_stream_cmd_count + 32'd1;
+                                        dac_stream_wait_samples_total <=
+                                            dac_stream_wait_samples_total +
+                                            {28'd0, cmd[3:0]};
+                                        if (cmd[3:0] == 4'd0) begin
+                                            count_wait0_dac_stream_cmd <=
+                                                count_wait0_dac_stream_cmd + 32'd1;
+                                        end
+
                                         if (!pcm_read_in_range) begin
                                             pcm_oob <= 1'b1;
                                             if (pcm_oob_count != 32'hffff_ffff) begin
@@ -639,6 +724,9 @@ module vgm_loaded_player #(
 
                     ST_WAIT_SAMPLES: begin
                         if (wait_remaining == 16'd0) begin
+                            if (dac_stream_measure_active) begin
+                                finish_dac_stream_measurement();
+                            end
                             request_byte(pc, ST_FETCH_CMD);
                         end else if (vgm_wait_tick_edge) begin
                             wait_remaining <= wait_remaining - 16'd1;
