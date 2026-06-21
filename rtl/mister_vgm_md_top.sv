@@ -199,6 +199,12 @@ module mister_vgm_md_top #(
     output logic              ddram_we
 );
 
+`ifdef MEGAVGMDRIVE_YM2151_MODE_TEST
+    localparam bit YM2151_EXPERIMENTAL_MODE = 1'b1;
+`else
+    localparam bit YM2151_EXPERIMENTAL_MODE = 1'b0;
+`endif
+
     localparam int MODE5_BACKEND_BRAM  = 0;
     localparam int MODE5_BACKEND_DDRAM = 1;
 
@@ -476,6 +482,28 @@ module mister_vgm_md_top #(
             logic [7:0] psg_cmd_data;
             logic ym_cmd_ready;
             logic psg_cmd_ready;
+            logic ym2151_cmd_valid;
+            logic ym2151_cmd_ready;
+            logic [7:0] ym2151_cmd_reg;
+            logic [7:0] ym2151_cmd_data;
+            logic [31:0] ym2151_write_count;
+            logic [7:0] ym2151_last_reg;
+            logic [7:0] ym2151_last_data;
+            logic [31:0] ym2151_unsupported_command_count;
+            logic [31:0] md_ym_write_requested_count;
+            logic [31:0] md_ym_write_accepted_count;
+            logic [31:0] md_ym_write_dropped_or_busy_count;
+            logic [31:0] md_ym_port0_count;
+            logic [31:0] md_ym_port1_count;
+            logic md_last_ym_port;
+            logic [7:0] md_last_ym_addr;
+            logic [7:0] md_last_ym_data;
+            logic signed [15:0] md_audio_l;
+            logic signed [15:0] md_audio_r;
+            logic md_audio_sample_valid;
+            logic signed [15:0] ym2151_audio_l;
+            logic signed [15:0] ym2151_audio_r;
+            logic ym2151_audio_sample_valid;
             logic mode5_sound_reset_active_i = 1'b0;
             logic mode5_sound_core_reset;
             logic mode5_player_start_pulse = 1'b0;
@@ -535,6 +563,34 @@ module mister_vgm_md_top #(
                 !vgm_player_error;
             assign mode5_player_error_edge =
                 vgm_player_error && !vgm_player_error_d;
+            assign ym_write_requested_count =
+                YM2151_EXPERIMENTAL_MODE ? ym2151_write_count :
+                md_ym_write_requested_count;
+            assign ym_write_accepted_count =
+                YM2151_EXPERIMENTAL_MODE ? ym2151_write_count :
+                md_ym_write_accepted_count;
+            assign ym_write_dropped_or_busy_count =
+                YM2151_EXPERIMENTAL_MODE ? ym2151_unsupported_command_count :
+                md_ym_write_dropped_or_busy_count;
+            assign ym_port0_count =
+                YM2151_EXPERIMENTAL_MODE ? ym2151_write_count :
+                md_ym_port0_count;
+            assign ym_port1_count =
+                YM2151_EXPERIMENTAL_MODE ? 32'd0 :
+                md_ym_port1_count;
+            assign last_ym_port =
+                YM2151_EXPERIMENTAL_MODE ? 1'b0 : md_last_ym_port;
+            assign last_ym_addr =
+                YM2151_EXPERIMENTAL_MODE ? ym2151_last_reg : md_last_ym_addr;
+            assign last_ym_data =
+                YM2151_EXPERIMENTAL_MODE ? ym2151_last_data : md_last_ym_data;
+            assign raw_audio_l =
+                YM2151_EXPERIMENTAL_MODE ? ym2151_audio_l : md_audio_l;
+            assign raw_audio_r =
+                YM2151_EXPERIMENTAL_MODE ? ym2151_audio_r : md_audio_r;
+            assign raw_audio_sample_valid =
+                YM2151_EXPERIMENTAL_MODE ? ym2151_audio_sample_valid :
+                md_audio_sample_valid;
 
             always_ff @(posedge clk) begin
                 if (reset) begin
@@ -916,7 +972,8 @@ module mister_vgm_md_top #(
             end
 
             vgm_loaded_player #(
-                .ADDR_WIDTH (VGM_LOAD_ADDR_WIDTH)
+                .ADDR_WIDTH   (VGM_LOAD_ADDR_WIDTH),
+                .YM2151_MODE  (YM2151_EXPERIMENTAL_MODE)
             ) loaded_player (
                 .clk                   (clk),
                 .reset                 (reset |
@@ -942,6 +999,10 @@ module mister_vgm_md_top #(
                 .ym_cmd_data           (ym_cmd_data),
                 .psg_cmd_valid         (psg_cmd_valid),
                 .psg_cmd_data          (psg_cmd_data),
+                .ym2151_cmd_ready      (ym2151_cmd_ready),
+                .ym2151_cmd_valid      (ym2151_cmd_valid),
+                .ym2151_cmd_reg        (ym2151_cmd_reg),
+                .ym2151_cmd_data       (ym2151_cmd_data),
                 .busy                  (player_busy),
                 .done                  (loaded_player_done),
                 .header_valid          (vgm_header_valid),
@@ -973,11 +1034,37 @@ module mister_vgm_md_top #(
                 .max_dac_stream_cmd_cycles(max_dac_stream_cmd_cycles),
                 .count_wait0_dac_stream_cmd(count_wait0_dac_stream_cmd),
                 .count_wait0_overhead_nonzero(count_wait0_overhead_nonzero),
+                .ym2151_write_count    (ym2151_write_count),
+                .ym2151_last_reg       (ym2151_last_reg),
+                .ym2151_last_data      (ym2151_last_data),
+                .unsupported_command_count(ym2151_unsupported_command_count),
                 .done_pc_debug         (player_done_pc_debug),
                 .done_cmd_debug        (player_done_cmd_debug),
                 .pc_debug              (player_pc_debug),
                 .last_cmd_debug        (player_last_cmd_debug)
             );
+
+            if (YM2151_EXPERIMENTAL_MODE) begin : ym2151_sound_enabled
+                ym2151_sound_module #(
+                    .CLK_SYS_HZ    (CLK_SYS_HZ),
+                    .YM2151_CLK_HZ (32'd4_000_000)
+                ) ym2151_sound (
+                    .clk                (clk),
+                    .reset              (reset | mode5_sound_core_reset),
+                    .ym2151_cmd_valid   (ym2151_cmd_valid),
+                    .ym2151_cmd_reg     (ym2151_cmd_reg),
+                    .ym2151_cmd_data    (ym2151_cmd_data),
+                    .ym2151_cmd_ready   (ym2151_cmd_ready),
+                    .audio_l            (ym2151_audio_l),
+                    .audio_r            (ym2151_audio_r),
+                    .audio_sample_valid (ym2151_audio_sample_valid)
+                );
+            end else begin : ym2151_sound_disabled
+                assign ym2151_cmd_ready = 1'b1;
+                assign ym2151_audio_l = 16'sd0;
+                assign ym2151_audio_r = 16'sd0;
+                assign ym2151_audio_sample_valid = 1'b0;
+            end
 
             md_sound_module sound (
                 .clk                   (clk),
@@ -990,9 +1077,9 @@ module mister_vgm_md_top #(
                 .psg_cmd_data          (psg_cmd_data),
                 .ym_cmd_ready          (ym_cmd_ready),
                 .psg_cmd_ready         (psg_cmd_ready),
-                .audio_l               (raw_audio_l),
-                .audio_r               (raw_audio_r),
-                .audio_sample_valid    (raw_audio_sample_valid),
+                .audio_l               (md_audio_l),
+                .audio_r               (md_audio_r),
+                .audio_sample_valid    (md_audio_sample_valid),
                 .audio_lpf_mode        (audio_lpf_mode),
                 .audio_gain_boost      (audio_gain_boost),
                 .audio_psg_level       (audio_psg_level),
@@ -1000,14 +1087,14 @@ module mister_vgm_md_top #(
                 .fm_adjust_clip_count_r(fm_adjust_clip_count_r),
                 .genmix_wrap_count_l   (genmix_wrap_count_l),
                 .genmix_wrap_count_r   (genmix_wrap_count_r),
-                .ym_write_requested_count(ym_write_requested_count),
-                .ym_write_accepted_count(ym_write_accepted_count),
-                .ym_write_dropped_or_busy_count(ym_write_dropped_or_busy_count),
-                .ym_port0_count        (ym_port0_count),
-                .ym_port1_count        (ym_port1_count),
-                .last_ym_port          (last_ym_port),
-                .last_ym_addr          (last_ym_addr),
-                .last_ym_data          (last_ym_data),
+                .ym_write_requested_count(md_ym_write_requested_count),
+                .ym_write_accepted_count(md_ym_write_accepted_count),
+                .ym_write_dropped_or_busy_count(md_ym_write_dropped_or_busy_count),
+                .ym_port0_count        (md_ym_port0_count),
+                .ym_port1_count        (md_ym_port1_count),
+                .last_ym_port          (md_last_ym_port),
+                .last_ym_addr          (md_last_ym_addr),
+                .last_ym_data          (md_last_ym_data),
                 .jt12_cen_interval_1_count(jt12_cen_interval_1_count),
                 .jt12_cen_interval_2_count(jt12_cen_interval_2_count),
                 .jt12_cen_interval_3_count(jt12_cen_interval_3_count),

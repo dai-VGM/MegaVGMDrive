@@ -70,15 +70,15 @@ scripts/vgm_md_import.sh /path/song.vgm ./vgm_cache
 MiSTer 側の default path:
 
 ```text
-SRC=/media/fat/VGM_MD/inbox
-DST_DIR=/media/fat/VGM_MD/vgm_cache
+SRC=/media/fat/games/MegaVGMDrive/inbox
+DST_DIR=/media/fat/games/MegaVGMDrive/vgm_cache
 ```
 
 典型的な Samba workflow:
 
 ```text
-\\mister\sdcard\VGM_MD\inbox
-\\mister\sdcard\VGM_MD\vgm_cache
+\\mister\sdcard\games\MegaVGMDrive\inbox
+\\mister\sdcard\games\MegaVGMDrive\vgm_cache
 ```
 
 importer は `vgm_cache` 直下に全ファイルを置かず、collection ごとの subdirectory に出力します。
@@ -96,7 +96,53 @@ Input:  /path/song.vgm
 Output: vgm_cache/song/song.vgm
 ```
 
-import 後は、生成された `vgm_cache/<collection>/...` を MiSTer SD card へコピーします。たとえば `/media/fat/VGM_MD/vgm_cache` 配下に置き、MiSTer で MegaVGMDrive を起動して、OSD の `Load VGM` から import 済み `.vgm` を選択します。
+import 後は、生成された `vgm_cache/<collection>/...` を MiSTer SD card へコピーします。たとえば `/media/fat/games/MegaVGMDrive/vgm_cache` 配下に置き、MiSTer で MegaVGMDrive を起動して、OSD の `Load VGM` から import 済み `.vgm` を選択します。
+
+## MiSTer での使い方
+
+MegaVGMDrive の RBF は `/media/fat/_Computer/`、またはこの project で使っている MiSTer core folder に配置します。
+
+VGM file は以下に配置します。
+
+```text
+/media/fat/games/MegaVGMDrive/
+```
+
+例:
+
+```text
+/media/fat/games/MegaVGMDrive/YM2151_SMOKE.VGM
+```
+
+現在の安全側 OSD loader entry は `F1,VGM,Load VGM;` です。MiSTer 側の file filter が大小文字を区別する環境では、拡張子は `.VGM` のように大文字にしてください。
+
+### YM2151/JT51 Smoke Test
+
+YM2151/JT51 playback は実験段階です。YM2151 test RBF を作る場合は、以下の macro を有効にします。
+
+```tcl
+set_global_assignment -name VERILOG_MACRO "MEGAVGMDRIVE_YM2151_MODE_TEST=1"
+```
+
+合成・自作の非商用 smoke VGM は次のコマンドで生成できます。
+
+```sh
+python3 tools/generate_ym2151_smoke_vgm.py
+```
+
+default では以下に出力します。
+
+```text
+testdata/YM2151_SMOKE.VGM
+```
+
+MiSTer SD card には以下としてコピーします。
+
+```text
+/media/fat/games/MegaVGMDrive/YM2151_SMOKE.VGM
+```
+
+YM2151 test build で OSD の `Load VGM` から読み込むと、`pi-po` 風の smoke tone がループします。
 
 ## Repository Layout
 
@@ -111,6 +157,7 @@ import 後は、生成された `vgm_cache/<collection>/...` を MiSTer SD card 
 ## 注意
 
 - 現在の主対象は Mega Drive / Genesis 系 VGM です。
+- YM2151/JT51 playback は実験段階で、debug build で `MEGAVGMDRIVE_YM2151_MODE_TEST=1` を有効にした場合のみ使います。
 - FPGA 内 native `.vgz` gzip 展開は未実装です。
 - 大きな VGM の再生は DDRAM-backed MODE5 path を使います。
 - Quartus build は Windows 環境で行う想定です。
@@ -134,8 +181,9 @@ commit: 91193848fa85e8f2e7964628a5f792890dac4300
 - MiSTer FPGA project
 - Genesis_MiSTer project
 - JT12 FM core by Jose Tejada Gomez (Jotego)
+- JT51 FM core by Jose Tejada Gomez (Jotego)
 
-JT12 は元のオープンソースライセンスに従って利用しています。
+JT12 と JT51 は元のオープンソースライセンスに従って利用しています。
 第三者コードに含まれる著作権表示およびライセンスヘッダは保持しています。
 
 本リポジトリには独自実装に加え、上記プロジェクトを基にした統合・改変が含まれます。
@@ -144,3 +192,4 @@ JT12 は元のオープンソースライセンスに従って利用していま
 - https://github.com/MiSTer-devel/Main_MiSTer
 - https://github.com/MiSTer-devel/Genesis_MiSTer
 - https://github.com/jotego/jt12
+- https://github.com/jotego/jt51

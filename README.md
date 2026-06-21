@@ -70,15 +70,15 @@ scripts/vgm_md_import.sh /path/song.vgm ./vgm_cache
 Default MiSTer-side paths:
 
 ```text
-SRC=/media/fat/VGM_MD/inbox
-DST_DIR=/media/fat/VGM_MD/vgm_cache
+SRC=/media/fat/games/MegaVGMDrive/inbox
+DST_DIR=/media/fat/games/MegaVGMDrive/vgm_cache
 ```
 
 Typical Samba workflow:
 
 ```text
-\\mister\sdcard\VGM_MD\inbox
-\\mister\sdcard\VGM_MD\vgm_cache
+\\mister\sdcard\games\MegaVGMDrive\inbox
+\\mister\sdcard\games\MegaVGMDrive\vgm_cache
 ```
 
 The importer writes cache output into collection subdirectories instead of placing all files directly under `vgm_cache`.
@@ -96,7 +96,53 @@ Input:  /path/song.vgm
 Output: vgm_cache/song/song.vgm
 ```
 
-After importing, copy the resulting `vgm_cache/<collection>/...` directories to the MiSTer SD card, for example under `/media/fat/VGM_MD/vgm_cache`. Start MegaVGMDrive on MiSTer, open the OSD, choose `Load VGM`, and select one of the imported `.vgm` files.
+After importing, copy the resulting `vgm_cache/<collection>/...` directories to the MiSTer SD card, for example under `/media/fat/games/MegaVGMDrive/vgm_cache`. Start MegaVGMDrive on MiSTer, open the OSD, choose `Load VGM`, and select one of the imported `.vgm` files.
+
+## MiSTer Usage
+
+Place the MegaVGMDrive RBF in `/media/fat/_Computer/` or the MiSTer core folder used by your local setup.
+
+Place VGM files under:
+
+```text
+/media/fat/games/MegaVGMDrive/
+```
+
+Example:
+
+```text
+/media/fat/games/MegaVGMDrive/YM2151_SMOKE.VGM
+```
+
+The current safe OSD loader entry is `F1,VGM,Load VGM;`. If your MiSTer setup filters file names case-sensitively, use uppercase `.VGM` file extensions.
+
+### YM2151/JT51 Smoke Test
+
+YM2151/JT51 playback is experimental. Build a YM2151 test RBF with:
+
+```tcl
+set_global_assignment -name VERILOG_MACRO "MEGAVGMDRIVE_YM2151_MODE_TEST=1"
+```
+
+Generate the synthetic non-commercial smoke VGM:
+
+```sh
+python3 tools/generate_ym2151_smoke_vgm.py
+```
+
+By default this writes:
+
+```text
+testdata/YM2151_SMOKE.VGM
+```
+
+Copy it to the MiSTer SD card as:
+
+```text
+/media/fat/games/MegaVGMDrive/YM2151_SMOKE.VGM
+```
+
+In the YM2151 test build, load it from the OSD with `Load VGM`. The expected hardware result is a looping `pi-po` smoke tone.
 
 ## Repository Layout
 
@@ -111,6 +157,7 @@ After importing, copy the resulting `vgm_cache/<collection>/...` directories to 
 ## Notes
 
 - The main target is currently Mega Drive / Genesis style VGM data.
+- YM2151/JT51 playback is experimental and is enabled only in debug builds with `MEGAVGMDRIVE_YM2151_MODE_TEST=1`.
 - Native FPGA-side `.vgz` gzip decompression is not implemented.
 - Large VGM playback uses the DDRAM-backed MODE5 path.
 - Quartus builds are expected to be performed on Windows.
@@ -134,8 +181,9 @@ Third-party open-source components and references used by this project include:
 - MiSTer FPGA project
 - Genesis_MiSTer project
 - JT12 FM core by Jose Tejada Gomez (Jotego)
+- JT51 FM core by Jose Tejada Gomez (Jotego)
 
-JT12 is used under its original open-source license. Original copyright notices and license headers for third-party code are preserved.
+JT12 and JT51 are used under their original open-source licenses. Original copyright notices and license headers for third-party code are preserved.
 
 This repository contains original work together with modifications and integrations based on the above projects.
 
@@ -143,3 +191,4 @@ Links:
 - https://github.com/MiSTer-devel/Main_MiSTer
 - https://github.com/MiSTer-devel/Genesis_MiSTer
 - https://github.com/jotego/jt12
+- https://github.com/jotego/jt51

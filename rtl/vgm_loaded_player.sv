@@ -9,7 +9,8 @@
 //   - 0xe0 PCM seek and 0x80-0x8f YM2612 DAC stream commands
 
 module vgm_loaded_player #(
-    parameter int ADDR_WIDTH = 18
+    parameter int ADDR_WIDTH = 18,
+    parameter bit YM2151_MODE = 1'b0
 ) (
     input  logic                  clk,
     input  logic                  reset,
@@ -36,6 +37,10 @@ module vgm_loaded_player #(
     output logic [7:0]            ym_cmd_data,
     output logic                  psg_cmd_valid,
     output logic [7:0]            psg_cmd_data,
+    input  logic                  ym2151_cmd_ready,
+    output logic                  ym2151_cmd_valid,
+    output logic [7:0]            ym2151_cmd_reg,
+    output logic [7:0]            ym2151_cmd_data,
 
     output logic                  busy,
     output logic                  done,
@@ -68,6 +73,10 @@ module vgm_loaded_player #(
     output logic [31:0]           max_dac_stream_cmd_cycles,
     output logic [31:0]           count_wait0_dac_stream_cmd,
     output logic [31:0]           count_wait0_overhead_nonzero,
+    output logic [31:0]           ym2151_write_count,
+    output logic [7:0]            ym2151_last_reg,
+    output logic [7:0]            ym2151_last_data,
+    output logic [31:0]           unsupported_command_count,
     output logic [ADDR_WIDTH-1:0] done_pc_debug,
     output logic [7:0]            done_cmd_debug,
     output logic [9:0]            pc_debug,
@@ -107,6 +116,8 @@ module vgm_loaded_player #(
         ST_DAC_READ,
         ST_YM_WAIT_READY,
         ST_YM_PULSE,
+        ST_YM2151_WAIT_READY,
+        ST_YM2151_PULSE,
         ST_PSG_WAIT_READY,
         ST_PSG_PULSE,
         ST_WAIT_SAMPLES,
@@ -218,6 +229,21 @@ module vgm_loaded_player #(
         end
     endtask
 
+    task automatic skip_unsupported_command(input logic [3:0] command_size);
+        logic [ADDR_WIDTH-1:0] next_pc;
+        begin
+            next_pc = pc + {{(ADDR_WIDTH-4){1'b0}}, command_size};
+            unsupported_opcode <= cmd;
+            unsupported_pc <= pc;
+            if (unsupported_command_count != 32'hffff_ffff) begin
+                unsupported_command_count <= unsupported_command_count + 32'd1;
+            end
+            pc <= next_pc;
+            current_pc_debug <= next_pc;
+            request_byte(next_pc, ST_FETCH_CMD);
+        end
+    endtask
+
     task automatic finish_dac_stream_measurement;
         logic [31:0] cmd_cycles_done;
         logic [31:0] overhead_cycles_done;
@@ -276,6 +302,9 @@ module vgm_loaded_player #(
             ym_cmd_data <= 8'd0;
             psg_cmd_valid <= 1'b0;
             psg_cmd_data <= 8'd0;
+            ym2151_cmd_valid <= 1'b0;
+            ym2151_cmd_reg <= 8'd0;
+            ym2151_cmd_data <= 8'd0;
             busy <= 1'b0;
             done <= 1'b0;
             header_valid <= 1'b0;
@@ -302,6 +331,10 @@ module vgm_loaded_player #(
             max_dac_stream_cmd_cycles <= 32'd0;
             count_wait0_dac_stream_cmd <= 32'd0;
             count_wait0_overhead_nonzero <= 32'd0;
+            ym2151_write_count <= 32'd0;
+            ym2151_last_reg <= 8'd0;
+            ym2151_last_data <= 8'd0;
+            unsupported_command_count <= 32'd0;
             dac_stream_measure_active <= 1'b0;
             dac_stream_wait0_current <= 1'b0;
             dac_stream_cmd_cycles <= 32'd0;
@@ -314,6 +347,7 @@ module vgm_loaded_player #(
             start_d <= start;
             ym_cmd_valid <= 1'b0;
             psg_cmd_valid <= 1'b0;
+            ym2151_cmd_valid <= 1'b0;
 
             if (dac_stream_measure_active) begin
                 dac_stream_cmd_cycles <= dac_stream_cmd_cycles + 32'd1;
@@ -368,6 +402,10 @@ module vgm_loaded_player #(
                             max_dac_stream_cmd_cycles <= 32'd0;
                             count_wait0_dac_stream_cmd <= 32'd0;
                             count_wait0_overhead_nonzero <= 32'd0;
+                            ym2151_write_count <= 32'd0;
+                            ym2151_last_reg <= 8'd0;
+                            ym2151_last_data <= 8'd0;
+                            unsupported_command_count <= 32'd0;
                             dac_stream_measure_active <= 1'b0;
                             dac_stream_wait0_current <= 1'b0;
                             dac_stream_cmd_cycles <= 32'd0;
@@ -504,7 +542,7 @@ module vgm_loaded_player #(
                             enter_error(ERR_PC_RANGE);
                         end else begin
                             case (cmd)
-                                8'h52, 8'h53, 8'h50, 8'h4F, 8'h61: begin
+                                8'h52, 8'h53, 8'h50, 8'h4F, 8'h54, 8'h61: begin
                                     request_byte(pc + {{(ADDR_WIDTH-1){1'b0}}, 1'b1}, ST_ARG1);
                                 end
 
@@ -553,6 +591,16 @@ module vgm_loaded_player #(
                                         current_pc_debug <= pc + {{(ADDR_WIDTH-1){1'b0}}, 1'b1};
                                         state <= ST_WAIT_SAMPLES;
                                     end else if (cmd[7:4] == 4'h8) begin
+                                        if (YM2151_MODE) begin
+                                            wait_remaining <= {12'd0, cmd[3:0]};
+                                            pc <= pc + {{(ADDR_WIDTH-1){1'b0}}, 1'b1};
+                                            current_pc_debug <= pc + {{(ADDR_WIDTH-1){1'b0}}, 1'b1};
+                                            if (unsupported_command_count != 32'hffff_ffff) begin
+                                                unsupported_command_count <=
+                                                    unsupported_command_count + 32'd1;
+                                            end
+                                            state <= ST_WAIT_SAMPLES;
+                                        end else begin
                                         dac_stream_measure_active <= 1'b1;
                                         dac_stream_wait0_current <= (cmd[3:0] == 4'd0);
                                         dac_stream_cmd_cycles <= 32'd1;
@@ -580,6 +628,32 @@ module vgm_loaded_player #(
                                         end else begin
                                             request_byte(pcm_read_addr_32[ADDR_WIDTH-1:0], ST_DAC_READ);
                                         end
+                                        end
+                                    end else if (YM2151_MODE &&
+                                                 (cmd[7:4] == 4'h5)) begin
+                                        skip_unsupported_command(4'd3);
+                                    end else if (YM2151_MODE &&
+                                                 (cmd == 8'hA0)) begin
+                                        skip_unsupported_command(4'd3);
+                                    end else if (YM2151_MODE &&
+                                                 (cmd[7:4] == 4'hB)) begin
+                                        skip_unsupported_command(4'd3);
+                                    end else if (YM2151_MODE &&
+                                                 (cmd[7:4] == 4'h9) &&
+                                                 (cmd[3:0] <= 4'h5)) begin
+                                        case (cmd)
+                                            8'h90: skip_unsupported_command(4'd5);
+                                            8'h91: skip_unsupported_command(4'd5);
+                                            8'h92: skip_unsupported_command(4'd6);
+                                            8'h93: skip_unsupported_command(4'd11);
+                                            8'h94: skip_unsupported_command(4'd2);
+                                            8'h95: skip_unsupported_command(4'd5);
+                                            default: enter_unsupported_error();
+                                        endcase
+                                    end else if (YM2151_MODE &&
+                                                 ((cmd[7:4] == 4'hC) ||
+                                                  (cmd[7:4] == 4'hD))) begin
+                                        skip_unsupported_command(4'd4);
                                     end else begin
                                         enter_unsupported_error();
                                     end
@@ -590,11 +664,16 @@ module vgm_loaded_player #(
 
                     ST_ARG1: begin
                         arg1 <= read_data;
-                        if ((cmd == 8'h52) || (cmd == 8'h53) || (cmd == 8'h61)) begin
+                        if ((cmd == 8'h52) || (cmd == 8'h53) ||
+                            (cmd == 8'h54) || (cmd == 8'h61)) begin
                             request_byte(pc + {{(ADDR_WIDTH-2){1'b0}}, 2'd2}, ST_ARG2);
                         end else if (cmd == 8'h50) begin
-                            psg_cmd_data <= read_data;
-                            state <= ST_PSG_WAIT_READY;
+                            if (YM2151_MODE) begin
+                                skip_unsupported_command(4'd2);
+                            end else begin
+                                psg_cmd_data <= read_data;
+                                state <= ST_PSG_WAIT_READY;
+                            end
                         end else begin
                             pc <= pc + {{(ADDR_WIDTH-2){1'b0}}, 2'd2};
                             current_pc_debug <= pc + {{(ADDR_WIDTH-2){1'b0}}, 2'd2};
@@ -604,10 +683,27 @@ module vgm_loaded_player #(
 
                     ST_ARG2: begin
                         if ((cmd == 8'h52) || (cmd == 8'h53)) begin
-                            ym_cmd_port <= (cmd == 8'h53);
-                            ym_cmd_reg <= arg1;
-                            ym_cmd_data <= read_data;
-                            state <= ST_YM_WAIT_READY;
+                            if (YM2151_MODE) begin
+                                skip_unsupported_command(4'd3);
+                            end else begin
+                                ym_cmd_port <= (cmd == 8'h53);
+                                ym_cmd_reg <= arg1;
+                                ym_cmd_data <= read_data;
+                                state <= ST_YM_WAIT_READY;
+                            end
+                        end else if (cmd == 8'h54) begin
+                            if (YM2151_MODE) begin
+                                ym2151_cmd_reg <= arg1;
+                                ym2151_cmd_data <= read_data;
+                                ym2151_last_reg <= arg1;
+                                ym2151_last_data <= read_data;
+                                if (ym2151_write_count != 32'hffff_ffff) begin
+                                    ym2151_write_count <= ym2151_write_count + 32'd1;
+                                end
+                                state <= ST_YM2151_WAIT_READY;
+                            end else begin
+                                enter_unsupported_error();
+                            end
                         end else begin
                             wait_remaining <= {read_data, arg1};
                             pc <= pc + {{(ADDR_WIDTH-2){1'b0}}, 2'd3};
@@ -707,6 +803,19 @@ module vgm_loaded_player #(
                             current_pc_debug <= pc + {{(ADDR_WIDTH-2){1'b0}}, 2'd3};
                             request_byte(pc + {{(ADDR_WIDTH-2){1'b0}}, 2'd3}, ST_FETCH_CMD);
                         end
+                    end
+
+                    ST_YM2151_WAIT_READY: begin
+                        if (ym2151_cmd_ready) begin
+                            ym2151_cmd_valid <= 1'b1;
+                            state <= ST_YM2151_PULSE;
+                        end
+                    end
+
+                    ST_YM2151_PULSE: begin
+                        pc <= pc + {{(ADDR_WIDTH-2){1'b0}}, 2'd3};
+                        current_pc_debug <= pc + {{(ADDR_WIDTH-2){1'b0}}, 2'd3};
+                        request_byte(pc + {{(ADDR_WIDTH-2){1'b0}}, 2'd3}, ST_FETCH_CMD);
                     end
 
                     ST_PSG_WAIT_READY: begin

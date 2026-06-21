@@ -1,0 +1,3 @@
+[submodule "third_party/jt51"]
+	path = third_party/jt51
+	url = https://github.com/jotego/jt51.git

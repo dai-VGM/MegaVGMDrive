@@ -1,4 +1,4 @@
-// VGM MD video-only baseline using the proven InputTest_MiSTer outer shape.
+// MegaVGMDrive video/audio shell using the proven InputTest_MiSTer outer shape.
 //
 // This module intentionally mirrors InputTest_MiSTer's explicit emu port list
 // and hps_io style. The sound module is not instantiated in this baseline.
