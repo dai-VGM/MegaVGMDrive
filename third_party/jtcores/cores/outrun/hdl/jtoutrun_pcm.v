@@ -38,6 +38,9 @@ module jtoutrun_pcm #(parameter
     output       [7:0] cpu_din,
     input              cpu_rnw,
     input              cpu_cs,
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
+    input        [2:0] smoke_variant,
+`endif
 
     // ROM interface
     output reg  [18:0] rom_addr,
@@ -255,8 +258,15 @@ localparam [3:0] SMOKE_CH = 4'd3;
 localparam [2:0] SMOKE_BANK = 3'd3;
 localparam [7:0] SMOKE_CFG = 8'h30;
 localparam [23:0] SMOKE_CUR = 24'h002600;
-localparam [7:0] SMOKE_DELTA = 8'h20;
-localparam [6:0] SMOKE_VOL = 7'h40;
+wire [7:0] smoke_delta = 8'h20;
+wire [6:0] smoke_vol_l =
+    (smoke_variant == 3'd4) ? 7'h20 :
+    (smoke_variant == 3'd6) ? 7'h00 :
+    7'h40;
+wire [6:0] smoke_vol_r =
+    (smoke_variant == 3'd4) ? 7'h20 :
+    (smoke_variant == 3'd5) ? 7'h00 :
+    7'h40;
 `endif
 
 reg  signed [ 7:0] vol_left, vol_right, vol_mux;
@@ -834,7 +844,7 @@ always @(posedge clk) begin
             end
             4: begin
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
-                delta <= (cur_ch == SMOKE_CH) ? SMOKE_DELTA : 8'd0;
+                delta <= (cur_ch == SMOKE_CH) ? smoke_delta : 8'd0;
 `else
                 delta <= cfg_data;
 `endif
@@ -1072,14 +1082,14 @@ always @(posedge clk) begin
             end
             12: begin
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
-                vol_left <= (cur_ch == SMOKE_CH) ? {1'b0, SMOKE_VOL} : 8'sd0;
+                vol_left <= (cur_ch == SMOKE_CH) ? {1'b0, smoke_vol_l} : 8'sd0;
 `else
                 vol_left <= {1'b0, cfg_data[6:0]};
 `endif
             end
             13: begin
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
-                vol_right <= (cur_ch == SMOKE_CH) ? {1'b0, SMOKE_VOL} : 8'sd0;
+                vol_right <= (cur_ch == SMOKE_CH) ? {1'b0, smoke_vol_r} : 8'sd0;
 `else
                 vol_right <= {1'b0, cfg_data[6:0]};
 `endif

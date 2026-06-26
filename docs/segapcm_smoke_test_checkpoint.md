@@ -39,6 +39,7 @@ The current QSF enables the macro for this checkpoint build:
 
 ```tcl
 set_global_assignment -name VERILOG_MACRO "MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST=1"
+set_global_assignment -name VERILOG_MACRO "MEGAVGMDRIVE_SEGAPCM_SMOKE_VARIANT=0"
 ```
 
 Disable this macro before returning to real VGM C0 integration work.
@@ -60,15 +61,56 @@ When the macro is enabled:
 - fallback is bypassed when the smoke payload address is in range
 - top-level output selects SegaPCM-only audio and does not wait for VGM/player audio unmute state
 
+## Smoke Control Sweep
+
+Runtime OSD selection now chooses the active smoke control variant in one RBF:
+
+```verilog
+status[4:2] -> segapcm_smoke_variant[2:0]
+```
+
+The smoke OSD row is:
+
+```text
+SegaPCM Smoke: 0 Base, 1 Slow, 2 Step2, 3 Step4, 4 LowVol, 5 Left, 6 Right, 7 Short
+```
+
+`MEGAVGMDRIVE_SEGAPCM_SMOKE_VARIANT` remains as a guarded compile-time fallback/default for non-OSD harnesses, but normal hardware listening tests should use the OSD selector instead of rebuilding the QSF/RBF for each variant.
+
+| Variant | Purpose | Delta | Volume L/R | Payload window |
+| --- | --- | --- | --- | --- |
+| 0 | Baseline, hardware-proven | `8'h20` | `7'h40` / `7'h40` | `0x2600..0x2fff`, step 1 |
+| 1 | Slow payload step | `8'h20` | `7'h40` / `7'h40` | `0x2600..0x2fff`, step 1 every 4 requests |
+| 2 | Fast payload step x2 | `8'h20` | `7'h40` / `7'h40` | `0x2600..0x2fff`, step 2 |
+| 3 | Fast payload step x4 | `8'h20` | `7'h40` / `7'h40` | `0x2600..0x2fff`, step 4 |
+| 4 | Lower volume | `8'h20` | `7'h20` / `7'h20` | `0x2600..0x2fff`, step 1 |
+| 5 | Left only | `8'h20` | `7'h40` / `7'h00` | `0x2600..0x2fff`, step 1 |
+| 6 | Right only | `8'h20` | `7'h00` / `7'h40` | `0x2600..0x2fff`, step 1 |
+| 7 | Shorter periodic window | `8'h20` | `7'h40` / `7'h40` | `0x2600..0x26ff`, step 1 |
+
+Expected hardware checks:
+
+- variant `1` should sound slower/more stretched than baseline
+- variant `2` should change faster/brighter than baseline
+- variant `3` should change fastest and be most obviously different
+- variant `4` should be quieter
+- variant `5` should be left-only
+- variant `6` should be right-only
+- variant `7` should sound more periodic or loop-like
+
 ## Overlay Rows Of Interest
 
 - `SK`: smoke marker, expected `5A5A`
+- `SV`: smoke variant number
 - `LM` / `SM`: smoke mapped payload index, expected `0x2xxx`
+- `PS` / `PE`: smoke payload start/end
+- `SS`: smoke payload address step
+- `SD`: smoke step divider
 - `DA`: final byte delivered to `jtoutrun_pcm`
 - `MD`: preload ROM byte before final mux
 - `PV`: preload valid, expected `0001`
 - `FU`: fallback used, expected `0000`
-- `AP`: forced smoke volume/pan display, expected `4040`
+- `AP`: forced smoke volume/pan display, expected `4040`, `2020`, `4000`, or `0040` depending on variant
 - `ON`: forced smoke cfg display, expected `0030`
 
 ## Files In Scope

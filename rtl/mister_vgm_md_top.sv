@@ -89,6 +89,10 @@ module mister_vgm_md_top #(
     input  logic        [1:0] audio_lpf_mode,
     input  logic              audio_gain_boost,
     input  logic        [1:0] audio_psg_level,
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
+    input  logic        [2:0] segapcm_smoke_variant,
+    input  logic              segapcm_smoke_variant_valid,
+`endif
 
     // Optional debug/status pins for early bring-up.
     output logic              player_busy,
@@ -3067,6 +3071,10 @@ module mister_vgm_md_top #(
                     .segapcm_cmd_valid              (segapcm_cmd_valid),
                     .segapcm_cmd_addr               (segapcm_cmd_addr),
                     .segapcm_cmd_data               (segapcm_cmd_data),
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
+                    .smoke_variant                  (segapcm_smoke_variant),
+                    .smoke_variant_valid            (segapcm_smoke_variant_valid),
+`endif
                     .audio_l                        (segapcm_audio_l),
                     .audio_r                        (segapcm_audio_r),
                     .audio_sample_valid             (segapcm_audio_sample_valid),
