@@ -15,7 +15,7 @@ set_global_assignment -name PARTITION_NETLIST_TYPE SOURCE -section_id Top
 set_global_assignment -name PARTITION_FITTER_PRESERVATION_LEVEL PLACEMENT_AND_ROUTING -section_id Top
 set_global_assignment -name PARTITION_COLOR 16764057 -section_id Top
 
-set_global_assignment -name LAST_QUARTUS_VERSION "17.0.2 Lite Edition"
+set_global_assignment -name LAST_QUARTUS_VERSION "17.0.0 Lite Edition"
 
 set_global_assignment -name GENERATE_RBF_FILE ON
 set_global_assignment -name PROJECT_OUTPUT_DIRECTORY output_files
@@ -82,6 +82,8 @@ set_global_assignment -name VERILOG_MACRO "MD_AUDIO_GAIN_OSD_TEST=1"
 set_global_assignment -name VERILOG_MACRO "MD_AUDIO_PSG_ATTEN_075_TEST=1"
 set_global_assignment -name VERILOG_MACRO "MD_AUDIO_PSG_LEVEL_OSD_TEST=1"
 set_global_assignment -name VERILOG_MACRO "MEGAVGMDRIVE_YM2151_MODE_TEST=1"
+set_global_assignment -name VERILOG_MACRO "MEGAVGMDRIVE_SEGAPCM_START_INIT_TEST=1"
+set_global_assignment -name VERILOG_MACRO "MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST=1"
 
 # ---- Select exactly one audio compare block ----
 
@@ -116,7 +118,21 @@ set_global_assignment -name VERILOG_MACRO "MD_AUDIO_GENMIX_NO_UPRATE_TEST=1"
 # DAC overhead debug overlay. Keep disabled for public builds.
 # Uncomment only for debug builds that need DC/AV/OH/W0 counters on screen.
 # Suggested RBF name: VGM_MD_debug_dac_overhead.rbf
-#set_global_assignment -name VERILOG_MACRO "MODE5_DEBUG_OVERLAY_ALWAYS_ON=1"
+set_global_assignment -name VERILOG_MACRO "MODE5_DEBUG_OVERLAY_ALWAYS_ON=1"
+
+# SegaPCM copy A/B debug. Uncomment to preserve the YM2151 preplay
+# checksum-only scan path while suppressing DDRAM payload copy writes.
+#set_global_assignment -name VERILOG_MACRO "MEGAVGMDRIVE_SEGAPCM_COPY_DISABLE=1"
+
+# Start-hold A/B debug. When enabled, mode5 does not clear the held
+# loaded-player start signal on player_busy alone; it waits for the
+# loaded player's own start/header debug latch or a real cancel/reset.
+set_global_assignment -name VERILOG_MACRO "MEGAVGMDRIVE_START_HOLD_NO_BUSY_CLEAR=1"
+
+# Direct loaded-player start debug. Bypasses the mode5 playback
+# armed/started start handoff and drives loaded_player.start directly
+# from loaded-file readiness until the player reports start/header entry.
+set_global_assignment -name VERILOG_MACRO "MEGAVGMDRIVE_DIRECT_PLAYER_START_DEBUG=1"
 
 # C_lpf -> VGM_MD_audio_C_lpf.rbf
 # Genmix path + fixed Model 1 final LPF.
@@ -147,5 +163,6 @@ set_global_assignment -name VERILOG_MACRO "MD_AUDIO_GENMIX_NO_UPRATE_TEST=1"
 source sys/sys.tcl
 source sys/sys_analog.tcl
 source files.qip
+
 
 set_instance_assignment -name PARTITION_HIERARCHY root_partition -to | -section_id Top

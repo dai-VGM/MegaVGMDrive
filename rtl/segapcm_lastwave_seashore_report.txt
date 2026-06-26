@@ -1,0 +1,44 @@
+input=/Users/daizo/Downloads/Out_Run_(Arcade)/08 Last Wave (with Seashore SFX).vgz
+vgm_data_base=0x000040
+blocks=1
+image_size=0x80000
+
+block[0] pc=0x000040
+  data_start=0x000047
+  length=23048 (0x00005a08)
+  header=00 00 08 00 00 26 03 00
+  total_size_le=0x00080000
+  dest_le=0x00032600
+  payload_start=0x00004f
+  payload_len=23040 (0x05a00)
+  payload_first=82 82 82 83 81 81 83 7f 7f 81 80 82 82 81 80 82
+  payload_last=7b 88 74 7b 7b 7f 7c 87 83 88 85 88 88 87 81 7d
+  candidate_a_concat=0x00000
+  candidate_b_dest=0x32600
+  candidate_c_probe=0x38686
+
+concat_output=rtl/segapcm_lastwave_seashore_concat.mem
+concat_placement_ranges:
+  0x00000..0x059ff (23040 bytes)
+concat_min_filled=0x00000
+concat_max_filled=0x059ff
+concat_gaps:
+  0x05a00..0x7ffff (501248 bytes)
+
+dest_output=rtl/segapcm_lastwave_seashore_dest.mem
+dest_placement_ranges:
+  0x32600..0x37fff (23040 bytes)
+dest_min_filled=0x32600
+dest_max_filled=0x37fff
+dest_gaps:
+  0x00000..0x325ff (206336 bytes)
+  0x38000..0x7ffff (294912 bytes)
+
+bankprobe_output=rtl/segapcm_lastwave_seashore_bankprobe.mem
+bankprobe_placement_ranges:
+  0x38686..0x3e085 (23040 bytes)
+bankprobe_min_filled=0x38686
+bankprobe_max_filled=0x3e085
+bankprobe_gaps:
+  0x00000..0x38685 (231046 bytes)
+  0x3e086..0x7ffff (270202 bytes)

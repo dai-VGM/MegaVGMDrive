@@ -320,6 +320,11 @@ localparam bit MODE5_DEBUG_OVERLAY_FORCED = 1'b1;
 `else
 localparam bit MODE5_DEBUG_OVERLAY_FORCED = 1'b0;
 `endif
+`ifdef MEGAVGMDRIVE_YM2151_MODE_TEST
+localparam bit YM2151_SEGAPCM_OBSERVER_BUILD = 1'b1;
+`else
+localparam bit YM2151_SEGAPCM_OBSERVER_BUILD = 1'b0;
+`endif
 
 `ifdef MODE5_REPEAT_ENABLE_TEST
 localparam bit MODE5_REPEAT_ENABLE_BUILD = 1'b1;
@@ -450,6 +455,11 @@ module emu
     assign USER_OUT = '1;
     assign VGM_PLAYER_STATE =
         (LOADED_VGM_MODE && (ioctl_download || vgm_load_busy)) ? 2'd1 :
+        (LOADED_VGM_MODE && segapcm_rom_scan_busy) ? 2'd2 :
+        (LOADED_VGM_MODE &&
+         vgm_scan_sticky_guard_debug[0] &&
+         vgm_scan_term_be_debug[4] &&
+         !vgm_scan_term_be_debug[3]) ? 2'd2 :
         (player_busy && audio_gate_open && !audio_muted && !vgm_player_error) ? 2'd2 :
                                                                               2'd0;
     assign {UART_RTS, UART_TXD, UART_DTR} = 3'b000;
@@ -524,18 +534,21 @@ module emu
     (* keep = 1 *) wire signed [15:0] debug_emu_audio_l = audio_l_final;
     (* keep = 1 *) wire signed [15:0] debug_emu_audio_r = audio_r_final;
 
+    localparam logic signed [15:0] AUDIO_POS_RAIL = 16'sh7fff;
+    localparam logic signed [15:0] AUDIO_NEG_RAIL = 16'sh8000;
+
     wire [15:0] md_audio_l_abs = audio_abs16(md_audio_l);
     wire [15:0] md_audio_r_abs = audio_abs16(md_audio_r);
     wire [15:0] emu_audio_l_abs = audio_abs16(audio_l_final);
     wire [15:0] emu_audio_r_abs = audio_abs16(audio_r_final);
     wire               md_audio_l_at_rail =
-        (md_audio_l == 16'sd32767) || (md_audio_l == -16'sd32768);
+        (md_audio_l == AUDIO_POS_RAIL) || (md_audio_l == AUDIO_NEG_RAIL);
     wire               md_audio_r_at_rail =
-        (md_audio_r == 16'sd32767) || (md_audio_r == -16'sd32768);
+        (md_audio_r == AUDIO_POS_RAIL) || (md_audio_r == AUDIO_NEG_RAIL);
     wire               emu_audio_l_at_rail =
-        (audio_l_final == 16'sd32767) || (audio_l_final == -16'sd32768);
+        (audio_l_final == AUDIO_POS_RAIL) || (audio_l_final == AUDIO_NEG_RAIL);
     wire               emu_audio_r_at_rail =
-        (audio_r_final == 16'sd32767) || (audio_r_final == -16'sd32768);
+        (audio_r_final == AUDIO_POS_RAIL) || (audio_r_final == AUDIO_NEG_RAIL);
     (* keep = 1, noprune = 1 *) reg [15:0] md_audio_l_abs_peak = 16'd0;
     (* keep = 1, noprune = 1 *) reg [15:0] md_audio_r_abs_peak = 16'd0;
     (* keep = 1, noprune = 1 *) reg [15:0] emu_audio_l_abs_peak = 16'd0;
@@ -661,11 +674,135 @@ module emu
     wire [17:0] vgm_error_pc_debug;
     wire  [7:0] vgm_error_cmd_debug;
     wire [31:0] vgm_error_session_id;
-    wire  [5:0] vgm_player_state_debug;
+    wire  [6:0] vgm_player_state_debug;
     wire        vgm_mem_rd_req_debug;
     wire        vgm_mem_rd_ready_debug;
     wire        vgm_mem_rd_valid_debug;
     wire [17:0] vgm_mem_rd_addr_debug;
+    wire [15:0] vgm_player_core_debug;
+    wire [15:0] vgm_player_lifecycle_debug;
+    wire  [7:0] vgm_player_last_read_byte_debug;
+    wire [31:0] vgm_header_magic_read_debug;
+    wire  [3:0] vgm_header_magic_fail_index_debug;
+    wire [17:0] vgm_read_request_addr_debug;
+    wire [17:0] vgm_read_response_addr_debug;
+    wire        vgm_read_pending_debug;
+    wire        vgm_read_valid_consumed_debug;
+    wire  [6:0] vgm_final_state_debug;
+    wire [17:0] vgm_final_pc_debug;
+    wire  [7:0] vgm_final_cmd_debug;
+    wire  [7:0] vgm_final_error_code_debug;
+    wire [15:0] vgm_final_flags_debug;
+    wire  [3:0] vgm_final_reason_debug;
+    wire [15:0] vgm_final_progress_debug;
+    wire  [7:0] vgm_first_playback_cmd_after_scan_debug;
+    wire [31:0] vgm_first_playback_cmds_after_scan_debug;
+    wire  [6:0] vgm_scan_state_debug;
+    wire [17:0] vgm_scan_pc_debug;
+    wire  [7:0] vgm_scan_last_cmd_debug;
+    wire  [7:0] vgm_scan_block_type_debug;
+    wire [15:0] vgm_scan_block_size_low_debug;
+    wire [15:0] vgm_scan_remaining_low_debug;
+    wire [15:0] vgm_scan_wait_debug;
+    wire  [7:0] vgm_scan_abort_reason_debug;
+    wire [15:0] vgm_scan_copy_last_index_low_debug;
+    wire [15:0] vgm_scan_copy_req_count_debug;
+    wire [15:0] vgm_scan_copy_ready_count_debug;
+    wire [15:0] vgm_scan_copy_tail_debug;
+    wire [15:0] vgm_scan_player_accept_count_debug;
+    wire [15:0] vgm_scan_player_remaining_debug;
+    wire [15:0] vgm_scan_payload_len_low_debug;
+    wire        vgm_scan_remaining_zero_before_expected_accept_debug;
+    wire [15:0] vgm_scan_zero_state_debug;
+    wire [15:0] vgm_scan_zero_pc_debug;
+    wire [15:0] vgm_scan_zero_cmd_debug;
+    wire [15:0] vgm_scan_copy_accept_fire_count_debug;
+    wire [15:0] vgm_scan_noncopy_advance_count_debug;
+    wire        vgm_scan_used_noncopy_advance_debug;
+    wire [15:0] vgm_scan_raw_copy_byte_count_debug;
+    wire [15:0] vgm_scan_raw_event_debug;
+    wire [15:0] vgm_scan_copy_exit_debug;
+    wire [15:0] vgm_scan_copy_exit_pc_debug;
+    wire [15:0] vgm_scan_copy_exit_count_debug;
+    wire [15:0] vgm_scan_copy_phase_debug;
+    wire [15:0] vgm_scan_copy_read_req_count_debug;
+    wire [15:0] vgm_scan_copy_read_accept_count_debug;
+    wire [15:0] vgm_scan_copy_read_accept_internal_debug;
+    wire [15:0] vgm_scan_copy_read_valid_count_debug;
+    wire [15:0] vgm_scan_copy_mem_req_cycle_count_debug;
+    wire [15:0] vgm_scan_copy_mem_req_ready_cycle_count_debug;
+    wire [15:0] vgm_scan_copy_request_state_debug;
+    wire [15:0] vgm_scan_copy_state_lifetime_debug;
+    wire [15:0] vgm_scan_copy_clear_reason_debug;
+    wire [15:0] vgm_scan_copy_payload_pc_debug;
+    wire [15:0] vgm_scan_copy_first01_debug;
+    wire [15:0] vgm_scan_copy_first23_debug;
+    wire [15:0] vgm_scan_copy_first45_debug;
+    wire [15:0] vgm_scan_copy_first67_debug;
+    wire [15:0] vgm_scan_copy_first8_phase_debug;
+    wire [15:0] vgm_scan_copy_read_raw_valid_count_debug;
+    wire [15:0] vgm_scan_copy_read_ignored_valid_count_debug;
+    wire [15:0] vgm_scan_copy_read_handshake_debug;
+    wire [15:0] vgm_scan_payload_o0_debug;
+    wire [15:0] vgm_scan_payload_oh_debug;
+    wire [15:0] vgm_scan_payload_bd_debug;
+    wire [15:0] vgm_scan_payload_af_debug;
+    wire [15:0] vgm_scan_payload_ah_debug;
+    wire [15:0] vgm_scan_payload_oh2_debug;
+    wire [15:0] vgm_scan_payload_as_debug;
+    wire [15:0] vgm_scan_payload_vd_debug;
+    wire [15:0] vgm_scan_payload_vh_debug;
+    wire [15:0] vgm_scan_payload_vs_debug;
+    wire [15:0] vgm_scan_payload_cp_debug;
+    wire [15:0] vgm_scan_payload_ch_debug;
+    wire [15:0] vgm_scan_payload_cs_debug;
+    wire [15:0] vgm_scan_raw_player_accept_count_debug;
+    wire [15:0] vgm_scan_raw_copy_accept_count_debug;
+    wire [15:0] vgm_scan_raw_read_accept_count_debug;
+    wire [15:0] vgm_scan_raw_read_valid_count_debug;
+    wire [15:0] vgm_scan_max_player_accept_count_debug;
+    wire [15:0] vgm_scan_max_copy_accept_count_debug;
+    wire [15:0] vgm_scan_max_read_accept_count_debug;
+    wire [15:0] vgm_scan_max_read_valid_count_debug;
+    wire [15:0] vgm_scan_counter_latch_accept_debug;
+    wire [15:0] vgm_scan_counter_latch_read_debug;
+    wire [15:0] vgm_scan_counter_anomaly_debug;
+    wire [15:0] vgm_scan_counter_reset_source_debug;
+    wire [15:0] vgm_scan_stop_source_debug;
+    wire [15:0] vgm_scan_term_pl_debug;
+    wire [15:0] vgm_scan_term_rm_debug;
+    wire [15:0] vgm_scan_term_cc_debug;
+    wire [15:0] vgm_scan_term_nx_debug;
+    wire [15:0] vgm_scan_term_be_debug;
+    wire [15:0] vgm_scan_guard_debug;
+    wire [15:0] vgm_scan_sticky_guard_debug;
+    wire [15:0] vgm_scan_payload_qg_debug;
+    wire [15:0] vgm_scan_payload_sf_debug;
+    wire [15:0] mode5_backend_copy_accept_count_debug;
+    wire [15:0] mode5_backend_copy_write_count_debug;
+    wire [15:0] mode5_backend_copy_fifo_debug;
+    wire [15:0] mode5_backend_copy_ready_debug;
+    wire [15:0] mode5_backend_copy_write_req_debug;
+    wire [15:0] mode5_backend_copy_word_debug;
+    wire [15:0] mode5_backend_copy_flush_debug;
+    wire [15:0] mode5_backend_copy_full_detect_count_debug;
+    wire [15:0] mode5_backend_copy_push_req_count_debug;
+    wire [15:0] mode5_backend_copy_push_fire_count_debug;
+    wire [15:0] mode5_backend_copy_fifo_push_count_debug;
+    wire [15:0] mode5_backend_copy_pack_ready_debug;
+    wire [15:0] mode5_backend_copy_post_push_debug;
+    wire [15:0] mode5_backend_read_gate_debug;
+    wire [15:0] mode5_backend_read_after_copy_count_debug;
+    wire [15:0] mode5_read_mux_debug;
+    wire [15:0] mode5_read_ready_compare_debug;
+    wire [15:0] mode5_read_ready_blocker_debug;
+    wire [15:0] mode5_copy_mismatch_debug;
+    wire [15:0] mode5_copy_max_ready_count_debug;
+    wire [15:0] mode5_copy_min_remaining_debug;
+    wire [15:0] mode5_restart_after_load_count_debug;
+    wire [15:0] mode5_scan_start_count_debug;
+    wire [15:0] mode5_direct_start_debug;
+    wire [15:0] mode5_top_stop_snapshot_debug;
     wire [18:0] vgm_load_size;
     wire [31:0] vgm_load_magic;
     wire [17:0] vgm_data_start_debug;
@@ -685,8 +822,145 @@ module emu
     wire [31:0] max_dac_stream_cmd_cycles;
     wire [31:0] count_wait0_dac_stream_cmd;
     wire [31:0] count_wait0_overhead_nonzero;
+    wire [31:0] segapcm_write_count;
+    wire [15:0] segapcm_last_addr;
+    wire  [7:0] segapcm_last_data;
+    wire [15:0] segapcm_core_rom_addr_low;
+    wire [15:0] segapcm_core_rom_addr_raw_high;
+    wire [15:0] segapcm_core_rom_addr_raw_low;
+    wire [15:0] segapcm_core_rom_addr_mapped_high;
+    wire [15:0] segapcm_core_rom_addr_mapped_low;
+    wire [15:0] segapcm_core_rom_addr_min_high;
+    wire [15:0] segapcm_core_rom_addr_min_low;
+    wire [15:0] segapcm_core_rom_addr_max_high;
+    wire [15:0] segapcm_core_rom_addr_max_low;
+    wire [15:0] segapcm_core_rom_audio_active_high;
+    wire [15:0] segapcm_core_rom_audio_active_low;
+    wire [15:0] segapcm_core_rom_first_after_ctrl_high;
+    wire [15:0] segapcm_core_rom_first_after_ctrl_low;
+    wire [15:0] segapcm_core_rom_range_group;
+    wire [15:0] segapcm_core_rom_range_group2;
+    wire [15:0] segapcm_core_rom_early_after_ctrl_high;
+    wire [15:0] segapcm_core_rom_early_after_ctrl_low;
+    wire [15:0] segapcm_core_rom_active_after_ctrl_high;
+    wire [15:0] segapcm_core_rom_active_after_ctrl_low;
+    wire [15:0] segapcm_core_rom_hit_miss_compact;
+    wire [15:0] segapcm_core_rom_range_hit_count;
+    wire [15:0] segapcm_core_rom_range_miss_count;
+    wire [15:0] segapcm_core_rom_activity_count;
+    wire [15:0] segapcm_core_rom_return_mapped_high;
+    wire [15:0] segapcm_core_rom_return_mapped_low;
+    wire [15:0] segapcm_core_rom_return_data;
+    wire [15:0] segapcm_core_rom_return_last01;
+    wire [15:0] segapcm_core_rom_return_last23;
+    wire [15:0] segapcm_core_rom_return_nonzero_count;
+    wire [15:0] segapcm_core_rom_return_change_count;
+    wire [15:0] segapcm_core_rom_return_neutral_count;
+    wire [15:0] segapcm_core_rom_preload_data;
+    wire [15:0] segapcm_core_rom_core_ok_count;
+    wire [15:0] segapcm_core_rom_fallback_count;
+    wire [15:0] segapcm_core_rom_read_valid_count;
+    wire [15:0] segapcm_core_rom_latency_debug;
+    wire [15:0] segapcm_core_rom_payload_len_low;
+    wire [15:0] segapcm_core_rom_payload_len_high;
+    wire [15:0] segapcm_core_pcm_debug_bk;
+    wire [15:0] segapcm_core_pcm_debug_cuh;
+    wire [15:0] segapcm_core_pcm_debug_cul;
+    wire [15:0] segapcm_core_known38686_flags;
+    wire [15:0] segapcm_core_known38686_bank;
+    wire [15:0] segapcm_core_known38686_channel;
+    wire [15:0] segapcm_core_known38686_state;
+    wire [15:0] segapcm_core_known38686_cur_high;
+    wire [15:0] segapcm_core_known38686_cur_low;
+    wire [15:0] segapcm_core_known38686_en_addr;
+    wire [15:0] segapcm_core_known38686_en_value;
+    wire [15:0] segapcm_core_known38686_d0_addr;
+    wire [15:0] segapcm_core_known38686_d0_value;
+    wire [15:0] segapcm_core_known38686_d1_addr;
+    wire [15:0] segapcm_core_known38686_d1_value;
+    wire [15:0] segapcm_core_known38686_d2_addr;
+    wire [15:0] segapcm_core_known38686_d2_value;
+    wire [15:0] segapcm_core_known38686_cfg_en;
+    wire [15:0] segapcm_core_known38686_cur_23;
+    wire [15:0] segapcm_core_known38686_cur_15;
+    wire [15:0] segapcm_core_known38686_cur_07;
+    wire [15:0] segapcm_core_ch3_evolution_flags;
+    wire [15:0] segapcm_core_ch3_delta;
+    wire [15:0] segapcm_core_ch1_first_high;
+    wire [15:0] segapcm_core_ch1_first_low;
+    wire [15:0] segapcm_core_ch1_first_raw_high;
+    wire [15:0] segapcm_core_ch1_first_raw_low;
+    wire [15:0] segapcm_core_ch3_first_high;
+    wire [15:0] segapcm_core_ch3_first_low;
+    wire [15:0] segapcm_core_ch3_first_raw_high;
+    wire [15:0] segapcm_core_ch3_first_raw_low;
+    wire [15:0] segapcm_core_ch3_r0_high;
+    wire [15:0] segapcm_core_ch3_r0_low;
+    wire [15:0] segapcm_core_ch3_r1_high;
+    wire [15:0] segapcm_core_ch3_r1_low;
+    wire [15:0] segapcm_core_ch3_r2_high;
+    wire [15:0] segapcm_core_ch3_r2_low;
+    wire [15:0] segapcm_core_update_state_channel;
+    wire [15:0] segapcm_core_update_before_23;
+    wire [15:0] segapcm_core_update_before_15;
+    wire [15:0] segapcm_core_update_before_07;
+    wire [15:0] segapcm_core_update_addend;
+    wire [15:0] segapcm_core_update_after_23;
+    wire [15:0] segapcm_core_update_after_15;
+    wire [15:0] segapcm_core_update_after_07;
+    wire [15:0] segapcm_core_update_reason;
+    wire [15:0] segapcm_core_cpu_write_count;
+    wire [15:0] segapcm_core_cpu_cen_write_count;
+    wire [15:0] segapcm_core_cpu_addr_debug;
+    wire [15:0] segapcm_core_shadow_decode_debug;
+    wire [15:0] segapcm_core_shadow_ch0_vol_debug;
+    wire [15:0] segapcm_core_shadow_ch0_end_delta_debug;
+    wire [15:0] segapcm_core_shadow_ch0_start_debug;
+    wire [15:0] segapcm_core_shadow_ch0_ctrl_debug;
+    wire [15:0] segapcm_core_shadow_ch1_vol_debug;
+    wire [15:0] segapcm_core_shadow_ch1_loop_debug;
+    wire [15:0] segapcm_core_shadow_ch1_end_delta_debug;
+    wire [15:0] segapcm_core_shadow_ch1_start_debug;
+    wire [15:0] segapcm_core_shadow_ch1_ctrl_debug;
+    wire [15:0] segapcm_core_shadow_ch3_loop_debug;
+    wire [15:0] segapcm_core_shadow_ch3_end_delta_debug;
+    wire [15:0] segapcm_core_shadow_ch3_start_debug;
+    wire [15:0] segapcm_core_shadow_ch3_ctrl_debug;
+    wire [15:0] segapcm_core_shadow_ch3_l0_debug;
+    wire [15:0] segapcm_core_shadow_ch3_l2_debug;
+    wire [15:0] segapcm_core_shadow_ch3_l4_debug;
+    wire [15:0] segapcm_core_shadow_ch3_l6_debug;
+    wire [15:0] segapcm_core_shadow_ch3_h0_debug;
+    wire [15:0] segapcm_core_shadow_ch3_h2_debug;
+    wire [15:0] segapcm_core_shadow_ch3_h4_debug;
+    wire [15:0] segapcm_core_shadow_ch3_h6_debug;
+    wire [15:0] segapcm_core_audio_nonzero_count;
+    wire [15:0] segapcm_core_audio_abs_peak;
+    wire signed [15:0] segapcm_core_last_audio_l;
+    wire signed [15:0] segapcm_core_last_audio_r;
+    wire [15:0] segapcm_core_status_debug;
+    wire [31:0] data_block_count;
+    wire  [7:0] last_data_block_type;
+    wire [15:0] last_data_block_size_low;
+    wire [31:0] segapcm_rom_block_count;
+    wire [31:0] segapcm_last_rom_size;
+    wire [31:0] segapcm_last_rom_start;
+    wire [31:0] pcm_ram_write_skip_count;
+    wire        segapcm_rom_scan_busy;
+    wire        segapcm_rom_scan_done;
+    wire        segapcm_rom_scan_overflow;
+    wire [31:0] segapcm_rom_scan_block_count;
+    wire [31:0] segapcm_rom_scan_byte_count;
+    wire [31:0] segapcm_rom_scan_checksum32;
+    wire [31:0] segapcm_rom_scan_total_size;
+    wire [31:0] segapcm_rom_scan_last_start;
+    wire [31:0] segapcm_rom_copy_byte_count;
+    wire        segapcm_rom_copy_overflow;
+    wire        segapcm_rom_copy_flush_done;
+    wire        segapcm_copy_flush_req_debug;
     wire        mode5_sound_reset_active;
     wire        mode5_player_start_pulse_debug;
+    wire [15:0] mode5_start_hold_debug;
     wire [31:0] mode5_load_begin_count;
     wire [31:0] mode5_load_done_edge_count;
     wire [31:0] mode5_sound_reset_start_count;
@@ -944,6 +1218,130 @@ module emu
         .vgm_mem_rd_ready_debug(vgm_mem_rd_ready_debug),
         .vgm_mem_rd_valid_debug(vgm_mem_rd_valid_debug),
         .vgm_mem_rd_addr_debug (vgm_mem_rd_addr_debug),
+        .vgm_player_core_debug (vgm_player_core_debug),
+        .vgm_player_lifecycle_debug(vgm_player_lifecycle_debug),
+        .vgm_player_last_read_byte_debug(vgm_player_last_read_byte_debug),
+        .vgm_header_magic_read_debug(vgm_header_magic_read_debug),
+        .vgm_header_magic_fail_index_debug(vgm_header_magic_fail_index_debug),
+        .vgm_read_request_addr_debug(vgm_read_request_addr_debug),
+        .vgm_read_response_addr_debug(vgm_read_response_addr_debug),
+        .vgm_read_pending_debug(vgm_read_pending_debug),
+        .vgm_read_valid_consumed_debug(vgm_read_valid_consumed_debug),
+        .vgm_final_state_debug (vgm_final_state_debug),
+        .vgm_final_pc_debug    (vgm_final_pc_debug),
+        .vgm_final_cmd_debug   (vgm_final_cmd_debug),
+        .vgm_final_error_code_debug(vgm_final_error_code_debug),
+        .vgm_final_flags_debug (vgm_final_flags_debug),
+        .vgm_final_reason_debug(vgm_final_reason_debug),
+        .vgm_final_progress_debug(vgm_final_progress_debug),
+        .vgm_first_playback_cmd_after_scan_debug(vgm_first_playback_cmd_after_scan_debug),
+        .vgm_first_playback_cmds_after_scan_debug(vgm_first_playback_cmds_after_scan_debug),
+        .vgm_scan_state_debug (vgm_scan_state_debug),
+        .vgm_scan_pc_debug    (vgm_scan_pc_debug),
+        .vgm_scan_last_cmd_debug(vgm_scan_last_cmd_debug),
+        .vgm_scan_block_type_debug(vgm_scan_block_type_debug),
+        .vgm_scan_block_size_low_debug(vgm_scan_block_size_low_debug),
+        .vgm_scan_remaining_low_debug(vgm_scan_remaining_low_debug),
+        .vgm_scan_wait_debug  (vgm_scan_wait_debug),
+        .vgm_scan_abort_reason_debug(vgm_scan_abort_reason_debug),
+        .vgm_scan_copy_last_index_low_debug(vgm_scan_copy_last_index_low_debug),
+        .vgm_scan_copy_req_count_debug(vgm_scan_copy_req_count_debug),
+        .vgm_scan_copy_ready_count_debug(vgm_scan_copy_ready_count_debug),
+        .vgm_scan_copy_tail_debug(vgm_scan_copy_tail_debug),
+        .vgm_scan_player_accept_count_debug(vgm_scan_player_accept_count_debug),
+        .vgm_scan_player_remaining_debug(vgm_scan_player_remaining_debug),
+        .vgm_scan_payload_len_low_debug(vgm_scan_payload_len_low_debug),
+        .vgm_scan_remaining_zero_before_expected_accept_debug(vgm_scan_remaining_zero_before_expected_accept_debug),
+        .vgm_scan_zero_state_debug(vgm_scan_zero_state_debug),
+        .vgm_scan_zero_pc_debug(vgm_scan_zero_pc_debug),
+        .vgm_scan_zero_cmd_debug(vgm_scan_zero_cmd_debug),
+        .vgm_scan_copy_accept_fire_count_debug(vgm_scan_copy_accept_fire_count_debug),
+        .vgm_scan_noncopy_advance_count_debug(vgm_scan_noncopy_advance_count_debug),
+        .vgm_scan_used_noncopy_advance_debug(vgm_scan_used_noncopy_advance_debug),
+        .vgm_scan_raw_copy_byte_count_debug(vgm_scan_raw_copy_byte_count_debug),
+        .vgm_scan_raw_event_debug(vgm_scan_raw_event_debug),
+        .vgm_scan_copy_exit_debug(vgm_scan_copy_exit_debug),
+        .vgm_scan_copy_exit_pc_debug(vgm_scan_copy_exit_pc_debug),
+        .vgm_scan_copy_exit_count_debug(vgm_scan_copy_exit_count_debug),
+        .vgm_scan_copy_phase_debug(vgm_scan_copy_phase_debug),
+        .vgm_scan_copy_read_req_count_debug(vgm_scan_copy_read_req_count_debug),
+        .vgm_scan_copy_read_accept_count_debug(vgm_scan_copy_read_accept_count_debug),
+        .vgm_scan_copy_read_accept_internal_debug(vgm_scan_copy_read_accept_internal_debug),
+        .vgm_scan_copy_read_valid_count_debug(vgm_scan_copy_read_valid_count_debug),
+        .vgm_scan_copy_mem_req_cycle_count_debug(vgm_scan_copy_mem_req_cycle_count_debug),
+        .vgm_scan_copy_mem_req_ready_cycle_count_debug(vgm_scan_copy_mem_req_ready_cycle_count_debug),
+        .vgm_scan_copy_request_state_debug(vgm_scan_copy_request_state_debug),
+        .vgm_scan_copy_state_lifetime_debug(vgm_scan_copy_state_lifetime_debug),
+        .vgm_scan_copy_clear_reason_debug(vgm_scan_copy_clear_reason_debug),
+        .vgm_scan_copy_payload_pc_debug(vgm_scan_copy_payload_pc_debug),
+        .vgm_scan_copy_first01_debug(vgm_scan_copy_first01_debug),
+        .vgm_scan_copy_first23_debug(vgm_scan_copy_first23_debug),
+        .vgm_scan_copy_first45_debug(vgm_scan_copy_first45_debug),
+        .vgm_scan_copy_first67_debug(vgm_scan_copy_first67_debug),
+        .vgm_scan_copy_first8_phase_debug(vgm_scan_copy_first8_phase_debug),
+        .vgm_scan_copy_read_raw_valid_count_debug(vgm_scan_copy_read_raw_valid_count_debug),
+        .vgm_scan_copy_read_ignored_valid_count_debug(vgm_scan_copy_read_ignored_valid_count_debug),
+        .vgm_scan_copy_read_handshake_debug(vgm_scan_copy_read_handshake_debug),
+        .vgm_scan_payload_o0_debug(vgm_scan_payload_o0_debug),
+        .vgm_scan_payload_oh_debug(vgm_scan_payload_oh_debug),
+        .vgm_scan_payload_bd_debug(vgm_scan_payload_bd_debug),
+        .vgm_scan_payload_af_debug(vgm_scan_payload_af_debug),
+        .vgm_scan_payload_ah_debug(vgm_scan_payload_ah_debug),
+        .vgm_scan_payload_oh2_debug(vgm_scan_payload_oh2_debug),
+        .vgm_scan_payload_as_debug(vgm_scan_payload_as_debug),
+        .vgm_scan_payload_vd_debug(vgm_scan_payload_vd_debug),
+        .vgm_scan_payload_vh_debug(vgm_scan_payload_vh_debug),
+        .vgm_scan_payload_vs_debug(vgm_scan_payload_vs_debug),
+        .vgm_scan_payload_cp_debug(vgm_scan_payload_cp_debug),
+        .vgm_scan_payload_ch_debug(vgm_scan_payload_ch_debug),
+        .vgm_scan_payload_cs_debug(vgm_scan_payload_cs_debug),
+        .vgm_scan_raw_player_accept_count_debug(vgm_scan_raw_player_accept_count_debug),
+        .vgm_scan_raw_copy_accept_count_debug(vgm_scan_raw_copy_accept_count_debug),
+        .vgm_scan_raw_read_accept_count_debug(vgm_scan_raw_read_accept_count_debug),
+        .vgm_scan_raw_read_valid_count_debug(vgm_scan_raw_read_valid_count_debug),
+        .vgm_scan_max_player_accept_count_debug(vgm_scan_max_player_accept_count_debug),
+        .vgm_scan_max_copy_accept_count_debug(vgm_scan_max_copy_accept_count_debug),
+        .vgm_scan_max_read_accept_count_debug(vgm_scan_max_read_accept_count_debug),
+        .vgm_scan_max_read_valid_count_debug(vgm_scan_max_read_valid_count_debug),
+        .vgm_scan_counter_latch_accept_debug(vgm_scan_counter_latch_accept_debug),
+        .vgm_scan_counter_latch_read_debug(vgm_scan_counter_latch_read_debug),
+        .vgm_scan_counter_anomaly_debug(vgm_scan_counter_anomaly_debug),
+        .vgm_scan_counter_reset_source_debug(vgm_scan_counter_reset_source_debug),
+        .vgm_scan_stop_source_debug(vgm_scan_stop_source_debug),
+        .vgm_scan_term_pl_debug(vgm_scan_term_pl_debug),
+        .vgm_scan_term_rm_debug(vgm_scan_term_rm_debug),
+        .vgm_scan_term_cc_debug(vgm_scan_term_cc_debug),
+        .vgm_scan_term_nx_debug(vgm_scan_term_nx_debug),
+        .vgm_scan_term_be_debug(vgm_scan_term_be_debug),
+        .vgm_scan_guard_debug(vgm_scan_guard_debug),
+        .vgm_scan_sticky_guard_debug(vgm_scan_sticky_guard_debug),
+        .vgm_scan_payload_qg_debug(vgm_scan_payload_qg_debug),
+        .vgm_scan_payload_sf_debug(vgm_scan_payload_sf_debug),
+        .mode5_backend_copy_accept_count_debug(mode5_backend_copy_accept_count_debug),
+        .mode5_backend_copy_write_count_debug(mode5_backend_copy_write_count_debug),
+        .mode5_backend_copy_fifo_debug(mode5_backend_copy_fifo_debug),
+        .mode5_backend_copy_ready_debug(mode5_backend_copy_ready_debug),
+        .mode5_backend_copy_write_req_debug(mode5_backend_copy_write_req_debug),
+        .mode5_backend_copy_word_debug(mode5_backend_copy_word_debug),
+        .mode5_backend_copy_flush_debug(mode5_backend_copy_flush_debug),
+        .mode5_backend_copy_full_detect_count_debug(mode5_backend_copy_full_detect_count_debug),
+        .mode5_backend_copy_push_req_count_debug(mode5_backend_copy_push_req_count_debug),
+        .mode5_backend_copy_push_fire_count_debug(mode5_backend_copy_push_fire_count_debug),
+        .mode5_backend_copy_fifo_push_count_debug(mode5_backend_copy_fifo_push_count_debug),
+        .mode5_backend_copy_pack_ready_debug(mode5_backend_copy_pack_ready_debug),
+        .mode5_backend_copy_post_push_debug(mode5_backend_copy_post_push_debug),
+        .mode5_backend_read_gate_debug(mode5_backend_read_gate_debug),
+        .mode5_backend_read_after_copy_count_debug(mode5_backend_read_after_copy_count_debug),
+        .mode5_read_mux_debug(mode5_read_mux_debug),
+        .mode5_read_ready_compare_debug(mode5_read_ready_compare_debug),
+        .mode5_read_ready_blocker_debug(mode5_read_ready_blocker_debug),
+        .mode5_copy_mismatch_debug(mode5_copy_mismatch_debug),
+        .mode5_copy_max_ready_count_debug(mode5_copy_max_ready_count_debug),
+        .mode5_copy_min_remaining_debug(mode5_copy_min_remaining_debug),
+        .mode5_restart_after_load_count_debug(mode5_restart_after_load_count_debug),
+        .mode5_scan_start_count_debug(mode5_scan_start_count_debug),
+        .mode5_direct_start_debug(mode5_direct_start_debug),
+        .mode5_top_stop_snapshot_debug(mode5_top_stop_snapshot_debug),
         .vgm_load_size         (vgm_load_size),
         .vgm_load_magic        (vgm_load_magic),
         .vgm_data_start_debug  (vgm_data_start_debug),
@@ -963,8 +1361,145 @@ module emu
         .max_dac_stream_cmd_cycles(max_dac_stream_cmd_cycles),
         .count_wait0_dac_stream_cmd(count_wait0_dac_stream_cmd),
         .count_wait0_overhead_nonzero(count_wait0_overhead_nonzero),
+        .segapcm_write_count   (segapcm_write_count),
+        .segapcm_last_addr     (segapcm_last_addr),
+        .segapcm_last_data     (segapcm_last_data),
+        .segapcm_core_rom_addr_low(segapcm_core_rom_addr_low),
+        .segapcm_core_rom_addr_raw_high(segapcm_core_rom_addr_raw_high),
+        .segapcm_core_rom_addr_raw_low(segapcm_core_rom_addr_raw_low),
+        .segapcm_core_rom_addr_mapped_high(segapcm_core_rom_addr_mapped_high),
+        .segapcm_core_rom_addr_mapped_low(segapcm_core_rom_addr_mapped_low),
+        .segapcm_core_rom_addr_min_high(segapcm_core_rom_addr_min_high),
+        .segapcm_core_rom_addr_min_low(segapcm_core_rom_addr_min_low),
+        .segapcm_core_rom_addr_max_high(segapcm_core_rom_addr_max_high),
+        .segapcm_core_rom_addr_max_low(segapcm_core_rom_addr_max_low),
+        .segapcm_core_rom_audio_active_high(segapcm_core_rom_audio_active_high),
+        .segapcm_core_rom_audio_active_low(segapcm_core_rom_audio_active_low),
+        .segapcm_core_rom_first_after_ctrl_high(segapcm_core_rom_first_after_ctrl_high),
+        .segapcm_core_rom_first_after_ctrl_low(segapcm_core_rom_first_after_ctrl_low),
+        .segapcm_core_rom_range_group(segapcm_core_rom_range_group),
+        .segapcm_core_rom_range_group2(segapcm_core_rom_range_group2),
+        .segapcm_core_rom_early_after_ctrl_high(segapcm_core_rom_early_after_ctrl_high),
+        .segapcm_core_rom_early_after_ctrl_low(segapcm_core_rom_early_after_ctrl_low),
+        .segapcm_core_rom_active_after_ctrl_high(segapcm_core_rom_active_after_ctrl_high),
+        .segapcm_core_rom_active_after_ctrl_low(segapcm_core_rom_active_after_ctrl_low),
+        .segapcm_core_rom_hit_miss_compact(segapcm_core_rom_hit_miss_compact),
+        .segapcm_core_rom_range_hit_count(segapcm_core_rom_range_hit_count),
+        .segapcm_core_rom_range_miss_count(segapcm_core_rom_range_miss_count),
+        .segapcm_core_rom_activity_count(segapcm_core_rom_activity_count),
+        .segapcm_core_rom_return_mapped_high(segapcm_core_rom_return_mapped_high),
+        .segapcm_core_rom_return_mapped_low(segapcm_core_rom_return_mapped_low),
+        .segapcm_core_rom_return_data(segapcm_core_rom_return_data),
+        .segapcm_core_rom_return_last01(segapcm_core_rom_return_last01),
+        .segapcm_core_rom_return_last23(segapcm_core_rom_return_last23),
+        .segapcm_core_rom_return_nonzero_count(segapcm_core_rom_return_nonzero_count),
+        .segapcm_core_rom_return_change_count(segapcm_core_rom_return_change_count),
+        .segapcm_core_rom_return_neutral_count(segapcm_core_rom_return_neutral_count),
+        .segapcm_core_rom_preload_data(segapcm_core_rom_preload_data),
+        .segapcm_core_rom_core_ok_count(segapcm_core_rom_core_ok_count),
+        .segapcm_core_rom_fallback_count(segapcm_core_rom_fallback_count),
+        .segapcm_core_rom_read_valid_count(segapcm_core_rom_read_valid_count),
+        .segapcm_core_rom_latency_debug(segapcm_core_rom_latency_debug),
+        .segapcm_core_rom_payload_len_low(segapcm_core_rom_payload_len_low),
+        .segapcm_core_rom_payload_len_high(segapcm_core_rom_payload_len_high),
+        .segapcm_core_pcm_debug_bk(segapcm_core_pcm_debug_bk),
+        .segapcm_core_pcm_debug_cuh(segapcm_core_pcm_debug_cuh),
+        .segapcm_core_pcm_debug_cul(segapcm_core_pcm_debug_cul),
+        .segapcm_core_known38686_flags(segapcm_core_known38686_flags),
+        .segapcm_core_known38686_bank(segapcm_core_known38686_bank),
+        .segapcm_core_known38686_channel(segapcm_core_known38686_channel),
+        .segapcm_core_known38686_state(segapcm_core_known38686_state),
+        .segapcm_core_known38686_cur_high(segapcm_core_known38686_cur_high),
+        .segapcm_core_known38686_cur_low(segapcm_core_known38686_cur_low),
+        .segapcm_core_known38686_en_addr(segapcm_core_known38686_en_addr),
+        .segapcm_core_known38686_en_value(segapcm_core_known38686_en_value),
+        .segapcm_core_known38686_d0_addr(segapcm_core_known38686_d0_addr),
+        .segapcm_core_known38686_d0_value(segapcm_core_known38686_d0_value),
+        .segapcm_core_known38686_d1_addr(segapcm_core_known38686_d1_addr),
+        .segapcm_core_known38686_d1_value(segapcm_core_known38686_d1_value),
+        .segapcm_core_known38686_d2_addr(segapcm_core_known38686_d2_addr),
+        .segapcm_core_known38686_d2_value(segapcm_core_known38686_d2_value),
+        .segapcm_core_known38686_cfg_en(segapcm_core_known38686_cfg_en),
+        .segapcm_core_known38686_cur_23(segapcm_core_known38686_cur_23),
+        .segapcm_core_known38686_cur_15(segapcm_core_known38686_cur_15),
+        .segapcm_core_known38686_cur_07(segapcm_core_known38686_cur_07),
+        .segapcm_core_ch3_evolution_flags(segapcm_core_ch3_evolution_flags),
+        .segapcm_core_ch3_delta(segapcm_core_ch3_delta),
+        .segapcm_core_ch1_first_high(segapcm_core_ch1_first_high),
+        .segapcm_core_ch1_first_low(segapcm_core_ch1_first_low),
+        .segapcm_core_ch1_first_raw_high(segapcm_core_ch1_first_raw_high),
+        .segapcm_core_ch1_first_raw_low(segapcm_core_ch1_first_raw_low),
+        .segapcm_core_ch3_first_high(segapcm_core_ch3_first_high),
+        .segapcm_core_ch3_first_low(segapcm_core_ch3_first_low),
+        .segapcm_core_ch3_first_raw_high(segapcm_core_ch3_first_raw_high),
+        .segapcm_core_ch3_first_raw_low(segapcm_core_ch3_first_raw_low),
+        .segapcm_core_ch3_r0_high(segapcm_core_ch3_r0_high),
+        .segapcm_core_ch3_r0_low(segapcm_core_ch3_r0_low),
+        .segapcm_core_ch3_r1_high(segapcm_core_ch3_r1_high),
+        .segapcm_core_ch3_r1_low(segapcm_core_ch3_r1_low),
+        .segapcm_core_ch3_r2_high(segapcm_core_ch3_r2_high),
+        .segapcm_core_ch3_r2_low(segapcm_core_ch3_r2_low),
+        .segapcm_core_update_state_channel(segapcm_core_update_state_channel),
+        .segapcm_core_update_before_23(segapcm_core_update_before_23),
+        .segapcm_core_update_before_15(segapcm_core_update_before_15),
+        .segapcm_core_update_before_07(segapcm_core_update_before_07),
+        .segapcm_core_update_addend(segapcm_core_update_addend),
+        .segapcm_core_update_after_23(segapcm_core_update_after_23),
+        .segapcm_core_update_after_15(segapcm_core_update_after_15),
+        .segapcm_core_update_after_07(segapcm_core_update_after_07),
+        .segapcm_core_update_reason(segapcm_core_update_reason),
+        .segapcm_core_cpu_write_count(segapcm_core_cpu_write_count),
+        .segapcm_core_cpu_cen_write_count(segapcm_core_cpu_cen_write_count),
+        .segapcm_core_cpu_addr_debug(segapcm_core_cpu_addr_debug),
+        .segapcm_core_shadow_decode_debug(segapcm_core_shadow_decode_debug),
+        .segapcm_core_shadow_ch0_vol_debug(segapcm_core_shadow_ch0_vol_debug),
+        .segapcm_core_shadow_ch0_end_delta_debug(segapcm_core_shadow_ch0_end_delta_debug),
+        .segapcm_core_shadow_ch0_start_debug(segapcm_core_shadow_ch0_start_debug),
+        .segapcm_core_shadow_ch0_ctrl_debug(segapcm_core_shadow_ch0_ctrl_debug),
+        .segapcm_core_shadow_ch1_vol_debug(segapcm_core_shadow_ch1_vol_debug),
+        .segapcm_core_shadow_ch1_loop_debug(segapcm_core_shadow_ch1_loop_debug),
+        .segapcm_core_shadow_ch1_end_delta_debug(segapcm_core_shadow_ch1_end_delta_debug),
+        .segapcm_core_shadow_ch1_start_debug(segapcm_core_shadow_ch1_start_debug),
+        .segapcm_core_shadow_ch1_ctrl_debug(segapcm_core_shadow_ch1_ctrl_debug),
+        .segapcm_core_shadow_ch3_loop_debug(segapcm_core_shadow_ch3_loop_debug),
+        .segapcm_core_shadow_ch3_end_delta_debug(segapcm_core_shadow_ch3_end_delta_debug),
+        .segapcm_core_shadow_ch3_start_debug(segapcm_core_shadow_ch3_start_debug),
+        .segapcm_core_shadow_ch3_ctrl_debug(segapcm_core_shadow_ch3_ctrl_debug),
+        .segapcm_core_shadow_ch3_l0_debug(segapcm_core_shadow_ch3_l0_debug),
+        .segapcm_core_shadow_ch3_l2_debug(segapcm_core_shadow_ch3_l2_debug),
+        .segapcm_core_shadow_ch3_l4_debug(segapcm_core_shadow_ch3_l4_debug),
+        .segapcm_core_shadow_ch3_l6_debug(segapcm_core_shadow_ch3_l6_debug),
+        .segapcm_core_shadow_ch3_h0_debug(segapcm_core_shadow_ch3_h0_debug),
+        .segapcm_core_shadow_ch3_h2_debug(segapcm_core_shadow_ch3_h2_debug),
+        .segapcm_core_shadow_ch3_h4_debug(segapcm_core_shadow_ch3_h4_debug),
+        .segapcm_core_shadow_ch3_h6_debug(segapcm_core_shadow_ch3_h6_debug),
+        .segapcm_core_audio_nonzero_count(segapcm_core_audio_nonzero_count),
+        .segapcm_core_audio_abs_peak(segapcm_core_audio_abs_peak),
+        .segapcm_core_last_audio_l(segapcm_core_last_audio_l),
+        .segapcm_core_last_audio_r(segapcm_core_last_audio_r),
+        .segapcm_core_status_debug(segapcm_core_status_debug),
+        .data_block_count      (data_block_count),
+        .last_data_block_type  (last_data_block_type),
+        .last_data_block_size_low(last_data_block_size_low),
+        .segapcm_rom_block_count(segapcm_rom_block_count),
+        .segapcm_last_rom_size (segapcm_last_rom_size),
+        .segapcm_last_rom_start(segapcm_last_rom_start),
+        .pcm_ram_write_skip_count(pcm_ram_write_skip_count),
+        .segapcm_rom_scan_busy (segapcm_rom_scan_busy),
+        .segapcm_rom_scan_done (segapcm_rom_scan_done),
+        .segapcm_rom_scan_overflow(segapcm_rom_scan_overflow),
+        .segapcm_rom_scan_block_count(segapcm_rom_scan_block_count),
+        .segapcm_rom_scan_byte_count(segapcm_rom_scan_byte_count),
+        .segapcm_rom_scan_checksum32(segapcm_rom_scan_checksum32),
+        .segapcm_rom_scan_total_size(segapcm_rom_scan_total_size),
+        .segapcm_rom_scan_last_start(segapcm_rom_scan_last_start),
+        .segapcm_rom_copy_byte_count(segapcm_rom_copy_byte_count),
+        .segapcm_rom_copy_overflow(segapcm_rom_copy_overflow),
+        .segapcm_rom_copy_flush_done(segapcm_rom_copy_flush_done),
+        .segapcm_copy_flush_req_debug(segapcm_copy_flush_req_debug),
         .mode5_sound_reset_active(mode5_sound_reset_active),
         .mode5_player_start_pulse_debug(mode5_player_start_pulse_debug),
+        .mode5_start_hold_debug(mode5_start_hold_debug),
         .mode5_load_begin_count(mode5_load_begin_count),
         .mode5_load_done_edge_count(mode5_load_done_edge_count),
         .mode5_sound_reset_start_count(mode5_sound_reset_start_count),
@@ -1229,6 +1764,22 @@ module emu
     wire [31:0] dac_stream_avg_overhead_cycles =
         (dac_stream_cmd_count == 32'd0) ? 32'd0 :
         (dac_stream_overhead_cycles_total / dac_stream_cmd_count);
+    wire segapcm_debug_seen =
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
+        1'b1 ||
+`endif
+        YM2151_SEGAPCM_OBSERVER_BUILD ||
+        (segapcm_write_count != 32'd0) ||
+        (segapcm_rom_block_count != 32'd0) ||
+        (segapcm_rom_scan_block_count != 32'd0) ||
+        (segapcm_rom_copy_byte_count != 32'd0) ||
+        segapcm_rom_scan_busy ||
+        segapcm_rom_scan_done ||
+        (pcm_ram_write_skip_count != 32'd0);
+    wire [15:0] segapcm_display_derived_remaining =
+        (vgm_scan_payload_len_low_debug > vgm_scan_player_accept_count_debug) ?
+        (vgm_scan_payload_len_low_debug - vgm_scan_player_accept_count_debug) :
+        16'd0;
 
     function automatic [34:0] font5x7_bits(input logic [7:0] ch);
         begin
@@ -1251,10 +1802,13 @@ module emu
                 "F": font5x7_bits = 35'b11111_10000_10000_11110_10000_10000_10000;
                 "H": font5x7_bits = 35'b10001_10001_10001_11111_10001_10001_10001;
                 "I": font5x7_bits = 35'b01110_00100_00100_00100_00100_00100_01110;
+                "K": font5x7_bits = 35'b10001_10010_10100_11000_10100_10010_10001;
                 "L": font5x7_bits = 35'b10000_10000_10000_10000_10000_10000_11111;
                 "M": font5x7_bits = 35'b10001_11011_10101_10101_10001_10001_10001;
+                "N": font5x7_bits = 35'b10001_11001_10101_10011_10001_10001_10001;
                 "O": font5x7_bits = 35'b01110_10001_10001_10001_10001_10001_01110;
                 "P": font5x7_bits = 35'b11110_10001_10001_11110_10000_10000_10000;
+                "Q": font5x7_bits = 35'b01110_10001_10001_10001_10101_10010_01101;
                 "R": font5x7_bits = 35'b11110_10001_10001_11110_10100_10010_10001;
                 "S": font5x7_bits = 35'b01111_10000_10000_01110_00001_00001_11110;
                 "T": font5x7_bits = 35'b11111_00100_00100_00100_00100_00100_00100;
@@ -1263,6 +1817,7 @@ module emu
                 "W": font5x7_bits = 35'b10001_10001_10001_10101_10101_10101_01010;
                 "X": font5x7_bits = 35'b10001_10001_01010_00100_01010_10001_10001;
                 "Y": font5x7_bits = 35'b10001_10001_01010_00100_00100_00100_00100;
+                "Z": font5x7_bits = 35'b11111_00001_00010_00100_01000_10000_11111;
                 default: font5x7_bits = 35'b00000_00000_00000_00000_00000_00000_00000;
             endcase
         end
@@ -1282,45 +1837,205 @@ module emu
         end
     endfunction
 
-    function automatic [7:0] mode5_debug_label_char(
+    function automatic [7:0] segapcm_debug_label_char(
         input logic [4:0] row,
         input logic [1:0] col
     );
         begin
             unique case (row)
-                5'd0:  mode5_debug_label_char = (col == 2'd0) ? "S" : (col == 2'd1) ? "I" : " ";
-                5'd1:  mode5_debug_label_char = (col == 2'd0) ? "L" : (col == 2'd1) ? "B" : " ";
-                5'd2:  mode5_debug_label_char = (col == 2'd0) ? "L" : (col == 2'd1) ? "D" : " ";
-                5'd3:  mode5_debug_label_char = (col == 2'd0) ? "S" : (col == 2'd1) ? "R" : " ";
-                5'd4:  mode5_debug_label_char = (col == 2'd0) ? "S" : (col == 2'd1) ? "T" : " ";
-                5'd5:  mode5_debug_label_char = (col == 2'd0) ? "P" : (col == 2'd1) ? "R" : " ";
-                5'd6:  mode5_debug_label_char = (col == 2'd0) ? "D" : (col == 2'd1) ? "U" : " ";
-                5'd7:  mode5_debug_label_char = (col == 2'd0) ? "P" : (col == 2'd1) ? "E" : " ";
-                5'd8:  mode5_debug_label_char = (col == 2'd0) ? "E" : (col == 2'd1) ? "R" : " ";
-                5'd9:  mode5_debug_label_char = (col == 2'd0) ? "A" : (col == 2'd1) ? "M" : " ";
-                5'd10: mode5_debug_label_char = (col == 2'd0) ? "P" : (col == 2'd1) ? "B" : " ";
-                5'd11: mode5_debug_label_char = (col == 2'd0) ? "C" : (col == 2'd1) ? "P" : " ";
-                5'd12: mode5_debug_label_char = (col == 2'd0) ? "L" : (col == 2'd1) ? "C" : " ";
-                5'd13: mode5_debug_label_char = (col == 2'd0) ? "D" : (col == 2'd1) ? "P" : " ";
-                5'd14: mode5_debug_label_char = (col == 2'd0) ? "D" : (col == 2'd1) ? "C" : " ";
-                5'd15: mode5_debug_label_char = (col == 2'd0) ? "D" : (col == 2'd1) ? "S" : " ";
-                5'd16: mode5_debug_label_char = (col == 2'd0) ? "F" : (col == 2'd1) ? "S" : " ";
-                5'd17: mode5_debug_label_char = (col == 2'd0) ? "W" : (col == 2'd1) ? "T" : " ";
-                5'd18: mode5_debug_label_char = (col == 2'd0) ? "C" : (col == 2'd1) ? "Y" : " ";
-                5'd19: mode5_debug_label_char = (col == 2'd0) ? "E" : (col == 2'd1) ? "C" : " ";
-                5'd20: mode5_debug_label_char = (col == 2'd0) ? "E" : (col == 2'd1) ? "P" : " ";
-                5'd21: mode5_debug_label_char = (col == 2'd0) ? "E" : (col == 2'd1) ? "X" : " ";
-                5'd22: mode5_debug_label_char = (col == 2'd0) ? "E" : (col == 2'd1) ? "S" : " ";
-                5'd23: mode5_debug_label_char = (col == 2'd0) ? "D" : (col == 2'd1) ? "C" : " ";
-                5'd24: mode5_debug_label_char = (col == 2'd0) ? "A" : (col == 2'd1) ? "V" : " ";
-                5'd25: mode5_debug_label_char = (col == 2'd0) ? "O" : (col == 2'd1) ? "H" : " ";
-                5'd26: mode5_debug_label_char = (col == 2'd0) ? "W" : (col == 2'd1) ? "0" : " ";
-                5'd27: mode5_debug_label_char = (col == 2'd0) ? "M" : (col == 2'd1) ? "A" : " ";
-                5'd28: mode5_debug_label_char = (col == 2'd0) ? "R" : (col == 2'd1) ? "C" : " ";
-                5'd29: mode5_debug_label_char = (col == 2'd0) ? "D" : (col == 2'd1) ? "A" : " ";
-                5'd30: mode5_debug_label_char = (col == 2'd0) ? "R" : (col == 2'd1) ? "S" : " ";
+                5'd0:  segapcm_debug_label_char = (col == 2'd0) ? "S" : (col == 2'd1) ? "K" : " ";
+                5'd1:  segapcm_debug_label_char = (col == 2'd0) ? "L" : (col == 2'd1) ? "H" : " ";
+                5'd2:  segapcm_debug_label_char = (col == 2'd0) ? "L" : (col == 2'd1) ? "L" : " ";
+                5'd3:  segapcm_debug_label_char = (col == 2'd0) ? "Q" : (col == 2'd1) ? "H" : " ";
+                5'd4:  segapcm_debug_label_char = (col == 2'd0) ? "Q" : (col == 2'd1) ? "L" : " ";
+                5'd5:  segapcm_debug_label_char = (col == 2'd0) ? "L" : (col == 2'd1) ? "M" : " ";
+                5'd6:  segapcm_debug_label_char = (col == 2'd0) ? "S" : (col == 2'd1) ? "M" : " ";
+                5'd7:  segapcm_debug_label_char = (col == 2'd0) ? "B" : (col == 2'd1) ? "O" : " ";
+                5'd8:  segapcm_debug_label_char = (col == 2'd0) ? "M" : (col == 2'd1) ? "O" : " ";
+                5'd9:  segapcm_debug_label_char = (col == 2'd0) ? "P" : (col == 2'd1) ? "L" : " ";
+                5'd10: segapcm_debug_label_char = (col == 2'd0) ? "D" : (col == 2'd1) ? "A" : " ";
+                5'd11: segapcm_debug_label_char = (col == 2'd0) ? "M" : (col == 2'd1) ? "D" : " ";
+                5'd12: segapcm_debug_label_char = (col == 2'd0) ? "A" : (col == 2'd1) ? "V" : " ";
+                5'd13: segapcm_debug_label_char = (col == 2'd0) ? "I" : (col == 2'd1) ? "R" : " ";
+                5'd14: segapcm_debug_label_char = (col == 2'd0) ? "C" : (col == 2'd1) ? "H" : " ";
+                5'd15: segapcm_debug_label_char = (col == 2'd0) ? "C" : (col == 2'd1) ? "2" : " ";
+                5'd16: segapcm_debug_label_char = (col == 2'd0) ? "C" : (col == 2'd1) ? "1" : " ";
+                5'd17: segapcm_debug_label_char = (col == 2'd0) ? "C" : (col == 2'd1) ? "0" : " ";
+                5'd18: segapcm_debug_label_char = (col == 2'd0) ? "A" : (col == 2'd1) ? "P" : " ";
+                5'd19: segapcm_debug_label_char = (col == 2'd0) ? "O" : (col == 2'd1) ? "N" : " ";
+                5'd20: segapcm_debug_label_char = (col == 2'd0) ? "D" : (col == 2'd1) ? "F" : " ";
+                5'd21: segapcm_debug_label_char = (col == 2'd0) ? "Q" : (col == 2'd1) ? "H" : " ";
+                5'd22: segapcm_debug_label_char = (col == 2'd0) ? "Q" : (col == 2'd1) ? "L" : " ";
+                5'd23: segapcm_debug_label_char = (col == 2'd0) ? "B" : (col == 2'd1) ? "O" : " ";
+                5'd24: segapcm_debug_label_char = (col == 2'd0) ? "S" : (col == 2'd1) ? "M" : " ";
+                5'd25: segapcm_debug_label_char = (col == 2'd0) ? "I" : (col == 2'd1) ? "R" : " ";
+                5'd26: segapcm_debug_label_char = (col == 2'd0) ? "P" : (col == 2'd1) ? "V" : " ";
+                5'd27: segapcm_debug_label_char = (col == 2'd0) ? "F" : (col == 2'd1) ? "U" : " ";
+                5'd28: segapcm_debug_label_char = (col == 2'd0) ? "M" : (col == 2'd1) ? "O" : " ";
+                default: segapcm_debug_label_char = " ";
+            endcase
+        end
+    endfunction
+
+    function automatic [15:0] segapcm_debug_value(
+        input logic [4:0] row
+    );
+        begin
+            unique case (row)
+                5'd0: begin
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
+                    segapcm_debug_value = 16'h5A5A;
+`else
+                    segapcm_debug_value = 16'hF519;
+`endif
+                end
+                5'd1:  segapcm_debug_value = segapcm_core_rom_addr_raw_high;
+                5'd2:  segapcm_debug_value = segapcm_core_rom_addr_raw_low;
+                5'd3:  segapcm_debug_value = segapcm_core_rom_addr_mapped_high;
+                5'd4:  segapcm_debug_value = segapcm_core_rom_addr_mapped_low;
+                5'd5:  segapcm_debug_value = segapcm_core_rom_return_last01;
+                5'd6:  segapcm_debug_value = segapcm_core_rom_return_last23;
+                5'd7:  segapcm_debug_value = segapcm_core_rom_addr_max_low;
+                5'd8:  segapcm_debug_value = segapcm_core_rom_addr_max_high;
+                5'd9:  segapcm_debug_value = segapcm_core_rom_payload_len_low;
+                5'd10: segapcm_debug_value = segapcm_core_rom_return_data;
+                5'd11: segapcm_debug_value = segapcm_core_rom_preload_data;
+                5'd12: segapcm_debug_value = segapcm_core_rom_return_neutral_count;
+                5'd13: segapcm_debug_value = segapcm_core_rom_core_ok_count;
+                5'd14: segapcm_debug_value = segapcm_core_pcm_debug_bk;
+                5'd15: segapcm_debug_value = {8'd0, segapcm_core_pcm_debug_cuh[15:8]};
+                5'd16: segapcm_debug_value = {8'd0, segapcm_core_pcm_debug_cuh[7:0]};
+                5'd17: segapcm_debug_value = {8'd0, segapcm_core_pcm_debug_cul[15:8]};
+                5'd18: begin
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
+                    segapcm_debug_value = 16'h4040;
+`else
+                    segapcm_debug_value = segapcm_core_known38686_d0_value;
+`endif
+                end
+                5'd19: begin
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
+                    segapcm_debug_value = 16'h0030;
+`else
+                    segapcm_debug_value = segapcm_core_known38686_d1_addr;
+`endif
+                end
+                5'd20: begin
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
+                    segapcm_debug_value = 16'h5A5A;
+`elsif MEGAVGMDRIVE_SEGAPCM_START_INIT_TEST
+                    segapcm_debug_value = 16'hF0CE;
+`else
+                    segapcm_debug_value = 16'd0;
+`endif
+                end
+                5'd21: segapcm_debug_value = segapcm_core_rom_addr_mapped_high;
+                5'd22: segapcm_debug_value = segapcm_core_rom_addr_mapped_low;
+                5'd23: segapcm_debug_value = segapcm_core_rom_addr_max_low;
+                5'd24: segapcm_debug_value = segapcm_core_rom_return_last23;
+                5'd25: segapcm_debug_value = segapcm_core_rom_core_ok_count;
+                5'd26: segapcm_debug_value = segapcm_core_rom_fallback_count;
+                5'd27: segapcm_debug_value = segapcm_core_rom_read_valid_count;
+                5'd28: segapcm_debug_value = segapcm_core_rom_addr_max_high;
+                default: segapcm_debug_value = 16'd0;
+            endcase
+        end
+    endfunction
+
+    function automatic [7:0] mode5_debug_label_char(
+        input logic [4:0] row,
+        input logic [1:0] col
+    );
+        begin
+            if (segapcm_debug_seen) begin
+                mode5_debug_label_char = segapcm_debug_label_char(row, col);
+            end else begin
+            unique case (row)
+                5'd0:  mode5_debug_label_char = segapcm_debug_seen ? " " :
+                    (col == 2'd0) ? "S" : (col == 2'd1) ? "I" : " ";
+                5'd1:  mode5_debug_label_char = segapcm_debug_seen ? " " :
+                    (col == 2'd0) ? "L" : (col == 2'd1) ? "B" : " ";
+                5'd2:  mode5_debug_label_char = segapcm_debug_seen ? " " :
+                    (col == 2'd0) ? "L" : (col == 2'd1) ? "D" : " ";
+                5'd3:  mode5_debug_label_char = segapcm_debug_seen ? " " :
+                    (col == 2'd0) ? "S" : (col == 2'd1) ? "R" : " ";
+                5'd4:  mode5_debug_label_char = segapcm_debug_seen ? " " :
+                    (col == 2'd0) ? "S" : (col == 2'd1) ? "T" : " ";
+                5'd5:  mode5_debug_label_char = segapcm_debug_seen ? " " :
+                    (col == 2'd0) ? "P" : (col == 2'd1) ? "R" : " ";
+                5'd6:  mode5_debug_label_char = segapcm_debug_seen ? " " :
+                    (col == 2'd0) ? "D" : (col == 2'd1) ? "U" : " ";
+                5'd7:  mode5_debug_label_char = segapcm_debug_seen ? " " :
+                    (col == 2'd0) ? "P" : (col == 2'd1) ? "E" : " ";
+                5'd8:  mode5_debug_label_char = segapcm_debug_seen ? " " :
+                    (col == 2'd0) ? "E" : (col == 2'd1) ? "R" : " ";
+                5'd9:  mode5_debug_label_char = segapcm_debug_seen ? " " :
+                    (col == 2'd0) ? "A" : (col == 2'd1) ? "M" : " ";
+                5'd10: mode5_debug_label_char = segapcm_debug_seen ? " " :
+                    (col == 2'd0) ? "P" : (col == 2'd1) ? "B" : " ";
+                5'd11: mode5_debug_label_char = segapcm_debug_seen ? " " :
+                    (col == 2'd0) ? "C" : (col == 2'd1) ? "P" : " ";
+                5'd12: mode5_debug_label_char = segapcm_debug_seen ? " " :
+                    (col == 2'd0) ? "L" : (col == 2'd1) ? "C" : " ";
+                5'd13: mode5_debug_label_char = segapcm_debug_seen ? " " :
+                    (col == 2'd0) ? "D" : (col == 2'd1) ? "P" : " ";
+                5'd14: mode5_debug_label_char =
+                    segapcm_debug_seen ? ((col == 2'd0) ? "M" : (col == 2'd1) ? "K" : " ") :
+                    ((col == 2'd0) ? "D" : (col == 2'd1) ? "C" : " ");
+                5'd15: mode5_debug_label_char =
+                    segapcm_debug_seen ? ((col == 2'd0) ? "P" : (col == 2'd1) ? "A" : " ") :
+                    ((col == 2'd0) ? "D" : (col == 2'd1) ? "S" : " ");
+                5'd16: mode5_debug_label_char =
+                    segapcm_debug_seen ? ((col == 2'd0) ? "C" : (col == 2'd1) ? "A" : " ") :
+                    ((col == 2'd0) ? "F" : (col == 2'd1) ? "S" : " ");
+                5'd17: mode5_debug_label_char =
+                    segapcm_debug_seen ? ((col == 2'd0) ? "R" : (col == 2'd1) ? "Q" : " ") :
+                    ((col == 2'd0) ? "W" : (col == 2'd1) ? "T" : " ");
+                5'd18: mode5_debug_label_char =
+                    segapcm_debug_seen ? ((col == 2'd0) ? "R" : (col == 2'd1) ? "R" : " ") :
+                    ((col == 2'd0) ? "C" : (col == 2'd1) ? "Y" : " ");
+                5'd19: mode5_debug_label_char =
+                    segapcm_debug_seen ? ((col == 2'd0) ? "R" : (col == 2'd1) ? "V" : " ") :
+                    ((col == 2'd0) ? "E" : (col == 2'd1) ? "C" : " ");
+                5'd20: mode5_debug_label_char =
+                    segapcm_debug_seen ? ((col == 2'd0) ? "X" : (col == 2'd1) ? "0" : " ") :
+                    ((col == 2'd0) ? "E" : (col == 2'd1) ? "P" : " ");
+                5'd21: mode5_debug_label_char =
+                    segapcm_debug_seen ? ((col == 2'd0) ? "X" : (col == 2'd1) ? "1" : " ") :
+                    ((col == 2'd0) ? "E" : (col == 2'd1) ? "X" : " ");
+                5'd22: mode5_debug_label_char =
+                    segapcm_debug_seen ? ((col == 2'd0) ? "X" : (col == 2'd1) ? "2" : " ") :
+                    ((col == 2'd0) ? "E" : (col == 2'd1) ? "S" : " ");
+                5'd23: mode5_debug_label_char =
+                    segapcm_debug_seen ? ((col == 2'd0) ? "M" : (col == 2'd1) ? "M" : " ") :
+                    ((col == 2'd0) ? "D" : (col == 2'd1) ? "C" : " ");
+                5'd24: mode5_debug_label_char =
+                    segapcm_debug_seen ? ((col == 2'd0) ? "Q" : (col == 2'd1) ? "C" : " ") :
+                    ((col == 2'd0) ? "A" : (col == 2'd1) ? "V" : " ");
+                5'd25: mode5_debug_label_char =
+                    segapcm_debug_seen ? ((col == 2'd0) ? "O" : (col == 2'd1) ? "0" : " ") :
+                    ((col == 2'd0) ? "O" : (col == 2'd1) ? "H" : " ");
+                5'd26: mode5_debug_label_char =
+                    segapcm_debug_seen ? ((col == 2'd0) ? "O" : (col == 2'd1) ? "H" : " ") :
+                    ((col == 2'd0) ? "W" : (col == 2'd1) ? "0" : " ");
+                5'd27: mode5_debug_label_char =
+                    segapcm_debug_seen ? ((col == 2'd0) ? "B" : (col == 2'd1) ? "D" : " ") :
+                    ((col == 2'd0) ? "M" : (col == 2'd1) ? "A" : " ");
+                5'd28: mode5_debug_label_char =
+                    segapcm_debug_seen ? ((col == 2'd0) ? "A" : (col == 2'd1) ? "F" : " ") :
+                    ((col == 2'd0) ? "R" : (col == 2'd1) ? "C" : " ");
+                5'd29: mode5_debug_label_char =
+                    segapcm_debug_seen ? ((col == 2'd0) ? "H" : (col == 2'd1) ? "2" : " ") :
+                    ((col == 2'd0) ? "D" : (col == 2'd1) ? "A" : " ");
+                5'd30: mode5_debug_label_char =
+                    segapcm_debug_seen ? ((col == 2'd0) ? "A" : (col == 2'd1) ? "H" : " ") :
+                    ((col == 2'd0) ? "R" : (col == 2'd1) ? "S" : " ");
+                5'd31: mode5_debug_label_char =
+                    segapcm_debug_seen ? ((col == 2'd0) ? "A" : (col == 2'd1) ? "S" : " ") :
+                    " ";
                 default: mode5_debug_label_char = " ";
             endcase
+            end
         end
     endfunction
 
@@ -1328,40 +2043,100 @@ module emu
         input logic [4:0] row
     );
         begin
+            if (segapcm_debug_seen) begin
+                mode5_debug_value = segapcm_debug_value(row);
+            end else begin
             unique case (row)
-                5'd0:  mode5_debug_value = mode5_playback_session_id[15:0];
-                5'd1:  mode5_debug_value = mode5_load_begin_count[15:0];
-                5'd2:  mode5_debug_value = mode5_load_done_edge_count[15:0];
-                5'd3:  mode5_debug_value = mode5_sound_reset_start_count[15:0];
-                5'd4:  mode5_debug_value = mode5_player_start_count[15:0];
-                5'd5:  mode5_debug_value = mode5_player_reset_count[15:0];
-                5'd6:  mode5_debug_value = mode5_duplicate_start_blocked_count[15:0];
-                5'd7:  mode5_debug_value = mode5_player_end_count[15:0];
-                5'd8:  mode5_debug_value = {8'd0, vgm_player_error_code};
-                5'd9:  mode5_debug_value = {15'd0, audio_muted};
-                5'd10: mode5_debug_value = {15'd0, player_busy};
-                5'd11: mode5_debug_value = vgm_current_pc_debug[15:0];
-                5'd12: mode5_debug_value = {8'd0, player_last_cmd_debug};
-                5'd13: mode5_debug_value = mode5_done_pc_debug[15:0];
-                5'd14: mode5_debug_value = {8'd0, mode5_done_cmd_debug};
-                5'd15: mode5_debug_value = mode5_done_session_id[15:0];
-                5'd16: mode5_debug_value = vgm_load_size[15:0];
-                5'd17: mode5_debug_value = vgm_wait_ticks_consumed_debug[15:0];
-                5'd18: mode5_debug_value = mode5_cycles_since_start[15:0];
-                5'd19: mode5_debug_value = {8'd0, vgm_player_error_code};
-                5'd20: mode5_debug_value = vgm_error_pc_debug[15:0];
-                5'd21: mode5_debug_value = {8'd0, vgm_error_cmd_debug};
-                5'd22: mode5_debug_value = vgm_error_session_id[15:0];
-                5'd23: mode5_debug_value = dac_stream_cmd_count[15:0];
-                5'd24: mode5_debug_value = dac_stream_avg_cmd_cycles[15:0];
-                5'd25: mode5_debug_value = dac_stream_avg_overhead_cycles[15:0];
-                5'd26: mode5_debug_value = count_wait0_dac_stream_cmd[15:0];
-                5'd27: mode5_debug_value = vgm_mem_rd_addr_debug[15:0];
-                5'd28: mode5_debug_value = mode5_repeat_restart_count[15:0];
-                5'd29: mode5_debug_value = {15'd0, mode5_done_armed_debug};
-                5'd30: mode5_debug_value = mode5_repeat_session_id[15:0];
+                5'd0:  mode5_debug_value = segapcm_debug_seen ? 16'd0 : mode5_playback_session_id[15:0];
+                5'd1:  mode5_debug_value = segapcm_debug_seen ? 16'd0 : mode5_load_begin_count[15:0];
+                5'd2:  mode5_debug_value = segapcm_debug_seen ? 16'd0 : mode5_load_done_edge_count[15:0];
+                5'd3:  mode5_debug_value = segapcm_debug_seen ? 16'd0 : mode5_sound_reset_start_count[15:0];
+                5'd4:  mode5_debug_value = segapcm_debug_seen ? 16'd0 : mode5_player_start_count[15:0];
+                5'd5:  mode5_debug_value = segapcm_debug_seen ? 16'd0 : mode5_player_reset_count[15:0];
+                5'd6:  mode5_debug_value = segapcm_debug_seen ? 16'd0 : mode5_duplicate_start_blocked_count[15:0];
+                5'd7:  mode5_debug_value = segapcm_debug_seen ? 16'd0 : mode5_player_end_count[15:0];
+                5'd8:  mode5_debug_value = segapcm_debug_seen ? 16'd0 : {8'd0, vgm_player_error_code};
+                5'd9:  mode5_debug_value = segapcm_debug_seen ? 16'd0 : {15'd0, audio_muted};
+                5'd10: mode5_debug_value = segapcm_debug_seen ? 16'd0 : {15'd0, player_busy};
+                5'd11: mode5_debug_value = segapcm_debug_seen ? 16'd0 : vgm_current_pc_debug[15:0];
+                5'd12: mode5_debug_value = segapcm_debug_seen ? 16'd0 : {8'd0, player_last_cmd_debug};
+                5'd13: mode5_debug_value = segapcm_debug_seen ? 16'd0 : mode5_done_pc_debug[15:0];
+                5'd14: mode5_debug_value =
+                    segapcm_debug_seen ? 16'hF519 :
+                    {8'd0, mode5_done_cmd_debug};
+                5'd15: mode5_debug_value =
+                    segapcm_debug_seen ? vgm_scan_player_accept_count_debug :
+                    mode5_done_session_id[15:0];
+                5'd16: mode5_debug_value =
+                    segapcm_debug_seen ? vgm_scan_copy_accept_fire_count_debug :
+                    vgm_load_size[15:0];
+                5'd17: mode5_debug_value =
+                    segapcm_debug_seen ? vgm_scan_copy_read_req_count_debug :
+                    vgm_wait_ticks_consumed_debug[15:0];
+                5'd18: mode5_debug_value =
+                    segapcm_debug_seen ? vgm_scan_copy_read_accept_count_debug :
+                    mode5_cycles_since_start[15:0];
+                5'd19: mode5_debug_value =
+                    segapcm_debug_seen ? vgm_scan_copy_read_valid_count_debug :
+                    {8'd0, vgm_player_error_code};
+                5'd20: mode5_debug_value =
+                    segapcm_debug_seen ? vgm_scan_copy_request_state_debug :
+                    vgm_error_pc_debug[15:0];
+                5'd21: mode5_debug_value =
+                    segapcm_debug_seen ? vgm_scan_copy_state_lifetime_debug :
+                    {8'd0, vgm_error_cmd_debug};
+                5'd22: mode5_debug_value =
+                    segapcm_debug_seen ? {
+                        8'd0,
+                        vgm_scan_copy_phase_debug[0],
+                        vgm_scan_copy_phase_debug[1],
+                        mode5_read_mux_debug[4],
+                        vgm_scan_copy_phase_debug[3],
+                        vgm_scan_copy_phase_debug[2],
+                        (vgm_scan_copy_phase_debug[4] &
+                         vgm_scan_copy_phase_debug[5]),
+                        vgm_scan_copy_phase_debug[5],
+                        vgm_scan_copy_phase_debug[4]
+                    } :
+                    vgm_error_session_id[15:0];
+                5'd23: mode5_debug_value =
+                    segapcm_debug_seen ? {
+                        vgm_scan_copy_mem_req_cycle_count_debug[7:0],
+                        vgm_scan_copy_mem_req_ready_cycle_count_debug[7:0]
+                    } :
+                    dac_stream_cmd_count[15:0];
+                5'd24: mode5_debug_value =
+                    segapcm_debug_seen ? {
+                        8'hC0,
+                        7'd0,
+                        (vgm_scan_copy_read_req_count_debug >
+                         vgm_scan_copy_read_accept_count_debug)
+                    } :
+                    dac_stream_avg_cmd_cycles[15:0];
+                5'd25: mode5_debug_value =
+                    segapcm_debug_seen ? vgm_scan_payload_o0_debug :
+                    dac_stream_avg_overhead_cycles[15:0];
+                5'd26: mode5_debug_value =
+                    segapcm_debug_seen ? vgm_scan_payload_oh_debug :
+                    count_wait0_dac_stream_cmd[15:0];
+                5'd27: mode5_debug_value =
+                    segapcm_debug_seen ? vgm_scan_payload_bd_debug :
+                    vgm_mem_rd_addr_debug[15:0];
+                5'd28: mode5_debug_value =
+                    segapcm_debug_seen ? vgm_scan_payload_af_debug :
+                    mode5_repeat_restart_count[15:0];
+                5'd29: mode5_debug_value =
+                    segapcm_debug_seen ? vgm_scan_payload_oh2_debug :
+                    {15'd0, mode5_done_armed_debug};
+                5'd30: mode5_debug_value =
+                    segapcm_debug_seen ? vgm_scan_payload_ah_debug :
+                    mode5_repeat_session_id[15:0];
+                5'd31: mode5_debug_value =
+                    segapcm_debug_seen ? vgm_scan_payload_as_debug :
+                    16'd0;
                 default: mode5_debug_value = 16'd0;
             endcase
+            end
         end
     endfunction
 
@@ -1405,7 +2180,7 @@ module emu
         (v_count >= 9'd8) && (v_count < 9'd256);
     wire mode5_dbg_region =
         mode5_dbg_back &&
-        (mode5_dbg_row <= 5'd30) &&
+        (mode5_dbg_row <= 5'd31) &&
         (mode5_dbg_col <= 4'd6) &&
         (mode5_dbg_char_x < 3'd5) &&
         (mode5_dbg_char_y < 3'd7);
@@ -1720,6 +2495,16 @@ module emu
         dac_stream_wait_samples_total,
         max_dac_stream_cmd_cycles,
         count_wait0_overhead_nonzero,
+        segapcm_last_addr,
+        segapcm_last_data,
+        data_block_count,
+        last_data_block_type,
+        last_data_block_size_low,
+        segapcm_last_rom_size,
+        segapcm_last_rom_start,
+        pcm_ram_write_skip_count,
+        segapcm_rom_scan_total_size,
+        segapcm_rom_scan_byte_count,
         mode5_repeat_restart_count,
         mode5_done_armed_debug,
         mode5_repeat_session_id,
