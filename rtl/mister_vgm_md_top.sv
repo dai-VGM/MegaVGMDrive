@@ -92,6 +92,7 @@ module mister_vgm_md_top #(
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
     input  logic        [2:0] segapcm_smoke_variant,
     input  logic              segapcm_smoke_variant_valid,
+    input  logic              segapcm_smoke_source_loaded,
 `endif
 
     // Optional debug/status pins for early bring-up.
@@ -3074,6 +3075,16 @@ module mister_vgm_md_top #(
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
                     .smoke_variant                  (segapcm_smoke_variant),
                     .smoke_variant_valid            (segapcm_smoke_variant_valid),
+                    .smoke_source_loaded            (segapcm_smoke_source_loaded),
+                    .loaded_payload_clear           (ioctl_download),
+                    .loaded_payload_wr_valid        (segapcm_copy_wr_req &&
+                                                     segapcm_copy_wr_ready),
+                    .loaded_payload_wr_addr         (segapcm_copy_wr_addr),
+                    .loaded_payload_wr_data         (segapcm_copy_wr_data),
+                    .loaded_payload_present         (segapcm_rom_copy_flush_done &&
+                                                     (segapcm_rom_copy_byte_count != 32'd0) &&
+                                                     !segapcm_rom_copy_overflow),
+                    .loaded_payload_length          (segapcm_rom_copy_byte_count[18:0]),
 `endif
                     .audio_l                        (segapcm_audio_l),
                     .audio_r                        (segapcm_audio_r),

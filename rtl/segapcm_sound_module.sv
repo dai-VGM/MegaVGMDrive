@@ -22,6 +22,13 @@ module segapcm_sound_module #(
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
     input  logic         [2:0] smoke_variant,
     input  logic               smoke_variant_valid,
+    input  logic               smoke_source_loaded,
+    input  logic               loaded_payload_clear,
+    input  logic               loaded_payload_wr_valid,
+    input  logic        [18:0] loaded_payload_wr_addr,
+    input  logic         [7:0] loaded_payload_wr_data,
+    input  logic               loaded_payload_present,
+    input  logic        [18:0] loaded_payload_length,
 `endif
 
     output logic signed [15:0] audio_l,
@@ -246,12 +253,39 @@ module segapcm_sound_module #(
     logic [18:0] smoke_payload_addr_i;
     logic [2:0] smoke_payload_div_count_i;
     logic [2:0] smoke_variant_d_i;
+    logic smoke_source_loaded_d_i;
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_SOURCE_TEST
+    logic smoke_loaded_payload_seen_write_i;
+    logic smoke_loaded_payload_present_i;
+    logic [18:0] smoke_loaded_payload_length_i;
+    logic [7:0] smoke_loaded_payload_data_i;
+    (* ramstyle = "M10K, no_rw_check" *)
+    logic [7:0] smoke_loaded_payload_ram [0:PRELOAD_ROM_BYTES-1];
+`else
+    wire smoke_loaded_payload_present_i = 1'b0;
+    wire [18:0] smoke_loaded_payload_length_i = 19'd0;
+    wire [7:0] smoke_loaded_payload_data_i = 8'h80;
+`endif
     wire [18:0] smoke_payload_step_ext = {16'd0, smoke_payload_step};
     wire [18:0] smoke_payload_next_addr =
         smoke_payload_addr_i + smoke_payload_step_ext;
     wire [18:0] smoke_mapped_rom_addr =
         (smoke_payload_addr_i < PRELOAD_ROM_BYTES[18:0]) ?
         smoke_payload_addr_i : smoke_payload_base;
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_SOURCE_TEST
+    wire [18:0] smoke_loaded_payload_length_clamped =
+        (loaded_payload_length < PRELOAD_ROM_BYTES[18:0]) ?
+        loaded_payload_length : PRELOAD_ROM_BYTES[18:0];
+    wire smoke_loaded_payload_addr_in_range =
+        smoke_mapped_rom_addr < smoke_loaded_payload_length_i;
+    wire smoke_effective_loaded_source =
+        smoke_source_loaded &&
+        smoke_loaded_payload_present_i &&
+        (smoke_loaded_payload_length_i != 19'd0);
+`else
+    wire smoke_effective_loaded_source = 1'b0;
+`endif
+    wire smoke_effective_addr_in_range;
 `endif
     logic core_rom_cs_d2;
     logic [7:0] preload_rom_data_d;
@@ -260,6 +294,7 @@ module segapcm_sound_module #(
     logic preload_rom_addr_valid_d;
     logic preload_rom_addr_valid_d2;
     wire [7:0] selected_preload_rom_data;
+    wire [7:0] selected_rom_data_before_fallback;
     wire selected_preload_addr_valid;
     wire selected_preload_addr_in_range;
     wire preload_rom_data_valid;
@@ -698,8 +733,22 @@ module segapcm_sound_module #(
     assign selected_preload_addr_in_range =
         selected_mapped_rom_addr < PRELOAD_ROM_BYTES[18:0];
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_SOURCE_TEST
+    assign smoke_effective_addr_in_range =
+        smoke_effective_loaded_source ?
+        smoke_loaded_payload_addr_in_range : selected_preload_addr_in_range;
+`else
+    assign smoke_effective_addr_in_range = selected_preload_addr_in_range;
+`endif
+    assign selected_rom_data_before_fallback =
+        smoke_effective_loaded_source ?
+        smoke_loaded_payload_data_i : selected_preload_rom_data;
+`else
+    assign selected_rom_data_before_fallback = selected_preload_rom_data;
+`endif
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
     assign preload_rom_data_valid =
-        selected_preload_addr_valid && selected_preload_addr_in_range;
+        selected_preload_addr_valid && smoke_effective_addr_in_range;
 `else
     assign preload_rom_data_valid =
         core_rom_ok && selected_preload_addr_valid &&
@@ -707,7 +756,7 @@ module segapcm_sound_module #(
 `endif
     assign fallback_used = !preload_rom_data_valid;
     assign fallback_used_this_cycle = core_rom_ok && fallback_used;
-    assign core_rom_data = preload_rom_data_valid ? selected_preload_rom_data :
+    assign core_rom_data = preload_rom_data_valid ? selected_rom_data_before_fallback :
                            8'h80;
 
     assign rom_request_event = core_rom_cs && (!core_rom_cs_d ||
@@ -717,8 +766,13 @@ module segapcm_sound_module #(
                                    (core_dbg_bank_channel_state[3:0] == 4'd8);
     assign rom_return_event = core_rom_ok;
     assign rom_addr_low_debug = {core_rom_addr[7:0], mapped_rom_addr[7:0]};
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
+    assign rom_addr_raw_high_debug = {15'd0, smoke_source_loaded};
+    assign rom_addr_raw_low_debug = {15'd0, smoke_loaded_payload_present_i};
+`else
     assign rom_addr_raw_high_debug = {13'd0, core_rom_addr[18:16]};
     assign rom_addr_raw_low_debug = core_rom_addr[15:0];
+`endif
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
     assign rom_addr_mapped_high_debug = {13'd0, smoke_variant_active};
     assign rom_addr_mapped_low_debug = smoke_payload_last[15:0];
@@ -754,13 +808,21 @@ module segapcm_sound_module #(
     assign rom_return_mapped_high_debug = {13'd0, last_return_mapped_addr_i[18:16]};
     assign rom_return_mapped_low_debug = last_return_mapped_addr_i[15:0];
     assign rom_return_data_debug = {8'd0, last_return_data_i};
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
+    assign rom_return_last01_debug = smoke_loaded_payload_length_i[15:0];
+`else
     assign rom_return_last01_debug = mapped_rom_addr[15:0];
+`endif
     assign rom_return_last23_debug = selected_mapped_rom_addr[15:0];
     assign rom_return_nonzero_count_debug = {15'd0, core_rom_cs};
     assign rom_return_change_count_debug = {15'd0, core_rom_ok};
     assign rom_return_neutral_count_debug = {15'd0, selected_preload_addr_valid};
-    assign rom_preload_data_debug = {8'd0, selected_preload_rom_data};
+    assign rom_preload_data_debug = {8'd0, selected_rom_data_before_fallback};
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
+    assign rom_core_ok_count_debug = {15'd0, smoke_effective_addr_in_range};
+`else
     assign rom_core_ok_count_debug = {15'd0, selected_preload_addr_in_range};
+`endif
     assign rom_fallback_count_debug = {15'd0, preload_rom_data_valid};
     assign rom_read_valid_count_debug = {15'd0, fallback_used_this_cycle};
     assign rom_latency_debug = {
@@ -773,8 +835,18 @@ module segapcm_sound_module #(
         core_rom_ok,
         core_rom_cs
     };
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
+    assign rom_payload_len_low_debug =
+        smoke_effective_loaded_source ?
+        smoke_loaded_payload_length_i[15:0] : PRELOAD_ROM_BYTES[15:0];
+    assign rom_payload_len_high_debug =
+        smoke_effective_loaded_source ?
+        {13'd0, smoke_loaded_payload_length_i[18:16]} :
+        PRELOAD_ROM_BYTES[31:16];
+`else
     assign rom_payload_len_low_debug = PRELOAD_ROM_BYTES[15:0];
     assign rom_payload_len_high_debug = PRELOAD_ROM_BYTES[31:16];
+`endif
     assign pcm_debug_bank_channel = core_dbg_bank_channel_state;
     assign pcm_debug_cur_addr_high = core_dbg_cur_addr_high;
     assign pcm_debug_cur_addr_low_state = core_dbg_cur_addr_low_state;
@@ -902,6 +974,7 @@ module segapcm_sound_module #(
             smoke_payload_addr_i <= smoke_payload_base;
             smoke_payload_div_count_i <= 3'd0;
             smoke_variant_d_i <= smoke_variant_active;
+            smoke_source_loaded_d_i <= smoke_source_loaded;
 `endif
             preload_rom_data_d <= 8'd0;
             preload_rom_data_d2 <= 8'd0;
@@ -975,10 +1048,12 @@ module segapcm_sound_module #(
             mapped_rom_addr_d <= mapped_rom_addr;
             mapped_rom_addr_d2 <= mapped_rom_addr_d;
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
-            if (smoke_variant_d_i != smoke_variant_active) begin
+            if ((smoke_variant_d_i != smoke_variant_active) ||
+                (smoke_source_loaded_d_i != smoke_source_loaded)) begin
                 smoke_payload_addr_i <= smoke_payload_base;
                 smoke_payload_div_count_i <= 3'd0;
                 smoke_variant_d_i <= smoke_variant_active;
+                smoke_source_loaded_d_i <= smoke_source_loaded;
             end else if (ch3_rom_request_event) begin
                 if ((smoke_step_divider <= 3'd1) ||
                     (smoke_payload_div_count_i >= (smoke_step_divider - 3'd1))) begin
@@ -1254,6 +1329,37 @@ module segapcm_sound_module #(
             end
         end
     end
+
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_SOURCE_TEST
+    always_ff @(posedge clk) begin
+        if (reset || loaded_payload_clear) begin
+            smoke_loaded_payload_seen_write_i <= 1'b0;
+            smoke_loaded_payload_present_i <= 1'b0;
+            smoke_loaded_payload_length_i <= 19'd0;
+            smoke_loaded_payload_data_i <= 8'h80;
+        end else begin
+            smoke_loaded_payload_data_i <=
+                smoke_loaded_payload_ram[smoke_mapped_rom_addr];
+
+            if (loaded_payload_wr_valid &&
+                (loaded_payload_wr_addr < PRELOAD_ROM_BYTES[18:0])) begin
+                smoke_loaded_payload_ram[loaded_payload_wr_addr] <=
+                    loaded_payload_wr_data;
+                smoke_loaded_payload_seen_write_i <= 1'b1;
+            end
+
+            if (loaded_payload_present &&
+                smoke_loaded_payload_seen_write_i &&
+                (smoke_loaded_payload_length_clamped != 19'd0)) begin
+                smoke_loaded_payload_present_i <= 1'b1;
+                smoke_loaded_payload_length_i <=
+                    smoke_loaded_payload_length_clamped;
+            end
+        end
+    end
+`endif
+`endif
 
     segapcm_preload_rom #(
         .ROM_BYTES(PRELOAD_ROM_BYTES)

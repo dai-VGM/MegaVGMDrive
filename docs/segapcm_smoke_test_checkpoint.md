@@ -35,6 +35,16 @@ All smoke behavior is guarded by:
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
 ```
 
+The experimental loaded-payload smoke source is additionally guarded by:
+
+```verilog
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_SOURCE_TEST
+```
+
+This second macro is intentionally off by default. It owns the local mirror used
+to store accepted type-`0x80` payload bytes, so leaving it off prevents Quartus
+from allocating that experimental storage in normal smoke builds.
+
 The current QSF enables the macro for this checkpoint build:
 
 ```tcl
@@ -67,15 +77,26 @@ Runtime OSD selection now chooses the active smoke control variant in one RBF:
 
 ```verilog
 status[4:2] -> segapcm_smoke_variant[2:0]
+status[5]   -> segapcm_smoke_source_loaded
 ```
 
-The smoke OSD row is:
+The smoke OSD rows are:
 
 ```text
 SegaPCM Smoke: 0 Base, 1 Slow, 2 Step2, 3 Step4, 4 LowVol, 5 Left, 6 Right, 7 Short
+SegaPCM Smoke Source: Preload, Loaded
 ```
 
 `MEGAVGMDRIVE_SEGAPCM_SMOKE_VARIANT` remains as a guarded compile-time fallback/default for non-OSD harnesses, but normal hardware listening tests should use the OSD selector instead of rebuilding the QSF/RBF for each variant.
+
+Smoke source behavior:
+
+- source `0` / Preload is the default and keeps using the RBF-preloaded known-good payload ROM
+- source `1` / Loaded is selectable in the OSD, but with `MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_SOURCE_TEST` off it falls back to the Preload source and reports no loaded payload present
+- when `MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_SOURCE_TEST` is explicitly enabled, source `1` / Loaded reads from a smoke-only local mirror of accepted VGM type-`0x80` SegaPCM payload copy bytes
+- the smoke channel/control state remains forced; VGM C0 register writes are still ignored in smoke mode
+- if Loaded is selected before a type-`0x80` payload has been copied, `LP=0` and the smoke path falls back to Preload
+- when enabled, the local loaded mirror stores the first `PRELOAD_ROM_BYTES` bytes, which covers the current smoke windows around `0x2600`
 
 | Variant | Purpose | Delta | Volume L/R | Payload window |
 | --- | --- | --- | --- | --- |
@@ -98,16 +119,38 @@ Expected hardware checks:
 - variant `6` should be right-only
 - variant `7` should sound more periodic or loop-like
 
+Hardware listening notes:
+
+- variant `0`: baseline continuous zaaa/vibrato-like texture
+- variant `1`: rough low-rate diesel-engine-like texture
+- variants `2` / `3`: audibly different but strange/high-rate noise texture
+- variant `4`: machine-gun/retrigger-like texture
+- pan variants work; left/right behavior is confirmed
+- runtime OSD selector works in one RBF
+
+These observations confirm that the smoke payload step/window/AP controls affect audible output.
+
+Expected smoke source checks:
+
+- Source `Preload`: behavior should match the existing smoke baseline exactly
+- Source `Loaded` with `MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_SOURCE_TEST` off: `SC=0001`, `LP=0000`, and the path should keep running via the Preload fallback
+- Source `Loaded` with the loaded-source macro on and a copied SegaPCM type-`0x80` payload: sound should change depending on the loaded VGM payload
+- Source `Loaded` with the loaded-source macro on but without a copied SegaPCM type-`0x80` payload: `SC=0001`, `LP=0000`, and the path should keep running via the Preload fallback
+- With a valid loaded payload, `DA=MD`, `PV=0001`, and `FU=0000` should remain true
+
 ## Overlay Rows Of Interest
 
 - `SK`: smoke marker, expected `5A5A`
+- `SC`: smoke source, `0000` = Preload, `0001` = Loaded
 - `SV`: smoke variant number
+- `LP`: loaded payload present
+- `LL` / `LH`: loaded payload length low/high
 - `LM` / `SM`: smoke mapped payload index, expected `0x2xxx`
 - `PS` / `PE`: smoke payload start/end
 - `SS`: smoke payload address step
 - `SD`: smoke step divider
 - `DA`: final byte delivered to `jtoutrun_pcm`
-- `MD`: preload ROM byte before final mux
+- `MD`: active smoke source byte before final mux
 - `PV`: preload valid, expected `0001`
 - `FU`: fallback used, expected `0000`
 - `AP`: forced smoke volume/pan display, expected `4040`, `2020`, `4000`, or `0040` depending on variant

@@ -646,6 +646,7 @@ module emu
         "O1,Audio Gain,Normal,Boost;",
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
         "O24,SegaPCM Smoke,0 Base,1 Slow,2 Step2,3 Step4,4 LowVol,5 Left,6 Right,7 Short;",
+        "O5,SegaPCM Smoke Source,Preload,Loaded;",
 `endif
         "-;",
         "R0,Reset;",
@@ -1153,6 +1154,7 @@ module emu
     wire [1:0] audio_psg_level = 2'd0;
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
     wire [2:0] segapcm_smoke_variant = status[4:2];
+    wire       segapcm_smoke_source_loaded = status[5];
 `endif
 
     wire               audio_sample_valid;
@@ -1195,6 +1197,7 @@ module emu
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
         .segapcm_smoke_variant (segapcm_smoke_variant),
         .segapcm_smoke_variant_valid(1'b1),
+        .segapcm_smoke_source_loaded(segapcm_smoke_source_loaded),
 `endif
         .player_busy           (player_busy),
         .player_done           (player_done),
@@ -1854,8 +1857,20 @@ module emu
         begin
             unique case (row)
                 5'd0:  segapcm_debug_label_char = (col == 2'd0) ? "S" : (col == 2'd1) ? "K" : " ";
-                5'd1:  segapcm_debug_label_char = (col == 2'd0) ? "L" : (col == 2'd1) ? "H" : " ";
-                5'd2:  segapcm_debug_label_char = (col == 2'd0) ? "L" : (col == 2'd1) ? "L" : " ";
+                5'd1: begin
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
+                    segapcm_debug_label_char = (col == 2'd0) ? "S" : (col == 2'd1) ? "C" : " ";
+`else
+                    segapcm_debug_label_char = (col == 2'd0) ? "L" : (col == 2'd1) ? "H" : " ";
+`endif
+                end
+                5'd2: begin
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
+                    segapcm_debug_label_char = (col == 2'd0) ? "L" : (col == 2'd1) ? "P" : " ";
+`else
+                    segapcm_debug_label_char = (col == 2'd0) ? "L" : (col == 2'd1) ? "L" : " ";
+`endif
+                end
                 5'd3: begin
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
                     segapcm_debug_label_char = (col == 2'd0) ? "S" : (col == 2'd1) ? "V" : " ";
@@ -1870,8 +1885,20 @@ module emu
                     segapcm_debug_label_char = (col == 2'd0) ? "Q" : (col == 2'd1) ? "L" : " ";
 `endif
                 end
-                5'd5:  segapcm_debug_label_char = (col == 2'd0) ? "L" : (col == 2'd1) ? "M" : " ";
-                5'd6:  segapcm_debug_label_char = (col == 2'd0) ? "S" : (col == 2'd1) ? "M" : " ";
+                5'd5: begin
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
+                    segapcm_debug_label_char = (col == 2'd0) ? "L" : (col == 2'd1) ? "L" : " ";
+`else
+                    segapcm_debug_label_char = (col == 2'd0) ? "L" : (col == 2'd1) ? "M" : " ";
+`endif
+                end
+                5'd6: begin
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
+                    segapcm_debug_label_char = (col == 2'd0) ? "L" : (col == 2'd1) ? "H" : " ";
+`else
+                    segapcm_debug_label_char = (col == 2'd0) ? "S" : (col == 2'd1) ? "M" : " ";
+`endif
+                end
                 5'd7: begin
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
                     segapcm_debug_label_char = (col == 2'd0) ? "P" : (col == 2'd1) ? "S" : " ";
@@ -1958,7 +1985,13 @@ module emu
                 5'd3:  segapcm_debug_value = segapcm_core_rom_addr_mapped_high;
                 5'd4:  segapcm_debug_value = segapcm_core_rom_addr_mapped_low;
                 5'd5:  segapcm_debug_value = segapcm_core_rom_return_last01;
-                5'd6:  segapcm_debug_value = segapcm_core_rom_return_last23;
+                5'd6: begin
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
+                    segapcm_debug_value = segapcm_core_rom_payload_len_high;
+`else
+                    segapcm_debug_value = segapcm_core_rom_return_last23;
+`endif
+                end
                 5'd7:  segapcm_debug_value = segapcm_core_rom_addr_max_low;
                 5'd8:  segapcm_debug_value = segapcm_core_rom_addr_max_high;
                 5'd9:  segapcm_debug_value = segapcm_core_rom_payload_len_low;
