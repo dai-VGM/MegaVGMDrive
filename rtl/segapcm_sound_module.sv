@@ -256,11 +256,26 @@ module segapcm_sound_module #(
     logic [2:0] smoke_variant_d_i;
     logic smoke_source_loaded_d_i;
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_TINY_RAM_TEST
-    localparam int unsigned SMOKE_LOADED_RAM_BYTES = 256;
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_1K_TEST
+    localparam int unsigned SMOKE_LOADED_RAM_DEPTH_LOG2_CFG = 10;
+`elsif MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_512B_TEST
+    localparam int unsigned SMOKE_LOADED_RAM_DEPTH_LOG2_CFG = 9;
+`elsif MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_RAM_DEPTH_LOG2
+    localparam int unsigned SMOKE_LOADED_RAM_DEPTH_LOG2_CFG =
+        `MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_RAM_DEPTH_LOG2;
+`else
+    localparam int unsigned SMOKE_LOADED_RAM_DEPTH_LOG2_CFG = 8;
+`endif
     localparam int unsigned SMOKE_LOADED_RAM_ADDR_BITS =
-        $clog2(SMOKE_LOADED_RAM_BYTES);
+        (SMOKE_LOADED_RAM_DEPTH_LOG2_CFG < 8) ? 8 :
+        (SMOKE_LOADED_RAM_DEPTH_LOG2_CFG > 10) ? 10 :
+        SMOKE_LOADED_RAM_DEPTH_LOG2_CFG;
+    localparam int unsigned SMOKE_LOADED_RAM_BYTES =
+        (1 << SMOKE_LOADED_RAM_ADDR_BITS);
     localparam logic [18:0] SMOKE_LOADED_RAM_BYTES_19 =
         SMOKE_LOADED_RAM_BYTES[18:0];
+    localparam logic [15:0] SMOKE_LOADED_RAM_DEPTH_LOG2_DEBUG =
+        SMOKE_LOADED_RAM_ADDR_BITS;
     logic smoke_loaded_payload_seen_write_i;
     logic smoke_loaded_payload_present_i;
     logic [18:0] smoke_loaded_payload_length_i;
@@ -976,7 +991,7 @@ module segapcm_sound_module #(
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_TINY_RAM_TEST
     assign rom_payload_len_low_debug = loaded_payload_length[15:0];
-    assign rom_payload_len_high_debug = {13'd0, loaded_payload_length[18:16]};
+    assign rom_payload_len_high_debug = SMOKE_LOADED_RAM_DEPTH_LOG2_DEBUG;
 `elsif MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_TAP_ONLY_TEST
     assign rom_payload_len_low_debug = loaded_payload_length[15:0];
     assign rom_payload_len_high_debug = {13'd0, loaded_payload_length[18:16]};

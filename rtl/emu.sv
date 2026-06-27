@@ -1886,6 +1886,7 @@ module emu
                     5'd12: segapcm_debug_label_char = (col == 2'd0) ? "M" : (col == 2'd1) ? "D" : " ";
                     5'd13: segapcm_debug_label_char = (col == 2'd0) ? "P" : (col == 2'd1) ? "V" : " ";
                     5'd14: segapcm_debug_label_char = (col == 2'd0) ? "F" : (col == 2'd1) ? "U" : " ";
+                    5'd15: segapcm_debug_label_char = (col == 2'd0) ? "L" : (col == 2'd1) ? "S" : " ";
                     5'd18: segapcm_debug_label_char = (col == 2'd0) ? "A" : (col == 2'd1) ? "P" : " ";
                     5'd19: segapcm_debug_label_char = (col == 2'd0) ? "O" : (col == 2'd1) ? "N" : " ";
 `elsif MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_TAP_ONLY_TEST
@@ -2102,6 +2103,7 @@ module emu
                     5'd12: segapcm_debug_value = segapcm_core_rom_preload_data;
                     5'd13: segapcm_debug_value = segapcm_core_rom_fallback_count;
                     5'd14: segapcm_debug_value = segapcm_core_rom_read_valid_count;
+                    5'd15: segapcm_debug_value = segapcm_core_rom_payload_len_high;
                     5'd18: segapcm_debug_value = segapcm_core_known38686_d0_value;
                     5'd19: segapcm_debug_value = segapcm_core_known38686_d1_addr;
 `elsif MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_TAP_ONLY_TEST
