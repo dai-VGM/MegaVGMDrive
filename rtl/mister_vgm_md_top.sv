@@ -785,6 +785,7 @@ module mister_vgm_md_top #(
             logic [15:0] smoke_ddr_write_count_debug;
             logic [15:0] smoke_ddr_write_blocked_count_debug;
             logic [15:0] smoke_ddr_write_status_debug;
+            logic [15:0] smoke_ddr_header_skip_count_debug;
             logic [15:0] smoke_ddr_last_write_index_debug;
             logic [15:0] smoke_ddr_last_write_addr_debug;
             logic [15:0] smoke_ddr_last_write_lane_debug;
@@ -2858,6 +2859,7 @@ module mister_vgm_md_top #(
                 assign smoke_ddr_write_count_debug = 16'd0;
                 assign smoke_ddr_write_blocked_count_debug = 16'd0;
                 assign smoke_ddr_write_status_debug = 16'd0;
+                assign smoke_ddr_header_skip_count_debug = 16'd0;
                 assign smoke_ddr_last_write_index_debug = 16'd0;
                 assign smoke_ddr_last_write_addr_debug = 16'd0;
                 assign smoke_ddr_last_write_lane_debug = 16'd0;
@@ -2939,6 +2941,9 @@ module mister_vgm_md_top #(
                     .segapcm_read_gate_debug(backend_read_gate_debug),
                     .segapcm_read_after_copy_count_debug(backend_read_after_copy_count_debug),
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_TEST
+                    .smoke_ddr_payload_tap_valid(segapcm_payload_tap_valid),
+                    .smoke_ddr_payload_tap_addr(segapcm_payload_tap_addr),
+                    .smoke_ddr_payload_tap_data(segapcm_payload_tap_data),
                     .smoke_ddr_rd_req(smoke_ddr_rd_req),
                     .smoke_ddr_rd_ready(smoke_ddr_rd_ready),
                     .smoke_ddr_rd_addr(smoke_ddr_rd_addr),
@@ -2950,6 +2955,7 @@ module mister_vgm_md_top #(
                     .smoke_ddr_write_count_debug(smoke_ddr_write_count_debug),
                     .smoke_ddr_write_blocked_count_debug(smoke_ddr_write_blocked_count_debug),
                     .smoke_ddr_write_status_debug(smoke_ddr_write_status_debug),
+                    .smoke_ddr_header_skip_count_debug(smoke_ddr_header_skip_count_debug),
                     .smoke_ddr_last_write_index_debug(smoke_ddr_last_write_index_debug),
                     .smoke_ddr_last_write_addr_debug(smoke_ddr_last_write_addr_debug),
                     .smoke_ddr_last_write_lane_debug(smoke_ddr_last_write_lane_debug),
@@ -3014,6 +3020,7 @@ module mister_vgm_md_top #(
                 assign smoke_ddr_write_count_debug = 16'd0;
                 assign smoke_ddr_write_blocked_count_debug = 16'd0;
                 assign smoke_ddr_write_status_debug = 16'd0;
+                assign smoke_ddr_header_skip_count_debug = 16'd0;
                 assign smoke_ddr_last_write_index_debug = 16'd0;
                 assign smoke_ddr_last_write_addr_debug = 16'd0;
                 assign smoke_ddr_last_write_lane_debug = 16'd0;
@@ -3281,6 +3288,7 @@ module mister_vgm_md_top #(
                     .loaded_ddr_write_count_debug   (smoke_ddr_write_count_debug),
                     .loaded_ddr_write_blocked_count_debug(smoke_ddr_write_blocked_count_debug),
                     .loaded_ddr_write_status_debug  (smoke_ddr_write_status_debug),
+                    .loaded_ddr_header_skip_count_debug(smoke_ddr_header_skip_count_debug),
                     .loaded_ddr_last_write_index_debug(smoke_ddr_last_write_index_debug),
                     .loaded_ddr_last_write_addr_debug(smoke_ddr_last_write_addr_debug),
                     .loaded_ddr_last_write_lane_debug(smoke_ddr_last_write_lane_debug),
