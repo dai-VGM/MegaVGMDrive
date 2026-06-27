@@ -94,12 +94,16 @@ The hardware-facing tiny RAM depth is selected with explicit boolean macros:
 ```verilog
 `define MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_512B_TEST 1
 `define MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_1K_TEST 1
+`define MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_2K_TEST 1
+`define MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_4K_TEST 1
 ```
 
-Leave both undefined for the proven 256-byte baseline. Define
+Leave all size macros undefined for the proven 256-byte baseline. Define
 `MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_512B_TEST` for 512 bytes or
-`MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_1K_TEST` for 1024 bytes. If both are
-defined, the 1 KiB macro wins. The numeric
+`MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_1K_TEST` for 1024 bytes. Define
+`MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_2K_TEST` for 2048 bytes or
+`MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_4K_TEST` for 4096 bytes. If multiple size
+macros are defined, priority is `4K`, then `2K`, then `1K`, then `512B`. The numeric
 `MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_RAM_DEPTH_LOG2` selector is still accepted as
 a simulation/backstop knob, but hardware experiments should use the explicit
 boolean macros.
@@ -205,6 +209,8 @@ Expected smoke source checks:
   - no size macro: `LS=0008`, `LP=0001`, `LC=0100`, `WA=00FF`, and sound should change to a 256-byte loop
   - `MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_512B_TEST`: `LS=0009`, `LP=0001`, `LC=0200`, `WA=01FF`, and sound should change to a 512-byte loop
   - `MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_1K_TEST`: `LS=000A`, `LP=0001`, `LC=0400`, `WA=03FF`, and sound should change to a 1024-byte loop
+  - `MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_2K_TEST`: `LS=000B`, `LP=0001`, `LC=0800`, `WA=07FF`, and sound should change to a 2048-byte loop
+  - `MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_4K_TEST`: `LS=000C`, `LP=0001`, `LC=1000`, `WA=0FFF`, and sound should change to a 4096-byte loop
 - Source `Loaded` with `MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_SMALL_RAM_TEST` on and a copied SegaPCM type-`0x80` payload: `LP=0001`, `LL=4000`, `LH=0000`, and sound should change depending on the loaded VGM payload
 - Source `Loaded` with the small RAM macro on but without a copied SegaPCM type-`0x80` payload: `SC=0001`, `LP=0000`, and the path should keep running via the Preload fallback
 - With a valid loaded payload, `DA=MD`, `PV=0001`, and `FU=0000` should remain true
@@ -275,7 +281,7 @@ is enabled:
 | 12 | `MD` | memory/source byte before fallback mux |
 | 13 | `PV` | preload/data valid flag |
 | 14 | `FU` | fallback used flag |
-| 15 | `LS` | tiny RAM depth log2, expected `0008`, `0009`, or `000A` |
+| 15 | `LS` | tiny RAM depth log2, expected `0008` through `000C` |
 | 18 | `AP` | forced smoke volume/pan display |
 | 19 | `ON` | forced smoke cfg display |
 

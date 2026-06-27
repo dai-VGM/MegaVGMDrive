@@ -256,7 +256,11 @@ module segapcm_sound_module #(
     logic [2:0] smoke_variant_d_i;
     logic smoke_source_loaded_d_i;
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_TINY_RAM_TEST
-`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_1K_TEST
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_4K_TEST
+    localparam int unsigned SMOKE_LOADED_RAM_DEPTH_LOG2_CFG = 12;
+`elsif MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_2K_TEST
+    localparam int unsigned SMOKE_LOADED_RAM_DEPTH_LOG2_CFG = 11;
+`elsif MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_1K_TEST
     localparam int unsigned SMOKE_LOADED_RAM_DEPTH_LOG2_CFG = 10;
 `elsif MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_512B_TEST
     localparam int unsigned SMOKE_LOADED_RAM_DEPTH_LOG2_CFG = 9;
@@ -268,7 +272,7 @@ module segapcm_sound_module #(
 `endif
     localparam int unsigned SMOKE_LOADED_RAM_ADDR_BITS =
         (SMOKE_LOADED_RAM_DEPTH_LOG2_CFG < 8) ? 8 :
-        (SMOKE_LOADED_RAM_DEPTH_LOG2_CFG > 10) ? 10 :
+        (SMOKE_LOADED_RAM_DEPTH_LOG2_CFG > 12) ? 12 :
         SMOKE_LOADED_RAM_DEPTH_LOG2_CFG;
     localparam int unsigned SMOKE_LOADED_RAM_BYTES =
         (1 << SMOKE_LOADED_RAM_ADDR_BITS);
