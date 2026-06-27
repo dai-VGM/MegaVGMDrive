@@ -85,11 +85,12 @@ set_global_assignment -name VERILOG_MACRO "MEGAVGMDRIVE_YM2151_MODE_TEST=1"
 set_global_assignment -name VERILOG_MACRO "MEGAVGMDRIVE_SEGAPCM_START_INIT_TEST=1"
 set_global_assignment -name VERILOG_MACRO "MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST=1"
 set_global_assignment -name VERILOG_MACRO "MEGAVGMDRIVE_SEGAPCM_SMOKE_VARIANT=0"
-set_global_assignment -name VERILOG_MACRO "MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_TINY_RAM_TEST=1"
+set_global_assignment -name VERILOG_MACRO "MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_TEST=1"
+#set_global_assignment -name VERILOG_MACRO "MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_TINY_RAM_TEST=1"
 # Optional tiny loaded RAM depth selectors: default=256B, 512B, 1KiB, 2KiB, or 4KiB.
 #set_global_assignment -name VERILOG_MACRO "MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_512B_TEST=1"
 #set_global_assignment -name VERILOG_MACRO "MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_1K_TEST=1"
-set_global_assignment -name VERILOG_MACRO "MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_2K_TEST=1"
+#set_global_assignment -name VERILOG_MACRO "MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_2K_TEST=1"
 #set_global_assignment -name VERILOG_MACRO "MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_4K_TEST=1"
 # Numeric selector retained for simulation/backstop only; do not depend on it
 # for Quartus hardware experiments.

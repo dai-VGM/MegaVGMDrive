@@ -144,6 +144,26 @@ module tb_mister_vgm_md_top;
     // smoke test; md_sound_module derives its internal enables from this clock.
     always #5 clk = ~clk;
 
+    always @(posedge clk) begin
+        if (dut.loaded_vgm_mode.mode5_term_valid_i &&
+            (dut.loaded_vgm_mode.mode5_term_pl_i == 16'h5a00) &&
+            (dut.loaded_vgm_mode.mode5_term_rm_i == 16'h5a00) &&
+            (dut.loaded_vgm_mode.mode5_term_cc_i == 16'h0000) &&
+            (dut.loaded_vgm_mode.mode5_term_nx_i == 16'h59ff) &&
+            dut.loaded_vgm_mode.mode5_term_be_i[0] &&
+            dut.loaded_vgm_mode.mode5_term_be_i[4]) begin
+            if (dut.loaded_vgm_mode.mode5_term_be_i[5] || dut.loaded_vgm_mode.mode5_term_be_i[6] ||
+                dut.loaded_vgm_mode.mode5_idle_fallthrough_live ||
+                !dut.loaded_vgm_mode.mode5_segapcm_copy_continue_guard) begin
+                $display("FAIL SegaPCM continue copy allowed idle/default clear BE=%04h guard=%0b idle=%0b",
+                         dut.loaded_vgm_mode.mode5_term_be_i,
+                         dut.loaded_vgm_mode.mode5_segapcm_copy_continue_guard,
+                         dut.loaded_vgm_mode.mode5_idle_fallthrough_live);
+                $finish;
+            end
+        end
+    end
+
     initial begin
 `ifdef TEST_MISTER_TOP_MODE3_120K
         audio_file = $fopen("/tmp/mister_vgm_md_top_mode3_top_path_120k.txt", "w");

@@ -773,6 +773,31 @@ module mister_vgm_md_top #(
             logic [18:0] segapcm_payload_tap_addr;
             logic [7:0] segapcm_payload_tap_data;
             logic [31:0] segapcm_payload_tap_byte_count;
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_TEST
+            logic smoke_ddr_rd_req;
+            logic smoke_ddr_rd_ready;
+            logic [18:0] smoke_ddr_rd_addr;
+            logic smoke_ddr_rd_valid;
+            logic [7:0] smoke_ddr_rd_data;
+            logic smoke_ddr_payload_present;
+            logic [18:0] smoke_ddr_payload_length;
+            logic [15:0] smoke_ddr_write_req_count_debug;
+            logic [15:0] smoke_ddr_write_count_debug;
+            logic [15:0] smoke_ddr_write_blocked_count_debug;
+            logic [15:0] smoke_ddr_write_status_debug;
+            logic [15:0] smoke_ddr_last_write_index_debug;
+            logic [15:0] smoke_ddr_last_write_addr_debug;
+            logic [15:0] smoke_ddr_last_write_lane_debug;
+            logic [7:0] smoke_ddr_last_write_data_debug;
+            logic [15:0] smoke_ddr_read_count_debug;
+            logic [15:0] smoke_ddr_last_read_index_debug;
+            logic [15:0] smoke_ddr_last_read_addr_debug;
+            logic [15:0] smoke_ddr_last_read_lane_debug;
+            logic [15:0] smoke_ddr_last_read_word0_debug;
+            logic [15:0] smoke_ddr_last_read_word1_debug;
+            logic [7:0] smoke_ddr_last_read_data_debug;
+            logic [15:0] smoke_ddr_base_addr_debug;
+`endif
             logic load_done_pulse;
             logic play_ready_pulse;
             logic ym_cmd_valid;
@@ -2815,6 +2840,37 @@ module mister_vgm_md_top #(
                 assign backend_copy_write_req_debug = 16'd0;
                 assign backend_copy_word_debug = 16'd0;
                 assign backend_copy_flush_debug = 16'd0;
+                assign backend_copy_full_detect_count_debug = 16'd0;
+                assign backend_copy_push_req_count_debug = 16'd0;
+                assign backend_copy_push_fire_count_debug = 16'd0;
+                assign backend_copy_fifo_push_count_debug = 16'd0;
+                assign backend_copy_pack_ready_debug = 16'd0;
+                assign backend_copy_post_push_debug = 16'd0;
+                assign backend_read_gate_debug = 16'd0;
+                assign backend_read_after_copy_count_debug = 16'd0;
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_TEST
+                assign smoke_ddr_rd_ready = 1'b0;
+                assign smoke_ddr_rd_valid = 1'b0;
+                assign smoke_ddr_rd_data = 8'h80;
+                assign smoke_ddr_payload_present = 1'b0;
+                assign smoke_ddr_payload_length = 19'd0;
+                assign smoke_ddr_write_req_count_debug = 16'd0;
+                assign smoke_ddr_write_count_debug = 16'd0;
+                assign smoke_ddr_write_blocked_count_debug = 16'd0;
+                assign smoke_ddr_write_status_debug = 16'd0;
+                assign smoke_ddr_last_write_index_debug = 16'd0;
+                assign smoke_ddr_last_write_addr_debug = 16'd0;
+                assign smoke_ddr_last_write_lane_debug = 16'd0;
+                assign smoke_ddr_last_write_data_debug = 8'd0;
+                assign smoke_ddr_read_count_debug = 16'd0;
+                assign smoke_ddr_last_read_index_debug = 16'd0;
+                assign smoke_ddr_last_read_addr_debug = 16'd0;
+                assign smoke_ddr_last_read_lane_debug = 16'd0;
+                assign smoke_ddr_last_read_word0_debug = 16'd0;
+                assign smoke_ddr_last_read_word1_debug = 16'd0;
+                assign smoke_ddr_last_read_data_debug = 8'd0;
+                assign smoke_ddr_base_addr_debug = 16'd0;
+`endif
 
                 vgm_bram_read_adapter #(
                     .ADDR_WIDTH       (VGM_LOAD_ADDR_WIDTH)
@@ -2882,6 +2938,31 @@ module mister_vgm_md_top #(
                     .segapcm_copy_post_push_debug(backend_copy_post_push_debug),
                     .segapcm_read_gate_debug(backend_read_gate_debug),
                     .segapcm_read_after_copy_count_debug(backend_read_after_copy_count_debug),
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_TEST
+                    .smoke_ddr_rd_req(smoke_ddr_rd_req),
+                    .smoke_ddr_rd_ready(smoke_ddr_rd_ready),
+                    .smoke_ddr_rd_addr(smoke_ddr_rd_addr),
+                    .smoke_ddr_rd_valid(smoke_ddr_rd_valid),
+                    .smoke_ddr_rd_data(smoke_ddr_rd_data),
+                    .smoke_ddr_payload_present(smoke_ddr_payload_present),
+                    .smoke_ddr_payload_length(smoke_ddr_payload_length),
+                    .smoke_ddr_write_req_count_debug(smoke_ddr_write_req_count_debug),
+                    .smoke_ddr_write_count_debug(smoke_ddr_write_count_debug),
+                    .smoke_ddr_write_blocked_count_debug(smoke_ddr_write_blocked_count_debug),
+                    .smoke_ddr_write_status_debug(smoke_ddr_write_status_debug),
+                    .smoke_ddr_last_write_index_debug(smoke_ddr_last_write_index_debug),
+                    .smoke_ddr_last_write_addr_debug(smoke_ddr_last_write_addr_debug),
+                    .smoke_ddr_last_write_lane_debug(smoke_ddr_last_write_lane_debug),
+                    .smoke_ddr_last_write_data_debug(smoke_ddr_last_write_data_debug),
+                    .smoke_ddr_read_count_debug(smoke_ddr_read_count_debug),
+                    .smoke_ddr_last_read_index_debug(smoke_ddr_last_read_index_debug),
+                    .smoke_ddr_last_read_addr_debug(smoke_ddr_last_read_addr_debug),
+                    .smoke_ddr_last_read_lane_debug(smoke_ddr_last_read_lane_debug),
+                    .smoke_ddr_last_read_word0_debug(smoke_ddr_last_read_word0_debug),
+                    .smoke_ddr_last_read_word1_debug(smoke_ddr_last_read_word1_debug),
+                    .smoke_ddr_last_read_data_debug(smoke_ddr_last_read_data_debug),
+                    .smoke_ddr_base_addr_debug(smoke_ddr_base_addr_debug),
+`endif
 
                     .load_busy        (vgm_load_busy),
                     .load_done        (vgm_load_done),
@@ -2923,6 +3004,29 @@ module mister_vgm_md_top #(
                 assign backend_copy_post_push_debug = 16'd0;
                 assign backend_read_gate_debug = 16'd0;
                 assign backend_read_after_copy_count_debug = 16'd0;
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_TEST
+                assign smoke_ddr_rd_ready = 1'b0;
+                assign smoke_ddr_rd_valid = 1'b0;
+                assign smoke_ddr_rd_data = 8'h80;
+                assign smoke_ddr_payload_present = 1'b0;
+                assign smoke_ddr_payload_length = 19'd0;
+                assign smoke_ddr_write_req_count_debug = 16'd0;
+                assign smoke_ddr_write_count_debug = 16'd0;
+                assign smoke_ddr_write_blocked_count_debug = 16'd0;
+                assign smoke_ddr_write_status_debug = 16'd0;
+                assign smoke_ddr_last_write_index_debug = 16'd0;
+                assign smoke_ddr_last_write_addr_debug = 16'd0;
+                assign smoke_ddr_last_write_lane_debug = 16'd0;
+                assign smoke_ddr_last_write_data_debug = 8'd0;
+                assign smoke_ddr_read_count_debug = 16'd0;
+                assign smoke_ddr_last_read_index_debug = 16'd0;
+                assign smoke_ddr_last_read_addr_debug = 16'd0;
+                assign smoke_ddr_last_read_lane_debug = 16'd0;
+                assign smoke_ddr_last_read_word0_debug = 16'd0;
+                assign smoke_ddr_last_read_word1_debug = 16'd0;
+                assign smoke_ddr_last_read_data_debug = 8'd0;
+                assign smoke_ddr_base_addr_debug = 16'd0;
+`endif
                 assign load_done_pulse = 1'b0;
                 assign play_ready_pulse = 1'b0;
                 assign ioctl_wait = 1'b0;
@@ -3159,7 +3263,37 @@ module mister_vgm_md_top #(
                     .smoke_variant_valid            (segapcm_smoke_variant_valid),
                     .smoke_source_loaded            (segapcm_smoke_source_loaded),
                     .loaded_payload_clear           (ioctl_download),
-`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_TINY_RAM_TEST
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_TEST
+                    .loaded_payload_wr_valid        (segapcm_payload_tap_valid),
+                    .loaded_payload_wr_addr         (segapcm_payload_tap_addr),
+                    .loaded_payload_wr_data         (segapcm_payload_tap_data),
+                    .loaded_payload_present         (smoke_ddr_payload_present),
+                    .loaded_payload_length          (segapcm_payload_tap_byte_count[18:0]),
+                    .loaded_payload_block_count     (parser_type80_block_count_debug[15:0]),
+                    .loaded_ddr_rd_req              (smoke_ddr_rd_req),
+                    .loaded_ddr_rd_ready            (smoke_ddr_rd_ready),
+                    .loaded_ddr_rd_addr             (smoke_ddr_rd_addr),
+                    .loaded_ddr_rd_valid            (smoke_ddr_rd_valid),
+                    .loaded_ddr_rd_data             (smoke_ddr_rd_data),
+                    .loaded_ddr_payload_present     (smoke_ddr_payload_present),
+                    .loaded_ddr_payload_length      (smoke_ddr_payload_length),
+                    .loaded_ddr_write_req_count_debug(smoke_ddr_write_req_count_debug),
+                    .loaded_ddr_write_count_debug   (smoke_ddr_write_count_debug),
+                    .loaded_ddr_write_blocked_count_debug(smoke_ddr_write_blocked_count_debug),
+                    .loaded_ddr_write_status_debug  (smoke_ddr_write_status_debug),
+                    .loaded_ddr_last_write_index_debug(smoke_ddr_last_write_index_debug),
+                    .loaded_ddr_last_write_addr_debug(smoke_ddr_last_write_addr_debug),
+                    .loaded_ddr_last_write_lane_debug(smoke_ddr_last_write_lane_debug),
+                    .loaded_ddr_last_write_data_debug(smoke_ddr_last_write_data_debug),
+                    .loaded_ddr_read_count_debug    (smoke_ddr_read_count_debug),
+                    .loaded_ddr_last_read_index_debug(smoke_ddr_last_read_index_debug),
+                    .loaded_ddr_last_read_addr_debug(smoke_ddr_last_read_addr_debug),
+                    .loaded_ddr_last_read_lane_debug(smoke_ddr_last_read_lane_debug),
+                    .loaded_ddr_last_read_word0_debug(smoke_ddr_last_read_word0_debug),
+                    .loaded_ddr_last_read_word1_debug(smoke_ddr_last_read_word1_debug),
+                    .loaded_ddr_last_read_data_debug(smoke_ddr_last_read_data_debug),
+                    .loaded_ddr_base_addr_debug     (smoke_ddr_base_addr_debug),
+`elsif MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_TINY_RAM_TEST
                     .loaded_payload_wr_valid        (segapcm_payload_tap_valid),
                     .loaded_payload_wr_addr         (segapcm_payload_tap_addr),
                     .loaded_payload_wr_data         (segapcm_payload_tap_data),

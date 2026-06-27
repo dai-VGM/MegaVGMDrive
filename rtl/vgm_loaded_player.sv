@@ -200,6 +200,14 @@ module vgm_loaded_player #(
     // blocks are skipped during normal command playback and the experimental
     // pre-scan/copy path is bypassed until the SegaPCM audio path is ready.
     localparam bit SEGAPCM_FM_ONLY_RESTORE = 1'b1;
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_TEST
+`define MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_ACTIVE 1
+`endif
+`endif
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_ACTIVE
+    localparam logic [18:0] SEGAPCM_SMOKE_DDR_CAPTURE_BYTES = 19'h01000;
+`endif
 
 `ifdef MEGAVGMDRIVE_SEGAPCM_COPY_DISABLE
     localparam bit SEGAPCM_COPY_ENABLED = 1'b0;
@@ -319,6 +327,9 @@ module vgm_loaded_player #(
     logic [31:0] segapcm_tap_payload_remaining;
     logic [31:0] segapcm_tap_payload_addr;
     logic [18:0] segapcm_tap_payload_index;
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_ACTIVE
+    logic segapcm_smoke_ddr_capture_done_i;
+`endif
     logic start_seen_debug;
     logic start_edge_seen_debug;
     logic start_file_ok_seen_debug;
@@ -1371,6 +1382,9 @@ module vgm_loaded_player #(
             segapcm_tap_payload_remaining <= 32'd0;
             segapcm_tap_payload_addr <= 32'd0;
             segapcm_tap_payload_index <= 19'd0;
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_ACTIVE
+            segapcm_smoke_ddr_capture_done_i <= 1'b0;
+`endif
             dac_stream_measure_active <= 1'b0;
             dac_stream_wait0_current <= 1'b0;
             dac_stream_cmd_cycles <= 32'd0;
@@ -1914,6 +1928,9 @@ module vgm_loaded_player #(
                             segapcm_tap_payload_remaining <= 32'd0;
                             segapcm_tap_payload_addr <= 32'd0;
                             segapcm_tap_payload_index <= 19'd0;
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_ACTIVE
+                            segapcm_smoke_ddr_capture_done_i <= 1'b0;
+`endif
                             dac_stream_measure_active <= 1'b0;
                             dac_stream_wait0_current <= 1'b0;
                             dac_stream_cmd_cycles <= 32'd0;
@@ -3155,7 +3172,26 @@ module vgm_loaded_player #(
                                 segapcm_last_rom_size <= current_block_size;
                                 segapcm_last_rom_start <= block_data_start_32;
                                 if (segapcm_rom_block_skip_debug_active) begin
-`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_TINY_RAM_TEST
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_ACTIVE
+                                    if (segapcm_tap_payload_size_32 != 32'd0) begin
+                                        segapcm_tap_payload_remaining <=
+                                            segapcm_tap_payload_size_32;
+                                        segapcm_tap_payload_addr <=
+                                            segapcm_tap_payload_start_32;
+                                        segapcm_tap_payload_index <= 19'd0;
+                                        current_pc_debug <=
+                                            segapcm_tap_payload_start_32[ADDR_WIDTH-1:0];
+                                        request_byte(
+                                            segapcm_tap_payload_start_32[ADDR_WIDTH-1:0],
+                                            ST_SEGAPCM_TAP_PAYLOAD);
+                                    end else begin
+                                        pc <= block_skip_end_32[ADDR_WIDTH-1:0];
+                                        current_pc_debug <=
+                                            block_skip_end_32[ADDR_WIDTH-1:0];
+                                        request_byte(block_skip_end_32[ADDR_WIDTH-1:0],
+                                                     ST_FETCH_CMD);
+                                    end
+`elsif MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_TINY_RAM_TEST
                                     if (segapcm_tap_payload_size_32 != 32'd0) begin
                                         segapcm_tap_payload_remaining <=
                                             segapcm_tap_payload_size_32;
@@ -3219,6 +3255,60 @@ module vgm_loaded_player #(
                     end
 
                     ST_SEGAPCM_TAP_PAYLOAD: begin
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_ACTIVE
+                        if (!segapcm_smoke_ddr_capture_done_i &&
+                            (segapcm_tap_payload_index <
+                             SEGAPCM_SMOKE_DDR_CAPTURE_BYTES)) begin
+                            segapcm_copy_wr_req <= 1'b1;
+                            segapcm_copy_wr_addr <= segapcm_tap_payload_index;
+                            segapcm_copy_wr_data <= read_data;
+                        end
+
+                        if (segapcm_smoke_ddr_capture_done_i ||
+                            (segapcm_tap_payload_index >=
+                             SEGAPCM_SMOKE_DDR_CAPTURE_BYTES) ||
+                            segapcm_copy_wr_ready) begin
+                            if (!segapcm_smoke_ddr_capture_done_i &&
+                                (segapcm_tap_payload_index <
+                                 SEGAPCM_SMOKE_DDR_CAPTURE_BYTES)) begin
+                                segapcm_copy_wr_req <= 1'b0;
+                            end
+                            if (!segapcm_smoke_ddr_capture_done_i &&
+                                (segapcm_tap_payload_index ==
+                                 (SEGAPCM_SMOKE_DDR_CAPTURE_BYTES - 19'd1)) &&
+                                segapcm_copy_wr_ready) begin
+                                segapcm_smoke_ddr_capture_done_i <= 1'b1;
+                            end
+                            segapcm_payload_tap_valid <= 1'b1;
+                            segapcm_payload_tap_addr <= segapcm_tap_payload_index;
+                            segapcm_payload_tap_data <= read_data;
+                            if (segapcm_payload_tap_byte_count_debug !=
+                                32'hffff_ffff) begin
+                                segapcm_payload_tap_byte_count_debug <=
+                                    segapcm_payload_tap_byte_count_debug + 32'd1;
+                            end
+                            if (segapcm_tap_payload_remaining <= 32'd1) begin
+                                segapcm_tap_payload_remaining <= 32'd0;
+                                segapcm_tap_payload_addr <= 32'd0;
+                                segapcm_tap_payload_index <= 19'd0;
+                                pc <= block_skip_target;
+                                current_pc_debug <= block_skip_target;
+                                request_byte(block_skip_target, ST_FETCH_CMD);
+                            end else begin
+                                segapcm_tap_payload_remaining <=
+                                    segapcm_tap_payload_remaining - 32'd1;
+                                segapcm_tap_payload_addr <=
+                                    segapcm_tap_payload_next_addr;
+                                segapcm_tap_payload_index <=
+                                    segapcm_tap_payload_next_index;
+                                current_pc_debug <=
+                                    segapcm_tap_payload_next_addr[ADDR_WIDTH-1:0];
+                                request_byte(
+                                    segapcm_tap_payload_next_addr[ADDR_WIDTH-1:0],
+                                    ST_SEGAPCM_TAP_PAYLOAD);
+                            end
+                        end
+`else
                         segapcm_payload_tap_valid <= 1'b1;
                         segapcm_payload_tap_addr <= segapcm_tap_payload_index;
                         segapcm_payload_tap_data <= read_data;
@@ -3247,6 +3337,7 @@ module vgm_loaded_player #(
                                 segapcm_tap_payload_next_addr[ADDR_WIDTH-1:0],
                                 ST_SEGAPCM_TAP_PAYLOAD);
                         end
+`endif
                     end
 
                     ST_SEGAPCM_ROM_SIZE0: begin
@@ -3417,3 +3508,7 @@ module vgm_loaded_player #(
     end
 
 endmodule
+
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_ACTIVE
+`undef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_ACTIVE
+`endif

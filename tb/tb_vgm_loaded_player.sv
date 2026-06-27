@@ -33,7 +33,7 @@ module tb_vgm_loaded_player;
     wire [7:0] player_error_code;
     wire [7:0] error_pc_debug;
     wire [7:0] error_cmd_debug;
-    wire [5:0] state_debug;
+    wire [6:0] state_debug;
     wire [7:0] data_start_debug;
     wire [7:0] current_pc_debug;
     wire [7:0] loop_pc_debug;
@@ -73,6 +73,12 @@ module tb_vgm_loaded_player;
         .mem_rd_ready        (mem_rd_ready),
         .mem_rd_valid        (mem_rd_valid),
         .mem_rd_data         (mem_rd_data),
+        .segapcm_copy_wr_req (),
+        .segapcm_copy_wr_ready(1'b1),
+        .segapcm_copy_wr_addr(),
+        .segapcm_copy_wr_data(),
+        .segapcm_copy_flush_req(),
+        .segapcm_copy_flush_done(1'b1),
         .ym_cmd_ready        (ym_cmd_ready),
         .psg_cmd_ready       (psg_cmd_ready),
         .ym_cmd_valid        (ym_cmd_valid),
@@ -81,6 +87,10 @@ module tb_vgm_loaded_player;
         .ym_cmd_data         (ym_cmd_data),
         .psg_cmd_valid       (psg_cmd_valid),
         .psg_cmd_data        (psg_cmd_data),
+        .ym2151_cmd_ready    (1'b1),
+        .ym2151_cmd_valid    (),
+        .ym2151_cmd_reg      (),
+        .ym2151_cmd_data     (),
         .busy                (busy),
         .done                (done),
         .header_valid        (header_valid),

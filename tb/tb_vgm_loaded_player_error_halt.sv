@@ -25,7 +25,7 @@ module tb_vgm_loaded_player_error_halt;
     wire [7:0] player_error_code;
     wire [ADDR_WIDTH-1:0] error_pc_debug;
     wire [7:0] error_cmd_debug;
-    wire [5:0] state_debug;
+    wire [6:0] state_debug;
     wire mem_rd_req_debug;
     wire mem_rd_ready_debug;
     wire mem_rd_valid_debug;
@@ -52,6 +52,12 @@ module tb_vgm_loaded_player_error_halt;
         .mem_rd_ready        (mem_rd_ready),
         .mem_rd_valid        (mem_rd_valid),
         .mem_rd_data         (mem_rd_data),
+        .segapcm_copy_wr_req (),
+        .segapcm_copy_wr_ready(1'b1),
+        .segapcm_copy_wr_addr(),
+        .segapcm_copy_wr_data(),
+        .segapcm_copy_flush_req(),
+        .segapcm_copy_flush_done(1'b1),
         .ym_cmd_ready        (1'b1),
         .psg_cmd_ready       (1'b1),
         .ym_cmd_valid        (),
@@ -60,6 +66,10 @@ module tb_vgm_loaded_player_error_halt;
         .ym_cmd_data         (),
         .psg_cmd_valid       (),
         .psg_cmd_data        (),
+        .ym2151_cmd_ready    (1'b1),
+        .ym2151_cmd_valid    (),
+        .ym2151_cmd_reg      (),
+        .ym2151_cmd_data     (),
         .busy                (busy),
         .done                (done),
         .header_valid        (header_valid),
