@@ -35,17 +35,66 @@ All smoke behavior is guarded by:
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
 ```
 
-The experimental loaded-payload smoke source is additionally guarded by:
+The preferred experimental loaded-payload smoke source is additionally guarded by:
+
+```verilog
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_SMALL_RAM_TEST
+```
+
+The lighter tap-only capture debug build is guarded by:
+
+```verilog
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_TAP_ONLY_TEST
+```
+
+The tiny RAM loaded-source smoke build is guarded by:
+
+```verilog
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_TINY_RAM_TEST
+```
+
+The smoke-only loaded-player/parser start diagnostic is guarded by:
+
+```verilog
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_PARSER_RUN_TEST
+```
+
+The older full-size mirror is separately guarded by:
 
 ```verilog
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_SOURCE_TEST
 ```
 
-This second macro is intentionally off by default. It owns the local mirror used
-to store accepted type-`0x80` payload bytes, so leaving it off prevents Quartus
-from allocating that experimental storage in normal smoke builds.
+All loaded-source/tap macros are intentionally off by default. The lightest
+hardware experiment is `MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_TAP_ONLY_TEST`, which
+only counts accepted type-`0x80` payload bytes and records the last payload index
+and byte. It does not instantiate a payload RAM and Source `Loaded` still falls
+back to the known-good Preload smoke audio path.
 
-The current QSF enables the macro for this checkpoint build:
+If the tap-only build shows `CE=0001` but no parser progress, enable
+`MEGAVGMDRIVE_SEGAPCM_SMOKE_PARSER_RUN_TEST` with it. This diagnostic keeps the
+Preload smoke audio path unchanged, still ignores VGM C0 writes, and only starts
+the loaded-player/parser after a VGM file is ready so parser progress can be
+observed.
+
+In tap-only builds, the type-`0x80` payload byte tap is a read-through debug
+path. It does not assert the real SegaPCM copy write request, does not allocate
+RAM, and Source `Loaded` still falls back to Preload. The tap reads the payload
+after the 8-byte SegaPCM ROM data-block header so `CA/LL` count payload bytes,
+not header bytes.
+
+`MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_TINY_RAM_TEST` uses the same proven
+read-through tap stream, stores only the first 256 payload bytes in a tiny
+synchronous RAM, and lets Source `Loaded` loop those 256 bytes once `LP=1`.
+Source `Preload` remains the default known-good path, and no real C0 writes are
+reconnected.
+
+The next heavier experiment is `MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_SMALL_RAM_TEST`,
+which uses a 16 KiB synchronous RAM for the first accepted type-`0x80` payload
+bytes. The older `MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_SOURCE_TEST` path keeps the
+larger full-size mirror for comparison only.
+
+The current QSF enables the base smoke macro for this checkpoint build:
 
 ```tcl
 set_global_assignment -name VERILOG_MACRO "MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST=1"
@@ -92,11 +141,13 @@ SegaPCM Smoke Source: Preload, Loaded
 Smoke source behavior:
 
 - source `0` / Preload is the default and keeps using the RBF-preloaded known-good payload ROM
-- source `1` / Loaded is selectable in the OSD, but with `MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_SOURCE_TEST` off it falls back to the Preload source and reports no loaded payload present
-- when `MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_SOURCE_TEST` is explicitly enabled, source `1` / Loaded reads from a smoke-only local mirror of accepted VGM type-`0x80` SegaPCM payload copy bytes
+- source `1` / Loaded is selectable in the OSD, but with loaded-source macros off it falls back to the Preload source and reports no loaded payload present
+- when `MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_TAP_ONLY_TEST` is explicitly enabled, source `1` / Loaded still falls back to Preload; the build only exposes payload tap counters
+- when `MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_SMALL_RAM_TEST` is explicitly enabled, source `1` / Loaded reads from a 16 KiB smoke-only RAM containing the first accepted VGM type-`0x80` SegaPCM payload bytes
+- when `MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_SOURCE_TEST` is explicitly enabled instead, source `1` / Loaded reads from the older full-size smoke-only local mirror
 - the smoke channel/control state remains forced; VGM C0 register writes are still ignored in smoke mode
 - if Loaded is selected before a type-`0x80` payload has been copied, `LP=0` and the smoke path falls back to Preload
-- when enabled, the local loaded mirror stores the first `PRELOAD_ROM_BYTES` bytes, which covers the current smoke windows around `0x2600`
+- the small RAM stores 16 KiB, which covers the current smoke windows around `0x2600..0x2fff`
 
 | Variant | Purpose | Delta | Volume L/R | Payload window |
 | --- | --- | --- | --- | --- |
@@ -133,10 +184,125 @@ These observations confirm that the smoke payload step/window/AP controls affect
 Expected smoke source checks:
 
 - Source `Preload`: behavior should match the existing smoke baseline exactly
-- Source `Loaded` with `MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_SOURCE_TEST` off: `SC=0001`, `LP=0000`, and the path should keep running via the Preload fallback
-- Source `Loaded` with the loaded-source macro on and a copied SegaPCM type-`0x80` payload: sound should change depending on the loaded VGM payload
-- Source `Loaded` with the loaded-source macro on but without a copied SegaPCM type-`0x80` payload: `SC=0001`, `LP=0000`, and the path should keep running via the Preload fallback
+- Source `Loaded` with loaded-source macros off: `SC=0001`, `LP=0000`, and the path should keep running via the Preload fallback
+- Source `Loaded` with `MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_TAP_ONLY_TEST` on: `SC=0001`, `LP=0000`, `CE=0001`, and the path should keep running via the Preload fallback while `CT/CA/WA/WD/LL/LH` expose the payload tap
+- Source `Loaded` with `MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_TINY_RAM_TEST` on and a copied SegaPCM type-`0x80` payload: `LP=0001`, `LC=0100`, `WA=00FF`, and sound should change to a tiny 256-byte loop
+- Source `Loaded` with `MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_SMALL_RAM_TEST` on and a copied SegaPCM type-`0x80` payload: `LP=0001`, `LL=4000`, `LH=0000`, and sound should change depending on the loaded VGM payload
+- Source `Loaded` with the small RAM macro on but without a copied SegaPCM type-`0x80` payload: `SC=0001`, `LP=0000`, and the path should keep running via the Preload fallback
 - With a valid loaded payload, `DA=MD`, `PV=0001`, and `FU=0000` should remain true
+
+Tap-only loaded-source debug:
+
+- `CE`: tap debug enabled flag, expected `0001`
+- `PS`: parser-start debug flags from `mode5_direct_start_debug`; bit0..3 start-attempt count, bit4 parser-run/direct-start debug enabled, bit5 loaded-player start input, bit6 effective start hold, bit7 direct-start used, bit8 smoke parser start hold, bit9 smoke parser start used, bit10 smoke parser-run enabled
+- `RD`: readiness flags; bit7 load done, bit6 load busy, bit5 load error, bit4 load overflow, bit3 loaded size greater than 64 bytes, bit2 VGM header valid, bit1 top file ready, bit0 load session active
+- `BS`: busy/reset flags; bit7 mode-5 sound reset active, bit6 loaded-player reset, bit5 top reset, bit4 player busy, bit3 SegaPCM scan busy, bit2 player error, bit1 start seen, bit0 header request seen
+- `PR`: parser progress flags; bit0 player-or-scan active, bit1 player busy, bit2 scan busy, bit3 scan state nonzero, bit4 header valid
+- `PC`: parser command count low word
+- `LA`: last parser address low word
+- `LB`: last parser command byte
+- `DB`: parser data-block count for `0x67 0x66` blocks
+- `BT`: last parser data-block type
+- `B8`: parser type-`0x80` block count
+- `CT`: parser type-`0x80` block count mirrored from `B8`
+- `CA`: type-`0x80` payload bytes observed by the tap-only read-through path
+- `WA`: last observed payload byte index low word
+- `WD`: last observed payload byte
+- `LL` / `LH`: observed payload byte count low/high
+- `LP`: forced `0000`; Source `Loaded` falls back to Preload in this build
+- `PV` / `FU`: smoke ROM valid/fallback sanity flags
+
+Tap-only compact rows when `CE=0001`:
+
+| Row | Label | Value |
+| --- | --- | --- |
+| 0 | `SK` | smoke marker, expected `5A5A` |
+| 1 | `CE` | tap debug enabled marker |
+| 2 | `PS` | parser-start flags |
+| 3 | `RD` | load/readiness flags |
+| 4 | `BS` | busy/reset flags |
+| 5 | `PR` | parser progress flags |
+| 6 | `PC` | parser command count low word |
+| 7 | `LA` | last parser address low word |
+| 8 | `LB` | last parser command byte |
+| 9 | `DB` | parser data-block count |
+| 10 | `BT` | last parser data-block type |
+| 11 | `B8` | parser type-`0x80` block count |
+| 12 | `CT` | parser type-`0x80` count mirrored from `B8` |
+| 13 | `CA` | observed payload byte count |
+| 14 | `WA` | last observed payload index low word |
+| 15 | `WD` | last observed payload byte |
+| 16 | `LL` | observed payload byte count low word |
+| 17 | `LH` | observed payload byte count high bits |
+| 18 | `PV` | preload/data valid flag |
+| 19 | `FU` | fallback used flag |
+
+Tiny-RAM loaded-source rows when `MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_TINY_RAM_TEST`
+is enabled:
+
+| Row | Label | Value |
+| --- | --- | --- |
+| 0 | `SK` | smoke marker, expected `5A5A` |
+| 1 | `SC` | OSD smoke source |
+| 2 | `LP` | tiny RAM payload present |
+| 3 | `SV` | active smoke variant |
+| 4 | `B8` | parser type-`0x80` count |
+| 5 | `CT` | parser type-`0x80` count mirrored from `B8` |
+| 6 | `CA` | full tap observed payload byte count |
+| 7 | `LL` | full tap observed payload byte count low word |
+| 8 | `LC` | tiny RAM captured byte count, expected `0100` |
+| 9 | `WA` | last tiny RAM write address, expected `00FF` |
+| 10 | `WD` | last tiny RAM written byte |
+| 11 | `DA` | final byte delivered to `jtoutrun_pcm` |
+| 12 | `MD` | memory/source byte before fallback mux |
+| 13 | `PV` | preload/data valid flag |
+| 14 | `FU` | fallback used flag |
+| 18 | `AP` | forced smoke volume/pan display |
+| 19 | `ON` | forced smoke cfg display |
+
+Small-RAM loaded-source capture debug:
+
+- `CE`: capture path compiled/enabled flag, expected `0001` in small-RAM builds
+- `CT`: type-`0x80` SegaPCM block scan count from the top-level scan/copy path
+- `LL`: top-reported copied payload byte count low word
+- `LC` / `LH`: local small-RAM accepted capture count low/high
+- `CA`: accepted copy event count reaching `segapcm_sound_module`
+- `WR`: in-range small-RAM write count
+- `WA`: last in-range small-RAM write address low word
+- `WD`: last in-range small-RAM write byte
+- `LP`: local loaded-payload-present latch
+
+When the small-RAM capture build reports the `CE=0001` marker, the compact
+SegaPCM overlay is remapped to prioritize capture visibility:
+
+| Row | Label | Value |
+| --- | --- | --- |
+| 0 | `SK` | smoke marker, expected `5A5A` |
+| 1 | `SC` | OSD smoke source |
+| 2 | `LP` | loaded payload present |
+| 3 | `CE` | capture path compiled/enabled marker |
+| 4 | `CT` | type-`0x80` block count |
+| 5 | `CA` | copy accept count reaching `segapcm_sound_module` |
+| 6 | `WR` | small RAM write count |
+| 7 | `WA` | last write address |
+| 8 | `WD` | last written byte |
+| 9 | `LL` | top copied payload count low word |
+| 10 | `DA` | final byte delivered to `jtoutrun_pcm` |
+| 11 | `MD` | memory/source byte before fallback mux |
+| 12 | `LC` | local capture count low word |
+| 13 | `LH` | local capture count high bits |
+| 14 | `PV` | preload/data valid flag |
+| 15 | `FU` | fallback used flag |
+| 18 | `AP` | forced smoke volume/pan display |
+| 19 | `ON` | forced smoke cfg display |
+
+Useful interpretation:
+
+- `CT=0`: the current build did not see a type-`0x80` SegaPCM payload block.
+- `CT>0` but `CA=0`: the scanner saw a block, but accepted copy events are not reaching the smoke module.
+- `CA>0` but `WR=0`: accepted copy events reached the module, but their addresses were outside the small RAM window.
+- `WR>0` but `LP=0`: bytes were captured, but the loaded-payload-present/flush indication did not latch.
+- `LP=1` with `LC/WR` nonzero: Source `Loaded` should read captured RAM instead of falling back to Preload.
 
 ## Overlay Rows Of Interest
 
@@ -144,7 +310,7 @@ Expected smoke source checks:
 - `SC`: smoke source, `0000` = Preload, `0001` = Loaded
 - `SV`: smoke variant number
 - `LP`: loaded payload present
-- `LL` / `LH`: loaded payload length low/high
+- `LL` / `LH`: loaded payload length low/high, or small-RAM top length/local count high in loaded-source capture debug
 - `LM` / `SM`: smoke mapped payload index, expected `0x2xxx`
 - `PS` / `PE`: smoke payload start/end
 - `SS`: smoke payload address step

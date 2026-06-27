@@ -29,6 +29,7 @@ module segapcm_sound_module #(
     input  logic         [7:0] loaded_payload_wr_data,
     input  logic               loaded_payload_present,
     input  logic        [18:0] loaded_payload_length,
+    input  logic        [15:0] loaded_payload_block_count,
 `endif
 
     output logic signed [15:0] audio_l,
@@ -254,13 +255,65 @@ module segapcm_sound_module #(
     logic [2:0] smoke_payload_div_count_i;
     logic [2:0] smoke_variant_d_i;
     logic smoke_source_loaded_d_i;
-`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_SOURCE_TEST
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_TINY_RAM_TEST
+    localparam int unsigned SMOKE_LOADED_RAM_BYTES = 256;
+    localparam int unsigned SMOKE_LOADED_RAM_ADDR_BITS =
+        $clog2(SMOKE_LOADED_RAM_BYTES);
+    localparam logic [18:0] SMOKE_LOADED_RAM_BYTES_19 =
+        SMOKE_LOADED_RAM_BYTES[18:0];
     logic smoke_loaded_payload_seen_write_i;
     logic smoke_loaded_payload_present_i;
     logic [18:0] smoke_loaded_payload_length_i;
     logic [7:0] smoke_loaded_payload_data_i;
+    logic [18:0] smoke_loaded_capture_count_i;
+    logic [15:0] smoke_loaded_capture_accept_count_i;
+    logic [15:0] smoke_loaded_write_count_i;
+    logic [18:0] smoke_loaded_last_write_addr_i;
+    logic [7:0] smoke_loaded_last_write_data_i;
+    (* ramstyle = "MLAB, no_rw_check" *)
+    logic [7:0] smoke_loaded_payload_ram [0:SMOKE_LOADED_RAM_BYTES-1];
+`elsif MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_TAP_ONLY_TEST
+    logic [18:0] smoke_loaded_capture_count_i;
+    logic [15:0] smoke_loaded_capture_accept_count_i;
+    logic [18:0] smoke_loaded_last_write_addr_i;
+    logic [7:0] smoke_loaded_last_write_data_i;
+    wire smoke_loaded_payload_present_i = 1'b0;
+    wire [18:0] smoke_loaded_payload_length_i = 19'd0;
+    wire [7:0] smoke_loaded_payload_data_i = 8'h80;
+`elsif MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_SMALL_RAM_TEST
+    localparam int unsigned SMOKE_LOADED_RAM_BYTES = 16384;
+    localparam int unsigned SMOKE_LOADED_RAM_ADDR_BITS =
+        $clog2(SMOKE_LOADED_RAM_BYTES);
+    localparam logic [18:0] SMOKE_LOADED_RAM_BYTES_19 =
+        SMOKE_LOADED_RAM_BYTES[18:0];
+    logic smoke_loaded_payload_seen_write_i;
+    logic smoke_loaded_payload_present_i;
+    logic [18:0] smoke_loaded_payload_length_i;
+    logic [7:0] smoke_loaded_payload_data_i;
+    logic [18:0] smoke_loaded_capture_count_i;
+    logic [15:0] smoke_loaded_capture_accept_count_i;
+    logic [15:0] smoke_loaded_write_count_i;
+    logic [18:0] smoke_loaded_last_write_addr_i;
+    logic [7:0] smoke_loaded_last_write_data_i;
     (* ramstyle = "M10K, no_rw_check" *)
-    logic [7:0] smoke_loaded_payload_ram [0:PRELOAD_ROM_BYTES-1];
+    logic [7:0] smoke_loaded_payload_ram [0:SMOKE_LOADED_RAM_BYTES-1];
+`elsif MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_SOURCE_TEST
+    localparam int unsigned SMOKE_LOADED_RAM_BYTES = PRELOAD_ROM_BYTES;
+    localparam int unsigned SMOKE_LOADED_RAM_ADDR_BITS =
+        $clog2(SMOKE_LOADED_RAM_BYTES);
+    localparam logic [18:0] SMOKE_LOADED_RAM_BYTES_19 =
+        SMOKE_LOADED_RAM_BYTES[18:0];
+    logic smoke_loaded_payload_seen_write_i;
+    logic smoke_loaded_payload_present_i;
+    logic [18:0] smoke_loaded_payload_length_i;
+    logic [7:0] smoke_loaded_payload_data_i;
+    logic [18:0] smoke_loaded_capture_count_i;
+    logic [15:0] smoke_loaded_capture_accept_count_i;
+    logic [15:0] smoke_loaded_write_count_i;
+    logic [18:0] smoke_loaded_last_write_addr_i;
+    logic [7:0] smoke_loaded_last_write_data_i;
+    (* ramstyle = "M10K, no_rw_check" *)
+    logic [7:0] smoke_loaded_payload_ram [0:SMOKE_LOADED_RAM_BYTES-1];
 `else
     wire smoke_loaded_payload_present_i = 1'b0;
     wire [18:0] smoke_loaded_payload_length_i = 19'd0;
@@ -272,12 +325,51 @@ module segapcm_sound_module #(
     wire [18:0] smoke_mapped_rom_addr =
         (smoke_payload_addr_i < PRELOAD_ROM_BYTES[18:0]) ?
         smoke_payload_addr_i : smoke_payload_base;
-`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_SOURCE_TEST
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_TINY_RAM_TEST
+    wire [SMOKE_LOADED_RAM_ADDR_BITS-1:0] smoke_loaded_payload_rd_addr =
+        smoke_mapped_rom_addr[SMOKE_LOADED_RAM_ADDR_BITS-1:0];
     wire [18:0] smoke_loaded_payload_length_clamped =
-        (loaded_payload_length < PRELOAD_ROM_BYTES[18:0]) ?
-        loaded_payload_length : PRELOAD_ROM_BYTES[18:0];
+        (loaded_payload_length < SMOKE_LOADED_RAM_BYTES_19) ?
+        loaded_payload_length : SMOKE_LOADED_RAM_BYTES_19;
     wire smoke_loaded_payload_addr_in_range =
-        smoke_mapped_rom_addr < smoke_loaded_payload_length_i;
+        smoke_loaded_payload_present_i &&
+        (smoke_loaded_payload_rd_addr < smoke_loaded_payload_length_i);
+    wire smoke_effective_loaded_source =
+        smoke_source_loaded &&
+        smoke_loaded_payload_present_i &&
+        (smoke_loaded_payload_length_i != 19'd0);
+`elsif MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_TAP_ONLY_TEST
+    wire smoke_effective_loaded_source = 1'b0;
+`elsif MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_SMALL_RAM_TEST
+    wire smoke_loaded_payload_ram_addr_in_range =
+        smoke_mapped_rom_addr < SMOKE_LOADED_RAM_BYTES_19;
+    wire [SMOKE_LOADED_RAM_ADDR_BITS-1:0] smoke_loaded_payload_rd_addr =
+        smoke_loaded_payload_ram_addr_in_range ?
+        smoke_mapped_rom_addr[SMOKE_LOADED_RAM_ADDR_BITS-1:0] :
+        {SMOKE_LOADED_RAM_ADDR_BITS{1'b0}};
+    wire [18:0] smoke_loaded_payload_length_clamped =
+        (loaded_payload_length < SMOKE_LOADED_RAM_BYTES_19) ?
+        loaded_payload_length : SMOKE_LOADED_RAM_BYTES_19;
+    wire smoke_loaded_payload_addr_in_range =
+        smoke_loaded_payload_ram_addr_in_range &&
+        (smoke_mapped_rom_addr < smoke_loaded_payload_length_i);
+    wire smoke_effective_loaded_source =
+        smoke_source_loaded &&
+        smoke_loaded_payload_present_i &&
+        (smoke_loaded_payload_length_i != 19'd0);
+`elsif MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_SOURCE_TEST
+    wire smoke_loaded_payload_ram_addr_in_range =
+        smoke_mapped_rom_addr < SMOKE_LOADED_RAM_BYTES_19;
+    wire [SMOKE_LOADED_RAM_ADDR_BITS-1:0] smoke_loaded_payload_rd_addr =
+        smoke_loaded_payload_ram_addr_in_range ?
+        smoke_mapped_rom_addr[SMOKE_LOADED_RAM_ADDR_BITS-1:0] :
+        {SMOKE_LOADED_RAM_ADDR_BITS{1'b0}};
+    wire [18:0] smoke_loaded_payload_length_clamped =
+        (loaded_payload_length < SMOKE_LOADED_RAM_BYTES_19) ?
+        loaded_payload_length : SMOKE_LOADED_RAM_BYTES_19;
+    wire smoke_loaded_payload_addr_in_range =
+        smoke_loaded_payload_ram_addr_in_range &&
+        (smoke_mapped_rom_addr < smoke_loaded_payload_length_i);
     wire smoke_effective_loaded_source =
         smoke_source_loaded &&
         smoke_loaded_payload_present_i &&
@@ -733,7 +825,17 @@ module segapcm_sound_module #(
     assign selected_preload_addr_in_range =
         selected_mapped_rom_addr < PRELOAD_ROM_BYTES[18:0];
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
-`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_SOURCE_TEST
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_TINY_RAM_TEST
+    assign smoke_effective_addr_in_range =
+        smoke_effective_loaded_source ?
+        smoke_loaded_payload_addr_in_range : selected_preload_addr_in_range;
+`elsif MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_TAP_ONLY_TEST
+    assign smoke_effective_addr_in_range = selected_preload_addr_in_range;
+`elsif MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_SMALL_RAM_TEST
+    assign smoke_effective_addr_in_range =
+        smoke_effective_loaded_source ?
+        smoke_loaded_payload_addr_in_range : selected_preload_addr_in_range;
+`elsif MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_SOURCE_TEST
     assign smoke_effective_addr_in_range =
         smoke_effective_loaded_source ?
         smoke_loaded_payload_addr_in_range : selected_preload_addr_in_range;
@@ -775,7 +877,15 @@ module segapcm_sound_module #(
 `endif
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
     assign rom_addr_mapped_high_debug = {13'd0, smoke_variant_active};
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_TINY_RAM_TEST
+    assign rom_addr_mapped_low_debug = 16'h0001;
+`elsif MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_TAP_ONLY_TEST
+    assign rom_addr_mapped_low_debug = 16'h0001;
+`elsif MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_SMALL_RAM_TEST
+    assign rom_addr_mapped_low_debug = 16'h0001;
+`else
     assign rom_addr_mapped_low_debug = smoke_payload_last[15:0];
+`endif
 `else
     assign rom_addr_mapped_high_debug = {13'd0, request_raw_rom_addr_i[18:16]};
     assign rom_addr_mapped_low_debug = request_raw_rom_addr_i[15:0];
@@ -783,13 +893,33 @@ module segapcm_sound_module #(
     assign rom_addr_min_high_debug = {13'd0, selected_mapped_rom_addr[18:16]};
     assign rom_addr_min_low_debug = selected_mapped_rom_addr[15:0];
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_TINY_RAM_TEST
+    assign rom_addr_max_high_debug = loaded_payload_block_count;
+`elsif MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_TAP_ONLY_TEST
+    assign rom_addr_max_high_debug = loaded_payload_block_count;
+`elsif MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_SMALL_RAM_TEST
+    assign rom_addr_max_high_debug = loaded_payload_block_count;
+`else
     assign rom_addr_max_high_debug = {13'd0, smoke_variant_active};
+`endif
 `else
     assign rom_addr_max_high_debug =
         (ROM_ADDR_MAP_MODE == 34) ? 16'h0034 :
         {8'd0, ROM_ADDR_MAP_MODE[7:0]};
 `endif
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_TINY_RAM_TEST
+    assign rom_addr_max_low_debug = smoke_loaded_capture_accept_count_i;
+`elsif MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_TAP_ONLY_TEST
+    assign rom_addr_max_low_debug = smoke_loaded_capture_accept_count_i;
+`elsif MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_SMALL_RAM_TEST
+    assign rom_addr_max_low_debug = smoke_loaded_capture_accept_count_i;
+`else
     assign rom_addr_max_low_debug = request_payload_base_offset[15:0];
+`endif
+`else
+    assign rom_addr_max_low_debug = request_payload_base_offset[15:0];
+`endif
     assign rom_audio_active_high_debug = rom_addr_raw_high_debug;
     assign rom_audio_active_low_debug = rom_addr_raw_low_debug;
     assign rom_first_after_ctrl_high_debug = {13'd0, first_after_ch1_ctrl_addr_i[18:16]};
@@ -809,7 +939,15 @@ module segapcm_sound_module #(
     assign rom_return_mapped_low_debug = last_return_mapped_addr_i[15:0];
     assign rom_return_data_debug = {8'd0, last_return_data_i};
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_TINY_RAM_TEST
+    assign rom_return_last01_debug = smoke_loaded_capture_count_i[15:0];
+`elsif MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_TAP_ONLY_TEST
+    assign rom_return_last01_debug = smoke_loaded_capture_count_i[15:0];
+`elsif MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_SMALL_RAM_TEST
+    assign rom_return_last01_debug = smoke_loaded_capture_count_i[15:0];
+`else
     assign rom_return_last01_debug = smoke_loaded_payload_length_i[15:0];
+`endif
 `else
     assign rom_return_last01_debug = mapped_rom_addr[15:0];
 `endif
@@ -836,6 +974,17 @@ module segapcm_sound_module #(
         core_rom_cs
     };
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_TINY_RAM_TEST
+    assign rom_payload_len_low_debug = loaded_payload_length[15:0];
+    assign rom_payload_len_high_debug = {13'd0, loaded_payload_length[18:16]};
+`elsif MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_TAP_ONLY_TEST
+    assign rom_payload_len_low_debug = loaded_payload_length[15:0];
+    assign rom_payload_len_high_debug = {13'd0, loaded_payload_length[18:16]};
+`elsif MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_SMALL_RAM_TEST
+    assign rom_payload_len_low_debug = loaded_payload_length[15:0];
+    assign rom_payload_len_high_debug =
+        {13'd0, smoke_loaded_capture_count_i[18:16]};
+`else
     assign rom_payload_len_low_debug =
         smoke_effective_loaded_source ?
         smoke_loaded_payload_length_i[15:0] : PRELOAD_ROM_BYTES[15:0];
@@ -843,6 +992,7 @@ module segapcm_sound_module #(
         smoke_effective_loaded_source ?
         {13'd0, smoke_loaded_payload_length_i[18:16]} :
         PRELOAD_ROM_BYTES[31:16];
+`endif
 `else
     assign rom_payload_len_low_debug = PRELOAD_ROM_BYTES[15:0];
     assign rom_payload_len_high_debug = PRELOAD_ROM_BYTES[31:16];
@@ -858,7 +1008,19 @@ module segapcm_sound_module #(
     assign known38686_cur_low_debug = active_req_loop_debug_i;
     assign known38686_en_addr_debug = active_req_next_debug_i;
     assign known38686_en_value_debug = active_req_end_delta_debug_i;
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_TINY_RAM_TEST
+    assign known38686_d0_addr_debug = smoke_loaded_write_count_i;
+`elsif MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_TAP_ONLY_TEST
+    assign known38686_d0_addr_debug = smoke_loaded_last_write_addr_i[15:0];
+`elsif MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_SMALL_RAM_TEST
+    assign known38686_d0_addr_debug = smoke_loaded_write_count_i;
+`else
     assign known38686_d0_addr_debug = active_req_rate_debug_i;
+`endif
+`else
+    assign known38686_d0_addr_debug = active_req_rate_debug_i;
+`endif
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
     assign known38686_d0_value_debug = smoke_ap_debug;
     assign known38686_d1_addr_debug = 16'h0030;
@@ -866,9 +1028,31 @@ module segapcm_sound_module #(
     assign known38686_d0_value_debug = active_req_amp_pan_debug_i;
     assign known38686_d1_addr_debug = active_req_cfg_debug_i;
 `endif
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_TINY_RAM_TEST
+    assign known38686_d1_value_debug =
+        smoke_loaded_last_write_addr_i[15:0];
+    assign known38686_d2_value_debug =
+        {8'd0, smoke_loaded_last_write_data_i};
+`elsif MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_TAP_ONLY_TEST
+    assign known38686_d1_value_debug =
+        {8'd0, smoke_loaded_last_write_data_i};
+    assign known38686_d2_value_debug =
+        {13'd0, loaded_payload_length[18:16]};
+`elsif MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_SMALL_RAM_TEST
+    assign known38686_d1_value_debug =
+        smoke_loaded_last_write_addr_i[15:0];
+    assign known38686_d2_value_debug =
+        {8'd0, smoke_loaded_last_write_data_i};
+`else
     assign known38686_d1_value_debug = active_req_flow_debug_i;
-    assign known38686_d2_addr_debug = active_req_page_debug_i;
     assign known38686_d2_value_debug = {8'd0, core_dbg_cur_addr_low_state[15:8]};
+`endif
+`else
+    assign known38686_d1_value_debug = active_req_flow_debug_i;
+    assign known38686_d2_value_debug = {8'd0, core_dbg_cur_addr_low_state[15:8]};
+`endif
+    assign known38686_d2_addr_debug = active_req_page_debug_i;
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
     assign known38686_cfg_en_debug = 16'h0030;
 `else
@@ -1331,22 +1515,162 @@ module segapcm_sound_module #(
     end
 
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
-`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_SOURCE_TEST
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_TINY_RAM_TEST
     always_ff @(posedge clk) begin
         if (reset || loaded_payload_clear) begin
             smoke_loaded_payload_seen_write_i <= 1'b0;
             smoke_loaded_payload_present_i <= 1'b0;
             smoke_loaded_payload_length_i <= 19'd0;
             smoke_loaded_payload_data_i <= 8'h80;
+            smoke_loaded_capture_count_i <= 19'd0;
+            smoke_loaded_capture_accept_count_i <= 16'd0;
+            smoke_loaded_write_count_i <= 16'd0;
+            smoke_loaded_last_write_addr_i <= 19'd0;
+            smoke_loaded_last_write_data_i <= 8'd0;
         end else begin
             smoke_loaded_payload_data_i <=
-                smoke_loaded_payload_ram[smoke_mapped_rom_addr];
+                smoke_loaded_payload_ram[smoke_loaded_payload_rd_addr];
+
+            if (loaded_payload_wr_valid) begin
+                if (smoke_loaded_capture_accept_count_i != 16'hffff) begin
+                    smoke_loaded_capture_accept_count_i <=
+                        smoke_loaded_capture_accept_count_i + 16'd1;
+                end
+            end
 
             if (loaded_payload_wr_valid &&
-                (loaded_payload_wr_addr < PRELOAD_ROM_BYTES[18:0])) begin
-                smoke_loaded_payload_ram[loaded_payload_wr_addr] <=
-                    loaded_payload_wr_data;
+                (loaded_payload_wr_addr < SMOKE_LOADED_RAM_BYTES_19)) begin
+                smoke_loaded_payload_ram[
+                    loaded_payload_wr_addr[SMOKE_LOADED_RAM_ADDR_BITS-1:0]
+                ] <= loaded_payload_wr_data;
                 smoke_loaded_payload_seen_write_i <= 1'b1;
+                smoke_loaded_last_write_addr_i <= loaded_payload_wr_addr;
+                smoke_loaded_last_write_data_i <= loaded_payload_wr_data;
+                if (smoke_loaded_capture_count_i < SMOKE_LOADED_RAM_BYTES_19) begin
+                    smoke_loaded_capture_count_i <=
+                        smoke_loaded_capture_count_i + 19'd1;
+                end
+                if (smoke_loaded_write_count_i != 16'hffff) begin
+                    smoke_loaded_write_count_i <=
+                        smoke_loaded_write_count_i + 16'd1;
+                end
+                if (smoke_loaded_capture_count_i >=
+                    (SMOKE_LOADED_RAM_BYTES_19 - 19'd1)) begin
+                    smoke_loaded_payload_present_i <= 1'b1;
+                    smoke_loaded_payload_length_i <= SMOKE_LOADED_RAM_BYTES_19;
+                end
+            end
+        end
+    end
+`elsif MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_TAP_ONLY_TEST
+    always_ff @(posedge clk) begin
+        if (reset || loaded_payload_clear) begin
+            smoke_loaded_capture_count_i <= 19'd0;
+            smoke_loaded_capture_accept_count_i <= 16'd0;
+            smoke_loaded_last_write_addr_i <= 19'd0;
+            smoke_loaded_last_write_data_i <= 8'd0;
+        end else if (loaded_payload_wr_valid) begin
+            smoke_loaded_last_write_addr_i <= loaded_payload_wr_addr;
+            smoke_loaded_last_write_data_i <= loaded_payload_wr_data;
+            if (smoke_loaded_capture_count_i != 19'h7ffff) begin
+                smoke_loaded_capture_count_i <=
+                    smoke_loaded_capture_count_i + 19'd1;
+            end
+            if (smoke_loaded_capture_accept_count_i != 16'hffff) begin
+                smoke_loaded_capture_accept_count_i <=
+                    smoke_loaded_capture_accept_count_i + 16'd1;
+            end
+        end
+    end
+`elsif MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_SMALL_RAM_TEST
+    always_ff @(posedge clk) begin
+        if (reset || loaded_payload_clear) begin
+            smoke_loaded_payload_seen_write_i <= 1'b0;
+            smoke_loaded_payload_present_i <= 1'b0;
+            smoke_loaded_payload_length_i <= 19'd0;
+            smoke_loaded_payload_data_i <= 8'h80;
+            smoke_loaded_capture_count_i <= 19'd0;
+            smoke_loaded_capture_accept_count_i <= 16'd0;
+            smoke_loaded_write_count_i <= 16'd0;
+            smoke_loaded_last_write_addr_i <= 19'd0;
+            smoke_loaded_last_write_data_i <= 8'd0;
+        end else begin
+            smoke_loaded_payload_data_i <=
+                smoke_loaded_payload_ram[smoke_loaded_payload_rd_addr];
+
+            if (loaded_payload_wr_valid) begin
+                if (smoke_loaded_capture_accept_count_i != 16'hffff) begin
+                    smoke_loaded_capture_accept_count_i <=
+                        smoke_loaded_capture_accept_count_i + 16'd1;
+                end
+            end
+
+            if (loaded_payload_wr_valid &&
+                (loaded_payload_wr_addr < SMOKE_LOADED_RAM_BYTES_19)) begin
+                smoke_loaded_payload_ram[
+                    loaded_payload_wr_addr[SMOKE_LOADED_RAM_ADDR_BITS-1:0]
+                ] <= loaded_payload_wr_data;
+                smoke_loaded_payload_seen_write_i <= 1'b1;
+                smoke_loaded_last_write_addr_i <= loaded_payload_wr_addr;
+                smoke_loaded_last_write_data_i <= loaded_payload_wr_data;
+                if (smoke_loaded_capture_count_i < SMOKE_LOADED_RAM_BYTES_19) begin
+                    smoke_loaded_capture_count_i <=
+                        smoke_loaded_capture_count_i + 19'd1;
+                end
+                if (smoke_loaded_write_count_i != 16'hffff) begin
+                    smoke_loaded_write_count_i <=
+                        smoke_loaded_write_count_i + 16'd1;
+                end
+            end
+
+            if (loaded_payload_present &&
+                smoke_loaded_payload_seen_write_i &&
+                (smoke_loaded_payload_length_clamped != 19'd0)) begin
+                smoke_loaded_payload_present_i <= 1'b1;
+                smoke_loaded_payload_length_i <=
+                    smoke_loaded_payload_length_clamped;
+            end
+        end
+    end
+`elsif MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_SOURCE_TEST
+    always_ff @(posedge clk) begin
+        if (reset || loaded_payload_clear) begin
+            smoke_loaded_payload_seen_write_i <= 1'b0;
+            smoke_loaded_payload_present_i <= 1'b0;
+            smoke_loaded_payload_length_i <= 19'd0;
+            smoke_loaded_payload_data_i <= 8'h80;
+            smoke_loaded_capture_count_i <= 19'd0;
+            smoke_loaded_capture_accept_count_i <= 16'd0;
+            smoke_loaded_write_count_i <= 16'd0;
+            smoke_loaded_last_write_addr_i <= 19'd0;
+            smoke_loaded_last_write_data_i <= 8'd0;
+        end else begin
+            smoke_loaded_payload_data_i <=
+                smoke_loaded_payload_ram[smoke_loaded_payload_rd_addr];
+
+            if (loaded_payload_wr_valid) begin
+                if (smoke_loaded_capture_accept_count_i != 16'hffff) begin
+                    smoke_loaded_capture_accept_count_i <=
+                        smoke_loaded_capture_accept_count_i + 16'd1;
+                end
+            end
+
+            if (loaded_payload_wr_valid &&
+                (loaded_payload_wr_addr < SMOKE_LOADED_RAM_BYTES_19)) begin
+                smoke_loaded_payload_ram[
+                    loaded_payload_wr_addr[SMOKE_LOADED_RAM_ADDR_BITS-1:0]
+                ] <= loaded_payload_wr_data;
+                smoke_loaded_payload_seen_write_i <= 1'b1;
+                smoke_loaded_last_write_addr_i <= loaded_payload_wr_addr;
+                smoke_loaded_last_write_data_i <= loaded_payload_wr_data;
+                if (smoke_loaded_capture_count_i < SMOKE_LOADED_RAM_BYTES_19) begin
+                    smoke_loaded_capture_count_i <=
+                        smoke_loaded_capture_count_i + 19'd1;
+                end
+                if (smoke_loaded_write_count_i != 16'hffff) begin
+                    smoke_loaded_write_count_i <=
+                        smoke_loaded_write_count_i + 16'd1;
+                end
             end
 
             if (loaded_payload_present &&

@@ -397,6 +397,11 @@ module mister_vgm_md_top #(
     output logic [31:0]       data_block_count,
     output logic [7:0]        last_data_block_type,
     output logic [15:0]       last_data_block_size_low,
+    output logic [31:0]       parser_command_count_debug,
+    output logic [31:0]       parser_data_block_count_debug,
+    output logic [7:0]        parser_last_block_type_debug,
+    output logic [31:0]       parser_type00_block_count_debug,
+    output logic [31:0]       parser_type80_block_count_debug,
     output logic [31:0]       segapcm_rom_block_count,
     output logic [31:0]       segapcm_last_rom_size,
     output logic [31:0]       segapcm_last_rom_start,
@@ -484,6 +489,11 @@ module mister_vgm_md_top #(
     localparam bit DIRECT_PLAYER_START_DEBUG = 1'b1;
 `else
     localparam bit DIRECT_PLAYER_START_DEBUG = 1'b0;
+`endif
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_PARSER_RUN_TEST
+    localparam bit SEGAPCM_SMOKE_PARSER_RUN_TEST = 1'b1;
+`else
+    localparam bit SEGAPCM_SMOKE_PARSER_RUN_TEST = 1'b0;
 `endif
 
     localparam int MODE5_BACKEND_BRAM  = 0;
@@ -759,6 +769,10 @@ module mister_vgm_md_top #(
             logic [7:0] segapcm_copy_wr_data;
             logic segapcm_copy_flush_req;
             logic segapcm_copy_flush_done;
+            logic segapcm_payload_tap_valid;
+            logic [18:0] segapcm_payload_tap_addr;
+            logic [7:0] segapcm_payload_tap_data;
+            logic [31:0] segapcm_payload_tap_byte_count;
             logic load_done_pulse;
             logic play_ready_pulse;
             logic ym_cmd_valid;
@@ -812,7 +826,13 @@ module mister_vgm_md_top #(
             logic mode5_player_start_hold = 1'b0;
             logic mode5_player_start_to_player;
             logic mode5_direct_player_start_hold = 1'b0;
+            logic smoke_parser_start_hold = 1'b0;
+            logic smoke_parser_start_used = 1'b0;
             logic loaded_player_start_input_live;
+            logic loaded_player_start_input_normal;
+            logic smoke_parser_run_enable;
+            logic smoke_parser_start_to_player;
+            logic smoke_parser_loaded_player_reset;
             logic mode5_loaded_player_reset;
             logic loaded_player_busy;
             logic mode5_player_start_hold_seen = 1'b0;
@@ -1406,6 +1426,8 @@ module mister_vgm_md_top #(
                     mode5_player_start_pulse <= 1'b0;
                     mode5_player_start_hold <= 1'b0;
                     mode5_direct_player_start_hold <= 1'b0;
+                    smoke_parser_start_hold <= 1'b0;
+                    smoke_parser_start_used <= 1'b0;
                     mode5_player_start_hold_seen <= 1'b0;
                     mode5_start_hold_clear_by_busy <= 1'b0;
                     mode5_start_hold_clear_by_done <= 1'b0;
@@ -1562,6 +1584,32 @@ module mister_vgm_md_top #(
                     end else begin
                         mode5_direct_player_start_hold <= 1'b0;
                         mode5_direct_start_used <= 1'b0;
+                    end
+
+                    if (smoke_parser_run_enable) begin
+                        if (mode5_load_begin_pulse ||
+                            vgm_load_busy ||
+                            vgm_load_error ||
+                            vgm_load_overflow ||
+                            !mode5_top_file_ok) begin
+                            smoke_parser_start_hold <= 1'b0;
+                            smoke_parser_start_used <= 1'b0;
+                        end else if (loaded_player_busy ||
+                                     vgm_player_core_debug[15] ||
+                                     vgm_player_core_debug[12] ||
+                                     vgm_player_lifecycle_debug[11] ||
+                                     vgm_player_lifecycle_debug[7]) begin
+                            smoke_parser_start_hold <= 1'b0;
+                        end else if (!smoke_parser_start_used &&
+                                     !mode5_loaded_player_reset &&
+                                     !loaded_player_done &&
+                                     !vgm_player_error) begin
+                            smoke_parser_start_hold <= 1'b1;
+                            smoke_parser_start_used <= 1'b1;
+                        end
+                    end else begin
+                        smoke_parser_start_hold <= 1'b0;
+                        smoke_parser_start_used <= 1'b0;
                     end
 
                     if (loaded_player_start_input_live &&
@@ -2069,6 +2117,8 @@ module mister_vgm_md_top #(
                         mode5_player_start_hold <= 1'b0;
                         mode5_direct_player_start_hold <= 1'b0;
                         mode5_direct_start_used <= 1'b0;
+                        smoke_parser_start_hold <= 1'b0;
+                        smoke_parser_start_used <= 1'b0;
                         mode5_top_stop_snapshot_debug_i <= 16'd0;
                         loaded_player_start_input_live_d <= 1'b0;
                         segapcm_rom_scan_busy_d <= 1'b0;
@@ -2323,22 +2373,42 @@ module mister_vgm_md_top #(
                   mode5_player_session_reset));
             assign mode5_player_start_to_player =
                 mode5_player_start_pulse | mode5_player_start_hold;
-            assign loaded_player_start_input_live =
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
+            assign smoke_parser_run_enable =
+                SEGAPCM_SMOKE_PARSER_RUN_TEST && YM2151_EXPERIMENTAL_MODE;
+`else
+            assign smoke_parser_run_enable = 1'b0;
+`endif
+            assign smoke_parser_start_to_player =
+                smoke_parser_run_enable && smoke_parser_start_hold;
+            assign loaded_player_start_input_normal =
                 (DIRECT_PLAYER_START_DEBUG && YM2151_EXPERIMENTAL_MODE) ?
                 mode5_direct_player_start_hold :
                 mode5_player_start_to_player;
-            assign mode5_loaded_player_reset = reset | mode5_sound_core_reset;
+            assign loaded_player_start_input_live =
+                smoke_parser_start_to_player ?
+                1'b1 : loaded_player_start_input_normal;
+            assign smoke_parser_loaded_player_reset =
+                mode5_load_begin_pulse |
+                vgm_load_busy |
+                vgm_load_error |
+                vgm_load_overflow;
+            assign mode5_loaded_player_reset =
+                reset |
+                (smoke_parser_run_enable ?
+                 smoke_parser_loaded_player_reset :
+                 mode5_sound_core_reset);
             assign mode5_sound_reset_active = mode5_sound_reset_active_i;
             assign mode5_player_start_pulse_debug = loaded_player_start_input_live;
             assign mode5_start_hold_debug = {
                 reset,
-                mode5_sound_core_reset,
+                mode5_loaded_player_reset,
                 mode5_load_session_active,
-                DIRECT_PLAYER_START_DEBUG,
+                (DIRECT_PLAYER_START_DEBUG || smoke_parser_run_enable),
                 mode5_top_file_ok,
                 vgm_load_done,
                 (vgm_load_error || vgm_load_overflow),
-                mode5_direct_player_start_hold,
+                (mode5_direct_player_start_hold || smoke_parser_start_hold),
                 mode5_player_start_hold,
                 mode5_player_start_to_player,
                 vgm_player_lifecycle_debug[11],
@@ -2388,11 +2458,14 @@ module mister_vgm_md_top #(
             assign mode5_scan_start_count_debug =
                 mode5_scan_start_count_i;
             assign mode5_direct_start_debug = {
-                8'd0,
+                5'd0,
+                smoke_parser_run_enable,
+                smoke_parser_start_used,
+                smoke_parser_start_hold,
                 mode5_direct_start_used,
-                mode5_direct_player_start_hold,
+                (mode5_direct_player_start_hold || smoke_parser_start_hold),
                 loaded_player_start_input_live,
-                DIRECT_PLAYER_START_DEBUG,
+                (DIRECT_PLAYER_START_DEBUG || smoke_parser_run_enable),
                 mode5_start_attempt_count_i[3:0]
             };
             assign mode5_top_stop_snapshot_debug =
@@ -2892,6 +2965,10 @@ module mister_vgm_md_top #(
                 .segapcm_copy_wr_data  (segapcm_copy_wr_data),
                 .segapcm_copy_flush_req(segapcm_copy_flush_req),
                 .segapcm_copy_flush_done(segapcm_copy_flush_done),
+                .segapcm_payload_tap_valid(segapcm_payload_tap_valid),
+                .segapcm_payload_tap_addr(segapcm_payload_tap_addr),
+                .segapcm_payload_tap_data(segapcm_payload_tap_data),
+                .segapcm_payload_tap_byte_count_debug(segapcm_payload_tap_byte_count),
                 .ym_cmd_ready          (ym_cmd_ready),
                 .psg_cmd_ready         (psg_cmd_ready),
                 .ym_cmd_valid          (ym_cmd_valid),
@@ -3021,6 +3098,11 @@ module mister_vgm_md_top #(
                 .data_block_count      (data_block_count),
                 .last_data_block_type  (last_data_block_type),
                 .last_data_block_size_low(last_data_block_size_low),
+                .parser_command_count_debug(parser_command_count_debug),
+                .parser_data_block_count_debug(parser_data_block_count_debug),
+                .parser_last_block_type_debug(parser_last_block_type_debug),
+                .parser_type00_block_count_debug(parser_type00_block_count_debug),
+                .parser_type80_block_count_debug(parser_type80_block_count_debug),
                 .segapcm_rom_block_count(segapcm_rom_block_count),
                 .segapcm_last_rom_size (segapcm_last_rom_size),
                 .segapcm_last_rom_start(segapcm_last_rom_start),
@@ -3077,6 +3159,21 @@ module mister_vgm_md_top #(
                     .smoke_variant_valid            (segapcm_smoke_variant_valid),
                     .smoke_source_loaded            (segapcm_smoke_source_loaded),
                     .loaded_payload_clear           (ioctl_download),
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_TINY_RAM_TEST
+                    .loaded_payload_wr_valid        (segapcm_payload_tap_valid),
+                    .loaded_payload_wr_addr         (segapcm_payload_tap_addr),
+                    .loaded_payload_wr_data         (segapcm_payload_tap_data),
+                    .loaded_payload_present         (1'b0),
+                    .loaded_payload_length          (segapcm_payload_tap_byte_count[18:0]),
+                    .loaded_payload_block_count     (parser_type80_block_count_debug[15:0]),
+`elsif MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_TAP_ONLY_TEST
+                    .loaded_payload_wr_valid        (segapcm_payload_tap_valid),
+                    .loaded_payload_wr_addr         (segapcm_payload_tap_addr),
+                    .loaded_payload_wr_data         (segapcm_payload_tap_data),
+                    .loaded_payload_present         (1'b0),
+                    .loaded_payload_length          (segapcm_payload_tap_byte_count[18:0]),
+                    .loaded_payload_block_count     (parser_type80_block_count_debug[15:0]),
+`else
                     .loaded_payload_wr_valid        (segapcm_copy_wr_req &&
                                                      segapcm_copy_wr_ready),
                     .loaded_payload_wr_addr         (segapcm_copy_wr_addr),
@@ -3085,6 +3182,8 @@ module mister_vgm_md_top #(
                                                      (segapcm_rom_copy_byte_count != 32'd0) &&
                                                      !segapcm_rom_copy_overflow),
                     .loaded_payload_length          (segapcm_rom_copy_byte_count[18:0]),
+                    .loaded_payload_block_count     (segapcm_rom_scan_block_count[15:0]),
+`endif
 `endif
                     .audio_l                        (segapcm_audio_l),
                     .audio_r                        (segapcm_audio_r),
@@ -3652,6 +3751,11 @@ module mister_vgm_md_top #(
             assign data_block_count = 32'd0;
             assign last_data_block_type = 8'd0;
             assign last_data_block_size_low = 16'd0;
+            assign parser_command_count_debug = 32'd0;
+            assign parser_data_block_count_debug = 32'd0;
+            assign parser_last_block_type_debug = 8'd0;
+            assign parser_type00_block_count_debug = 32'd0;
+            assign parser_type80_block_count_debug = 32'd0;
             assign segapcm_rom_block_count = 32'd0;
             assign segapcm_last_rom_size = 32'd0;
             assign segapcm_last_rom_start = 32'd0;

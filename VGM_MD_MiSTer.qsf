@@ -85,7 +85,8 @@ set_global_assignment -name VERILOG_MACRO "MEGAVGMDRIVE_YM2151_MODE_TEST=1"
 set_global_assignment -name VERILOG_MACRO "MEGAVGMDRIVE_SEGAPCM_START_INIT_TEST=1"
 set_global_assignment -name VERILOG_MACRO "MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST=1"
 set_global_assignment -name VERILOG_MACRO "MEGAVGMDRIVE_SEGAPCM_SMOKE_VARIANT=0"
-
+set_global_assignment -name VERILOG_MACRO "MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_TINY_RAM_TEST=1"
+set_global_assignment -name VERILOG_MACRO "MEGAVGMDRIVE_SEGAPCM_SMOKE_PARSER_RUN_TEST=1"
 # ---- Select exactly one audio compare block ----
 
 # ACTIVE: A_raw -> VGM_MD_audio_A_raw.rbf
