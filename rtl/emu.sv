@@ -650,7 +650,7 @@ module emu
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_TEST
         "O6,SegaPCM DDR Read,Seq,Follow;",
         "O79,SegaPCM DDR Offset,+000,+020,+040,+080,+100,+200,+600,+800;",
-        "OAC,SegaPCM DDR Delta,Norm,Slow,Half,Fast,x4,Step1,Step2,Step4;",
+        "OAC,SegaPCM DDR Delta,08,Hold,01,02,04,10,20,40;",
 `endif
 `endif
         "-;",

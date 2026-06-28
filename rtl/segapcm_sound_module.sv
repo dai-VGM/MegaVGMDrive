@@ -1173,14 +1173,14 @@ module segapcm_sound_module #(
         endcase
 
         unique case (smoke_ddr_follow_delta_sel)
-            3'd1: smoke_ddr_follow_delta_i = 8'h08;
-            3'd2: smoke_ddr_follow_delta_i = 8'h10;
-            3'd3: smoke_ddr_follow_delta_i = 8'h40;
-            3'd4: smoke_ddr_follow_delta_i = 8'h80;
-            3'd5: smoke_ddr_follow_delta_i = 8'h01;
-            3'd6: smoke_ddr_follow_delta_i = 8'h02;
-            3'd7: smoke_ddr_follow_delta_i = 8'h04;
-            default: smoke_ddr_follow_delta_i = 8'h20;
+            3'd1: smoke_ddr_follow_delta_i = 8'h00;
+            3'd2: smoke_ddr_follow_delta_i = 8'h01;
+            3'd3: smoke_ddr_follow_delta_i = 8'h02;
+            3'd4: smoke_ddr_follow_delta_i = 8'h04;
+            3'd5: smoke_ddr_follow_delta_i = 8'h10;
+            3'd6: smoke_ddr_follow_delta_i = 8'h20;
+            3'd7: smoke_ddr_follow_delta_i = 8'h40;
+            default: smoke_ddr_follow_delta_i = 8'h08;
         endcase
     end
 `endif
