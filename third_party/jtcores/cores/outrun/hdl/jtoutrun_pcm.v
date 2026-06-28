@@ -43,6 +43,7 @@ module jtoutrun_pcm #(parameter
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_TEST
     input              smoke_ddr_follow_mode,
     input              smoke_ddr_follow_init_enable,
+    input        [2:0] smoke_ddr_follow_delta_sel,
     output      [15:0] smoke_cur_initialized_debug,
     output      [15:0] smoke_cur_seed_event_debug,
     output      [15:0] smoke_cur_live_low_debug,
@@ -293,8 +294,23 @@ assign smoke_cur_state_debug = {
     cur_ch,
     st
 };
-`endif
+wire [7:0] smoke_follow_delta =
+    (smoke_ddr_follow_delta_sel == 3'd1) ? 8'h08 :
+    (smoke_ddr_follow_delta_sel == 3'd2) ? 8'h10 :
+    (smoke_ddr_follow_delta_sel == 3'd3) ? 8'h40 :
+    (smoke_ddr_follow_delta_sel == 3'd4) ? 8'h80 :
+    (smoke_ddr_follow_delta_sel == 3'd5) ? 8'h01 :
+    (smoke_ddr_follow_delta_sel == 3'd6) ? 8'h02 :
+    (smoke_ddr_follow_delta_sel == 3'd7) ? 8'h04 :
+    8'h20;
+wire [7:0] smoke_delta =
+    (smoke_ddr_follow_mode && smoke_ddr_follow_init_enable) ?
+    smoke_follow_delta : 8'h20;
+wire [23:0] smoke_follow_expected_next_i =
+    smoke_follow_prev_cur_addr_i + {16'd0, smoke_delta};
+`else
 wire [7:0] smoke_delta = 8'h20;
+`endif
 wire [6:0] smoke_vol_l =
     (smoke_variant == 3'd4) ? 7'h20 :
     (smoke_variant == 3'd6) ? 7'h00 :
@@ -678,6 +694,7 @@ always @(posedge clk) begin
             if( smoke_follow_cur_seeded_i &&
                 smoke_follow_cur_addr_i == 24'd0 &&
                 smoke_follow_prev_cur_addr_i != 24'd0 &&
+                smoke_follow_expected_next_i != 24'd0 &&
                 smoke_follow_zero_event_count_i != 16'hffff ) begin
                 smoke_follow_zero_event_count_i <=
                     smoke_follow_zero_event_count_i + 16'd1;
