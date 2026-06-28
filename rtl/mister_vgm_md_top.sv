@@ -93,6 +93,9 @@ module mister_vgm_md_top #(
     input  logic        [2:0] segapcm_smoke_variant,
     input  logic              segapcm_smoke_variant_valid,
     input  logic              segapcm_smoke_source_loaded,
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_TEST
+    input  logic              segapcm_smoke_ddr_follow,
+`endif
 `endif
 
     // Optional debug/status pins for early bring-up.
@@ -3271,6 +3274,7 @@ module mister_vgm_md_top #(
                     .smoke_source_loaded            (segapcm_smoke_source_loaded),
                     .loaded_payload_clear           (ioctl_download),
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_TEST
+                    .smoke_ddr_follow_mode         (segapcm_smoke_ddr_follow),
                     .loaded_payload_wr_valid        (segapcm_payload_tap_valid),
                     .loaded_payload_wr_addr         (segapcm_payload_tap_addr),
                     .loaded_payload_wr_data         (segapcm_payload_tap_data),

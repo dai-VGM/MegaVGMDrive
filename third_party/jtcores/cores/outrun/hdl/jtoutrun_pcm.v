@@ -40,6 +40,17 @@ module jtoutrun_pcm #(parameter
     input              cpu_cs,
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
     input        [2:0] smoke_variant,
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_TEST
+    input              smoke_ddr_follow_mode,
+    input              smoke_ddr_follow_init_enable,
+    output      [15:0] smoke_cur_initialized_debug,
+    output      [15:0] smoke_cur_seed_event_debug,
+    output      [15:0] smoke_cur_live_low_debug,
+    output      [15:0] smoke_cur_live_high_debug,
+    output      [15:0] smoke_cur_zero_event_debug,
+    output      [15:0] smoke_cur_seed_ref_debug,
+    output      [15:0] smoke_cur_state_debug,
+`endif
 `endif
 
     // ROM interface
@@ -258,6 +269,31 @@ localparam [3:0] SMOKE_CH = 4'd3;
 localparam [2:0] SMOKE_BANK = 3'd3;
 localparam [7:0] SMOKE_CFG = 8'h30;
 localparam [23:0] SMOKE_CUR = 24'h002600;
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_TEST
+reg smoke_follow_cur_seeded_i;
+reg [15:0] smoke_follow_seed_event_count_i;
+reg [15:0] smoke_follow_zero_event_count_i;
+reg [23:0] smoke_follow_cur_addr_i;
+reg [23:0] smoke_follow_prev_cur_addr_i;
+wire smoke_follow_preserve_cur =
+    smoke_ddr_follow_mode && smoke_ddr_follow_init_enable &&
+    smoke_follow_cur_seeded_i;
+assign smoke_cur_initialized_debug = {15'd0, smoke_follow_cur_seeded_i};
+assign smoke_cur_seed_event_debug = smoke_follow_seed_event_count_i;
+assign smoke_cur_live_low_debug = smoke_follow_cur_addr_i[15:0];
+assign smoke_cur_live_high_debug = {8'd0, smoke_follow_cur_addr_i[23:16]};
+assign smoke_cur_zero_event_debug = smoke_follow_zero_event_count_i;
+assign smoke_cur_seed_ref_debug = SMOKE_CUR[15:0];
+assign smoke_cur_state_debug = {
+    4'h5,
+    smoke_ddr_follow_mode,
+    smoke_ddr_follow_init_enable,
+    smoke_follow_preserve_cur,
+    smoke_follow_cur_seeded_i,
+    cur_ch,
+    st
+};
+`endif
 wire [7:0] smoke_delta = 8'h20;
 wire [6:0] smoke_vol_l =
     (smoke_variant == 3'd4) ? 7'h20 :
@@ -441,6 +477,15 @@ always @(posedge clk) begin
         vol_left  <= 0;
         vol_right <= 0;
         was_enb   <= 0;
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_TEST
+        smoke_follow_cur_seeded_i <= 1'b0;
+        smoke_follow_seed_event_count_i <= 16'd0;
+        smoke_follow_zero_event_count_i <= 16'd0;
+        smoke_follow_cur_addr_i <= SMOKE_CUR;
+        smoke_follow_prev_cur_addr_i <= SMOKE_CUR;
+`endif
+`endif
         dbg_last_bank <= 0;
         dbg_last_ch <= 0;
         dbg_last_st <= 0;
@@ -577,6 +622,15 @@ always @(posedge clk) begin
         dbg_start_flags_i <= 0;
         dbg_start_init_ch3_pending_i <= 1'b0;
     end else begin
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_TEST
+        if( !smoke_ddr_follow_mode || !smoke_ddr_follow_init_enable ) begin
+            smoke_follow_cur_seeded_i <= 1'b0;
+            smoke_follow_cur_addr_i <= SMOKE_CUR;
+            smoke_follow_prev_cur_addr_i <= SMOKE_CUR;
+        end
+`endif
+`endif
         if( we ) begin
 `ifdef MEGAVGMDRIVE_SEGAPCM_START_INIT_TEST
             if( cpu_addr == 8'h9e && !cpu_dout[0] ) begin
@@ -618,6 +672,20 @@ always @(posedge clk) begin
             end
         end
         if(cen) begin
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_TEST
+        if( smoke_ddr_follow_mode && smoke_ddr_follow_init_enable ) begin
+            if( smoke_follow_cur_seeded_i &&
+                smoke_follow_cur_addr_i == 24'd0 &&
+                smoke_follow_prev_cur_addr_i != 24'd0 &&
+                smoke_follow_zero_event_count_i != 16'hffff ) begin
+                smoke_follow_zero_event_count_i <=
+                    smoke_follow_zero_event_count_i + 16'd1;
+            end
+            smoke_follow_prev_cur_addr_i <= smoke_follow_cur_addr_i;
+        end
+`endif
+`endif
         if( we ) begin
             case( cpu_addr )
                 8'h18: dbg_start_mirror_c0_i <= cpu_dout;
@@ -726,7 +794,14 @@ always @(posedge clk) begin
                 reg [ 7:0] load_byte;
                 load_byte = was_enb ? 8'd0 : cfg_data;
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
-                load_byte = (cur_ch == SMOKE_CH) ? SMOKE_CUR[7:0] : 8'd0;
+                load_byte = (cur_ch == SMOKE_CH) ?
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_TEST
+                    (smoke_follow_preserve_cur ? smoke_follow_cur_addr_i[7:0] :
+                     SMOKE_CUR[7:0]) :
+`else
+                    SMOKE_CUR[7:0] :
+`endif
+                    8'd0;
 `elsif MEGAVGMDRIVE_SEGAPCM_START_INIT_TEST
                 if( cur_ch == 4'd3 ) begin
                     load_byte = 8'h00;
@@ -758,7 +833,14 @@ always @(posedge clk) begin
                 reg [ 7:0] load_byte;
                 load_byte = cfg_data;
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
-                load_byte = (cur_ch == SMOKE_CH) ? SMOKE_CUR[15:8] : 8'd0;
+                load_byte = (cur_ch == SMOKE_CH) ?
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_TEST
+                    (smoke_follow_preserve_cur ? smoke_follow_cur_addr_i[15:8] :
+                     SMOKE_CUR[15:8]) :
+`else
+                    SMOKE_CUR[15:8] :
+`endif
+                    8'd0;
 `elsif MEGAVGMDRIVE_SEGAPCM_START_INIT_TEST
                 if( cur_ch == 4'd3 ) begin
                     load_byte = 8'h26;
@@ -790,7 +872,14 @@ always @(posedge clk) begin
                 reg [ 7:0] load_byte;
                 load_byte = cfg_data;
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
-                load_byte = (cur_ch == SMOKE_CH) ? SMOKE_CUR[23:16] : 8'd0;
+                load_byte = (cur_ch == SMOKE_CH) ?
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_TEST
+                    (smoke_follow_preserve_cur ? smoke_follow_cur_addr_i[23:16] :
+                     SMOKE_CUR[23:16]) :
+`else
+                    SMOKE_CUR[23:16] :
+`endif
+                    8'd0;
 `elsif MEGAVGMDRIVE_SEGAPCM_START_INIT_TEST
                 if( cur_ch == 4'd3 ) begin
                     load_byte = 8'h00;
@@ -841,6 +930,20 @@ always @(posedge clk) begin
                     dbg_writer_bits_i <= dbg_writer_bits_i | 8'b0000_0100;
                 end
                 cur_addr[23:16]  <= load_byte;
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_TEST
+                if( cur_ch == SMOKE_CH && smoke_ddr_follow_mode &&
+                    smoke_ddr_follow_init_enable ) begin
+                    if( !smoke_follow_cur_seeded_i &&
+                        smoke_follow_seed_event_count_i != 16'hffff ) begin
+                        smoke_follow_seed_event_count_i <=
+                            smoke_follow_seed_event_count_i + 16'd1;
+                    end
+                    smoke_follow_cur_seeded_i <= 1'b1;
+                    smoke_follow_cur_addr_i <= next_cur_addr;
+                end
+`endif
+`endif
             end
             4: begin
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
@@ -1029,6 +1132,14 @@ always @(posedge clk) begin
                         dbg_writer_bits_i <= dbg_writer_bits_i | 8'b0010_0000;
                     end
                     cur_addr <= next_cur_addr;
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_TEST
+                    if( cur_ch == SMOKE_CH && smoke_ddr_follow_mode &&
+                        smoke_ddr_follow_init_enable ) begin
+                        smoke_follow_cur_addr_i <= next_cur_addr;
+                    end
+`endif
+`endif
                 end
             end
 

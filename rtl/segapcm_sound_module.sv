@@ -31,6 +31,7 @@ module segapcm_sound_module #(
     input  logic        [18:0] loaded_payload_length,
     input  logic        [15:0] loaded_payload_block_count,
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_TEST
+    input  logic               smoke_ddr_follow_mode,
     output logic               loaded_ddr_rd_req,
     input  logic               loaded_ddr_rd_ready,
     output logic        [18:0] loaded_ddr_rd_addr,
@@ -208,6 +209,15 @@ module segapcm_sound_module #(
     wire [15:0] core_dbg_38686_cur_15;
     wire [15:0] core_dbg_38686_cur_07;
     wire [15:0] core_dbg_38686_delta;
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_TEST
+    wire [15:0] core_dbg_smoke_cur_initialized;
+    wire [15:0] core_dbg_smoke_cur_seed_event;
+    wire [15:0] core_dbg_smoke_cur_live_low;
+    wire [15:0] core_dbg_smoke_cur_live_high;
+    wire [15:0] core_dbg_smoke_cur_zero_event;
+    wire [15:0] core_dbg_smoke_cur_seed_ref;
+    wire [15:0] core_dbg_smoke_cur_state;
+`endif
     wire [15:0] core_dbg_ch3_evolution_flags;
     wire [15:0] core_dbg_ch3_delta;
     wire [15:0] core_dbg_ch1_first_high;
@@ -310,6 +320,23 @@ module segapcm_sound_module #(
     logic [7:0] smoke_ddr_read_prev_data_i;
     logic [7:0] smoke_ddr_read_last_nonzero_data_i;
     logic smoke_ddr_read_valid_seen_i;
+    logic smoke_ddr_follow_mode_d_i;
+    logic [15:0] smoke_ddr_follow_core_addr_low_i;
+    logic [15:0] smoke_ddr_follow_prev_addr_low_i;
+    logic [15:0] smoke_ddr_follow_mapped_index_i;
+    logic [15:0] smoke_ddr_follow_word_i;
+    logic [15:0] smoke_ddr_follow_lane_i;
+    logic [15:0] smoke_ddr_follow_flags_i;
+    logic [15:0] smoke_ddr_follow_cs_count_i;
+    logic [15:0] smoke_ddr_follow_ok_count_i;
+    logic [15:0] smoke_ddr_follow_request_count_i;
+    logic [15:0] smoke_ddr_follow_addr_change_count_i;
+    wire [18:0] smoke_ddr_follow_read_index =
+        {7'd0, core_rom_addr[11:0]};
+    wire [15:0] smoke_ddr_follow_word_next =
+        loaded_ddr_base_addr_debug + {7'd0, core_rom_addr[11:3]};
+    wire [15:0] smoke_ddr_follow_lane_next =
+        {13'd0, core_rom_addr[2:0]};
     wire [7:0] smoke_loaded_payload_data_i = smoke_ddr_audio_byte_hold_i;
 `elsif MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_TINY_RAM_TEST
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_4K_TEST
@@ -1057,7 +1084,7 @@ module segapcm_sound_module #(
 `endif
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_TEST
     assign rom_return_nonzero_count_debug = loaded_ddr_write_req_count_debug;
-    assign rom_return_change_count_debug = loaded_ddr_base_addr_debug;
+    assign rom_return_change_count_debug = smoke_ddr_read_req_count_i;
 `else
     assign rom_return_nonzero_count_debug = {15'd0, core_rom_cs};
     assign rom_return_change_count_debug = {15'd0, core_rom_ok};
@@ -1071,7 +1098,7 @@ module segapcm_sound_module #(
     assign rom_preload_data_debug = {8'd0, selected_rom_data_before_fallback};
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_TEST
-    assign rom_core_ok_count_debug = loaded_ddr_base_addr_debug;
+    assign rom_core_ok_count_debug = smoke_ddr_read_valid_count_i;
 `else
     assign rom_core_ok_count_debug = {15'd0, smoke_effective_addr_in_range};
 `endif
@@ -1122,15 +1149,14 @@ module segapcm_sound_module #(
     assign pcm_debug_cur_addr_high = core_dbg_cur_addr_high;
     assign pcm_debug_cur_addr_low_state = core_dbg_cur_addr_low_state;
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_TEST
-    assign known38686_flags_debug = smoke_ddr_scan_index_i;
-    assign known38686_bank_debug =
-        loaded_ddr_base_addr_debug + {3'd0, smoke_ddr_scan_index_i[15:3]};
+    assign known38686_flags_debug = smoke_ddr_follow_core_addr_low_i;
+    assign known38686_bank_debug = smoke_ddr_follow_word_i;
     assign known38686_channel_debug = smoke_ddr_read_nonzero_count_i;
-    assign known38686_state_debug = {8'd0, smoke_ddr_scan_data_i};
+    assign known38686_state_debug = smoke_ddr_follow_flags_i;
     assign known38686_cur_high_debug = loaded_ddr_last_write_addr_debug;
     assign known38686_cur_low_debug = loaded_ddr_last_write_lane_debug;
-    assign known38686_en_addr_debug = {13'd0, smoke_ddr_scan_index_i[2:0]};
-    assign known38686_en_value_debug = smoke_ddr_read_zero_count_i;
+    assign known38686_en_addr_debug = smoke_ddr_follow_lane_i;
+    assign known38686_en_value_debug = core_dbg_smoke_cur_initialized;
 `else
     assign known38686_flags_debug = active_req_flow_debug_i;
     assign known38686_bank_debug = core_dbg_bank_channel_state;
@@ -1143,7 +1169,7 @@ module segapcm_sound_module #(
 `endif
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_TEST
-    assign known38686_d0_addr_debug = smoke_ddr_scan_index_i;
+    assign known38686_d0_addr_debug = smoke_ddr_follow_mapped_index_i;
 `elsif MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_TINY_RAM_TEST
     assign known38686_d0_addr_debug = smoke_loaded_write_count_i;
 `elsif MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_TAP_ONLY_TEST
@@ -1159,13 +1185,13 @@ module segapcm_sound_module #(
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_TEST
     assign known38686_d0_value_debug =
-        {8'd0, smoke_ddr_scan_first_nonzero_data_i};
+        smoke_ddr_follow_prev_addr_low_i;
 `else
     assign known38686_d0_value_debug = smoke_ap_debug;
 `endif
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_TEST
     assign known38686_d1_addr_debug =
-        {8'd0, loaded_ddr_last_write_data_debug};
+        smoke_ddr_follow_cs_count_i;
 `else
     assign known38686_d1_addr_debug = 16'h0030;
 `endif
@@ -1203,13 +1229,13 @@ module segapcm_sound_module #(
 `endif
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_TEST
     assign known38686_d2_addr_debug =
-        {8'd0, loaded_ddr_last_write_data_debug};
+        smoke_ddr_follow_ok_count_i;
 `else
     assign known38686_d2_addr_debug = active_req_page_debug_i;
 `endif
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_TEST
-    assign known38686_cfg_en_debug = smoke_ddr_scan_first_nonzero_index_i;
+    assign known38686_cfg_en_debug = smoke_ddr_follow_request_count_i;
 `else
     assign known38686_cfg_en_debug = 16'h0030;
 `endif
@@ -1219,7 +1245,7 @@ module segapcm_sound_module #(
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_TEST
     assign known38686_cur_23_debug = smoke_ddr_scan_last_nonzero_index_i;
     assign known38686_cur_15_debug = {8'd0, smoke_ddr_audio_byte_hold_i};
-    assign known38686_cur_07_debug = smoke_ddr_read_change_count_i;
+    assign known38686_cur_07_debug = smoke_ddr_follow_addr_change_count_i;
 `else
     assign known38686_cur_23_debug = {8'd0, core_dbg_cur_addr_high[15:8]};
     assign known38686_cur_15_debug = {8'd0, core_dbg_cur_addr_high[7:0]};
@@ -1227,7 +1253,7 @@ module segapcm_sound_module #(
 `endif
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_TEST
     assign ch3_evolution_flags_debug =
-        {8'd0, smoke_ddr_scan_last_nonzero_data_i};
+        smoke_ddr_audio_update_count_i;
     assign ch3_delta_debug = {8'd0, smoke_ddr_audio_byte_hold_i};
 `else
     assign ch3_evolution_flags_debug = core_dbg_ch3_evolution_flags;
@@ -1247,6 +1273,17 @@ module segapcm_sound_module #(
     assign ch3_r1_low_debug = core_dbg_ch3_r1_low;
     assign ch3_r2_high_debug = core_dbg_ch3_r2_high;
     assign ch3_r2_low_debug = core_dbg_ch3_r2_low;
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_TEST
+    assign update_state_channel_debug = core_dbg_smoke_cur_state;
+    assign update_before_23_debug = core_dbg_smoke_cur_seed_event;
+    assign update_before_15_debug = core_dbg_smoke_cur_seed_ref;
+    assign update_before_07_debug = core_dbg_smoke_cur_live_low;
+    assign update_addend_debug = core_dbg_smoke_cur_live_high;
+    assign update_after_23_debug = core_dbg_smoke_cur_live_high;
+    assign update_after_15_debug = core_dbg_smoke_cur_zero_event;
+    assign update_after_07_debug = 16'd0;
+    assign update_reason_debug = 16'hDD20;
+`else
     assign update_state_channel_debug = known38686_state8_channel3 ?
                                         {8'd0, known38686_state_i, known38686_channel_i} :
                                         16'd0;
@@ -1258,6 +1295,7 @@ module segapcm_sound_module #(
     assign update_after_15_debug = core_dbg_update_after_15;
     assign update_after_07_debug = core_dbg_update_after_07;
     assign update_reason_debug = known38686_state8_channel3 ? 16'hEE20 : 16'd0;
+`endif
     assign cpu_write_count_debug = core_write_count_i;
     assign cpu_cen_write_count_debug = core_cen_write_count_i;
     assign cpu_addr_debug = {latched_raw_addr[7:0], latched_cpu_addr};
@@ -1714,7 +1752,42 @@ module segapcm_sound_module #(
             smoke_ddr_read_prev_data_i <= 8'd0;
             smoke_ddr_read_last_nonzero_data_i <= 8'd0;
             smoke_ddr_read_valid_seen_i <= 1'b0;
+            smoke_ddr_follow_mode_d_i <= 1'b0;
+            smoke_ddr_follow_core_addr_low_i <= 16'd0;
+            smoke_ddr_follow_prev_addr_low_i <= 16'd0;
+            smoke_ddr_follow_mapped_index_i <= 16'd0;
+            smoke_ddr_follow_word_i <= 16'd0;
+            smoke_ddr_follow_lane_i <= 16'd0;
+            smoke_ddr_follow_flags_i <= 16'hC000;
+            smoke_ddr_follow_cs_count_i <= 16'd0;
+            smoke_ddr_follow_ok_count_i <= 16'd0;
+            smoke_ddr_follow_request_count_i <= 16'd0;
+            smoke_ddr_follow_addr_change_count_i <= 16'd0;
         end else begin
+            smoke_ddr_follow_mode_d_i <= smoke_ddr_follow_mode;
+            smoke_ddr_follow_flags_i <= {
+                8'hC0,
+                1'b0,
+                smoke_ddr_follow_mode,
+                smoke_ddr_audio_active,
+                loaded_ddr_rd_req,
+                loaded_ddr_rd_ready,
+                loaded_ddr_rd_valid,
+                core_rom_cs,
+                core_rom_ok
+            };
+            if (smoke_ddr_follow_mode && smoke_ddr_audio_active) begin
+                if (core_rom_cs &&
+                    (smoke_ddr_follow_cs_count_i != 16'hffff)) begin
+                    smoke_ddr_follow_cs_count_i <=
+                        smoke_ddr_follow_cs_count_i + 16'd1;
+                end
+                if (core_rom_ok &&
+                    (smoke_ddr_follow_ok_count_i != 16'hffff)) begin
+                    smoke_ddr_follow_ok_count_i <=
+                        smoke_ddr_follow_ok_count_i + 16'd1;
+                end
+            end
             if (!loaded_ddr_payload_present) begin
                 loaded_ddr_rd_req <= 1'b0;
                 loaded_ddr_rd_addr <= 19'd0;
@@ -1725,22 +1798,65 @@ module segapcm_sound_module #(
                 smoke_ddr_scan_index_i <= 16'd0;
                 smoke_ddr_scan_done_i <= 1'b0;
                 smoke_ddr_scan_found_nonzero_i <= 1'b0;
+                smoke_ddr_follow_core_addr_low_i <= 16'd0;
+                smoke_ddr_follow_prev_addr_low_i <= 16'd0;
+                smoke_ddr_follow_mapped_index_i <= 16'd0;
+                smoke_ddr_follow_word_i <= 16'd0;
+                smoke_ddr_follow_lane_i <= 16'd0;
             end else if (!smoke_ddr_audio_active) begin
                 loaded_ddr_rd_req <= 1'b0;
                 smoke_ddr_read_div_i <= 16'd0;
+            end else if (smoke_ddr_follow_mode_d_i != smoke_ddr_follow_mode) begin
+                loaded_ddr_rd_req <= 1'b0;
+                smoke_ddr_read_div_i <= 16'd0;
+                smoke_ddr_read_index_i <= 19'd0;
+                smoke_ddr_audio_byte_hold_i <= 8'h80;
+                smoke_ddr_audio_valid_seen_i <= 1'b0;
+                smoke_ddr_follow_prev_addr_low_i <=
+                    smoke_ddr_follow_core_addr_low_i;
             end else if (loaded_ddr_rd_req) begin
                 if (loaded_ddr_rd_ready) begin
                     loaded_ddr_rd_req <= 1'b0;
                     smoke_ddr_read_last_index_i <= loaded_ddr_rd_addr[15:0];
-                    if (smoke_ddr_read_index_i ==
-                        (SMOKE_LOADED_DDR_BYTES_19 - 19'd1)) begin
-                        smoke_ddr_read_index_i <= 19'd0;
-                    end else begin
-                        smoke_ddr_read_index_i <= smoke_ddr_read_index_i + 19'd1;
+                    if (!smoke_ddr_follow_mode) begin
+                        if (smoke_ddr_read_index_i ==
+                            (SMOKE_LOADED_DDR_BYTES_19 - 19'd1)) begin
+                            smoke_ddr_read_index_i <= 19'd0;
+                        end else begin
+                            smoke_ddr_read_index_i <=
+                                smoke_ddr_read_index_i + 19'd1;
+                        end
                     end
                 end else if (smoke_ddr_read_blocked_count_i != 16'hffff) begin
                     smoke_ddr_read_blocked_count_i <=
                         smoke_ddr_read_blocked_count_i + 16'd1;
+                end
+            end else if (smoke_ddr_follow_mode) begin
+                smoke_ddr_read_div_i <= 16'd0;
+                if (rom_request_event) begin
+                    loaded_ddr_rd_req <= 1'b1;
+                    loaded_ddr_rd_addr <= smoke_ddr_follow_read_index;
+                    smoke_ddr_follow_prev_addr_low_i <=
+                        smoke_ddr_follow_core_addr_low_i;
+                    if ((core_rom_addr[15:0] !=
+                         smoke_ddr_follow_core_addr_low_i) &&
+                        (smoke_ddr_follow_addr_change_count_i != 16'hffff)) begin
+                        smoke_ddr_follow_addr_change_count_i <=
+                            smoke_ddr_follow_addr_change_count_i + 16'd1;
+                    end
+                    smoke_ddr_follow_core_addr_low_i <= core_rom_addr[15:0];
+                    smoke_ddr_follow_mapped_index_i <=
+                        {4'd0, core_rom_addr[11:0]};
+                    smoke_ddr_follow_word_i <= smoke_ddr_follow_word_next;
+                    smoke_ddr_follow_lane_i <= smoke_ddr_follow_lane_next;
+                    if (smoke_ddr_follow_request_count_i != 16'hffff) begin
+                        smoke_ddr_follow_request_count_i <=
+                            smoke_ddr_follow_request_count_i + 16'd1;
+                    end
+                    if (smoke_ddr_read_req_count_i != 16'hffff) begin
+                        smoke_ddr_read_req_count_i <=
+                            smoke_ddr_read_req_count_i + 16'd1;
+                    end
                 end
             end else if (smoke_ddr_read_div_i == SMOKE_DDR_READ_DIV_LAST) begin
                 smoke_ddr_read_div_i <= 16'd0;
@@ -2009,6 +2125,17 @@ module segapcm_sound_module #(
         .cpu_cs    (core_cpu_cs),
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
         .smoke_variant(smoke_variant_active),
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_TEST
+        .smoke_ddr_follow_mode(smoke_ddr_follow_mode),
+        .smoke_ddr_follow_init_enable(smoke_ddr_audio_active),
+        .smoke_cur_initialized_debug(core_dbg_smoke_cur_initialized),
+        .smoke_cur_seed_event_debug(core_dbg_smoke_cur_seed_event),
+        .smoke_cur_live_low_debug(core_dbg_smoke_cur_live_low),
+        .smoke_cur_live_high_debug(core_dbg_smoke_cur_live_high),
+        .smoke_cur_zero_event_debug(core_dbg_smoke_cur_zero_event),
+        .smoke_cur_seed_ref_debug(core_dbg_smoke_cur_seed_ref),
+        .smoke_cur_state_debug(core_dbg_smoke_cur_state),
+`endif
 `endif
         .rom_addr  (core_rom_addr),
         .rom_data  (core_rom_data),
