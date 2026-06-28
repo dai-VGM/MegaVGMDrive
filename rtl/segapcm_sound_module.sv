@@ -34,6 +34,8 @@ module segapcm_sound_module #(
     input  logic               smoke_ddr_follow_mode,
     input  logic         [2:0] smoke_ddr_follow_offset_sel,
     input  logic         [2:0] smoke_ddr_follow_delta_sel,
+    input  logic         [1:0] smoke_c0_use_sel,
+    input  logic         [2:0] smoke_c0_vol_map_sel,
     output logic               loaded_ddr_rd_req,
     input  logic               loaded_ddr_rd_ready,
     output logic        [18:0] loaded_ddr_rd_addr,
@@ -124,6 +126,20 @@ module segapcm_sound_module #(
     output logic        [15:0] known38686_cur_23_debug,
     output logic        [15:0] known38686_cur_15_debug,
     output logic        [15:0] known38686_cur_07_debug,
+    output logic        [15:0] c0_capture_write_count_debug,
+    output logic        [15:0] c0_capture_last_addr_debug,
+    output logic        [15:0] c0_capture_last_data_debug,
+    output logic        [15:0] c0_capture_channel_activity_debug,
+    output logic        [15:0] c0_capture_selected_channel_debug,
+    output logic        [15:0] c0_capture_ch3_ctrl_debug,
+    output logic        [15:0] c0_capture_ch3_cur_low_debug,
+    output logic        [15:0] c0_capture_ch3_cur_mid_debug,
+    output logic        [15:0] c0_capture_ch3_cur_high_debug,
+    output logic        [15:0] c0_capture_ch3_delta_debug,
+    output logic        [15:0] c0_capture_ch3_vol_l_debug,
+    output logic        [15:0] c0_capture_ch3_vol_r_debug,
+    output logic        [15:0] c0_capture_ch3_loop_debug,
+    output logic        [15:0] c0_capture_ch3_end_debug,
     output logic        [15:0] ch3_evolution_flags_debug,
     output logic        [15:0] ch3_delta_debug,
     output logic        [15:0] ch1_first_high_debug,
@@ -280,7 +296,6 @@ module segapcm_sound_module #(
         (smoke_variant_active == 3'd1) ? 3'd4 : 3'd1;
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_TEST
     logic [7:0] smoke_ddr_follow_delta_i;
-    wire [7:0] smoke_delta = smoke_ddr_follow_delta_i;
 `else
     wire [7:0] smoke_delta = 8'h20;
 `endif
@@ -292,8 +307,10 @@ module segapcm_sound_module #(
         (smoke_variant_active == 3'd4) ? 7'h20 :
         (smoke_variant_active == 3'd5) ? 7'h00 :
         7'h40;
+`ifndef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_TEST
     wire [15:0] smoke_ap_debug =
         {1'b0, smoke_vol_l, 1'b0, smoke_vol_r};
+`endif
     logic [18:0] smoke_payload_addr_i;
     logic [2:0] smoke_payload_div_count_i;
     logic [2:0] smoke_variant_d_i;
@@ -596,6 +613,74 @@ module segapcm_sound_module #(
     logic [15:0] active_req_next_debug_i;
     logic [15:0] active_req_page_debug_i;
     logic [15:0] active_req_flow_debug_i;
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_TEST
+    logic [15:0] c0_capture_write_count_i;
+    logic [15:0] c0_capture_last_addr_i;
+    logic [15:0] c0_capture_last_data_i;
+    logic [15:0] c0_capture_channel_activity_i;
+    logic [7:0] c0_capture_ch3_cur_low_i;
+    logic [7:0] c0_capture_ch3_cur_mid_i;
+    logic [7:0] c0_capture_ch3_cur_high_i;
+    logic [7:0] c0_capture_ch3_loop_mid_i;
+    logic [7:0] c0_capture_ch3_loop_high_i;
+    logic [7:0] c0_capture_ch3_end_i;
+    logic [7:0] c0_capture_ch3_delta_i;
+    logic [7:0] c0_capture_ch3_vol_l_i;
+    logic [7:0] c0_capture_ch3_vol_r_i;
+    logic [7:0] c0_capture_ch3_ctrl_i;
+    logic [7:0] c0_capture_ch3_ctrl_ext_i;
+    wire smoke_c0_use_vol_i =
+        smoke_ddr_follow_mode &&
+        ((smoke_c0_use_sel == 2'd1) || (smoke_c0_use_sel == 2'd3));
+    wire smoke_c0_use_delta_i =
+        smoke_ddr_follow_mode &&
+        ((smoke_c0_use_sel == 2'd2) || (smoke_c0_use_sel == 2'd3));
+    wire [7:0] smoke_delta =
+        smoke_c0_use_delta_i ? c0_capture_ch3_delta_i :
+        smoke_ddr_follow_delta_i;
+    wire [6:0] smoke_c0_vol_l_raw = c0_capture_ch3_vol_l_i[6:0];
+    wire [6:0] smoke_c0_vol_r_raw = c0_capture_ch3_vol_r_i[6:0];
+    wire [6:0] smoke_c0_vol_l_x2 =
+        (smoke_c0_vol_l_raw > 7'h3f) ? 7'h7f :
+        (smoke_c0_vol_l_raw << 1);
+    wire [6:0] smoke_c0_vol_r_x2 =
+        (smoke_c0_vol_r_raw > 7'h3f) ? 7'h7f :
+        (smoke_c0_vol_r_raw << 1);
+    wire [6:0] smoke_c0_vol_l_x4 =
+        (smoke_c0_vol_l_raw > 7'h1f) ? 7'h7f :
+        (smoke_c0_vol_l_raw << 2);
+    wire [6:0] smoke_c0_vol_r_x4 =
+        (smoke_c0_vol_r_raw > 7'h1f) ? 7'h7f :
+        (smoke_c0_vol_r_raw << 2);
+    wire [6:0] smoke_c0_vol_l_minboost =
+        (smoke_c0_vol_l_raw == 7'd0) ? 7'd0 :
+        (smoke_c0_vol_l_raw < 7'h20) ? 7'h20 :
+        smoke_c0_vol_l_raw;
+    wire [6:0] smoke_c0_vol_r_minboost =
+        (smoke_c0_vol_r_raw == 7'd0) ? 7'd0 :
+        (smoke_c0_vol_r_raw < 7'h20) ? 7'h20 :
+        smoke_c0_vol_r_raw;
+    wire [6:0] smoke_c0_vol_l_mapped =
+        (smoke_c0_vol_map_sel == 3'd1) ? smoke_c0_vol_l_x2 :
+        (smoke_c0_vol_map_sel == 3'd2) ? smoke_c0_vol_l_x4 :
+        (smoke_c0_vol_map_sel == 3'd3) ? smoke_c0_vol_l_minboost :
+        (smoke_c0_vol_map_sel == 3'd4) ? (7'h7f - smoke_c0_vol_l_raw) :
+        (smoke_c0_vol_map_sel == 3'd5) ? smoke_vol_l :
+        smoke_c0_vol_l_raw;
+    wire [6:0] smoke_c0_vol_r_mapped =
+        (smoke_c0_vol_map_sel == 3'd1) ? smoke_c0_vol_r_x2 :
+        (smoke_c0_vol_map_sel == 3'd2) ? smoke_c0_vol_r_x4 :
+        (smoke_c0_vol_map_sel == 3'd3) ? smoke_c0_vol_r_minboost :
+        (smoke_c0_vol_map_sel == 3'd4) ? (7'h7f - smoke_c0_vol_r_raw) :
+        (smoke_c0_vol_map_sel == 3'd5) ? smoke_vol_r :
+        smoke_c0_vol_r_raw;
+    wire [6:0] smoke_vol_l_selected =
+        smoke_c0_use_vol_i ? smoke_c0_vol_l_mapped : smoke_vol_l;
+    wire [6:0] smoke_vol_r_selected =
+        smoke_c0_use_vol_i ? smoke_c0_vol_r_mapped : smoke_vol_r;
+    wire [15:0] smoke_ap_debug =
+        {1'b0, smoke_vol_l_selected, 1'b0, smoke_vol_r_selected};
+`endif
 
     function automatic [15:0] abs16(input logic signed [15:0] value);
         abs16 = value[15] ? (~value + 16'd1) : value;
@@ -1288,6 +1373,39 @@ module segapcm_sound_module #(
     assign known38686_cur_07_debug = {8'd0, core_dbg_cur_addr_low_state[15:8]};
 `endif
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_TEST
+    assign c0_capture_write_count_debug = c0_capture_write_count_i;
+    assign c0_capture_last_addr_debug = c0_capture_last_addr_i;
+    assign c0_capture_last_data_debug = c0_capture_last_data_i;
+    assign c0_capture_channel_activity_debug = c0_capture_channel_activity_i;
+    assign c0_capture_selected_channel_debug = 16'h0003;
+    assign c0_capture_ch3_ctrl_debug = {c0_capture_ch3_ctrl_i,
+                                        c0_capture_ch3_ctrl_ext_i};
+    assign c0_capture_ch3_cur_low_debug = {8'd0, c0_capture_ch3_cur_low_i};
+    assign c0_capture_ch3_cur_mid_debug = {8'd0, c0_capture_ch3_cur_mid_i};
+    assign c0_capture_ch3_cur_high_debug = {8'd0, c0_capture_ch3_cur_high_i};
+    assign c0_capture_ch3_delta_debug = {8'd0, c0_capture_ch3_delta_i};
+    assign c0_capture_ch3_vol_l_debug = {8'd0, c0_capture_ch3_vol_l_i};
+    assign c0_capture_ch3_vol_r_debug = {8'd0, c0_capture_ch3_vol_r_i};
+    assign c0_capture_ch3_loop_debug = {c0_capture_ch3_loop_mid_i,
+                                        c0_capture_ch3_loop_high_i};
+    assign c0_capture_ch3_end_debug = {8'd0, c0_capture_ch3_end_i};
+`else
+    assign c0_capture_write_count_debug = 16'd0;
+    assign c0_capture_last_addr_debug = 16'd0;
+    assign c0_capture_last_data_debug = 16'd0;
+    assign c0_capture_channel_activity_debug = 16'd0;
+    assign c0_capture_selected_channel_debug = 16'd0;
+    assign c0_capture_ch3_ctrl_debug = 16'd0;
+    assign c0_capture_ch3_cur_low_debug = 16'd0;
+    assign c0_capture_ch3_cur_mid_debug = 16'd0;
+    assign c0_capture_ch3_cur_high_debug = 16'd0;
+    assign c0_capture_ch3_delta_debug = 16'd0;
+    assign c0_capture_ch3_vol_l_debug = 16'd0;
+    assign c0_capture_ch3_vol_r_debug = 16'd0;
+    assign c0_capture_ch3_loop_debug = 16'd0;
+    assign c0_capture_ch3_end_debug = 16'd0;
+`endif
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_TEST
     assign ch3_evolution_flags_debug =
         smoke_ddr_audio_update_count_i;
     assign ch3_delta_debug = {8'd0, smoke_ddr_audio_byte_hold_i};
@@ -1466,6 +1584,23 @@ module segapcm_sound_module #(
             last_audio_l_i <= 16'sd0;
             last_audio_r_i <= 16'sd0;
             shadow_decode_i <= 16'd0;
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_TEST
+            c0_capture_write_count_i <= 16'd0;
+            c0_capture_last_addr_i <= 16'd0;
+            c0_capture_last_data_i <= 16'd0;
+            c0_capture_channel_activity_i <= 16'd0;
+            c0_capture_ch3_cur_low_i <= 8'd0;
+            c0_capture_ch3_cur_mid_i <= 8'd0;
+            c0_capture_ch3_cur_high_i <= 8'd0;
+            c0_capture_ch3_loop_mid_i <= 8'd0;
+            c0_capture_ch3_loop_high_i <= 8'd0;
+            c0_capture_ch3_end_i <= 8'd0;
+            c0_capture_ch3_delta_i <= 8'd0;
+            c0_capture_ch3_vol_l_i <= 8'd0;
+            c0_capture_ch3_vol_r_i <= 8'd0;
+            c0_capture_ch3_ctrl_i <= 8'd0;
+            c0_capture_ch3_ctrl_ext_i <= 8'd0;
+`endif
             for (int unsigned i = 0; i < 256; i = i + 1) begin
                 shadow_ram[i] <= 8'd0;
             end
@@ -1512,6 +1647,47 @@ module segapcm_sound_module #(
                 cpu_write_pulse <= 1'b1;
                 cpu_write_pending <= 1'b0;
             end
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_TEST
+            if (loaded_payload_clear) begin
+                c0_capture_write_count_i <= 16'd0;
+                c0_capture_last_addr_i <= 16'd0;
+                c0_capture_last_data_i <= 16'd0;
+                c0_capture_channel_activity_i <= 16'd0;
+                c0_capture_ch3_cur_low_i <= 8'd0;
+                c0_capture_ch3_cur_mid_i <= 8'd0;
+                c0_capture_ch3_cur_high_i <= 8'd0;
+                c0_capture_ch3_loop_mid_i <= 8'd0;
+                c0_capture_ch3_loop_high_i <= 8'd0;
+                c0_capture_ch3_end_i <= 8'd0;
+                c0_capture_ch3_delta_i <= 8'd0;
+                c0_capture_ch3_vol_l_i <= 8'd0;
+                c0_capture_ch3_vol_r_i <= 8'd0;
+                c0_capture_ch3_ctrl_i <= 8'd0;
+                c0_capture_ch3_ctrl_ext_i <= 8'd0;
+            end else if (segapcm_cmd_valid) begin
+                if (c0_capture_write_count_i != 16'hffff) begin
+                    c0_capture_write_count_i <=
+                        c0_capture_write_count_i + 16'd1;
+                end
+                c0_capture_last_addr_i <= {8'd0, mapped_cpu_addr};
+                c0_capture_last_data_i <= {8'd0, segapcm_cmd_data};
+                c0_capture_channel_activity_i[mapped_cpu_addr[6:3]] <= 1'b1;
+                unique case (mapped_cpu_addr)
+                    8'h18: c0_capture_ch3_cur_low_i <= segapcm_cmd_data;
+                    8'h1a: c0_capture_ch3_vol_l_i <= segapcm_cmd_data;
+                    8'h1b: c0_capture_ch3_vol_r_i <= segapcm_cmd_data;
+                    8'h1c: c0_capture_ch3_loop_mid_i <= segapcm_cmd_data;
+                    8'h1d: c0_capture_ch3_loop_high_i <= segapcm_cmd_data;
+                    8'h1e: c0_capture_ch3_end_i <= segapcm_cmd_data;
+                    8'h1f: c0_capture_ch3_delta_i <= segapcm_cmd_data;
+                    8'h9c: c0_capture_ch3_cur_mid_i <= segapcm_cmd_data;
+                    8'h9d: c0_capture_ch3_cur_high_i <= segapcm_cmd_data;
+                    8'h9e: c0_capture_ch3_ctrl_i <= segapcm_cmd_data;
+                    8'h9f: c0_capture_ch3_ctrl_ext_i <= segapcm_cmd_data;
+                    default: begin end
+                endcase
+            end
+`endif
             if (segapcm_cmd_valid) begin
                 latched_cpu_addr <= mapped_cpu_addr;
                 latched_cpu_data <= segapcm_cmd_data;
@@ -2170,6 +2346,10 @@ module segapcm_sound_module #(
         .smoke_ddr_follow_mode(smoke_ddr_follow_mode),
         .smoke_ddr_follow_init_enable(smoke_ddr_audio_active),
         .smoke_ddr_follow_delta_sel(smoke_ddr_follow_delta_sel),
+        .smoke_c0_use_sel(smoke_c0_use_sel),
+        .smoke_c0_delta(c0_capture_ch3_delta_i),
+        .smoke_c0_vol_l(smoke_c0_vol_l_mapped),
+        .smoke_c0_vol_r(smoke_c0_vol_r_mapped),
         .smoke_cur_initialized_debug(core_dbg_smoke_cur_initialized),
         .smoke_cur_seed_event_debug(core_dbg_smoke_cur_seed_event),
         .smoke_cur_live_low_debug(core_dbg_smoke_cur_live_low),

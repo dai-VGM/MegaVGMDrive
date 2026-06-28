@@ -44,6 +44,10 @@ module jtoutrun_pcm #(parameter
     input              smoke_ddr_follow_mode,
     input              smoke_ddr_follow_init_enable,
     input        [2:0] smoke_ddr_follow_delta_sel,
+    input        [1:0] smoke_c0_use_sel,
+    input        [7:0] smoke_c0_delta,
+    input        [6:0] smoke_c0_vol_l,
+    input        [6:0] smoke_c0_vol_r,
     output      [15:0] smoke_cur_initialized_debug,
     output      [15:0] smoke_cur_seed_event_debug,
     output      [15:0] smoke_cur_live_low_debug,
@@ -294,7 +298,7 @@ assign smoke_cur_state_debug = {
     cur_ch,
     st
 };
-wire [7:0] smoke_follow_delta =
+wire [7:0] smoke_follow_manual_delta =
     (smoke_ddr_follow_delta_sel == 3'd1) ? 8'h00 :
     (smoke_ddr_follow_delta_sel == 3'd2) ? 8'h01 :
     (smoke_ddr_follow_delta_sel == 3'd3) ? 8'h02 :
@@ -303,6 +307,15 @@ wire [7:0] smoke_follow_delta =
     (smoke_ddr_follow_delta_sel == 3'd6) ? 8'h20 :
     (smoke_ddr_follow_delta_sel == 3'd7) ? 8'h40 :
     8'h08;
+wire smoke_c0_use_vol =
+    smoke_ddr_follow_mode && smoke_ddr_follow_init_enable &&
+    ((smoke_c0_use_sel == 2'd1) || (smoke_c0_use_sel == 2'd3));
+wire smoke_c0_use_delta =
+    smoke_ddr_follow_mode && smoke_ddr_follow_init_enable &&
+    ((smoke_c0_use_sel == 2'd2) || (smoke_c0_use_sel == 2'd3));
+wire [7:0] smoke_follow_delta =
+    smoke_c0_use_delta ? smoke_c0_delta :
+    smoke_follow_manual_delta;
 wire [7:0] smoke_delta =
     (smoke_ddr_follow_mode && smoke_ddr_follow_init_enable) ?
     smoke_follow_delta : 8'h20;
@@ -312,10 +325,16 @@ wire [23:0] smoke_follow_expected_next_i =
 wire [7:0] smoke_delta = 8'h20;
 `endif
 wire [6:0] smoke_vol_l =
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_TEST
+    smoke_c0_use_vol ? smoke_c0_vol_l :
+`endif
     (smoke_variant == 3'd4) ? 7'h20 :
     (smoke_variant == 3'd6) ? 7'h00 :
     7'h40;
 wire [6:0] smoke_vol_r =
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_TEST
+    smoke_c0_use_vol ? smoke_c0_vol_r :
+`endif
     (smoke_variant == 3'd4) ? 7'h20 :
     (smoke_variant == 3'd5) ? 7'h00 :
     7'h40;

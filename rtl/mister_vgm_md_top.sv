@@ -97,6 +97,8 @@ module mister_vgm_md_top #(
     input  logic              segapcm_smoke_ddr_follow,
     input  logic        [2:0] segapcm_smoke_ddr_offset,
     input  logic        [2:0] segapcm_smoke_ddr_delta,
+    input  logic        [1:0] segapcm_smoke_c0_use,
+    input  logic        [2:0] segapcm_smoke_c0_vol_map,
 `endif
 `endif
 
@@ -344,6 +346,20 @@ module mister_vgm_md_top #(
     output logic [15:0]       segapcm_core_known38686_cur_23,
     output logic [15:0]       segapcm_core_known38686_cur_15,
     output logic [15:0]       segapcm_core_known38686_cur_07,
+    output logic [15:0]       segapcm_core_c0_capture_write_count,
+    output logic [15:0]       segapcm_core_c0_capture_last_addr,
+    output logic [15:0]       segapcm_core_c0_capture_last_data,
+    output logic [15:0]       segapcm_core_c0_capture_channel_activity,
+    output logic [15:0]       segapcm_core_c0_capture_selected_channel,
+    output logic [15:0]       segapcm_core_c0_capture_ch3_ctrl,
+    output logic [15:0]       segapcm_core_c0_capture_ch3_cur_low,
+    output logic [15:0]       segapcm_core_c0_capture_ch3_cur_mid,
+    output logic [15:0]       segapcm_core_c0_capture_ch3_cur_high,
+    output logic [15:0]       segapcm_core_c0_capture_ch3_delta,
+    output logic [15:0]       segapcm_core_c0_capture_ch3_vol_l,
+    output logic [15:0]       segapcm_core_c0_capture_ch3_vol_r,
+    output logic [15:0]       segapcm_core_c0_capture_ch3_loop,
+    output logic [15:0]       segapcm_core_c0_capture_ch3_end,
     output logic [15:0]       segapcm_core_ch3_evolution_flags,
     output logic [15:0]       segapcm_core_ch3_delta,
     output logic [15:0]       segapcm_core_ch1_first_high,
@@ -3279,6 +3295,8 @@ module mister_vgm_md_top #(
                     .smoke_ddr_follow_mode         (segapcm_smoke_ddr_follow),
                     .smoke_ddr_follow_offset_sel   (segapcm_smoke_ddr_offset),
                     .smoke_ddr_follow_delta_sel    (segapcm_smoke_ddr_delta),
+                    .smoke_c0_use_sel              (segapcm_smoke_c0_use),
+                    .smoke_c0_vol_map_sel          (segapcm_smoke_c0_vol_map),
                     .loaded_payload_wr_valid        (segapcm_payload_tap_valid),
                     .loaded_payload_wr_addr         (segapcm_payload_tap_addr),
                     .loaded_payload_wr_data         (segapcm_payload_tap_data),
@@ -3397,6 +3415,20 @@ module mister_vgm_md_top #(
                     .known38686_cur_23_debug        (segapcm_core_known38686_cur_23),
                     .known38686_cur_15_debug        (segapcm_core_known38686_cur_15),
                     .known38686_cur_07_debug        (segapcm_core_known38686_cur_07),
+                    .c0_capture_write_count_debug   (segapcm_core_c0_capture_write_count),
+                    .c0_capture_last_addr_debug     (segapcm_core_c0_capture_last_addr),
+                    .c0_capture_last_data_debug     (segapcm_core_c0_capture_last_data),
+                    .c0_capture_channel_activity_debug(segapcm_core_c0_capture_channel_activity),
+                    .c0_capture_selected_channel_debug(segapcm_core_c0_capture_selected_channel),
+                    .c0_capture_ch3_ctrl_debug      (segapcm_core_c0_capture_ch3_ctrl),
+                    .c0_capture_ch3_cur_low_debug   (segapcm_core_c0_capture_ch3_cur_low),
+                    .c0_capture_ch3_cur_mid_debug   (segapcm_core_c0_capture_ch3_cur_mid),
+                    .c0_capture_ch3_cur_high_debug  (segapcm_core_c0_capture_ch3_cur_high),
+                    .c0_capture_ch3_delta_debug     (segapcm_core_c0_capture_ch3_delta),
+                    .c0_capture_ch3_vol_l_debug     (segapcm_core_c0_capture_ch3_vol_l),
+                    .c0_capture_ch3_vol_r_debug     (segapcm_core_c0_capture_ch3_vol_r),
+                    .c0_capture_ch3_loop_debug      (segapcm_core_c0_capture_ch3_loop),
+                    .c0_capture_ch3_end_debug       (segapcm_core_c0_capture_ch3_end),
                     .ch3_evolution_flags_debug      (segapcm_core_ch3_evolution_flags),
                     .ch3_delta_debug                (segapcm_core_ch3_delta),
                     .ch1_first_high_debug           (segapcm_core_ch1_first_high),
@@ -3520,6 +3552,20 @@ module mister_vgm_md_top #(
                 assign segapcm_core_known38686_cur_23 = 16'd0;
                 assign segapcm_core_known38686_cur_15 = 16'd0;
                 assign segapcm_core_known38686_cur_07 = 16'd0;
+                assign segapcm_core_c0_capture_write_count = 16'd0;
+                assign segapcm_core_c0_capture_last_addr = 16'd0;
+                assign segapcm_core_c0_capture_last_data = 16'd0;
+                assign segapcm_core_c0_capture_channel_activity = 16'd0;
+                assign segapcm_core_c0_capture_selected_channel = 16'd0;
+                assign segapcm_core_c0_capture_ch3_ctrl = 16'd0;
+                assign segapcm_core_c0_capture_ch3_cur_low = 16'd0;
+                assign segapcm_core_c0_capture_ch3_cur_mid = 16'd0;
+                assign segapcm_core_c0_capture_ch3_cur_high = 16'd0;
+                assign segapcm_core_c0_capture_ch3_delta = 16'd0;
+                assign segapcm_core_c0_capture_ch3_vol_l = 16'd0;
+                assign segapcm_core_c0_capture_ch3_vol_r = 16'd0;
+                assign segapcm_core_c0_capture_ch3_loop = 16'd0;
+                assign segapcm_core_c0_capture_ch3_end = 16'd0;
                 assign segapcm_core_ch3_evolution_flags = 16'd0;
                 assign segapcm_core_ch3_delta = 16'd0;
                 assign segapcm_core_ch1_first_high = 16'd0;
@@ -3843,6 +3889,20 @@ module mister_vgm_md_top #(
             assign segapcm_core_known38686_cur_23 = 16'd0;
             assign segapcm_core_known38686_cur_15 = 16'd0;
             assign segapcm_core_known38686_cur_07 = 16'd0;
+            assign segapcm_core_c0_capture_write_count = 16'd0;
+            assign segapcm_core_c0_capture_last_addr = 16'd0;
+            assign segapcm_core_c0_capture_last_data = 16'd0;
+            assign segapcm_core_c0_capture_channel_activity = 16'd0;
+            assign segapcm_core_c0_capture_selected_channel = 16'd0;
+            assign segapcm_core_c0_capture_ch3_ctrl = 16'd0;
+            assign segapcm_core_c0_capture_ch3_cur_low = 16'd0;
+            assign segapcm_core_c0_capture_ch3_cur_mid = 16'd0;
+            assign segapcm_core_c0_capture_ch3_cur_high = 16'd0;
+            assign segapcm_core_c0_capture_ch3_delta = 16'd0;
+            assign segapcm_core_c0_capture_ch3_vol_l = 16'd0;
+            assign segapcm_core_c0_capture_ch3_vol_r = 16'd0;
+            assign segapcm_core_c0_capture_ch3_loop = 16'd0;
+            assign segapcm_core_c0_capture_ch3_end = 16'd0;
             assign segapcm_core_ch3_evolution_flags = 16'd0;
             assign segapcm_core_ch3_delta = 16'd0;
             assign segapcm_core_ch1_first_high = 16'd0;
