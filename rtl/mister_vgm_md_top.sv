@@ -99,6 +99,7 @@ module mister_vgm_md_top #(
     input  logic        [2:0] segapcm_smoke_ddr_delta,
     input  logic        [1:0] segapcm_smoke_c0_use,
     input  logic        [2:0] segapcm_smoke_c0_vol_map,
+    input  logic              segapcm_smoke_c0_current_seed,
 `endif
 `endif
 
@@ -3297,6 +3298,7 @@ module mister_vgm_md_top #(
                     .smoke_ddr_follow_delta_sel    (segapcm_smoke_ddr_delta),
                     .smoke_c0_use_sel              (segapcm_smoke_c0_use),
                     .smoke_c0_vol_map_sel          (segapcm_smoke_c0_vol_map),
+                    .smoke_c0_current_seed_en      (segapcm_smoke_c0_current_seed),
                     .loaded_payload_wr_valid        (segapcm_payload_tap_valid),
                     .loaded_payload_wr_addr         (segapcm_payload_tap_addr),
                     .loaded_payload_wr_data         (segapcm_payload_tap_data),

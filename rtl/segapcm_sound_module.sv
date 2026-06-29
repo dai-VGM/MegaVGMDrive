@@ -36,6 +36,7 @@ module segapcm_sound_module #(
     input  logic         [2:0] smoke_ddr_follow_delta_sel,
     input  logic         [1:0] smoke_c0_use_sel,
     input  logic         [2:0] smoke_c0_vol_map_sel,
+    input  logic               smoke_c0_current_seed_en,
     output logic               loaded_ddr_rd_req,
     input  logic               loaded_ddr_rd_ready,
     output logic        [18:0] loaded_ddr_rd_addr,
@@ -638,6 +639,11 @@ module segapcm_sound_module #(
     wire [7:0] smoke_delta =
         smoke_c0_use_delta_i ? c0_capture_ch3_delta_i :
         smoke_ddr_follow_delta_i;
+    wire [23:0] smoke_c0_current_seed_i = {
+        c0_capture_ch3_cur_mid_i,
+        c0_capture_ch3_cur_high_i,
+        c0_capture_ch3_cur_low_i
+    };
     wire [6:0] smoke_c0_vol_l_raw = c0_capture_ch3_vol_l_i[6:0];
     wire [6:0] smoke_c0_vol_r_raw = c0_capture_ch3_vol_r_i[6:0];
     wire [6:0] smoke_c0_vol_l_x2 =
@@ -2350,6 +2356,8 @@ module segapcm_sound_module #(
         .smoke_c0_delta(c0_capture_ch3_delta_i),
         .smoke_c0_vol_l(smoke_c0_vol_l_mapped),
         .smoke_c0_vol_r(smoke_c0_vol_r_mapped),
+        .smoke_c0_current_seed_en(smoke_c0_current_seed_en),
+        .smoke_c0_current_seed(smoke_c0_current_seed_i),
         .smoke_cur_initialized_debug(core_dbg_smoke_cur_initialized),
         .smoke_cur_seed_event_debug(core_dbg_smoke_cur_seed_event),
         .smoke_cur_live_low_debug(core_dbg_smoke_cur_live_low),
