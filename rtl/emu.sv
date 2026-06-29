@@ -658,6 +658,7 @@ module emu
         "OK,SegaPCM DDR Map,Offset,Dest;",
         "OLM,SegaPCM DDR Basis,Full,Low,Banked,CoreLow;",
         "ON,SegaPCM DDR Cap,4K,Full;",
+        "OO,SegaPCM Dest Loop,Off,PayloadWrap;",
 `endif
 `endif
         "-;",
@@ -997,9 +998,14 @@ module emu
     wire        segapcm_rom_copy_overflow;
     wire        segapcm_rom_copy_flush_done;
     wire        segapcm_copy_flush_req_debug;
-    wire [31:0] segapcm_type80_payload_len_debug =
-        (segapcm_last_rom_size > 32'd8) ?
-        (segapcm_last_rom_size - 32'd8) : 32'd0;
+    logic [31:0] segapcm_type80_payload_len_debug;
+    always @* begin
+        segapcm_type80_payload_len_debug = 32'd0;
+        if (segapcm_last_rom_size > 32'd8) begin
+            segapcm_type80_payload_len_debug =
+                segapcm_last_rom_size - 32'd8;
+        end
+    end
     wire        mode5_sound_reset_active;
     wire        mode5_player_start_pulse_debug;
     wire [15:0] mode5_start_hold_debug;
@@ -1204,6 +1210,7 @@ module emu
     wire       segapcm_smoke_ddr_dest_map = status[20];
     wire [1:0] segapcm_smoke_ddr_dest_basis = status[22:21];
     wire       segapcm_smoke_ddr_full_capture = status[23];
+    wire       segapcm_smoke_ddr_dest_loop_wrap = status[24];
 `else
     wire       segapcm_smoke_ddr_follow = 1'b0;
     wire       segapcm_smoke_ddr_c0_view = 1'b0;
@@ -1214,6 +1221,7 @@ module emu
     wire       segapcm_smoke_ddr_dest_map = 1'b0;
     wire [1:0] segapcm_smoke_ddr_dest_basis = 2'd0;
     wire       segapcm_smoke_ddr_full_capture = 1'b0;
+    wire       segapcm_smoke_ddr_dest_loop_wrap = 1'b0;
 `endif
 `else
     wire       segapcm_smoke_ddr_follow = 1'b0;
@@ -1225,6 +1233,7 @@ module emu
     wire       segapcm_smoke_ddr_dest_map = 1'b0;
     wire [1:0] segapcm_smoke_ddr_dest_basis = 2'd0;
     wire       segapcm_smoke_ddr_full_capture = 1'b0;
+    wire       segapcm_smoke_ddr_dest_loop_wrap = 1'b0;
 `endif
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
     wire [2:0] segapcm_smoke_variant_for_debug = segapcm_smoke_variant;
@@ -1359,6 +1368,7 @@ module emu
         .segapcm_smoke_ddr_dest_map(segapcm_smoke_ddr_dest_map),
         .segapcm_smoke_ddr_dest_basis(segapcm_smoke_ddr_dest_basis),
         .segapcm_smoke_ddr_full_capture(segapcm_smoke_ddr_full_capture),
+        .segapcm_smoke_ddr_dest_loop_wrap(segapcm_smoke_ddr_dest_loop_wrap),
 `endif
 `endif
         .player_busy           (player_busy),
@@ -2090,7 +2100,7 @@ module emu
                         5'd3:  segapcm_debug_label_char = (col == 2'd0) ? "D" : (col == 2'd1) ? "B" : " ";
                         5'd4:  segapcm_debug_label_char = (col == 2'd0) ? "B" : (col == 2'd1) ? "H" : " ";
                         5'd5:  segapcm_debug_label_char = (col == 2'd0) ? "B" : (col == 2'd1) ? "L" : " ";
-                        5'd6:  segapcm_debug_label_char = (col == 2'd0) ? "B" : (col == 2'd1) ? "B" : " ";
+                        5'd6:  segapcm_debug_label_char = (col == 2'd0) ? "W" : (col == 2'd1) ? "R" : " ";
                         5'd7:  segapcm_debug_label_char = (col == 2'd0) ? "C" : (col == 2'd1) ? "R" : " ";
                         5'd8:  segapcm_debug_label_char = (col == 2'd0) ? "B" : (col == 2'd1) ? "K" : " ";
                         5'd9:  segapcm_debug_label_char = (col == 2'd0) ? "N" : (col == 2'd1) ? "R" : " ";
@@ -2099,12 +2109,12 @@ module emu
                         5'd12: segapcm_debug_label_char = (col == 2'd0) ? "I" : (col == 2'd1) ? "C" : " ";
                         5'd13: segapcm_debug_label_char = (col == 2'd0) ? "F" : (col == 2'd1) ? "U" : " ";
                         5'd14: segapcm_debug_label_char = (col == 2'd0) ? "P" : (col == 2'd1) ? "O" : " ";
-                        5'd15: segapcm_debug_label_char = (col == 2'd0) ? "P" : (col == 2'd1) ? "M" : " ";
-                        5'd16: segapcm_debug_label_char = (col == 2'd0) ? "P" : (col == 2'd1) ? "X" : " ";
-                        5'd17: segapcm_debug_label_char = (col == 2'd0) ? "C" : (col == 2'd1) ? "M" : " ";
-                        5'd18: segapcm_debug_label_char = (col == 2'd0) ? "C" : (col == 2'd1) ? "X" : " ";
-                        5'd19: segapcm_debug_label_char = (col == 2'd0) ? "R" : (col == 2'd1) ? "I" : " ";
-                        5'd20: segapcm_debug_label_char = (col == 2'd0) ? "F" : (col == 2'd1) ? "I" : " ";
+                        5'd15: segapcm_debug_label_char = (col == 2'd0) ? "R" : (col == 2'd1) ? "X" : " ";
+                        5'd16: segapcm_debug_label_char = (col == 2'd0) ? "E" : (col == 2'd1) ? "X" : " ";
+                        5'd17: segapcm_debug_label_char = (col == 2'd0) ? "F" : (col == 2'd1) ? "P" : " ";
+                        5'd18: segapcm_debug_label_char = (col == 2'd0) ? "F" : (col == 2'd1) ? "M" : " ";
+                        5'd19: segapcm_debug_label_char = (col == 2'd0) ? "I" : (col == 2'd1) ? "P" : " ";
+                        5'd20: segapcm_debug_label_char = (col == 2'd0) ? "I" : (col == 2'd1) ? "M" : " ";
                         5'd21: segapcm_debug_label_char = (col == 2'd0) ? "R" : (col == 2'd1) ? "R" : " ";
                         5'd22: segapcm_debug_label_char = (col == 2'd0) ? "R" : (col == 2'd1) ? "F" : " ";
                         5'd23: segapcm_debug_label_char = (col == 2'd0) ? "P" : (col == 2'd1) ? "R" : " ";
@@ -2376,7 +2386,8 @@ module emu
                         5'd0:  segapcm_debug_value = 16'h5A5A;
                         5'd1:  segapcm_debug_value = segapcm_core_rom_addr_raw_high;
                         5'd2:  segapcm_debug_value = {
-                            10'd0,
+                            9'd0,
+                            segapcm_smoke_ddr_dest_loop_wrap,
                             segapcm_smoke_ddr_full_capture,
                             segapcm_smoke_ddr_dest_basis,
                             segapcm_smoke_ddr_dest_map,

@@ -103,6 +103,7 @@ module mister_vgm_md_top #(
     input  logic              segapcm_smoke_ddr_dest_map,
     input  logic        [1:0] segapcm_smoke_ddr_dest_basis,
     input  logic              segapcm_smoke_ddr_full_capture,
+    input  logic              segapcm_smoke_ddr_dest_loop_wrap,
 `endif
 `endif
 
@@ -827,17 +828,33 @@ module mister_vgm_md_top #(
             logic [15:0] smoke_ddr_last_read_word1_debug;
             logic [7:0] smoke_ddr_last_read_data_debug;
             logic [15:0] smoke_ddr_base_addr_debug;
-            wire [31:0] smoke_ddr_type80_payload_len_32 =
-                (segapcm_last_rom_size > 32'd8) ?
-                (segapcm_last_rom_size - 32'd8) : 32'd0;
-            wire [18:0] smoke_ddr_type80_payload_len_19 =
-                (smoke_ddr_type80_payload_len_32 > 32'h0007_ffff) ?
-                19'h7ffff : smoke_ddr_type80_payload_len_32[18:0];
-            wire [18:0] smoke_ddr_capture_limit =
-                segapcm_smoke_ddr_full_capture ?
-                ((smoke_ddr_type80_payload_len_19 != 19'd0) ?
-                 smoke_ddr_type80_payload_len_19 : 19'h01000) :
-                19'h01000;
+            logic [31:0] smoke_ddr_type80_payload_len_32;
+            logic [18:0] smoke_ddr_type80_payload_len_19;
+            logic [18:0] smoke_ddr_capture_limit;
+            always @* begin
+                smoke_ddr_type80_payload_len_32 = 32'd0;
+                if (segapcm_last_rom_size > 32'd8) begin
+                    smoke_ddr_type80_payload_len_32 =
+                        segapcm_last_rom_size - 32'd8;
+                end
+
+                smoke_ddr_type80_payload_len_19 =
+                    smoke_ddr_type80_payload_len_32[18:0];
+                if (smoke_ddr_type80_payload_len_32 >
+                    32'h0007_ffff) begin
+                    smoke_ddr_type80_payload_len_19 = 19'h7ffff;
+                end
+
+                smoke_ddr_capture_limit = 19'h01000;
+                if (segapcm_smoke_ddr_full_capture) begin
+                    if (smoke_ddr_type80_payload_len_19 != 19'd0) begin
+                        smoke_ddr_capture_limit =
+                            smoke_ddr_type80_payload_len_19;
+                    end else begin
+                        smoke_ddr_capture_limit = 19'h01000;
+                    end
+                end
+            end
 `endif
             logic load_done_pulse;
             logic play_ready_pulse;
@@ -3317,6 +3334,7 @@ module mister_vgm_md_top #(
                     .smoke_ddr_follow_delta_sel    (segapcm_smoke_ddr_delta),
                     .smoke_ddr_follow_dest_map     (segapcm_smoke_ddr_dest_map),
                     .smoke_ddr_follow_dest_basis   (segapcm_smoke_ddr_dest_basis),
+                    .smoke_ddr_follow_dest_loop_wrap(segapcm_smoke_ddr_dest_loop_wrap),
                     .smoke_c0_use_sel              (segapcm_smoke_c0_use),
                     .smoke_c0_vol_map_sel          (segapcm_smoke_c0_vol_map),
                     .smoke_c0_current_seed_en      (segapcm_smoke_c0_current_seed),

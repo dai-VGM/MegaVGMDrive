@@ -55,6 +55,7 @@ module vgm_ddram_backend #(
     input  logic                     smoke_ddr_payload_tap_valid,
     input  logic [18:0]              smoke_ddr_payload_tap_addr,
     input  logic [7:0]               smoke_ddr_payload_tap_data,
+    input  logic [18:0]              smoke_ddr_capture_limit,
     input  logic                     smoke_ddr_rd_req,
     output logic                     smoke_ddr_rd_ready,
     input  logic [18:0]              smoke_ddr_rd_addr,
@@ -181,12 +182,22 @@ module vgm_ddram_backend #(
     wire [DDRAM_ADDR_WIDTH-1:0] segapcm_copy_word_addr =
         SEGAPCM_ROM_BASE_ADDR + 29'h0000_0800 + segapcm_copy_wr_addr[18:3];
     localparam logic [18:0] SMOKE_DDR_CAPTURE_BYTES = 19'h01000;
-    localparam logic [DDRAM_ADDR_WIDTH-1:0] SMOKE_DDR_CAPTURE_WORDS =
-        29'h0000_0200;
+    logic [18:0] smoke_ddr_effective_capture_bytes;
+    logic [18:0] smoke_ddr_effective_capture_words;
+    always @* begin
+        smoke_ddr_effective_capture_bytes = SMOKE_DDR_CAPTURE_BYTES;
+        if (smoke_ddr_capture_limit != 19'd0) begin
+            smoke_ddr_effective_capture_bytes = smoke_ddr_capture_limit;
+        end
+        smoke_ddr_effective_capture_words =
+            {3'd0, smoke_ddr_effective_capture_bytes[18:3]} +
+            {18'd0, |smoke_ddr_effective_capture_bytes[2:0]};
+    end
     wire [DDRAM_ADDR_WIDTH-1:0] smoke_ddr_capture_word_end =
-        SEGAPCM_ROM_BASE_ADDR + SMOKE_DDR_CAPTURE_WORDS;
+        SEGAPCM_ROM_BASE_ADDR +
+        {{(DDRAM_ADDR_WIDTH-19){1'b0}}, smoke_ddr_effective_capture_words};
     wire smoke_ddr_tap_in_range =
-        smoke_ddr_payload_tap_addr < SMOKE_DDR_CAPTURE_BYTES;
+        smoke_ddr_payload_tap_addr < smoke_ddr_effective_capture_bytes;
     wire [18:0] smoke_ddr_capture_index =
         {3'd0, smoke_ddr_write_count_debug};
     wire [DDRAM_ADDR_WIDTH-1:0] smoke_ddr_tap_word_addr =
@@ -249,7 +260,8 @@ module vgm_ddram_backend #(
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_TEST
     wire smoke_ddr_capture_open =
         !smoke_ddr_payload_present &&
-        (smoke_ddr_write_count_debug < SMOKE_DDR_CAPTURE_BYTES[15:0]);
+        ({3'd0, smoke_ddr_write_count_debug} <
+         smoke_ddr_effective_capture_bytes);
     wire smoke_ddr_write_req_live =
         smoke_ddr_payload_tap_valid &&
         smoke_ddr_tap_in_range &&
@@ -780,10 +792,11 @@ module vgm_ddram_backend #(
                         smoke_ddr_last_write_data_debug <=
                             lane_dout(fifo_din[fifo_rd_ptr],
                                       smoke_ddr_write_pop_last_lane);
-                        if (smoke_ddr_write_commit_next >=
-                            SMOKE_DDR_CAPTURE_BYTES[15:0]) begin
+                        if ({3'd0, smoke_ddr_write_commit_next} >=
+                            smoke_ddr_effective_capture_bytes) begin
                             smoke_ddr_payload_present <= 1'b1;
-                            smoke_ddr_payload_length <= SMOKE_DDR_CAPTURE_BYTES;
+                            smoke_ddr_payload_length <=
+                                smoke_ddr_effective_capture_bytes;
                         end
                     end
 `endif
