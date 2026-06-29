@@ -50,6 +50,10 @@ module jtoutrun_pcm #(parameter
     input        [6:0] smoke_c0_vol_r,
     input              smoke_c0_current_seed_en,
     input       [23:0] smoke_c0_current_seed,
+    output      [15:0] smoke_jt_vol_l_debug,
+    output      [15:0] smoke_jt_vol_r_debug,
+    output      [15:0] smoke_out_l_debug,
+    output      [15:0] smoke_out_r_debug,
     output      [15:0] smoke_cur_initialized_debug,
     output      [15:0] smoke_cur_seed_event_debug,
     output      [15:0] smoke_cur_live_low_debug,
@@ -283,6 +287,8 @@ reg [15:0] smoke_follow_zero_event_count_i;
 reg [23:0] smoke_follow_cur_addr_i;
 reg [23:0] smoke_follow_prev_cur_addr_i;
 reg smoke_c0_current_seed_en_d_i;
+reg [7:0] smoke_jt_vol_l_i;
+reg [7:0] smoke_jt_vol_r_i;
 wire smoke_c0_current_seed_active =
     smoke_ddr_follow_mode && smoke_ddr_follow_init_enable &&
     smoke_c0_current_seed_en;
@@ -297,6 +303,10 @@ assign smoke_cur_live_low_debug = smoke_follow_cur_addr_i[15:0];
 assign smoke_cur_live_high_debug = {8'd0, smoke_follow_cur_addr_i[23:16]};
 assign smoke_cur_zero_event_debug = smoke_follow_zero_event_count_i;
 assign smoke_cur_seed_ref_debug = SMOKE_CUR[15:0];
+assign smoke_jt_vol_l_debug = {8'd0, smoke_jt_vol_l_i};
+assign smoke_jt_vol_r_debug = {8'd0, smoke_jt_vol_r_i};
+assign smoke_out_l_debug = snd_left;
+assign smoke_out_r_debug = snd_right;
 assign smoke_cur_state_debug = {
     4'h5,
     smoke_ddr_follow_mode,
@@ -528,6 +538,8 @@ always @(posedge clk) begin
         smoke_follow_cur_addr_i <= SMOKE_CUR;
         smoke_follow_prev_cur_addr_i <= SMOKE_CUR;
         smoke_c0_current_seed_en_d_i <= 1'b0;
+        smoke_jt_vol_l_i <= 8'd0;
+        smoke_jt_vol_r_i <= 8'd0;
 `endif
 `endif
         dbg_last_bank <= 0;
@@ -1245,6 +1257,11 @@ always @(posedge clk) begin
             12: begin
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
                 vol_left <= (cur_ch == SMOKE_CH) ? {1'b0, smoke_vol_l} : 8'sd0;
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_TEST
+                if( cur_ch == SMOKE_CH ) begin
+                    smoke_jt_vol_l_i <= {1'b0, smoke_vol_l};
+                end
+`endif
 `else
                 vol_left <= {1'b0, cfg_data[6:0]};
 `endif
@@ -1252,6 +1269,11 @@ always @(posedge clk) begin
             13: begin
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
                 vol_right <= (cur_ch == SMOKE_CH) ? {1'b0, smoke_vol_r} : 8'sd0;
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_TEST
+                if( cur_ch == SMOKE_CH ) begin
+                    smoke_jt_vol_r_i <= {1'b0, smoke_vol_r};
+                end
+`endif
 `else
                 vol_right <= {1'b0, cfg_data[6:0]};
 `endif

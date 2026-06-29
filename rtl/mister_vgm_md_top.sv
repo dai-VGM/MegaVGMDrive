@@ -100,6 +100,9 @@ module mister_vgm_md_top #(
     input  logic        [1:0] segapcm_smoke_c0_use,
     input  logic        [2:0] segapcm_smoke_c0_vol_map,
     input  logic              segapcm_smoke_c0_current_seed,
+    input  logic              segapcm_smoke_ddr_dest_map,
+    input  logic        [1:0] segapcm_smoke_ddr_dest_basis,
+    input  logic              segapcm_smoke_ddr_full_capture,
 `endif
 `endif
 
@@ -361,6 +364,10 @@ module mister_vgm_md_top #(
     output logic [15:0]       segapcm_core_c0_capture_ch3_vol_r,
     output logic [15:0]       segapcm_core_c0_capture_ch3_loop,
     output logic [15:0]       segapcm_core_c0_capture_ch3_end,
+    output logic [15:0]       segapcm_core_jt_smoke_vol_l,
+    output logic [15:0]       segapcm_core_jt_smoke_vol_r,
+    output logic [15:0]       segapcm_core_jt_smoke_out_l,
+    output logic [15:0]       segapcm_core_jt_smoke_out_r,
     output logic [15:0]       segapcm_core_ch3_evolution_flags,
     output logic [15:0]       segapcm_core_ch3_delta,
     output logic [15:0]       segapcm_core_ch1_first_high,
@@ -820,6 +827,17 @@ module mister_vgm_md_top #(
             logic [15:0] smoke_ddr_last_read_word1_debug;
             logic [7:0] smoke_ddr_last_read_data_debug;
             logic [15:0] smoke_ddr_base_addr_debug;
+            wire [31:0] smoke_ddr_type80_payload_len_32 =
+                (segapcm_last_rom_size > 32'd8) ?
+                (segapcm_last_rom_size - 32'd8) : 32'd0;
+            wire [18:0] smoke_ddr_type80_payload_len_19 =
+                (smoke_ddr_type80_payload_len_32 > 32'h0007_ffff) ?
+                19'h7ffff : smoke_ddr_type80_payload_len_32[18:0];
+            wire [18:0] smoke_ddr_capture_limit =
+                segapcm_smoke_ddr_full_capture ?
+                ((smoke_ddr_type80_payload_len_19 != 19'd0) ?
+                 smoke_ddr_type80_payload_len_19 : 19'h01000) :
+                19'h01000;
 `endif
             logic load_done_pulse;
             logic play_ready_pulse;
@@ -2966,6 +2984,7 @@ module mister_vgm_md_top #(
                     .smoke_ddr_payload_tap_valid(segapcm_payload_tap_valid),
                     .smoke_ddr_payload_tap_addr(segapcm_payload_tap_addr),
                     .smoke_ddr_payload_tap_data(segapcm_payload_tap_data),
+                    .smoke_ddr_capture_limit(smoke_ddr_capture_limit),
                     .smoke_ddr_rd_req(smoke_ddr_rd_req),
                     .smoke_ddr_rd_ready(smoke_ddr_rd_ready),
                     .smoke_ddr_rd_addr(smoke_ddr_rd_addr),
@@ -3296,9 +3315,13 @@ module mister_vgm_md_top #(
                     .smoke_ddr_follow_mode         (segapcm_smoke_ddr_follow),
                     .smoke_ddr_follow_offset_sel   (segapcm_smoke_ddr_offset),
                     .smoke_ddr_follow_delta_sel    (segapcm_smoke_ddr_delta),
+                    .smoke_ddr_follow_dest_map     (segapcm_smoke_ddr_dest_map),
+                    .smoke_ddr_follow_dest_basis   (segapcm_smoke_ddr_dest_basis),
                     .smoke_c0_use_sel              (segapcm_smoke_c0_use),
                     .smoke_c0_vol_map_sel          (segapcm_smoke_c0_vol_map),
                     .smoke_c0_current_seed_en      (segapcm_smoke_c0_current_seed),
+                    .loaded_type80_rom_size         (segapcm_last_rom_size),
+                    .loaded_type80_rom_dest         (segapcm_last_rom_start),
                     .loaded_payload_wr_valid        (segapcm_payload_tap_valid),
                     .loaded_payload_wr_addr         (segapcm_payload_tap_addr),
                     .loaded_payload_wr_data         (segapcm_payload_tap_data),
@@ -3431,6 +3454,10 @@ module mister_vgm_md_top #(
                     .c0_capture_ch3_vol_r_debug     (segapcm_core_c0_capture_ch3_vol_r),
                     .c0_capture_ch3_loop_debug      (segapcm_core_c0_capture_ch3_loop),
                     .c0_capture_ch3_end_debug       (segapcm_core_c0_capture_ch3_end),
+                    .jt_smoke_vol_l_debug           (segapcm_core_jt_smoke_vol_l),
+                    .jt_smoke_vol_r_debug           (segapcm_core_jt_smoke_vol_r),
+                    .jt_smoke_out_l_debug           (segapcm_core_jt_smoke_out_l),
+                    .jt_smoke_out_r_debug           (segapcm_core_jt_smoke_out_r),
                     .ch3_evolution_flags_debug      (segapcm_core_ch3_evolution_flags),
                     .ch3_delta_debug                (segapcm_core_ch3_delta),
                     .ch1_first_high_debug           (segapcm_core_ch1_first_high),
@@ -3568,6 +3595,10 @@ module mister_vgm_md_top #(
                 assign segapcm_core_c0_capture_ch3_vol_r = 16'd0;
                 assign segapcm_core_c0_capture_ch3_loop = 16'd0;
                 assign segapcm_core_c0_capture_ch3_end = 16'd0;
+                assign segapcm_core_jt_smoke_vol_l = 16'd0;
+                assign segapcm_core_jt_smoke_vol_r = 16'd0;
+                assign segapcm_core_jt_smoke_out_l = 16'd0;
+                assign segapcm_core_jt_smoke_out_r = 16'd0;
                 assign segapcm_core_ch3_evolution_flags = 16'd0;
                 assign segapcm_core_ch3_delta = 16'd0;
                 assign segapcm_core_ch1_first_high = 16'd0;
@@ -3905,6 +3936,10 @@ module mister_vgm_md_top #(
             assign segapcm_core_c0_capture_ch3_vol_r = 16'd0;
             assign segapcm_core_c0_capture_ch3_loop = 16'd0;
             assign segapcm_core_c0_capture_ch3_end = 16'd0;
+            assign segapcm_core_jt_smoke_vol_l = 16'd0;
+            assign segapcm_core_jt_smoke_vol_r = 16'd0;
+            assign segapcm_core_jt_smoke_out_l = 16'd0;
+            assign segapcm_core_jt_smoke_out_r = 16'd0;
             assign segapcm_core_ch3_evolution_flags = 16'd0;
             assign segapcm_core_ch3_delta = 16'd0;
             assign segapcm_core_ch1_first_high = 16'd0;
