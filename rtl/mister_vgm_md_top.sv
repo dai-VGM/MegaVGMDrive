@@ -99,7 +99,7 @@ module mister_vgm_md_top #(
     input  logic        [2:0] segapcm_smoke_ddr_delta,
     input  logic        [1:0] segapcm_smoke_c0_use,
     input  logic        [2:0] segapcm_smoke_c0_vol_map,
-    input  logic              segapcm_smoke_c0_current_seed,
+    input  logic        [1:0] segapcm_smoke_c0_drive,
     input  logic              segapcm_smoke_ddr_dest_map,
     input  logic        [1:0] segapcm_smoke_ddr_dest_basis,
     input  logic              segapcm_smoke_ddr_full_capture,
@@ -830,6 +830,7 @@ module mister_vgm_md_top #(
             logic [15:0] smoke_ddr_base_addr_debug;
             logic [31:0] smoke_ddr_type80_payload_len_32;
             logic [18:0] smoke_ddr_type80_payload_len_19;
+            logic [31:0] smoke_ddr_type80_dest_addr;
             logic [18:0] smoke_ddr_capture_limit;
             always @* begin
                 smoke_ddr_type80_payload_len_32 = 32'd0;
@@ -853,6 +854,14 @@ module mister_vgm_md_top #(
                     end else begin
                         smoke_ddr_capture_limit = 19'h01000;
                     end
+                end
+
+                smoke_ddr_type80_dest_addr = 32'd0;
+                if (segapcm_rom_scan_last_start != 32'd0) begin
+                    smoke_ddr_type80_dest_addr = segapcm_rom_scan_last_start;
+                end
+                if (segapcm_last_rom_start != 32'd0) begin
+                    smoke_ddr_type80_dest_addr = segapcm_last_rom_start;
                 end
             end
 `endif
@@ -902,6 +911,16 @@ module mister_vgm_md_top #(
             logic signed [15:0] ym2151_segapcm_audio_r;
             logic signed [15:0] ym2151_segapcm_selected_l;
             logic signed [15:0] ym2151_segapcm_selected_r;
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
+`ifdef SEGA_PCM_STARTUP_SMOKE
+            wire segapcm_smoke_output_enabled = 1'b1;
+`elsif MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_TEST
+            wire segapcm_smoke_output_enabled =
+                segapcm_smoke_source_loaded && smoke_ddr_payload_present;
+`else
+            wire segapcm_smoke_output_enabled = 1'b0;
+`endif
+`endif
             logic mode5_sound_reset_active_i = 1'b0;
             logic mode5_sound_core_reset;
             logic mode5_continue_reset_block;
@@ -1478,8 +1497,10 @@ module mister_vgm_md_top #(
                 (ym2151_segapcm_r_sum[16] ? 16'sh8000 : 16'sh7fff) :
                 ym2151_segapcm_r_sum[15:0];
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
-            assign ym2151_segapcm_selected_l = segapcm_audio_l;
-            assign ym2151_segapcm_selected_r = segapcm_audio_r;
+            assign ym2151_segapcm_selected_l =
+                segapcm_smoke_output_enabled ? segapcm_audio_l : 16'sd0;
+            assign ym2151_segapcm_selected_r =
+                segapcm_smoke_output_enabled ? segapcm_audio_r : 16'sd0;
 `else
             assign ym2151_segapcm_selected_l =
                 (SEGAPCM_EXPERIMENTAL_MIX_MODE == 1) ?
@@ -3337,9 +3358,9 @@ module mister_vgm_md_top #(
                     .smoke_ddr_follow_dest_loop_wrap(segapcm_smoke_ddr_dest_loop_wrap),
                     .smoke_c0_use_sel              (segapcm_smoke_c0_use),
                     .smoke_c0_vol_map_sel          (segapcm_smoke_c0_vol_map),
-                    .smoke_c0_current_seed_en      (segapcm_smoke_c0_current_seed),
+                    .smoke_c0_drive_sel            (segapcm_smoke_c0_drive),
                     .loaded_type80_rom_size         (segapcm_last_rom_size),
-                    .loaded_type80_rom_dest         (segapcm_last_rom_start),
+                    .loaded_type80_rom_dest         (smoke_ddr_type80_dest_addr),
                     .loaded_payload_wr_valid        (segapcm_payload_tap_valid),
                     .loaded_payload_wr_addr         (segapcm_payload_tap_addr),
                     .loaded_payload_wr_data         (segapcm_payload_tap_data),

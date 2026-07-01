@@ -17,10 +17,12 @@ set_global_assignment -name SYSTEMVERILOG_FILE rtl/vgm_loaded_player.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/md_sound_module.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/ym2151_sound_module.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/segapcm_sound_module.sv
-set_global_assignment -name SYSTEMVERILOG_FILE rtl/segapcm_preload_rom.sv
 set_global_assignment -name VERILOG_FILE third_party/jtcores/cores/outrun/hdl/jtoutrun_pcm.v
 set_global_assignment -name VERILOG_FILE third_party/jtcores/modules/jtframe/hdl/ram/jtframe_dual_ram.v
-set_global_assignment -name MISC_FILE rtl/segapcm_lastwave_seashore_payload.mem
+# Static SegaPCM preload/sample ROM is intentionally disabled by default.
+# For old bring-up only, define SEGA_PCM_EMBED_ROM and add these manually:
+# set_global_assignment -name SYSTEMVERILOG_FILE rtl/segapcm_preload_rom.sv
+# set_global_assignment -name MISC_FILE rtl/segapcm_lastwave_seashore_payload.mem
 set_global_assignment -name QIP_FILE third_party/jt51/hdl/jt51.qip
 set_global_assignment -name VERILOG_FILE third_party/jt51/ver/common/sep32.v
 set_global_assignment -name VERILOG_FILE third_party/jt51/ver/common/sep32_cnt.v
