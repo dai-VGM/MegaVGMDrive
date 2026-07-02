@@ -74,28 +74,33 @@ set_global_assignment -name VERILOG_MACRO "MISTER_FB=1"
 set_global_assignment -name VERILOG_MACRO "FIXED_REGION_MODE=5"
 set_global_assignment -name VERILOG_MACRO "MODE5_VGM_BACKEND=1"
 set_global_assignment -name VERILOG_MACRO "MODE5_VGM_ADDR_WIDTH=23"
-set_global_assignment -name VERILOG_MACRO "MD_JT12_CEN_NTSC_TEST=1"
-set_global_assignment -name VERILOG_MACRO "MD_JT12_HIFI_PCM_TEST=1"
-set_global_assignment -name VERILOG_MACRO "MD_AUDIO_OUTPUT_SHIFT_0_TEST=1"
-set_global_assignment -name VERILOG_MACRO "MD_AUDIO_GENMIX_OUTPUT_GAIN_2X_TEST=1"
-set_global_assignment -name VERILOG_MACRO "MD_AUDIO_GAIN_OSD_TEST=1"
-set_global_assignment -name VERILOG_MACRO "MD_AUDIO_PSG_ATTEN_075_TEST=1"
-set_global_assignment -name VERILOG_MACRO "MD_AUDIO_PSG_LEVEL_OSD_TEST=1"
-set_global_assignment -name VERILOG_MACRO "MEGAVGMDRIVE_YM2151_MODE_TEST=1"
-set_global_assignment -name VERILOG_MACRO "MEGAVGMDRIVE_SEGAPCM_START_INIT_TEST=1"
+# C0-only debug build stubs MD/JT12/JT89/JT51 audio in RTL. Keep these
+# public-build audio tuning macros off for the current Stage Clear probe burn.
+#set_global_assignment -name VERILOG_MACRO "MD_JT12_CEN_NTSC_TEST=1"
+#set_global_assignment -name VERILOG_MACRO "MD_JT12_HIFI_PCM_TEST=1"
+#set_global_assignment -name VERILOG_MACRO "MD_AUDIO_OUTPUT_SHIFT_0_TEST=1"
+#set_global_assignment -name VERILOG_MACRO "MD_AUDIO_GENMIX_OUTPUT_GAIN_2X_TEST=1"
+#set_global_assignment -name VERILOG_MACRO "MD_AUDIO_GAIN_OSD_TEST=1"
+#set_global_assignment -name VERILOG_MACRO "MD_AUDIO_PSG_ATTEN_075_TEST=1"
+#set_global_assignment -name VERILOG_MACRO "MD_AUDIO_PSG_LEVEL_OSD_TEST=1"
+#set_global_assignment -name VERILOG_MACRO "MEGAVGMDRIVE_YM2151_MODE_TEST=1"
+# SegaPCM real loaded-DDR C0Drive debug path.
+# Keep this block clean for real VGM type80 payload -> DDR -> C0Drive tests.
+# Old forced-init / tiny-RAM smoke paths are intentionally disabled below.
+#set_global_assignment -name VERILOG_MACRO "MEGAVGMDRIVE_SEGAPCM_ONLY_DEBUG_BUILD=1"
+set_global_assignment -name VERILOG_MACRO "MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD=1"
+#set_global_assignment -name VERILOG_MACRO "MEGAVGMDRIVE_SEGAPCM_START_INIT_TEST=1"
 set_global_assignment -name VERILOG_MACRO "MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST=1"
-set_global_assignment -name VERILOG_MACRO "MEGAVGMDRIVE_SEGAPCM_SMOKE_VARIANT=0"
+#set_global_assignment -name VERILOG_MACRO "MEGAVGMDRIVE_SEGAPCM_SMOKE_VARIANT=0"
 set_global_assignment -name VERILOG_MACRO "MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_TEST=1"
+set_global_assignment -name VERILOG_MACRO "MEGAVGMDRIVE_SEGAPCM_MIN_DEBUG_PROBE=1"
 #set_global_assignment -name VERILOG_MACRO "MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_TINY_RAM_TEST=1"
-# Optional tiny loaded RAM depth selectors: default=256B, 512B, 1KiB, 2KiB, or 4KiB.
-#set_global_assignment -name VERILOG_MACRO "MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_512B_TEST=1"
-#set_global_assignment -name VERILOG_MACRO "MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_1K_TEST=1"
-#set_global_assignment -name VERILOG_MACRO "MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_2K_TEST=1"
-#set_global_assignment -name VERILOG_MACRO "MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_4K_TEST=1"
-# Numeric selector retained for simulation/backstop only; do not depend on it
-# for Quartus hardware experiments.
+# Optional tiny loaded RAM depth selector: undefined/8=256B, 9=512B, 10=1KiB.
 #set_global_assignment -name VERILOG_MACRO "MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_RAM_DEPTH_LOG2=9"
 set_global_assignment -name VERILOG_MACRO "MEGAVGMDRIVE_SEGAPCM_SMOKE_PARSER_RUN_TEST=1"
+# C0Drive tick-rate selector for the current /16 comparison build.
+# Enable exactly one MEGAVGMDRIVE_SEGAPCM_C0DRIVE_TICK_* macro per build.
+set_global_assignment -name VERILOG_MACRO "MEGAVGMDRIVE_SEGAPCM_C0DRIVE_TICK_SLOW=1"
 # ---- Select exactly one audio compare block ----
 
 # ACTIVE: A_raw -> VGM_MD_audio_A_raw.rbf
@@ -122,9 +127,9 @@ set_global_assignment -name VERILOG_MACRO "MEGAVGMDRIVE_SEGAPCM_SMOKE_PARSER_RUN
 # Suggested RBF name: VGM_MD_audio_B_genmix_no_psg.rbf
 #set_global_assignment -name VERILOG_MACRO "MD_AUDIO_GENMIX_NO_PSG_TEST=1"
 
-# ACTIVE: B_genmix + no jt12_fm_uprate/interpolation chain
+# B_genmix + no jt12_fm_uprate/interpolation chain
 # Suggested RBF name: VGM_MD_audio_B_genmix_no_uprate.rbf
-set_global_assignment -name VERILOG_MACRO "MD_AUDIO_GENMIX_NO_UPRATE_TEST=1"
+#set_global_assignment -name VERILOG_MACRO "MD_AUDIO_GENMIX_NO_UPRATE_TEST=1"
 
 # DAC overhead debug overlay. Keep disabled for public builds.
 # Uncomment only for debug builds that need DC/AV/OH/W0 counters on screen.

@@ -80,6 +80,14 @@ module vgm_ddram_backend #(
     output logic [15:0]              smoke_ddr_last_read_word1_debug,
     output logic [7:0]               smoke_ddr_last_read_data_debug,
     output logic [15:0]              smoke_ddr_base_addr_debug,
+    output logic [15:0]              smoke_ddr_probe_write_index_debug,
+    output logic [15:0]              smoke_ddr_probe_write_word_debug,
+    output logic [15:0]              smoke_ddr_probe_write_lane_debug,
+    output logic [15:0]              smoke_ddr_probe_write_addr_debug,
+    output logic [15:0]              smoke_ddr_probe_write_count_debug,
+    output logic [15:0]              smoke_ddr_probe_write_flags_debug,
+    output logic [15:0]              smoke_ddr_probe_write_word0_debug,
+    output logic [15:0]              smoke_ddr_probe_write_word6_debug,
 `endif
 
     output logic                     load_busy,
@@ -182,8 +190,11 @@ module vgm_ddram_backend #(
     wire [DDRAM_ADDR_WIDTH-1:0] segapcm_copy_word_addr =
         SEGAPCM_ROM_BASE_ADDR + 29'h0000_0800 + segapcm_copy_wr_addr[18:3];
     localparam logic [18:0] SMOKE_DDR_CAPTURE_BYTES = 19'h01000;
+    logic [18:0] smoke_ddr_write_count_i;
+    logic [18:0] smoke_ddr_write_commit_count_i;
     logic [18:0] smoke_ddr_effective_capture_bytes;
     logic [18:0] smoke_ddr_effective_capture_words;
+    localparam logic [18:0] SMOKE_DDR_PROBE_WRITE_INDEX = 19'h05c00;
     always @* begin
         smoke_ddr_effective_capture_bytes = SMOKE_DDR_CAPTURE_BYTES;
         if (smoke_ddr_capture_limit != 19'd0) begin
@@ -199,9 +210,11 @@ module vgm_ddram_backend #(
     wire smoke_ddr_tap_in_range =
         smoke_ddr_payload_tap_addr < smoke_ddr_effective_capture_bytes;
     wire [18:0] smoke_ddr_capture_index =
-        {3'd0, smoke_ddr_write_count_debug};
+        smoke_ddr_write_count_i;
     wire [DDRAM_ADDR_WIDTH-1:0] smoke_ddr_tap_word_addr =
         SEGAPCM_ROM_BASE_ADDR + smoke_ddr_capture_index[18:3];
+    wire [DDRAM_ADDR_WIDTH-1:0] smoke_ddr_probe_write_word_addr =
+        SEGAPCM_ROM_BASE_ADDR + SMOKE_DDR_PROBE_WRITE_INDEX[18:3];
     wire [DDRAM_ADDR_WIDTH-1:0] smoke_ddr_read_word_addr =
         SEGAPCM_ROM_BASE_ADDR + smoke_ddr_rd_addr[18:3];
     wire smoke_ddr_write_pop_live =
@@ -212,9 +225,9 @@ module vgm_ddram_backend #(
         be_popcount8(fifo_be[fifo_rd_ptr]);
     wire [2:0] smoke_ddr_write_pop_last_lane =
         be_last_lane(fifo_be[fifo_rd_ptr]);
-    wire [15:0] smoke_ddr_write_commit_next =
-        smoke_ddr_write_req_count_debug +
-        {12'd0, smoke_ddr_write_pop_byte_count};
+    wire [18:0] smoke_ddr_write_commit_next =
+        smoke_ddr_write_commit_count_i +
+        {15'd0, smoke_ddr_write_pop_byte_count};
     assign smoke_ddr_base_addr_debug = SEGAPCM_ROM_BASE_ADDR[15:0];
 `else
     localparam bit COPY_TO_DDR_ENABLED = 1'b1;
@@ -259,9 +272,7 @@ module vgm_ddram_backend #(
         (copy_word_changed || copy_flush_requested || copy_same_word_full);
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_TEST
     wire smoke_ddr_capture_open =
-        !smoke_ddr_payload_present &&
-        ({3'd0, smoke_ddr_write_count_debug} <
-         smoke_ddr_effective_capture_bytes);
+        smoke_ddr_write_count_i < smoke_ddr_effective_capture_bytes;
     wire smoke_ddr_write_req_live =
         smoke_ddr_payload_tap_valid &&
         smoke_ddr_tap_in_range &&
@@ -337,6 +348,15 @@ module vgm_ddram_backend #(
     wire [7:0] smoke_ddr_tap_push_be =
         smoke_ddr_tap_word_full ? smoke_ddr_tap_merged_be :
                                   smoke_ddr_pack_be;
+    wire smoke_ddr_probe_write_accept_live =
+        smoke_ddr_write_accept_live &&
+        (smoke_ddr_payload_tap_addr == SMOKE_DDR_PROBE_WRITE_INDEX);
+    wire smoke_ddr_probe_word_push_live =
+        smoke_ddr_tap_push_fire &&
+        (smoke_ddr_tap_push_addr == smoke_ddr_probe_write_word_addr);
+    wire smoke_ddr_probe_word_commit_live =
+        write_pop &&
+        (fifo_addr[fifo_rd_ptr] == smoke_ddr_probe_write_word_addr);
 `endif
     wire write_waiting_for_ddram = !fifo_empty && ddram_busy;
     wire load_can_finish =
@@ -638,6 +658,8 @@ module vgm_ddram_backend #(
             smoke_ddr_rd_data <= 8'd0;
             smoke_ddr_payload_present <= 1'b0;
             smoke_ddr_payload_length <= 19'd0;
+            smoke_ddr_write_count_i <= 19'd0;
+            smoke_ddr_write_commit_count_i <= 19'd0;
             smoke_ddr_write_req_count_debug <= 16'd0;
             smoke_ddr_write_count_debug <= 16'd0;
             smoke_ddr_write_blocked_count_debug <= 16'd0;
@@ -654,6 +676,14 @@ module vgm_ddram_backend #(
             smoke_ddr_last_read_word0_debug <= 16'd0;
             smoke_ddr_last_read_word1_debug <= 16'd0;
             smoke_ddr_last_read_data_debug <= 8'd0;
+            smoke_ddr_probe_write_index_debug <= 16'd0;
+            smoke_ddr_probe_write_word_debug <= 16'd0;
+            smoke_ddr_probe_write_lane_debug <= 16'd0;
+            smoke_ddr_probe_write_addr_debug <= 16'd0;
+            smoke_ddr_probe_write_count_debug <= 16'd0;
+            smoke_ddr_probe_write_flags_debug <= 16'd0;
+            smoke_ddr_probe_write_word0_debug <= 16'd0;
+            smoke_ddr_probe_write_word6_debug <= 16'd0;
 `endif
             segapcm_copy_flush_done <= 1'b0;
             segapcm_copy_accept_count_debug <= 16'd0;
@@ -731,6 +761,8 @@ module vgm_ddram_backend #(
                 smoke_ddr_rd_data <= 8'd0;
                 smoke_ddr_payload_present <= 1'b0;
                 smoke_ddr_payload_length <= 19'd0;
+                smoke_ddr_write_count_i <= 19'd0;
+                smoke_ddr_write_commit_count_i <= 19'd0;
                 smoke_ddr_write_req_count_debug <= 16'd0;
                 smoke_ddr_write_count_debug <= 16'd0;
                 smoke_ddr_write_blocked_count_debug <= 16'd0;
@@ -747,6 +779,14 @@ module vgm_ddram_backend #(
                 smoke_ddr_last_read_word0_debug <= 16'd0;
                 smoke_ddr_last_read_word1_debug <= 16'd0;
                 smoke_ddr_last_read_data_debug <= 8'd0;
+                smoke_ddr_probe_write_index_debug <= 16'd0;
+                smoke_ddr_probe_write_word_debug <= 16'd0;
+                smoke_ddr_probe_write_lane_debug <= 16'd0;
+                smoke_ddr_probe_write_addr_debug <= 16'd0;
+                smoke_ddr_probe_write_count_debug <= 16'd0;
+                smoke_ddr_probe_write_flags_debug <= 16'd0;
+                smoke_ddr_probe_write_word0_debug <= 16'd0;
+                smoke_ddr_probe_write_word6_debug <= 16'd0;
 `endif
                 segapcm_copy_accept_count_debug <= 16'd0;
                 segapcm_copy_write_count_debug <= 16'd0;
@@ -783,8 +823,10 @@ module vgm_ddram_backend #(
                     end
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_TEST
                     if (smoke_ddr_write_pop_live) begin
-                        smoke_ddr_write_req_count_debug <=
+                        smoke_ddr_write_commit_count_i <=
                             smoke_ddr_write_commit_next;
+                        smoke_ddr_write_req_count_debug <=
+                            smoke_ddr_write_commit_next[15:0];
                         smoke_ddr_last_write_addr_debug <=
                             fifo_addr[fifo_rd_ptr][15:0];
                         smoke_ddr_last_write_lane_debug <=
@@ -792,11 +834,24 @@ module vgm_ddram_backend #(
                         smoke_ddr_last_write_data_debug <=
                             lane_dout(fifo_din[fifo_rd_ptr],
                                       smoke_ddr_write_pop_last_lane);
-                        if ({3'd0, smoke_ddr_write_commit_next} >=
+                        if (smoke_ddr_probe_word_commit_live) begin
+                            smoke_ddr_probe_write_addr_debug <=
+                                fifo_addr[fifo_rd_ptr][15:0];
+                            smoke_ddr_probe_write_count_debug <=
+                                smoke_ddr_write_commit_next[15:0];
+                            smoke_ddr_probe_write_word0_debug <=
+                                fifo_din[fifo_rd_ptr][15:0];
+                            smoke_ddr_probe_write_word6_debug <=
+                                fifo_din[fifo_rd_ptr][63:48];
+                            smoke_ddr_probe_write_flags_debug <=
+                                smoke_ddr_probe_write_flags_debug | 16'h0004;
+                        end
+                        smoke_ddr_payload_present <= 1'b1;
+                        if (smoke_ddr_write_commit_next >=
                             smoke_ddr_effective_capture_bytes) begin
-                            smoke_ddr_payload_present <= 1'b1;
-                            smoke_ddr_payload_length <=
-                                smoke_ddr_effective_capture_bytes;
+                            smoke_ddr_payload_length <= smoke_ddr_effective_capture_bytes;
+                        end else begin
+                            smoke_ddr_payload_length <= smoke_ddr_write_commit_next;
                         end
                     end
 `endif
@@ -880,6 +935,18 @@ module vgm_ddram_backend #(
 `endif
                         copy_push_be;
                     fifo_wr_ptr <= fifo_ptr_inc(fifo_wr_ptr);
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_TEST
+                    if (smoke_ddr_probe_word_push_live) begin
+                        smoke_ddr_probe_write_addr_debug <=
+                            smoke_ddr_tap_push_addr[15:0];
+                        smoke_ddr_probe_write_word0_debug <=
+                            smoke_ddr_tap_push_word[15:0];
+                        smoke_ddr_probe_write_word6_debug <=
+                            smoke_ddr_tap_push_word[63:48];
+                        smoke_ddr_probe_write_flags_debug <=
+                            smoke_ddr_probe_write_flags_debug | 16'h0002;
+                    end
+`endif
 
                     if (pack_flush_fire && pack_word_changed) begin
                         pack_valid <= 1'b1;
@@ -976,10 +1043,31 @@ module vgm_ddram_backend #(
                     if (smoke_ddr_header_skip_count_debug < 16'd8) begin
                         smoke_ddr_header_skip_count_debug <= 16'd8;
                     end
+                    smoke_ddr_write_count_i <= smoke_ddr_write_count_i + 19'd1;
                     smoke_ddr_write_count_debug <=
-                        smoke_ddr_write_count_debug + 16'd1;
+                        smoke_ddr_write_count_i[15:0] + 16'd1;
                     smoke_ddr_last_write_index_debug <=
-                        smoke_ddr_write_count_debug;
+                        smoke_ddr_write_count_i[15:0];
+                    if (smoke_ddr_probe_write_accept_live) begin
+                        smoke_ddr_probe_write_index_debug <=
+                            smoke_ddr_capture_index[15:0];
+                        smoke_ddr_probe_write_word_debug <=
+                            smoke_ddr_tap_word_addr[15:0];
+                        smoke_ddr_probe_write_lane_debug <=
+                            {13'd0, smoke_ddr_capture_index[2:0]};
+                        smoke_ddr_probe_write_flags_debug <= {
+                            8'hA5,
+                            smoke_ddr_tap_word_changed,
+                            smoke_ddr_tap_word_full,
+                            smoke_ddr_tap_push_fire,
+                            smoke_ddr_write_blocked_live,
+                            (smoke_ddr_capture_index ==
+                             smoke_ddr_payload_tap_addr),
+                            smoke_ddr_pack_valid,
+                            smoke_ddr_probe_word_push_live,
+                            smoke_ddr_probe_word_commit_live
+                        };
+                    end
                 end
 
                 if (smoke_ddr_write_accept_live &&

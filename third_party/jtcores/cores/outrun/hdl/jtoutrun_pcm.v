@@ -45,6 +45,7 @@ module jtoutrun_pcm #(parameter
     input              smoke_ddr_follow_init_enable,
     input        [2:0] smoke_ddr_follow_delta_sel,
     input        [1:0] smoke_c0_use_sel,
+    input        [1:0] smoke_c0_sample_mode,
     input        [7:0] smoke_c0_delta,
     input        [6:0] smoke_c0_vol_l,
     input        [6:0] smoke_c0_vol_r,
@@ -341,10 +342,26 @@ reg [15:0] smoke_follow_loop_to_i;
 reg [7:0] smoke_jt_vol_l_i;
 reg [7:0] smoke_jt_vol_r_i;
 reg [7:0] smoke_sample_byte_i;
+reg signed [WD-1:0] smoke_c0_mix_l_i;
+reg signed [WD-1:0] smoke_c0_mix_r_i;
 reg smoke_rom_wait_i;
 reg smoke_c0_byte_accept_i;
 reg smoke_c0_mixer_consume_i;
 reg smoke_c0_sample_pending_i;
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0DRIVE_TICK_FAST
+localparam [15:0] SMOKE_C0_TICK_RELOAD = 16'd1;
+`elsif MEGAVGMDRIVE_SEGAPCM_C0DRIVE_TICK_MED
+localparam [15:0] SMOKE_C0_TICK_RELOAD = 16'd3;
+`elsif MEGAVGMDRIVE_SEGAPCM_C0DRIVE_TICK_SLOW
+localparam [15:0] SMOKE_C0_TICK_RELOAD = 16'd15;
+`elsif MEGAVGMDRIVE_SEGAPCM_C0DRIVE_TICK_XSLOW
+localparam [15:0] SMOKE_C0_TICK_RELOAD = 16'd31;
+`else
+localparam [15:0] SMOKE_C0_TICK_RELOAD = 16'd7;
+`endif
+reg [15:0] smoke_c0_tick_div_i;
+reg [15:0] smoke_c0_tick_count_i;
+reg [15:0] smoke_c0_advance_count_i;
 reg smoke_c0_end_match_i;
 reg smoke_c0_end_match_d_i;
 reg [15:0] smoke_c0_end_cmp_value_i;
@@ -402,6 +419,7 @@ wire smoke_c0_seed_reload_block_read =
 wire smoke_c0_rom_wait_hold =
     smoke_c0_rom_wait_state &&
     !smoke_c0_seed_reload_block_read &&
+    !smoke_c0_sample_pending_i &&
     (!smoke_rom_wait_i || !rom_ok);
 wire [23:0] smoke_loop_seed =
     smoke_c0_loop_end_active ? smoke_c0_loop_seed : smoke_current_seed;
@@ -462,8 +480,12 @@ assign smoke_jt_vol_r_debug = {8'd0, smoke_jt_vol_r_i};
 assign smoke_sample_byte_debug = {8'd0, smoke_sample_byte_i};
 assign smoke_c0_byte_accept_debug = smoke_c0_byte_accept_i;
 assign smoke_c0_mixer_consume_debug = smoke_c0_mixer_consume_i;
-assign smoke_out_l_debug = snd_left;
-assign smoke_out_r_debug = snd_right;
+assign smoke_out_l_debug = smoke_c0_current_seed_active ?
+    {{(16-WD){smoke_c0_mix_l_i[WD-1]}}, smoke_c0_mix_l_i} :
+    snd_left;
+assign smoke_out_r_debug = smoke_c0_current_seed_active ?
+    {{(16-WD){smoke_c0_mix_r_i[WD-1]}}, smoke_c0_mix_r_i} :
+    snd_right;
 assign smoke_end_hit_debug = smoke_follow_end_hit_count_i;
 assign smoke_loop_wrap_debug = smoke_follow_loop_wrap_count_i;
 assign smoke_end_cmp_debug = smoke_follow_end_cmp_i;
@@ -522,7 +544,8 @@ wire [6:0] smoke_vol_r =
 `endif
 
 reg  signed [ 7:0] vol_left, vol_right, vol_mux;
-wire signed [ 7:0] pcm_data;
+reg  signed [ 8:0] pcm_centered9;
+reg  signed [ 7:0] pcm_data;
 reg  signed [15:0] mul_data;
 reg  signed [15:0] acc_l, acc_r;
 reg  signed [WD-1:0] mul_clip, buf_r;
@@ -535,7 +558,28 @@ wire [7:0] pcm_source_data =
     (smoke_c0_sample_pending_i ? smoke_sample_byte_i : 8'h80) :
 `endif
     rom_data;
-assign pcm_data = pcm_source_data - 8'h80;
+
+always @* begin
+    pcm_centered9 = $signed({1'b0, pcm_source_data}) - 9'sd128;
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_TEST
+    if (smoke_c0_current_seed_active) begin
+        case (smoke_c0_sample_mode)
+            2'd1: pcm_centered9 = $signed({pcm_source_data[7], pcm_source_data});
+            2'd2: pcm_centered9 = 9'sd128 - $signed({1'b0, pcm_source_data});
+            2'd3: pcm_centered9 = $signed({1'b0, 1'b0, pcm_source_data[7:1]});
+            default: pcm_centered9 = $signed({1'b0, pcm_source_data}) - 9'sd128;
+        endcase
+    end
+`endif
+
+    if (pcm_centered9 > 9'sd127) begin
+        pcm_data = 8'sd127;
+    end else if (pcm_centered9 < -9'sd128) begin
+        pcm_data = -8'sd128;
+    end else begin
+        pcm_data = pcm_centered9[7:0];
+    end
+end
 assign dbg_bank_channel_state = {5'd0, dbg_last_bank, dbg_last_ch, dbg_last_st};
 assign dbg_cur_addr_high = dbg_last_cur_addr[23:8];
 assign dbg_cur_addr_low_state = {dbg_last_cur_addr[7:0], dbg_last_st, dbg_last_ch};
@@ -640,6 +684,18 @@ function signed [15:0] clip_sum( input signed [15:0] a, input signed [WD-1:0] b 
     end
 endfunction
 
+function signed [WD-1:0] smoke_c0_low_gain_sample(
+    input signed [7:0] sample_in
+);
+    begin : low_gain_sample
+        reg signed [WD-1:0] extended;
+        extended = {{(WD-8){sample_in[7]}}, sample_in};
+        // Debug C0Drive path: keep u8center audible without the normal
+        // high volume multiply clipping the waveform into a tone.
+        smoke_c0_low_gain_sample = extended <<< 3;
+    end
+endfunction
+
 always @* begin
     case( st )
          0: cfg_addr = 5'o16; // enable
@@ -732,10 +788,15 @@ always @(posedge clk) begin
         smoke_jt_vol_l_i <= 8'd0;
         smoke_jt_vol_r_i <= 8'd0;
         smoke_sample_byte_i <= 8'd0;
+        smoke_c0_mix_l_i <= {WD{1'b0}};
+        smoke_c0_mix_r_i <= {WD{1'b0}};
         smoke_rom_wait_i <= 1'b0;
         smoke_c0_byte_accept_i <= 1'b0;
         smoke_c0_mixer_consume_i <= 1'b0;
         smoke_c0_sample_pending_i <= 1'b0;
+        smoke_c0_tick_div_i <= 16'd0;
+        smoke_c0_tick_count_i <= 16'd0;
+        smoke_c0_advance_count_i <= 16'd0;
 `endif
 `endif
         dbg_last_bank <= 0;
@@ -894,6 +955,9 @@ always @(posedge clk) begin
             smoke_rom_wait_i <= 1'b0;
             smoke_c0_sample_pending_i <= 1'b0;
             smoke_sample_byte_i <= 8'h80;
+            smoke_c0_tick_div_i <= 16'd0;
+            smoke_c0_tick_count_i <= 16'd0;
+            smoke_c0_advance_count_i <= 16'd0;
             rom_cs <= 1'b0;
 		        end else if( smoke_c0_current_seed_active_rise ) begin
 		            smoke_follow_cur_seeded_i <= 1'b0;
@@ -920,6 +984,9 @@ always @(posedge clk) begin
 		            smoke_follow_loop_to_i <= 16'd0;
 		            smoke_c0_end_match_d_i <= 1'b0;
 		            smoke_rom_wait_i <= 1'b0;
+		            smoke_c0_tick_div_i <= 16'd0;
+		            smoke_c0_tick_count_i <= 16'd0;
+		            smoke_c0_advance_count_i <= 16'd0;
 		        end else if( smoke_c0_drive_sel != smoke_c0_drive_sel_d_i ) begin
 			            smoke_follow_cur_seeded_i <= 1'b0;
 			            smoke_follow_cur_addr_i <= smoke_current_seed;
@@ -945,6 +1012,9 @@ always @(posedge clk) begin
             smoke_follow_loop_to_i <= 16'd0;
             smoke_c0_end_match_d_i <= 1'b0;
             smoke_rom_wait_i <= 1'b0;
+	            smoke_c0_tick_div_i <= 16'd0;
+	            smoke_c0_tick_count_i <= 16'd0;
+	            smoke_c0_advance_count_i <= 16'd0;
 	        end else if( smoke_c0_endcmp_sel != smoke_c0_endcmp_sel_d_i ) begin
 		            smoke_follow_cur_seeded_i <= 1'b0;
 		            smoke_follow_cur_addr_i <= smoke_current_seed;
@@ -970,6 +1040,9 @@ always @(posedge clk) begin
             smoke_follow_loop_to_i <= 16'd0;
             smoke_c0_end_match_d_i <= 1'b0;
             smoke_rom_wait_i <= 1'b0;
+	            smoke_c0_tick_div_i <= 16'd0;
+	            smoke_c0_tick_count_i <= 16'd0;
+	            smoke_c0_advance_count_i <= 16'd0;
 	        end else if( smoke_c0_loopsrc_sel != smoke_c0_loopsrc_sel_d_i ) begin
 		            smoke_follow_cur_seeded_i <= 1'b0;
 		            smoke_follow_cur_addr_i <= smoke_current_seed;
@@ -995,6 +1068,9 @@ always @(posedge clk) begin
             smoke_follow_loop_to_i <= 16'd0;
             smoke_c0_end_match_d_i <= 1'b0;
             smoke_rom_wait_i <= 1'b0;
+            smoke_c0_tick_div_i <= 16'd0;
+            smoke_c0_tick_count_i <= 16'd0;
+            smoke_c0_advance_count_i <= 16'd0;
         end else if( smoke_c0_current_seed_active &&
                      (smoke_c0_seed_pulse || smoke_c0_current_seed_changed) ) begin
             smoke_follow_cur_seeded_i <= 1'b0;
@@ -1016,10 +1092,14 @@ always @(posedge clk) begin
             smoke_follow_loop_to_i <= 16'd0;
             smoke_c0_end_match_d_i <= 1'b0;
             smoke_rom_wait_i <= 1'b0;
+            smoke_c0_tick_div_i <= 16'd0;
+            smoke_c0_tick_count_i <= 16'd0;
+            smoke_c0_advance_count_i <= 16'd0;
         end else if( smoke_c0_seed_mode_end_stop ) begin
             smoke_rom_wait_i <= 1'b0;
             smoke_c0_sample_pending_i <= 1'b0;
             smoke_sample_byte_i <= 8'h80;
+            smoke_c0_tick_div_i <= 16'd0;
             if( !smoke_c0_end_match_d_i ) begin
                 if( smoke_follow_end_hit_count_i != 16'hffff ) begin
                     smoke_follow_end_hit_count_i <=
@@ -1544,7 +1624,8 @@ always @(posedge clk) begin
 	                        smoke_rom_wait_i <= 1'b0;
 	                        smoke_c0_sample_pending_i <= 1'b0;
 	                        smoke_sample_byte_i <= 8'h80;
-			                    end else if( !smoke_rom_wait_i ) begin
+			                    end else if( !smoke_rom_wait_i &&
+			                                 !smoke_c0_sample_pending_i ) begin
 			                        rom_cs   <= 1;
 			                        rom_addr <= { smoke_rom_bank, smoke_c0_play_addr[23:8] };
 		                        if( smoke_c0_loop_boundary_reached ) begin
@@ -1579,7 +1660,7 @@ always @(posedge clk) begin
                         dbg_last_cur_addr <= smoke_c0_play_addr;
                     end else begin
                         rom_cs <= 0;
-                        if( rom_ok ) begin
+                        if( smoke_rom_wait_i && rom_ok ) begin
                             smoke_rom_wait_i <= 1'b0;
                             smoke_sample_byte_i <= rom_data;
                             smoke_c0_byte_accept_i <= 1'b1;
@@ -1840,43 +1921,76 @@ always @(posedge clk) begin
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
                 if( !cfg_en[0] && cur_ch == SMOKE_CH &&
                     smoke_forced_play_enable ) begin
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_TEST
+                    if( smoke_c0_current_seed_active ) begin : st_smoke_c0_tick_gate
+                        reg tick_fire;
+                        tick_fire = smoke_c0_channel_audible &&
+                                    (smoke_c0_tick_div_i == 16'd0);
+                        if( !smoke_c0_channel_audible ) begin
+                            smoke_c0_tick_div_i <= 16'd0;
+                            smoke_c0_sample_pending_i <= 1'b0;
+                            smoke_sample_byte_i <= 8'h80;
+                            smoke_c0_mix_l_i <= {WD{1'b0}};
+                            smoke_c0_mix_r_i <= {WD{1'b0}};
+                        end else begin
+                            if( tick_fire ) begin
+                                smoke_c0_tick_div_i <= SMOKE_C0_TICK_RELOAD;
+                                if( smoke_c0_tick_count_i != 16'hffff ) begin
+                                    smoke_c0_tick_count_i <=
+                                        smoke_c0_tick_count_i + 16'd1;
+                                end
+                            end else begin
+                                smoke_c0_tick_div_i <=
+                                    smoke_c0_tick_div_i - 16'd1;
+                            end
+                            if( tick_fire && smoke_c0_sample_pending_i ) begin : st_smoke_c0_mixer_consume
+                                reg [23:0] next_cur_addr;
+                                reg signed [WD-1:0] c0_mix_sample;
+                                next_cur_addr =
+                                    smoke_c0_request_addr24_i + { 16'd0, delta };
+                                c0_mix_sample = smoke_c0_low_gain_sample(pcm_data);
+                                acc_r <= clip_sum( acc_r, c0_mix_sample);
+                                acc_l <= clip_sum( acc_l, c0_mix_sample);
+                                smoke_c0_mix_l_i <= c0_mix_sample;
+                                smoke_c0_mix_r_i <= c0_mix_sample;
+                                smoke_c0_mixer_consume_i <= 1'b1;
+                                smoke_c0_sample_pending_i <= 1'b0;
+                                if( smoke_c0_advance_count_i != 16'hffff ) begin
+                                    smoke_c0_advance_count_i <=
+                                        smoke_c0_advance_count_i + 16'd1;
+                                end
+                                cur_addr <= next_cur_addr;
+                                smoke_follow_cur_addr_i <= next_cur_addr;
+                                smoke_c0_playback_addr_i <= next_cur_addr;
+                                smoke_playback_addr_i <= smoke_c0_request_addr24_i[23:8];
+                                smoke_follow_seed_wait_accept_i <= 1'b0;
+                                dbg_last_bank <= smoke_rom_bank;
+                                dbg_last_ch <= cur_ch;
+                                dbg_last_st <= st;
+                                dbg_last_cur_addr <= smoke_c0_request_addr24_i;
+                                dbg_update_state_i <= st;
+                                dbg_update_channel_i <= cur_ch;
+                                dbg_update_before_i <= smoke_c0_request_addr24_i;
+                                dbg_update_after_i <= next_cur_addr;
+                                dbg_update_addend_i <= delta;
+                                dbg_update_reason_i <= 8'b0010_0000; // DDR C0 tick consume/advance
+                            end
+                        end
+                    end else begin
+                        acc_r <= clip_sum( acc_r, buf_r);
+                        acc_l <= clip_sum( acc_l, clipDAC(mul_data));
+                    end
+`else
                     acc_r <= clip_sum( acc_r, buf_r);
                     acc_l <= clip_sum( acc_l, clipDAC(mul_data));
-`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_TEST
-                    if( smoke_c0_current_seed_active &&
-                        smoke_c0_sample_pending_i &&
-                        smoke_c0_channel_audible ) begin : st_smoke_c0_mixer_consume
-                        reg [23:0] next_cur_addr;
-                        next_cur_addr =
-                            smoke_c0_request_addr24_i + { 16'd0, delta };
-                        smoke_c0_mixer_consume_i <= 1'b1;
-                        smoke_c0_sample_pending_i <= 1'b0;
-                        cur_addr <= next_cur_addr;
-                        smoke_follow_cur_addr_i <= next_cur_addr;
-                        smoke_c0_playback_addr_i <= next_cur_addr;
-                        smoke_playback_addr_i <= smoke_c0_request_addr24_i[23:8];
-                        smoke_follow_seed_wait_accept_i <= 1'b0;
-                        dbg_last_bank <= smoke_rom_bank;
-                        dbg_last_ch <= cur_ch;
-                        dbg_last_st <= st;
-                        dbg_last_cur_addr <= smoke_c0_request_addr24_i;
-                        dbg_update_state_i <= st;
-                        dbg_update_channel_i <= cur_ch;
-                        dbg_update_before_i <= smoke_c0_request_addr24_i;
-                        dbg_update_after_i <= next_cur_addr;
-                        dbg_update_addend_i <= delta;
-                        dbg_update_reason_i <= 8'b0010_0000; // DDR C0 sample consume/advance
-                    end else if( smoke_c0_current_seed_active &&
-                                 smoke_c0_sample_pending_i &&
-                                 !smoke_c0_channel_audible ) begin
-                        smoke_c0_sample_pending_i <= 1'b0;
-                        smoke_sample_byte_i <= 8'h80;
-                    end
 `endif
                 end else begin
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_TEST
                     if( cur_ch == SMOKE_CH && smoke_c0_current_seed_active ) begin
                         smoke_c0_sample_pending_i <= 1'b0;
+                        smoke_c0_tick_div_i <= 16'd0;
+                        smoke_c0_mix_l_i <= {WD{1'b0}};
+                        smoke_c0_mix_r_i <= {WD{1'b0}};
                     end
 `endif
                 end

@@ -98,6 +98,7 @@ module mister_vgm_md_top #(
     input  logic        [2:0] segapcm_smoke_ddr_offset,
     input  logic        [2:0] segapcm_smoke_ddr_delta,
     input  logic        [1:0] segapcm_smoke_c0_use,
+    input  logic        [1:0] segapcm_smoke_c0_sample_mode,
     input  logic        [2:0] segapcm_smoke_c0_vol_map,
     input  logic        [1:0] segapcm_smoke_c0_drive,
     input  logic              segapcm_smoke_ddr_dest_map,
@@ -505,7 +506,19 @@ module mister_vgm_md_top #(
     output logic              ddram_we
 );
 
-`ifdef MEGAVGMDRIVE_YM2151_MODE_TEST
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+`ifndef MEGAVGMDRIVE_SEGAPCM_AUDIO_STUB_BUILD
+`define MEGAVGMDRIVE_SEGAPCM_AUDIO_STUB_BUILD
+`endif
+`elsif MEGAVGMDRIVE_SEGAPCM_ONLY_DEBUG_BUILD
+`ifndef MEGAVGMDRIVE_SEGAPCM_AUDIO_STUB_BUILD
+`define MEGAVGMDRIVE_SEGAPCM_AUDIO_STUB_BUILD
+`endif
+`endif
+
+`ifdef MEGAVGMDRIVE_SEGAPCM_AUDIO_STUB_BUILD
+    localparam bit YM2151_EXPERIMENTAL_MODE = 1'b1;
+`elsif MEGAVGMDRIVE_YM2151_MODE_TEST
     localparam bit YM2151_EXPERIMENTAL_MODE = 1'b1;
 `else
     localparam bit YM2151_EXPERIMENTAL_MODE = 1'b0;
@@ -803,6 +816,8 @@ module mister_vgm_md_top #(
             logic [18:0] segapcm_payload_tap_addr;
             logic [7:0] segapcm_payload_tap_data;
             logic [31:0] segapcm_payload_tap_byte_count;
+            logic [31:0] segapcm_tap_block_size;
+            logic [31:0] segapcm_tap_block_start;
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_TEST
             logic smoke_ddr_rd_req;
             logic smoke_ddr_rd_ready;
@@ -828,15 +843,29 @@ module mister_vgm_md_top #(
             logic [15:0] smoke_ddr_last_read_word1_debug;
             logic [7:0] smoke_ddr_last_read_data_debug;
             logic [15:0] smoke_ddr_base_addr_debug;
+            logic [15:0] smoke_ddr_probe_write_index_debug;
+            logic [15:0] smoke_ddr_probe_write_word_debug;
+            logic [15:0] smoke_ddr_probe_write_lane_debug;
+            logic [15:0] smoke_ddr_probe_write_addr_debug;
+            logic [15:0] smoke_ddr_probe_write_count_debug;
+            logic [15:0] smoke_ddr_probe_write_flags_debug;
+            logic [15:0] smoke_ddr_probe_write_word0_debug;
+            logic [15:0] smoke_ddr_probe_write_word6_debug;
             logic [31:0] smoke_ddr_type80_payload_len_32;
             logic [18:0] smoke_ddr_type80_payload_len_19;
             logic [31:0] smoke_ddr_type80_dest_addr;
+            logic [31:0] smoke_ddr_type80_block_size;
             logic [18:0] smoke_ddr_capture_limit;
             always @* begin
+                smoke_ddr_type80_block_size = segapcm_tap_block_size;
+                if (smoke_ddr_type80_block_size == 32'd0) begin
+                    smoke_ddr_type80_block_size = segapcm_last_rom_size;
+                end
+
                 smoke_ddr_type80_payload_len_32 = 32'd0;
-                if (segapcm_last_rom_size > 32'd8) begin
+                if (smoke_ddr_type80_block_size > 32'd8) begin
                     smoke_ddr_type80_payload_len_32 =
-                        segapcm_last_rom_size - 32'd8;
+                        smoke_ddr_type80_block_size - 32'd8;
                 end
 
                 smoke_ddr_type80_payload_len_19 =
@@ -848,20 +877,19 @@ module mister_vgm_md_top #(
 
                 smoke_ddr_capture_limit = 19'h01000;
                 if (segapcm_smoke_ddr_full_capture) begin
-                    if (smoke_ddr_type80_payload_len_19 != 19'd0) begin
-                        smoke_ddr_capture_limit =
-                            smoke_ddr_type80_payload_len_19;
-                    end else begin
-                        smoke_ddr_capture_limit = 19'h01000;
-                    end
+                    smoke_ddr_capture_limit = 19'h7ffff;
                 end
 
                 smoke_ddr_type80_dest_addr = 32'd0;
-                if (segapcm_rom_scan_last_start != 32'd0) begin
-                    smoke_ddr_type80_dest_addr = segapcm_rom_scan_last_start;
-                end
-                if (segapcm_last_rom_start != 32'd0) begin
-                    smoke_ddr_type80_dest_addr = segapcm_last_rom_start;
+                if (segapcm_tap_block_size != 32'd0) begin
+                    smoke_ddr_type80_dest_addr = segapcm_tap_block_start;
+                end else begin
+                    if (segapcm_rom_scan_last_start != 32'd0) begin
+                        smoke_ddr_type80_dest_addr = segapcm_rom_scan_last_start;
+                    end
+                    if (segapcm_last_rom_start != 32'd0) begin
+                        smoke_ddr_type80_dest_addr = segapcm_last_rom_start;
+                    end
                 end
             end
 `endif
@@ -1466,6 +1494,26 @@ module mister_vgm_md_top #(
                 YM2151_EXPERIMENTAL_MODE ? ym2151_last_reg : md_last_ym_addr;
             assign last_ym_data =
                 YM2151_EXPERIMENTAL_MODE ? ym2151_last_data : md_last_ym_data;
+`ifdef MEGAVGMDRIVE_SEGAPCM_AUDIO_STUB_BUILD
+            assign segapcm_audio_l_mix = 16'sd0;
+            assign segapcm_audio_r_mix = 16'sd0;
+            assign ym2151_segapcm_l_sum = 17'sd0;
+            assign ym2151_segapcm_r_sum = 17'sd0;
+            assign ym2151_segapcm_audio_l = 16'sd0;
+            assign ym2151_segapcm_audio_r = 16'sd0;
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
+            assign ym2151_segapcm_selected_l =
+                segapcm_smoke_output_enabled ? segapcm_audio_l : 16'sd0;
+            assign ym2151_segapcm_selected_r =
+                segapcm_smoke_output_enabled ? segapcm_audio_r : 16'sd0;
+`else
+            assign ym2151_segapcm_selected_l = segapcm_audio_l;
+            assign ym2151_segapcm_selected_r = segapcm_audio_r;
+`endif
+            assign raw_audio_l = ym2151_segapcm_selected_l;
+            assign raw_audio_r = ym2151_segapcm_selected_r;
+            assign raw_audio_sample_valid = segapcm_audio_sample_valid;
+`else
             assign segapcm_audio_l_mix =
                 (SEGAPCM_EXPERIMENTAL_MIX_MODE == 2) ?
                 (segapcm_audio_l >>> 2) :
@@ -1522,6 +1570,7 @@ module mister_vgm_md_top #(
                 YM2151_EXPERIMENTAL_MODE ? ym2151_audio_sample_valid :
 `endif
                 md_audio_sample_valid;
+`endif
 
             always_ff @(posedge clk) begin
                 if (reset) begin
@@ -2950,6 +2999,14 @@ module mister_vgm_md_top #(
                 assign smoke_ddr_last_read_word1_debug = 16'd0;
                 assign smoke_ddr_last_read_data_debug = 8'd0;
                 assign smoke_ddr_base_addr_debug = 16'd0;
+                assign smoke_ddr_probe_write_index_debug = 16'd0;
+                assign smoke_ddr_probe_write_word_debug = 16'd0;
+                assign smoke_ddr_probe_write_lane_debug = 16'd0;
+                assign smoke_ddr_probe_write_addr_debug = 16'd0;
+                assign smoke_ddr_probe_write_count_debug = 16'd0;
+                assign smoke_ddr_probe_write_flags_debug = 16'd0;
+                assign smoke_ddr_probe_write_word0_debug = 16'd0;
+                assign smoke_ddr_probe_write_word6_debug = 16'd0;
 `endif
 
                 vgm_bram_read_adapter #(
@@ -3047,6 +3104,14 @@ module mister_vgm_md_top #(
                     .smoke_ddr_last_read_word1_debug(smoke_ddr_last_read_word1_debug),
                     .smoke_ddr_last_read_data_debug(smoke_ddr_last_read_data_debug),
                     .smoke_ddr_base_addr_debug(smoke_ddr_base_addr_debug),
+                    .smoke_ddr_probe_write_index_debug(smoke_ddr_probe_write_index_debug),
+                    .smoke_ddr_probe_write_word_debug(smoke_ddr_probe_write_word_debug),
+                    .smoke_ddr_probe_write_lane_debug(smoke_ddr_probe_write_lane_debug),
+                    .smoke_ddr_probe_write_addr_debug(smoke_ddr_probe_write_addr_debug),
+                    .smoke_ddr_probe_write_count_debug(smoke_ddr_probe_write_count_debug),
+                    .smoke_ddr_probe_write_flags_debug(smoke_ddr_probe_write_flags_debug),
+                    .smoke_ddr_probe_write_word0_debug(smoke_ddr_probe_write_word0_debug),
+                    .smoke_ddr_probe_write_word6_debug(smoke_ddr_probe_write_word6_debug),
 `endif
 
                     .load_busy        (vgm_load_busy),
@@ -3112,6 +3177,14 @@ module mister_vgm_md_top #(
                 assign smoke_ddr_last_read_word1_debug = 16'd0;
                 assign smoke_ddr_last_read_data_debug = 8'd0;
                 assign smoke_ddr_base_addr_debug = 16'd0;
+                assign smoke_ddr_probe_write_index_debug = 16'd0;
+                assign smoke_ddr_probe_write_word_debug = 16'd0;
+                assign smoke_ddr_probe_write_lane_debug = 16'd0;
+                assign smoke_ddr_probe_write_addr_debug = 16'd0;
+                assign smoke_ddr_probe_write_count_debug = 16'd0;
+                assign smoke_ddr_probe_write_flags_debug = 16'd0;
+                assign smoke_ddr_probe_write_word0_debug = 16'd0;
+                assign smoke_ddr_probe_write_word6_debug = 16'd0;
 `endif
                 assign load_done_pulse = 1'b0;
                 assign play_ready_pulse = 1'b0;
@@ -3159,6 +3232,8 @@ module mister_vgm_md_top #(
                 .segapcm_payload_tap_addr(segapcm_payload_tap_addr),
                 .segapcm_payload_tap_data(segapcm_payload_tap_data),
                 .segapcm_payload_tap_byte_count_debug(segapcm_payload_tap_byte_count),
+                .segapcm_tap_block_size_debug(segapcm_tap_block_size),
+                .segapcm_tap_block_start_debug(segapcm_tap_block_start),
                 .ym_cmd_ready          (ym_cmd_ready),
                 .psg_cmd_ready         (psg_cmd_ready),
                 .ym_cmd_valid          (ym_cmd_valid),
@@ -3316,6 +3391,12 @@ module mister_vgm_md_top #(
             );
 
             if (YM2151_EXPERIMENTAL_MODE) begin : ym2151_sound_enabled
+`ifdef MEGAVGMDRIVE_SEGAPCM_AUDIO_STUB_BUILD
+                assign ym2151_cmd_ready = 1'b1;
+                assign ym2151_audio_l = 16'sd0;
+                assign ym2151_audio_r = 16'sd0;
+                assign ym2151_audio_sample_valid = 1'b0;
+`else
                 ym2151_sound_module #(
                     .CLK_SYS_HZ    (CLK_SYS_HZ),
                     .YM2151_CLK_HZ (32'd4_000_000)
@@ -3330,6 +3411,7 @@ module mister_vgm_md_top #(
                     .audio_r            (ym2151_audio_r),
                     .audio_sample_valid (ym2151_audio_sample_valid)
                 );
+`endif
 
                 segapcm_sound_module #(
                     .CLK_SYS_HZ      (CLK_SYS_HZ),
@@ -3357,9 +3439,10 @@ module mister_vgm_md_top #(
                     .smoke_ddr_follow_dest_basis   (segapcm_smoke_ddr_dest_basis),
                     .smoke_ddr_follow_dest_loop_wrap(segapcm_smoke_ddr_dest_loop_wrap),
                     .smoke_c0_use_sel              (segapcm_smoke_c0_use),
+                    .smoke_c0_sample_mode_sel      (segapcm_smoke_c0_sample_mode),
                     .smoke_c0_vol_map_sel          (segapcm_smoke_c0_vol_map),
                     .smoke_c0_drive_sel            (segapcm_smoke_c0_drive),
-                    .loaded_type80_rom_size         (segapcm_last_rom_size),
+                    .loaded_type80_rom_size         (smoke_ddr_type80_block_size),
                     .loaded_type80_rom_dest         (smoke_ddr_type80_dest_addr),
                     .loaded_payload_wr_valid        (segapcm_payload_tap_valid),
                     .loaded_payload_wr_addr         (segapcm_payload_tap_addr),
@@ -3391,6 +3474,14 @@ module mister_vgm_md_top #(
                     .loaded_ddr_last_read_word1_debug(smoke_ddr_last_read_word1_debug),
                     .loaded_ddr_last_read_data_debug(smoke_ddr_last_read_data_debug),
                     .loaded_ddr_base_addr_debug     (smoke_ddr_base_addr_debug),
+                    .loaded_ddr_probe_write_index_debug(smoke_ddr_probe_write_index_debug),
+                    .loaded_ddr_probe_write_word_debug(smoke_ddr_probe_write_word_debug),
+                    .loaded_ddr_probe_write_lane_debug(smoke_ddr_probe_write_lane_debug),
+                    .loaded_ddr_probe_write_addr_debug(smoke_ddr_probe_write_addr_debug),
+                    .loaded_ddr_probe_write_count_debug(smoke_ddr_probe_write_count_debug),
+                    .loaded_ddr_probe_write_flags_debug(smoke_ddr_probe_write_flags_debug),
+                    .loaded_ddr_probe_write_word0_debug(smoke_ddr_probe_write_word0_debug),
+                    .loaded_ddr_probe_write_word6_debug(smoke_ddr_probe_write_word6_debug),
 `elsif MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_TINY_RAM_TEST
                     .loaded_payload_wr_valid        (segapcm_payload_tap_valid),
                     .loaded_payload_wr_addr         (segapcm_payload_tap_addr),
@@ -3695,6 +3786,38 @@ module mister_vgm_md_top #(
                 assign segapcm_core_status_debug = 16'd0;
             end
 
+`ifdef MEGAVGMDRIVE_SEGAPCM_AUDIO_STUB_BUILD
+            assign ym_cmd_ready = 1'b1;
+            assign psg_cmd_ready = 1'b1;
+            assign md_audio_l = 16'sd0;
+            assign md_audio_r = 16'sd0;
+            assign md_audio_sample_valid = 1'b0;
+            assign fm_adjust_clip_count_l = 16'd0;
+            assign fm_adjust_clip_count_r = 16'd0;
+            assign genmix_wrap_count_l = 16'd0;
+            assign genmix_wrap_count_r = 16'd0;
+            assign md_ym_write_requested_count = 32'd0;
+            assign md_ym_write_accepted_count = 32'd0;
+            assign md_ym_write_dropped_or_busy_count = 32'd0;
+            assign md_ym_port0_count = 32'd0;
+            assign md_ym_port1_count = 32'd0;
+            assign md_last_ym_port = 1'b0;
+            assign md_last_ym_addr = 8'd0;
+            assign md_last_ym_data = 8'd0;
+            assign jt12_cen_interval_1_count = 16'd0;
+            assign jt12_cen_interval_2_count = 16'd0;
+            assign jt12_cen_interval_3_count = 16'd0;
+            assign jt12_cen_interval_4_count = 16'd0;
+            assign jt12_cen_interval_ge5_count = 16'd0;
+            assign jt12_cen_interval_min = 8'd0;
+            assign jt12_cen_interval_max = 8'd0;
+            assign jt12_cen_interval_last = 8'd0;
+            assign fm_raw_abs_peak = 16'd0;
+            assign fm_adjust_abs_peak = 16'd0;
+            assign fm_lpf_abs_peak = 16'd0;
+            assign genmix_abs_peak = 16'd0;
+            assign md_final_audio_abs_peak = 16'd0;
+`else
             md_sound_module sound (
                 .clk                   (clk),
                 .reset                 (reset | mode5_sound_core_reset),
@@ -3738,6 +3861,7 @@ module mister_vgm_md_top #(
                 .genmix_abs_peak      (genmix_abs_peak),
                 .final_audio_abs_peak (md_final_audio_abs_peak)
             );
+`endif
         end else begin : fixed_region_mode
             assign vgm_load_busy = 1'b0;
             assign vgm_load_done = 1'b0;
