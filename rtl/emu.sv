@@ -654,6 +654,7 @@ module emu
         "OA,SegaPCM Debug View,Follow,C0;",
 `ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
         "OBC,SegaPCM C0 Pump,Force,Fixed,Seq,Delta;",
+        "ODE,SegaPCM C0 Delta Speed,x1,x2,x4,x8;",
 `else
         "OBC,SegaPCM C0 Sample,U8C,S8,InvU8,Raw;",
 `endif
@@ -1281,8 +1282,10 @@ module emu
 `ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
     wire [1:0] segapcm_smoke_c0_sample_mode =
         (status[12:11] == 2'd0) ? 2'd2 : status[12:11];
+    wire [1:0] segapcm_smoke_c0_delta_speed = status[14:13];
 `else
     wire [1:0] segapcm_smoke_c0_sample_mode = status[12:11];
+    wire [1:0] segapcm_smoke_c0_delta_speed = 2'd0;
 `endif
     wire [2:0] segapcm_smoke_c0_vol_map = 3'd0;
     wire       segapcm_smoke_ddr_dest_map =
@@ -1493,6 +1496,7 @@ module emu
         .segapcm_smoke_ddr_delta(segapcm_smoke_ddr_delta),
         .segapcm_smoke_c0_use(segapcm_smoke_c0_use),
         .segapcm_smoke_c0_sample_mode(segapcm_smoke_c0_sample_mode),
+        .segapcm_smoke_c0_delta_speed(segapcm_smoke_c0_delta_speed),
         .segapcm_smoke_c0_vol_map(segapcm_smoke_c0_vol_map),
         .segapcm_smoke_c0_drive(segapcm_smoke_c0_drive),
         .segapcm_smoke_ddr_dest_map(segapcm_smoke_ddr_dest_map),
@@ -2207,19 +2211,19 @@ module emu
                         5'd0:  segapcm_debug_label_char = (col == 2'd0) ? "S" : (col == 2'd1) ? "K" : " ";
 `ifdef MEGAVGMDRIVE_SEGAPCM_MIN_DEBUG_PROBE
                         5'd1:  segapcm_debug_label_char = (col == 2'd0) ? "P" : (col == 2'd1) ? "M" : " ";
-                        5'd2:  segapcm_debug_label_char = (col == 2'd0) ? "G" : (col == 2'd1) ? "A" : " ";
-                        5'd3:  segapcm_debug_label_char = (col == 2'd0) ? "R" : (col == 2'd1) ? "N" : " ";
-                        5'd4:  segapcm_debug_label_char = (col == 2'd0) ? "V" : (col == 2'd1) ? "A" : " ";
-                        5'd5:  segapcm_debug_label_char = (col == 2'd0) ? "S" : (col == 2'd1) ? "T" : " ";
+                        5'd2:  segapcm_debug_label_char = (col == 2'd0) ? "R" : (col == 2'd1) ? "T" : " ";
+                        5'd3:  segapcm_debug_label_char = (col == 2'd0) ? "R" : (col == 2'd1) ? "S" : " ";
+                        5'd4:  segapcm_debug_label_char = (col == 2'd0) ? "C" : (col == 2'd1) ? "S" : " ";
+                        5'd5:  segapcm_debug_label_char = (col == 2'd0) ? "D" : (col == 2'd1) ? "E" : " ";
                         5'd6:  segapcm_debug_label_char = (col == 2'd0) ? "A" : (col == 2'd1) ? "D" : " ";
                         5'd7:  segapcm_debug_label_char = (col == 2'd0) ? "P" : (col == 2'd1) ? "I" : " ";
                         5'd8:  segapcm_debug_label_char = (col == 2'd0) ? "S" : (col == 2'd1) ? "B" : " ";
                         5'd9:  segapcm_debug_label_char = (col == 2'd0) ? "O" : (col == 2'd1) ? "L" : " ";
-                        5'd10: segapcm_debug_label_char = (col == 2'd0) ? "A" : (col == 2'd1) ? "U" : " ";
+                        5'd10: segapcm_debug_label_char = (col == 2'd0) ? "R" : (col == 2'd1) ? "P" : " ";
                         5'd11: segapcm_debug_label_char = (col == 2'd0) ? "P" : (col == 2'd1) ? "V" : " ";
                         5'd12: segapcm_debug_label_char = (col == 2'd0) ? "F" : (col == 2'd1) ? "U" : " ";
                         5'd13: segapcm_debug_label_char = (col == 2'd0) ? "V" : (col == 2'd1) ? "L" : " ";
-                        5'd14: segapcm_debug_label_char = (col == 2'd0) ? "W" : (col == 2'd1) ? "0" : " ";
+                        5'd14: segapcm_debug_label_char = (col == 2'd0) ? "E" : (col == 2'd1) ? "T" : " ";
                         5'd15: segapcm_debug_label_char = (col == 2'd0) ? "T" : (col == 2'd1) ? "8" : " ";
 `else
                         5'd1:  segapcm_debug_label_char = (col == 2'd0) ? "C" : (col == 2'd1) ? "H" : " ";
@@ -2514,27 +2518,10 @@ module emu
 `ifdef MEGAVGMDRIVE_SEGAPCM_MIN_DEBUG_PROBE
                         5'd1:  segapcm_debug_value =
                             {14'd0, segapcm_smoke_c0_sample_mode};
-                        5'd2:  segapcm_debug_value = segapcm_core_jt_smoke_vol_l;
-                        5'd3:  segapcm_debug_value = {
-                            13'd0,
-                            player_busy,
-                            player_done,
-                            vgm_end_command_seen
-                        };
-                        5'd4:  segapcm_debug_value = {
-                            15'd0,
-                            (segapcm_core_c0_capture_ch3_vol_l[6:0] != 7'd0) ||
-                            (segapcm_core_c0_capture_ch3_vol_r[6:0] != 7'd0)
-                        };
-                        5'd5:  segapcm_debug_value = {
-                            8'hC0,
-                            2'd0,
-                            segapcm_smoke_c0_drive,
-                            1'b0,
-                            player_busy,
-                            player_done,
-                            vgm_end_command_seen
-                        };
+                        5'd2:  segapcm_debug_value = segapcm_core_c0_capture_ch3_ctrl;
+                        5'd3:  segapcm_debug_value = segapcm_core_c0_capture_last_data;
+                        5'd4:  segapcm_debug_value = segapcm_core_c0_capture_ch3_cur_low;
+                        5'd5:  segapcm_debug_value = segapcm_core_c0_capture_ch3_delta;
                         5'd6:  segapcm_debug_value = segapcm_core_ch3_evolution_flags;
                         5'd7:  segapcm_debug_value = segapcm_core_jt_smoke_vol_r;
                         5'd8:  segapcm_debug_value = {
@@ -2560,7 +2547,7 @@ module emu
                                 segapcm_lab_sample_centered9_debug[7:0]
                         };
                         5'd9:  segapcm_debug_value = segapcm_core_jt_smoke_out_l;
-                        5'd10: segapcm_debug_value = segapcm_core_audio_nonzero_count;
+                        5'd10: segapcm_debug_value = segapcm_core_c0_capture_ch3_cur_mid;
                         5'd11: segapcm_debug_value = {
                             15'd0,
                             (segapcm_core_known38686_flags != 16'hffff) &&
@@ -2576,7 +2563,7 @@ module emu
                             1'b0, segapcm_core_c0_capture_ch3_vol_l[6:0],
                             1'b0, segapcm_core_c0_capture_ch3_vol_r[6:0]
                         };
-                        5'd14: segapcm_debug_value = smoke_ddr_probe_write_word0_debug;
+                        5'd14: segapcm_debug_value = segapcm_core_c0_capture_ch3_cur_high;
                         5'd15: segapcm_debug_value = parser_type80_block_count_debug[15:0];
 `else
                         5'd1:  segapcm_debug_value = segapcm_core_c0_capture_selected_channel;
