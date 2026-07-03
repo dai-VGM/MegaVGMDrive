@@ -261,6 +261,21 @@ module mister_vgm_md_top #(
     output logic [15:0]       mode5_backend_copy_post_push_debug,
     output logic [15:0]       mode5_backend_read_gate_debug,
     output logic [15:0]       mode5_backend_read_after_copy_count_debug,
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_TEST
+    output logic [15:0]       smoke_ddr_payload_tap_count_debug,
+    output logic [15:0]       smoke_ddr_last_read_index_debug,
+    output logic [7:0]        smoke_ddr_last_read_data_debug,
+    output logic [15:0]       smoke_ddr_last_read_word0_debug,
+    output logic [15:0]       smoke_ddr_last_read_word1_debug,
+    output logic [15:0]       smoke_ddr_probe_write_index_debug,
+    output logic [15:0]       smoke_ddr_probe_write_word_debug,
+    output logic [15:0]       smoke_ddr_probe_write_lane_debug,
+    output logic [15:0]       smoke_ddr_probe_write_addr_debug,
+    output logic [15:0]       smoke_ddr_probe_write_count_debug,
+    output logic [15:0]       smoke_ddr_probe_write_flags_debug,
+    output logic [15:0]       smoke_ddr_probe_write_word0_debug,
+    output logic [15:0]       smoke_ddr_probe_write_word6_debug,
+`endif
     output logic [15:0]       mode5_read_mux_debug,
     output logic [15:0]       mode5_read_ready_compare_debug,
     output logic [15:0]       mode5_read_ready_blocker_debug,
@@ -368,6 +383,7 @@ module mister_vgm_md_top #(
     output logic [15:0]       segapcm_core_c0_capture_ch3_end,
     output logic [15:0]       segapcm_core_jt_smoke_vol_l,
     output logic [15:0]       segapcm_core_jt_smoke_vol_r,
+    output logic [15:0]       segapcm_core_jt_smoke_sample_byte,
     output logic [15:0]       segapcm_core_jt_smoke_out_l,
     output logic [15:0]       segapcm_core_jt_smoke_out_r,
     output logic [15:0]       segapcm_core_ch3_evolution_flags,
@@ -836,21 +852,21 @@ module mister_vgm_md_top #(
             logic [15:0] smoke_ddr_last_write_lane_debug;
             logic [7:0] smoke_ddr_last_write_data_debug;
             logic [15:0] smoke_ddr_read_count_debug;
-            logic [15:0] smoke_ddr_last_read_index_debug;
+            logic [15:0] smoke_ddr_last_read_index_i;
             logic [15:0] smoke_ddr_last_read_addr_debug;
             logic [15:0] smoke_ddr_last_read_lane_debug;
-            logic [15:0] smoke_ddr_last_read_word0_debug;
-            logic [15:0] smoke_ddr_last_read_word1_debug;
-            logic [7:0] smoke_ddr_last_read_data_debug;
+            logic [15:0] smoke_ddr_last_read_word0_i;
+            logic [15:0] smoke_ddr_last_read_word1_i;
+            logic [7:0] smoke_ddr_last_read_data_i;
             logic [15:0] smoke_ddr_base_addr_debug;
-            logic [15:0] smoke_ddr_probe_write_index_debug;
-            logic [15:0] smoke_ddr_probe_write_word_debug;
-            logic [15:0] smoke_ddr_probe_write_lane_debug;
-            logic [15:0] smoke_ddr_probe_write_addr_debug;
-            logic [15:0] smoke_ddr_probe_write_count_debug;
-            logic [15:0] smoke_ddr_probe_write_flags_debug;
-            logic [15:0] smoke_ddr_probe_write_word0_debug;
-            logic [15:0] smoke_ddr_probe_write_word6_debug;
+            logic [15:0] smoke_ddr_probe_write_index_i;
+            logic [15:0] smoke_ddr_probe_write_word_i;
+            logic [15:0] smoke_ddr_probe_write_lane_i;
+            logic [15:0] smoke_ddr_probe_write_addr_i;
+            logic [15:0] smoke_ddr_probe_write_count_i;
+            logic [15:0] smoke_ddr_probe_write_flags_i;
+            logic [15:0] smoke_ddr_probe_write_word0_i;
+            logic [15:0] smoke_ddr_probe_write_word6_i;
             logic [31:0] smoke_ddr_type80_payload_len_32;
             logic [18:0] smoke_ddr_type80_payload_len_19;
             logic [31:0] smoke_ddr_type80_dest_addr;
@@ -892,6 +908,19 @@ module mister_vgm_md_top #(
                     end
                 end
             end
+            assign smoke_ddr_payload_tap_count_debug = smoke_ddr_write_req_count_debug;
+            assign smoke_ddr_last_read_index_debug = smoke_ddr_last_read_index_i;
+            assign smoke_ddr_last_read_data_debug = smoke_ddr_last_read_data_i;
+            assign smoke_ddr_last_read_word0_debug = smoke_ddr_last_read_word0_i;
+            assign smoke_ddr_last_read_word1_debug = smoke_ddr_last_read_word1_i;
+            assign smoke_ddr_probe_write_index_debug = smoke_ddr_probe_write_index_i;
+            assign smoke_ddr_probe_write_word_debug = smoke_ddr_probe_write_word_i;
+            assign smoke_ddr_probe_write_lane_debug = smoke_ddr_probe_write_lane_i;
+            assign smoke_ddr_probe_write_addr_debug = smoke_ddr_probe_write_addr_i;
+            assign smoke_ddr_probe_write_count_debug = smoke_ddr_probe_write_count_i;
+            assign smoke_ddr_probe_write_flags_debug = smoke_ddr_probe_write_flags_i;
+            assign smoke_ddr_probe_write_word0_debug = smoke_ddr_probe_write_word0_i;
+            assign smoke_ddr_probe_write_word6_debug = smoke_ddr_probe_write_word6_i;
 `endif
             logic load_done_pulse;
             logic play_ready_pulse;
@@ -2992,21 +3021,21 @@ module mister_vgm_md_top #(
                 assign smoke_ddr_last_write_lane_debug = 16'd0;
                 assign smoke_ddr_last_write_data_debug = 8'd0;
                 assign smoke_ddr_read_count_debug = 16'd0;
-                assign smoke_ddr_last_read_index_debug = 16'd0;
+                assign smoke_ddr_last_read_index_i = 16'd0;
                 assign smoke_ddr_last_read_addr_debug = 16'd0;
                 assign smoke_ddr_last_read_lane_debug = 16'd0;
-                assign smoke_ddr_last_read_word0_debug = 16'd0;
-                assign smoke_ddr_last_read_word1_debug = 16'd0;
-                assign smoke_ddr_last_read_data_debug = 8'd0;
+                assign smoke_ddr_last_read_word0_i = 16'd0;
+                assign smoke_ddr_last_read_word1_i = 16'd0;
+                assign smoke_ddr_last_read_data_i = 8'd0;
                 assign smoke_ddr_base_addr_debug = 16'd0;
-                assign smoke_ddr_probe_write_index_debug = 16'd0;
-                assign smoke_ddr_probe_write_word_debug = 16'd0;
-                assign smoke_ddr_probe_write_lane_debug = 16'd0;
-                assign smoke_ddr_probe_write_addr_debug = 16'd0;
-                assign smoke_ddr_probe_write_count_debug = 16'd0;
-                assign smoke_ddr_probe_write_flags_debug = 16'd0;
-                assign smoke_ddr_probe_write_word0_debug = 16'd0;
-                assign smoke_ddr_probe_write_word6_debug = 16'd0;
+                assign smoke_ddr_probe_write_index_i = 16'd0;
+                assign smoke_ddr_probe_write_word_i = 16'd0;
+                assign smoke_ddr_probe_write_lane_i = 16'd0;
+                assign smoke_ddr_probe_write_addr_i = 16'd0;
+                assign smoke_ddr_probe_write_count_i = 16'd0;
+                assign smoke_ddr_probe_write_flags_i = 16'd0;
+                assign smoke_ddr_probe_write_word0_i = 16'd0;
+                assign smoke_ddr_probe_write_word6_i = 16'd0;
 `endif
 
                 vgm_bram_read_adapter #(
@@ -3030,6 +3059,107 @@ module mister_vgm_md_top #(
                 assign ddram_be       = 8'd0;
                 assign ddram_we       = 1'b0;
             end else if (MODE5_VGM_BACKEND == MODE5_BACKEND_DDRAM) begin : backend_ddram
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+                assign segapcm_copy_wr_ready = 1'b1;
+                assign segapcm_copy_flush_done = segapcm_copy_flush_req;
+                assign backend_copy_accept_count_debug = 16'd0;
+                assign backend_copy_write_count_debug = 16'd0;
+                assign backend_copy_fifo_debug = 16'd0;
+                assign backend_copy_ready_debug = 16'd0;
+                assign backend_copy_write_req_debug = 16'd0;
+                assign backend_copy_word_debug = 16'd0;
+                assign backend_copy_flush_debug = 16'd0;
+                assign backend_copy_full_detect_count_debug = 16'd0;
+                assign backend_copy_push_req_count_debug = 16'd0;
+                assign backend_copy_push_fire_count_debug = 16'd0;
+                assign backend_copy_fifo_push_count_debug = 16'd0;
+                assign backend_copy_pack_ready_debug = 16'd0;
+                assign backend_copy_post_push_debug = 16'd0;
+                assign backend_read_gate_debug = 16'd0;
+                assign backend_read_after_copy_count_debug = 16'd0;
+
+                vgm_c0_lab_backend #(
+                    .ADDR_WIDTH       (VGM_LOAD_ADDR_WIDTH),
+                    .ACCEPT_ANY_INDEX (1'b0),
+                    .FILE_INDEX       (VGM_LOAD_FILE_INDEX[7:0]),
+                    .DDRAM_BASE_ADDR  ({4'b0011, 25'd0})
+                ) c0_lab_backend (
+                    .clk              (clk),
+                    .reset            (reset),
+                    .ioctl_download   (ioctl_download),
+                    .ioctl_wr         (ioctl_wr),
+                    .ioctl_addr       ({5'd0, ioctl_addr}),
+                    .ioctl_dout       (ioctl_dout),
+                    .ioctl_index      (ioctl_index[7:0]),
+                    .ioctl_wait       (ioctl_wait),
+
+                    .mem_rd_req       (mem_rd_req),
+                    .mem_rd_addr      (mem_rd_addr),
+                    .mem_rd_ready     (mem_rd_ready),
+                    .mem_rd_valid     (mem_rd_valid),
+                    .mem_rd_data      (mem_rd_data),
+
+                    .payload_tap_valid(segapcm_payload_tap_valid),
+                    .payload_tap_addr (segapcm_payload_tap_addr),
+                    .payload_tap_data (segapcm_payload_tap_data),
+                    .type80_block_dest(smoke_ddr_type80_dest_addr),
+                    .type80_block_size(smoke_ddr_type80_block_size),
+
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_TEST
+                    .smoke_rd_req     (smoke_ddr_rd_req),
+                    .smoke_rd_ready   (smoke_ddr_rd_ready),
+                    .smoke_rd_addr    (smoke_ddr_rd_addr),
+                    .smoke_rd_valid   (smoke_ddr_rd_valid),
+                    .smoke_rd_data    (smoke_ddr_rd_data),
+                    .smoke_payload_present(smoke_ddr_payload_present),
+                    .smoke_payload_length(smoke_ddr_payload_length),
+                    .smoke_write_req_count_debug(smoke_ddr_write_req_count_debug),
+                    .smoke_write_count_debug(smoke_ddr_write_count_debug),
+                    .smoke_write_blocked_count_debug(smoke_ddr_write_blocked_count_debug),
+                    .smoke_write_status_debug(smoke_ddr_write_status_debug),
+                    .smoke_header_skip_count_debug(smoke_ddr_header_skip_count_debug),
+                    .smoke_last_write_index_debug(smoke_ddr_last_write_index_debug),
+                    .smoke_last_write_addr_debug(smoke_ddr_last_write_addr_debug),
+                    .smoke_last_write_lane_debug(smoke_ddr_last_write_lane_debug),
+                    .smoke_last_write_data_debug(smoke_ddr_last_write_data_debug),
+                    .smoke_read_count_debug(smoke_ddr_read_count_debug),
+                    .smoke_last_read_index_debug(smoke_ddr_last_read_index_i),
+                    .smoke_last_read_addr_debug(smoke_ddr_last_read_addr_debug),
+                    .smoke_last_read_lane_debug(smoke_ddr_last_read_lane_debug),
+                    .smoke_last_read_word0_debug(smoke_ddr_last_read_word0_i),
+                    .smoke_last_read_word1_debug(smoke_ddr_last_read_word1_i),
+                    .smoke_last_read_data_debug(smoke_ddr_last_read_data_i),
+                    .smoke_base_addr_debug(smoke_ddr_base_addr_debug),
+                    .smoke_probe_write_index_debug(smoke_ddr_probe_write_index_i),
+                    .smoke_probe_write_word_debug(smoke_ddr_probe_write_word_i),
+                    .smoke_probe_write_lane_debug(smoke_ddr_probe_write_lane_i),
+                    .smoke_probe_write_addr_debug(smoke_ddr_probe_write_addr_i),
+                    .smoke_probe_write_count_debug(smoke_ddr_probe_write_count_i),
+                    .smoke_probe_write_flags_debug(smoke_ddr_probe_write_flags_i),
+                    .smoke_probe_write_word0_debug(smoke_ddr_probe_write_word0_i),
+                    .smoke_probe_write_word6_debug(smoke_ddr_probe_write_word6_i),
+`endif
+
+                    .load_busy        (vgm_load_busy),
+                    .load_done        (vgm_load_done),
+                    .load_done_pulse  (load_done_pulse),
+                    .play_ready_pulse (play_ready_pulse),
+                    .load_error       (vgm_load_error),
+                    .overflow_error   (vgm_load_overflow),
+                    .file_size        (vgm_load_size),
+                    .magic_debug      (vgm_load_magic),
+
+                    .ddram_busy       (ddram_busy),
+                    .ddram_burstcnt   (ddram_burstcnt),
+                    .ddram_addr       (ddram_addr),
+                    .ddram_dout       (ddram_dout),
+                    .ddram_dout_ready (ddram_dout_ready),
+                    .ddram_rd         (ddram_rd),
+                    .ddram_din        (ddram_din),
+                    .ddram_be         (ddram_be),
+                    .ddram_we         (ddram_we)
+                );
+`else
                 vgm_ddram_backend #(
                     .ADDR_WIDTH       (VGM_LOAD_ADDR_WIDTH),
                     .ACCEPT_ANY_INDEX (1'b0),
@@ -3097,21 +3227,21 @@ module mister_vgm_md_top #(
                     .smoke_ddr_last_write_lane_debug(smoke_ddr_last_write_lane_debug),
                     .smoke_ddr_last_write_data_debug(smoke_ddr_last_write_data_debug),
                     .smoke_ddr_read_count_debug(smoke_ddr_read_count_debug),
-                    .smoke_ddr_last_read_index_debug(smoke_ddr_last_read_index_debug),
+                    .smoke_ddr_last_read_index_debug(smoke_ddr_last_read_index_i),
                     .smoke_ddr_last_read_addr_debug(smoke_ddr_last_read_addr_debug),
                     .smoke_ddr_last_read_lane_debug(smoke_ddr_last_read_lane_debug),
-                    .smoke_ddr_last_read_word0_debug(smoke_ddr_last_read_word0_debug),
-                    .smoke_ddr_last_read_word1_debug(smoke_ddr_last_read_word1_debug),
-                    .smoke_ddr_last_read_data_debug(smoke_ddr_last_read_data_debug),
+                    .smoke_ddr_last_read_word0_debug(smoke_ddr_last_read_word0_i),
+                    .smoke_ddr_last_read_word1_debug(smoke_ddr_last_read_word1_i),
+                    .smoke_ddr_last_read_data_debug(smoke_ddr_last_read_data_i),
                     .smoke_ddr_base_addr_debug(smoke_ddr_base_addr_debug),
-                    .smoke_ddr_probe_write_index_debug(smoke_ddr_probe_write_index_debug),
-                    .smoke_ddr_probe_write_word_debug(smoke_ddr_probe_write_word_debug),
-                    .smoke_ddr_probe_write_lane_debug(smoke_ddr_probe_write_lane_debug),
-                    .smoke_ddr_probe_write_addr_debug(smoke_ddr_probe_write_addr_debug),
-                    .smoke_ddr_probe_write_count_debug(smoke_ddr_probe_write_count_debug),
-                    .smoke_ddr_probe_write_flags_debug(smoke_ddr_probe_write_flags_debug),
-                    .smoke_ddr_probe_write_word0_debug(smoke_ddr_probe_write_word0_debug),
-                    .smoke_ddr_probe_write_word6_debug(smoke_ddr_probe_write_word6_debug),
+                    .smoke_ddr_probe_write_index_debug(smoke_ddr_probe_write_index_i),
+                    .smoke_ddr_probe_write_word_debug(smoke_ddr_probe_write_word_i),
+                    .smoke_ddr_probe_write_lane_debug(smoke_ddr_probe_write_lane_i),
+                    .smoke_ddr_probe_write_addr_debug(smoke_ddr_probe_write_addr_i),
+                    .smoke_ddr_probe_write_count_debug(smoke_ddr_probe_write_count_i),
+                    .smoke_ddr_probe_write_flags_debug(smoke_ddr_probe_write_flags_i),
+                    .smoke_ddr_probe_write_word0_debug(smoke_ddr_probe_write_word0_i),
+                    .smoke_ddr_probe_write_word6_debug(smoke_ddr_probe_write_word6_i),
 `endif
 
                     .load_busy        (vgm_load_busy),
@@ -3133,6 +3263,7 @@ module mister_vgm_md_top #(
                     .ddram_be         (ddram_be),
                     .ddram_we         (ddram_we)
                 );
+`endif
             end else begin : backend_reserved
                 assign mem_rd_ready = 1'b0;
                 assign mem_rd_valid = 1'b0;
@@ -3170,21 +3301,21 @@ module mister_vgm_md_top #(
                 assign smoke_ddr_last_write_lane_debug = 16'd0;
                 assign smoke_ddr_last_write_data_debug = 8'd0;
                 assign smoke_ddr_read_count_debug = 16'd0;
-                assign smoke_ddr_last_read_index_debug = 16'd0;
+                assign smoke_ddr_last_read_index_i = 16'd0;
                 assign smoke_ddr_last_read_addr_debug = 16'd0;
                 assign smoke_ddr_last_read_lane_debug = 16'd0;
-                assign smoke_ddr_last_read_word0_debug = 16'd0;
-                assign smoke_ddr_last_read_word1_debug = 16'd0;
-                assign smoke_ddr_last_read_data_debug = 8'd0;
+                assign smoke_ddr_last_read_word0_i = 16'd0;
+                assign smoke_ddr_last_read_word1_i = 16'd0;
+                assign smoke_ddr_last_read_data_i = 8'd0;
                 assign smoke_ddr_base_addr_debug = 16'd0;
-                assign smoke_ddr_probe_write_index_debug = 16'd0;
-                assign smoke_ddr_probe_write_word_debug = 16'd0;
-                assign smoke_ddr_probe_write_lane_debug = 16'd0;
-                assign smoke_ddr_probe_write_addr_debug = 16'd0;
-                assign smoke_ddr_probe_write_count_debug = 16'd0;
-                assign smoke_ddr_probe_write_flags_debug = 16'd0;
-                assign smoke_ddr_probe_write_word0_debug = 16'd0;
-                assign smoke_ddr_probe_write_word6_debug = 16'd0;
+                assign smoke_ddr_probe_write_index_i = 16'd0;
+                assign smoke_ddr_probe_write_word_i = 16'd0;
+                assign smoke_ddr_probe_write_lane_i = 16'd0;
+                assign smoke_ddr_probe_write_addr_i = 16'd0;
+                assign smoke_ddr_probe_write_count_i = 16'd0;
+                assign smoke_ddr_probe_write_flags_i = 16'd0;
+                assign smoke_ddr_probe_write_word0_i = 16'd0;
+                assign smoke_ddr_probe_write_word6_i = 16'd0;
 `endif
                 assign load_done_pulse = 1'b0;
                 assign play_ready_pulse = 1'b0;
@@ -3442,6 +3573,9 @@ module mister_vgm_md_top #(
                     .smoke_c0_sample_mode_sel      (segapcm_smoke_c0_sample_mode),
                     .smoke_c0_vol_map_sel          (segapcm_smoke_c0_vol_map),
                     .smoke_c0_drive_sel            (segapcm_smoke_c0_drive),
+                    .smoke_playback_running        (player_busy),
+                    .smoke_playback_done           (player_done),
+                    .smoke_vgm_end_seen            (vgm_end_command_seen),
                     .loaded_type80_rom_size         (smoke_ddr_type80_block_size),
                     .loaded_type80_rom_dest         (smoke_ddr_type80_dest_addr),
                     .loaded_payload_wr_valid        (segapcm_payload_tap_valid),
@@ -3586,6 +3720,7 @@ module mister_vgm_md_top #(
                     .c0_capture_ch3_end_debug       (segapcm_core_c0_capture_ch3_end),
                     .jt_smoke_vol_l_debug           (segapcm_core_jt_smoke_vol_l),
                     .jt_smoke_vol_r_debug           (segapcm_core_jt_smoke_vol_r),
+                    .jt_smoke_sample_byte_debug     (segapcm_core_jt_smoke_sample_byte),
                     .jt_smoke_out_l_debug           (segapcm_core_jt_smoke_out_l),
                     .jt_smoke_out_r_debug           (segapcm_core_jt_smoke_out_r),
                     .ch3_evolution_flags_debug      (segapcm_core_ch3_evolution_flags),
@@ -3727,6 +3862,7 @@ module mister_vgm_md_top #(
                 assign segapcm_core_c0_capture_ch3_end = 16'd0;
                 assign segapcm_core_jt_smoke_vol_l = 16'd0;
                 assign segapcm_core_jt_smoke_vol_r = 16'd0;
+                assign segapcm_core_jt_smoke_sample_byte = 16'd0;
                 assign segapcm_core_jt_smoke_out_l = 16'd0;
                 assign segapcm_core_jt_smoke_out_r = 16'd0;
                 assign segapcm_core_ch3_evolution_flags = 16'd0;
@@ -3867,6 +4003,20 @@ module mister_vgm_md_top #(
             assign vgm_load_done = 1'b0;
             assign vgm_load_error = 1'b0;
             assign vgm_load_overflow = 1'b0;
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_TEST
+            assign smoke_ddr_payload_tap_count_debug = 16'd0;
+            assign smoke_ddr_last_read_index_debug = 16'd0;
+            assign smoke_ddr_last_read_word0_debug = 16'd0;
+            assign smoke_ddr_last_read_word1_debug = 16'd0;
+            assign smoke_ddr_probe_write_index_debug = 16'd0;
+            assign smoke_ddr_probe_write_word_debug = 16'd0;
+            assign smoke_ddr_probe_write_lane_debug = 16'd0;
+            assign smoke_ddr_probe_write_addr_debug = 16'd0;
+            assign smoke_ddr_probe_write_count_debug = 16'd0;
+            assign smoke_ddr_probe_write_flags_debug = 16'd0;
+            assign smoke_ddr_probe_write_word0_debug = 16'd0;
+            assign smoke_ddr_probe_write_word6_debug = 16'd0;
+`endif
             assign vgm_header_valid = 1'b0;
             assign vgm_player_error = 1'b0;
             assign vgm_unsupported_opcode = 8'd0;
@@ -4101,6 +4251,7 @@ module mister_vgm_md_top #(
             assign segapcm_core_c0_capture_ch3_end = 16'd0;
             assign segapcm_core_jt_smoke_vol_l = 16'd0;
             assign segapcm_core_jt_smoke_vol_r = 16'd0;
+            assign segapcm_core_jt_smoke_sample_byte = 16'd0;
             assign segapcm_core_jt_smoke_out_l = 16'd0;
             assign segapcm_core_jt_smoke_out_r = 16'd0;
             assign segapcm_core_ch3_evolution_flags = 16'd0;

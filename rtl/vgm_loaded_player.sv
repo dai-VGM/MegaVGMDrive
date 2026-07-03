@@ -204,7 +204,9 @@ module vgm_loaded_player #(
     localparam bit SEGAPCM_FM_ONLY_RESTORE = 1'b1;
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_TEST
+`ifndef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
 `define MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_ACTIVE 1
+`endif
 `endif
 `endif
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_ACTIVE
@@ -3235,6 +3237,26 @@ module vgm_loaded_player #(
                                                      ST_FETCH_CMD);
                                     end
 `elsif MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_TAP_ONLY_TEST
+                                    if (segapcm_tap_payload_size_32 != 32'd0) begin
+                                        segapcm_tap_payload_remaining <=
+                                            segapcm_tap_payload_size_32;
+                                        segapcm_tap_payload_addr <=
+                                            segapcm_tap_payload_start_32;
+                                        segapcm_tap_payload_index <= 19'd0;
+                                        segapcm_tap_header_to_payload_i <= 1'b1;
+                                        current_pc_debug <=
+                                            segapcm_tap_dest_header_start_32[ADDR_WIDTH-1:0];
+                                        request_byte(
+                                            segapcm_tap_dest_header_start_32[ADDR_WIDTH-1:0],
+                                            ST_SEGAPCM_ROM_START0);
+                                    end else begin
+                                        pc <= block_skip_end_32[ADDR_WIDTH-1:0];
+                                        current_pc_debug <=
+                                            block_skip_end_32[ADDR_WIDTH-1:0];
+                                        request_byte(block_skip_end_32[ADDR_WIDTH-1:0],
+                                                     ST_FETCH_CMD);
+                                    end
+`elsif MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
                                     if (segapcm_tap_payload_size_32 != 32'd0) begin
                                         segapcm_tap_payload_remaining <=
                                             segapcm_tap_payload_size_32;

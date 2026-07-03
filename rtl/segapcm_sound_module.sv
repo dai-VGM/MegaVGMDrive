@@ -41,6 +41,9 @@ module segapcm_sound_module #(
     input  logic         [1:0] smoke_c0_sample_mode_sel,
     input  logic         [2:0] smoke_c0_vol_map_sel,
     input  logic         [1:0] smoke_c0_drive_sel,
+    input  logic               smoke_playback_running,
+    input  logic               smoke_playback_done,
+    input  logic               smoke_vgm_end_seen,
     input  logic        [31:0] loaded_type80_rom_size,
     input  logic        [31:0] loaded_type80_rom_dest,
     output logic               loaded_ddr_rd_req,
@@ -157,6 +160,7 @@ module segapcm_sound_module #(
     output logic        [15:0] c0_capture_ch3_end_debug,
     output logic        [15:0] jt_smoke_vol_l_debug,
     output logic        [15:0] jt_smoke_vol_r_debug,
+    output logic        [15:0] jt_smoke_sample_byte_debug,
     output logic        [15:0] jt_smoke_out_l_debug,
     output logic        [15:0] jt_smoke_out_r_debug,
     output logic        [15:0] ch3_evolution_flags_debug,
@@ -488,7 +492,15 @@ module segapcm_sound_module #(
     wire [18:0] smoke_type80_dest_addr_19 =
         loaded_type80_rom_dest[18:0];
 
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+    // C0-only lab build only needs block2 for the current Stage Clear/foobar
+    // probe, so keep entries 0..2 and drop the wider historical table match.
+    localparam int unsigned SMOKE_TYPE80_TABLE_ENTRIES = 3;
+    localparam logic [3:0] SMOKE_TYPE80_TABLE_LIMIT = 4'd3;
+`else
     localparam int unsigned SMOKE_TYPE80_TABLE_ENTRIES = 8;
+    localparam logic [3:0] SMOKE_TYPE80_TABLE_LIMIT = 4'd8;
+`endif
     logic [20:0] smoke_type80_table_dest_i [0:SMOKE_TYPE80_TABLE_ENTRIES-1];
     logic [18:0] smoke_type80_table_base_i [0:SMOKE_TYPE80_TABLE_ENTRIES-1];
     logic [18:0] smoke_type80_table_len_i [0:SMOKE_TYPE80_TABLE_ENTRIES-1];
@@ -508,7 +520,7 @@ module segapcm_sound_module #(
     wire smoke_type80_table_new_block =
         loaded_payload_wr_valid &&
         (smoke_type80_payload_len_19 != 19'd0) &&
-        (smoke_type80_table_count_i < 4'd8) &&
+        (smoke_type80_table_count_i < SMOKE_TYPE80_TABLE_LIMIT) &&
         ((smoke_type80_table_count_i == 4'd0) ||
          (loaded_type80_rom_dest[20:0] != smoke_type80_table_last_dest_i) ||
          (smoke_type80_payload_len_19 != smoke_type80_table_last_len_i));
@@ -1271,7 +1283,153 @@ module segapcm_sound_module #(
         smoke_c0_use_vol_i ? smoke_c0_vol_r_mapped : smoke_vol_r;
     wire [15:0] smoke_ap_debug =
         {1'b0, smoke_vol_l_selected, 1'b0, smoke_vol_r_selected};
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+    localparam logic [1:0] LAB_C0_PUMP_FORCE_CONST = 2'd0;
+    localparam logic [1:0] LAB_C0_PUMP_FIXED_SEQ = 2'd1;
+    localparam logic [1:0] LAB_C0_PUMP_LOCAL_SEQ = 2'd2;
+    localparam logic [1:0] LAB_C0_PUMP_LOCAL_DELTA = 2'd3;
+    localparam logic [2:0] LAB_C0_ST_IDLE = 3'd0;
+    localparam logic [2:0] LAB_C0_ST_REQ = 3'd1;
+    localparam logic [2:0] LAB_C0_ST_WAIT = 3'd2;
+    localparam logic [2:0] LAB_C0_ST_CONSUME = 3'd3;
+    logic lab_c0_active_i;
+    logic [15:0] lab_c0_seed_i;
+    logic [15:0] lab_c0_cur_i;
+    logic [2:0] lab_c0_state_i;
+    logic [18:0] lab_c0_pi_i;
+    logic [18:0] lab_c0_return_pi_i;
+    logic [15:0] lab_c0_advance_count_i;
+    logic [15:0] lab_c0_stall_count_i;
+    logic [15:0] lab_c0_request_count_i;
+    logic [15:0] lab_c0_return_count_i;
+    logic [7:0] lab_c0_sample_i;
+    logic signed [15:0] lab_c0_output_i;
+    logic lab_c0_consume_pulse_i;
+    logic lab_c0_pending_i;
+    logic lab_c0_req_live_i;
+    logic lab_c0_need_read_i;
+    logic [18:0] lab_c0_req_addr_i;
+    logic [2:0] lab_c0_fixed_index_i;
+    logic [11:0] lab_c0_fixed_div_i;
+    wire lab_c0_return_pulse =
+        loaded_ddr_rd_valid &&
+        smoke_ddr_c0drive_active &&
+        lab_c0_pending_i;
+    wire [18:0] lab_c0_req_pi_i = lab_c0_pi_i;
+    wire lab_c0_raw_audible =
+        (c0_capture_ch3_vol_l_i[6:0] != 7'd0) ||
+        (c0_capture_ch3_vol_r_i[6:0] != 7'd0);
+    wire lab_c0_has_seed =
+        ({c0_capture_ch3_cur_high_i, c0_capture_ch3_cur_mid_i} != 16'd0);
+    wire lab_c0_pv_match =
+        smoke_c0_mame_match_valid_next &&
+        (smoke_c0_mame_match_index_next == 3'd2);
+    wire lab_c0_playback_gate =
+        smoke_playback_running &&
+        !smoke_playback_done &&
+        !smoke_vgm_end_seen &&
+        smoke_ddr_c0drive_active &&
+        lab_c0_pv_match &&
+        lab_c0_raw_audible;
+    wire lab_c0_arm =
+        lab_c0_playback_gate &&
+        lab_c0_has_seed;
+    wire lab_c0_should_run =
+        lab_c0_playback_gate &&
+        (lab_c0_arm || lab_c0_active_i);
+    wire lab_c0_pi_in_range =
+        smoke_type80_table_valid_i[2] &&
+        (lab_c0_pi_i < smoke_type80_table_len_i[2]);
+    wire lab_c0_request_fire =
+        smoke_ddr_follow_mode &&
+        lab_c0_req_live_i &&
+        !loaded_ddr_rd_req &&
+        !smoke_c0_probe_pending_i &&
+        !smoke_ddr_c0_return_valid_i &&
+        (!lab_c0_need_read_i || lab_c0_pi_in_range);
+    wire [7:0] lab_c0_sample_byte_next = lab_c0_sample_i;
+    wire [7:0] lab_c0_fixed_byte =
+        (lab_c0_fixed_index_i == 3'd0) ? 8'h80 :
+        (lab_c0_fixed_index_i == 3'd1) ? 8'h80 :
+        (lab_c0_fixed_index_i == 3'd2) ? 8'h81 :
+        (lab_c0_fixed_index_i == 3'd3) ? 8'h80 :
+        (lab_c0_fixed_index_i == 3'd4) ? 8'h81 :
+        (lab_c0_fixed_index_i == 3'd5) ? 8'h84 :
+        (lab_c0_fixed_index_i == 3'd6) ? 8'h99 :
+        8'hA9;
+    wire [7:0] lab_c0_local_mux_byte =
+        (lab_c0_fixed_index_i == 3'd0) ? 8'h80 :
+        (lab_c0_fixed_index_i == 3'd1) ? 8'h80 :
+        (lab_c0_fixed_index_i == 3'd2) ? 8'h81 :
+        (lab_c0_fixed_index_i == 3'd3) ? 8'h80 :
+        (lab_c0_fixed_index_i == 3'd4) ? 8'h81 :
+        (lab_c0_fixed_index_i == 3'd5) ? 8'h84 :
+        (lab_c0_fixed_index_i == 3'd6) ? 8'h99 :
+        8'hA9;
+    wire lab_c0_force_mode =
+        smoke_c0_sample_mode_sel == LAB_C0_PUMP_FORCE_CONST;
+    wire lab_c0_fixed_mode =
+        smoke_c0_sample_mode_sel == LAB_C0_PUMP_FIXED_SEQ;
+    wire lab_c0_local_seq_mode =
+        smoke_c0_sample_mode_sel == LAB_C0_PUMP_LOCAL_SEQ;
+    wire lab_c0_local_delta_mode =
+        smoke_c0_sample_mode_sel == LAB_C0_PUMP_LOCAL_DELTA;
+    wire lab_c0_seq_mode =
+        lab_c0_fixed_mode || lab_c0_local_seq_mode;
+    wire lab_c0_local_mode = lab_c0_local_delta_mode;
+    wire lab_c0_force_output =
+        lab_c0_force_mode && lab_c0_pv_match && lab_c0_raw_audible;
+    wire lab_c0_seq_output =
+        lab_c0_seq_mode && lab_c0_playback_gate;
+    wire lab_c0_fixed_output = lab_c0_seq_output;
+    wire lab_c0_local_output =
+        lab_c0_local_delta_mode && lab_c0_playback_gate;
+    wire lab_c0_seq_emit_pulse =
+        lab_c0_seq_output &&
+        segapcm_cen &&
+        (lab_c0_fixed_div_i == 12'hfff);
+    wire lab_c0_fixed_emit_pulse = lab_c0_seq_emit_pulse;
+    wire [7:0] lab_c0_selected_sample_byte =
+        lab_c0_local_seq_mode ? lab_c0_sample_i : lab_c0_fixed_byte;
+    wire signed [8:0] lab_c0_selected_cv =
+        $signed({1'b0, lab_c0_selected_sample_byte}) - 9'sd128;
+    wire signed [15:0] lab_c0_selected_direct_sample =
+        {{7{lab_c0_selected_cv[8]}}, lab_c0_selected_cv[8:0], 8'd0};
+    localparam logic signed [15:0] LAB_C0_FORCE_SAMPLE = 16'sh0800;
+    wire signed [15:0] lab_c0_snd_left = lab_c0_output_i;
+    wire signed [15:0] lab_c0_snd_right = lab_c0_output_i;
+    wire signed [8:0] lab_c0_cv =
+        $signed({1'b0, lab_c0_sample_byte_next}) - 9'sd128;
+    wire signed [15:0] lab_c0_cv_out =
+        {lab_c0_cv[8], lab_c0_cv[8], lab_c0_cv[8], lab_c0_cv[8],
+         lab_c0_cv[8], lab_c0_cv[8], lab_c0_cv[8:0], 1'b0};
 `endif
+`endif
+
+    function automatic signed [15:0] lab_scale_sample(
+        input logic [7:0] sample,
+        input logic [6:0] volume
+    );
+        logic signed [8:0] centered;
+        logic signed [16:0] scaled;
+        begin
+            centered = $signed({1'b0, sample}) - 9'sd128;
+            scaled = centered * $signed({1'b0, volume});
+            lab_scale_sample = scaled[15:0];
+        end
+    endfunction
+
+    function automatic signed [15:0] lab_gain_sample(input logic [7:0] sample);
+        logic signed [8:0] centered;
+        begin
+            centered = $signed({1'b0, sample}) - 9'sd128;
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_FIXED_PULSE_TEST
+            lab_gain_sample = (sample != 8'h80) ? 16'sh0800 : 16'sd0;
+`else
+            lab_gain_sample = {{1{centered[8]}}, centered, 6'd0};
+`endif
+        end
+    endfunction
 
     function automatic [15:0] abs16(input logic signed [15:0] value);
         abs16 = value[15] ? (~value + 16'd1) : value;
@@ -1792,7 +1950,11 @@ module segapcm_sound_module #(
 `endif
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_TEST
     assign rom_return_nonzero_count_debug = loaded_ddr_write_req_count_debug;
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+    assign rom_return_change_count_debug = lab_c0_request_count_i;
+`else
     assign rom_return_change_count_debug = smoke_ddr_read_req_count_i;
+`endif
 `else
     assign rom_return_nonzero_count_debug = {15'd0, core_rom_cs};
     assign rom_return_change_count_debug = {15'd0, core_rom_ok};
@@ -1806,7 +1968,11 @@ module segapcm_sound_module #(
     assign rom_preload_data_debug = {8'd0, selected_rom_data_before_fallback};
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_TEST
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+    assign rom_core_ok_count_debug = lab_c0_return_count_i;
+`else
     assign rom_core_ok_count_debug = smoke_ddr_read_valid_count_i;
+`endif
 `else
     assign rom_core_ok_count_debug = {15'd0, smoke_effective_addr_in_range};
 `endif
@@ -2072,12 +2238,37 @@ module segapcm_sound_module #(
     assign c0_capture_ch3_end_debug = (smoke_c0_drive_sel != 2'd0) ?
         loaded_ddr_probe_write_word6_debug :
         {8'd0, c0_capture_ch3_end_i};
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+    assign jt_smoke_vol_l_debug = (smoke_c0_drive_sel != 2'd0) ?
+        {
+            lab_c0_fixed_mode,
+            lab_c0_local_seq_mode,
+            smoke_playback_running,
+            !smoke_playback_done,
+            !smoke_vgm_end_seen,
+            smoke_ddr_c0drive_active,
+            lab_c0_pv_match,
+            lab_c0_raw_audible,
+            lab_c0_seq_output || lab_c0_local_output,
+            lab_c0_seq_emit_pulse || lab_c0_return_pulse,
+            lab_c0_active_i,
+            lab_c0_state_i,
+            smoke_c0_drive_sel
+        } :
+        core_dbg_smoke_seed_reload_req;
+    assign jt_smoke_vol_r_debug = (smoke_c0_drive_sel != 2'd0) ?
+        (lab_c0_fixed_mode ? {13'd0, lab_c0_fixed_index_i} :
+                             lab_c0_pi_i[15:0]) :
+        core_dbg_smoke_first_addr;
+`else
     assign jt_smoke_vol_l_debug = (smoke_c0_drive_sel != 2'd0) ?
         {11'd0, smoke_c0_mame_full_addr_next[20:16]} :
         core_dbg_smoke_seed_reload_req;
     assign jt_smoke_vol_r_debug = (smoke_c0_drive_sel != 2'd0) ?
         core_dbg_smoke_first_addr :
         core_dbg_smoke_first_addr;
+`endif
+    assign jt_smoke_sample_byte_debug = core_dbg_smoke_sample_byte;
     assign jt_smoke_out_l_debug = core_dbg_smoke_out_l;
     assign jt_smoke_out_r_debug = core_dbg_smoke_out_r;
 `else
@@ -2097,12 +2288,17 @@ module segapcm_sound_module #(
     assign c0_capture_ch3_end_debug = 16'd0;
     assign jt_smoke_vol_l_debug = 16'd0;
     assign jt_smoke_vol_r_debug = 16'd0;
+    assign jt_smoke_sample_byte_debug = 16'd0;
     assign jt_smoke_out_l_debug = 16'd0;
     assign jt_smoke_out_r_debug = 16'd0;
 `endif
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_TEST
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+    assign ch3_evolution_flags_debug = lab_c0_advance_count_i;
+`else
     assign ch3_evolution_flags_debug =
         smoke_ddr_audio_update_count_i;
+`endif
     assign ch3_delta_debug = (smoke_c0_drive_sel != 2'd0) ?
         {8'd0, core_dbg_smoke_sample_byte[7:0]} :
         {8'd0, core_dbg_smoke_sample_byte[7:0]};
@@ -2220,6 +2416,240 @@ module segapcm_sound_module #(
             segapcm_cen <= 1'b0;
         end
     end
+
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_TEST
+    always_ff @(posedge clk) begin
+        if (reset || loaded_payload_clear) begin
+            lab_c0_active_i <= 1'b0;
+            lab_c0_seed_i <= 16'd0;
+            lab_c0_cur_i <= 16'd0;
+            lab_c0_state_i <= LAB_C0_ST_IDLE;
+            lab_c0_pi_i <= 19'd0;
+            lab_c0_return_pi_i <= 19'd0;
+            lab_c0_advance_count_i <= 16'd0;
+            lab_c0_stall_count_i <= 16'd0;
+            lab_c0_request_count_i <= 16'd0;
+            lab_c0_return_count_i <= 16'd0;
+            lab_c0_sample_i <= 8'h80;
+            lab_c0_output_i <= 16'sd0;
+            lab_c0_consume_pulse_i <= 1'b0;
+            lab_c0_pending_i <= 1'b0;
+            lab_c0_req_live_i <= 1'b0;
+            lab_c0_need_read_i <= 1'b0;
+            lab_c0_req_addr_i <= 19'd0;
+            lab_c0_fixed_index_i <= 3'd0;
+            lab_c0_fixed_div_i <= 12'd0;
+        end else begin
+            lab_c0_consume_pulse_i <= 1'b0;
+            lab_c0_req_live_i <= 1'b0;
+            if (lab_c0_seq_mode) begin
+                lab_c0_active_i <= lab_c0_seq_output;
+                lab_c0_state_i <= lab_c0_seq_output ?
+                    LAB_C0_ST_CONSUME : LAB_C0_ST_IDLE;
+                if (!lab_c0_local_seq_mode) begin
+                    lab_c0_pending_i <= 1'b0;
+                    lab_c0_need_read_i <= 1'b0;
+                end
+                lab_c0_stall_count_i <= 16'd0;
+                lab_c0_seed_i <= smoke_c0_current_seed_i[15:0];
+                lab_c0_cur_i <= smoke_c0_current_seed_i[15:0];
+                if (!lab_c0_seq_output) begin
+                    lab_c0_fixed_div_i <= 12'd0;
+                    lab_c0_pi_i <= 19'd0;
+                    lab_c0_return_pi_i <= 19'd0;
+                    lab_c0_pending_i <= 1'b0;
+                    lab_c0_need_read_i <= 1'b0;
+                    lab_c0_req_addr_i <= 19'd0;
+                    lab_c0_sample_i <= 8'h80;
+                    lab_c0_output_i <= 16'sd0;
+                end else begin
+                    if (lab_c0_return_pulse) begin
+                        lab_c0_pending_i <= 1'b0;
+                        lab_c0_need_read_i <= 1'b0;
+                        lab_c0_return_pi_i <= lab_c0_req_addr_i;
+                        lab_c0_sample_i <= loaded_ddr_rd_data;
+                        if (lab_c0_return_count_i != 16'hffff) begin
+                            lab_c0_return_count_i <=
+                                lab_c0_return_count_i + 16'd1;
+                        end
+                    end
+                    if (segapcm_cen) begin
+                        lab_c0_fixed_div_i <= lab_c0_fixed_div_i + 12'd1;
+                    if (lab_c0_local_seq_mode &&
+                        !lab_c0_pending_i &&
+                        !lab_c0_req_live_i &&
+                        lab_c0_pi_in_range) begin
+                        lab_c0_req_addr_i <= lab_c0_pi_i;
+                        lab_c0_req_live_i <= 1'b1;
+                        lab_c0_need_read_i <= 1'b1;
+                        lab_c0_pending_i <= 1'b1;
+                        if (lab_c0_request_count_i != 16'hffff) begin
+                            lab_c0_request_count_i <=
+                                lab_c0_request_count_i + 16'd1;
+                        end
+                    end
+                    if (lab_c0_seq_emit_pulse) begin
+                        if (!lab_c0_local_seq_mode) begin
+                            lab_c0_sample_i <= lab_c0_selected_sample_byte;
+                        end
+                        lab_c0_output_i <= lab_c0_selected_direct_sample;
+                        lab_c0_consume_pulse_i <= 1'b1;
+                        lab_c0_fixed_index_i <= lab_c0_fixed_index_i + 3'd1;
+                        if (lab_c0_advance_count_i != 16'hffff) begin
+                            lab_c0_advance_count_i <=
+                                lab_c0_advance_count_i + 16'd1;
+                        end
+                        if (lab_c0_local_seq_mode) begin
+                            if (lab_c0_pi_i != 19'h7ffff) begin
+                                lab_c0_pi_i <= lab_c0_pi_i + 19'd1;
+                            end
+                        end else begin
+                            lab_c0_pi_i <= {16'd0, lab_c0_fixed_index_i};
+                            lab_c0_return_pi_i <= {16'd0, lab_c0_fixed_index_i};
+                        end
+                    end
+                    end
+                end
+            end else if (lab_c0_local_mode) begin
+                lab_c0_active_i <= lab_c0_local_output;
+                lab_c0_state_i <= lab_c0_local_output ?
+                    LAB_C0_ST_CONSUME : LAB_C0_ST_IDLE;
+                lab_c0_pending_i <= 1'b0;
+                lab_c0_need_read_i <= 1'b0;
+                lab_c0_req_live_i <= 1'b0;
+                lab_c0_stall_count_i <= 16'd0;
+                lab_c0_seed_i <= smoke_c0_current_seed_i[15:0];
+                lab_c0_cur_i <= smoke_c0_current_seed_i[15:0] +
+                    lab_c0_pi_i[15:0];
+                if (!lab_c0_local_output) begin
+                    lab_c0_pi_i <= 19'd0;
+                    lab_c0_return_pi_i <= 19'd0;
+                    lab_c0_advance_count_i <= 16'd0;
+                    lab_c0_request_count_i <= 16'd0;
+                    lab_c0_return_count_i <= 16'd0;
+                    lab_c0_sample_i <= 8'h80;
+                    lab_c0_output_i <= 16'sd0;
+                    lab_c0_fixed_index_i <= 3'd0;
+                end else if (segapcm_cen) begin
+                    lab_c0_sample_i <= lab_c0_selected_sample_byte;
+                    lab_c0_output_i <= lab_c0_selected_direct_sample;
+                    lab_c0_consume_pulse_i <= 1'b1;
+                    lab_c0_return_pi_i <= lab_c0_pi_i;
+                    lab_c0_fixed_index_i <= lab_c0_fixed_index_i + 3'd1;
+                    if (lab_c0_advance_count_i != 16'hffff) begin
+                        lab_c0_advance_count_i <=
+                            lab_c0_advance_count_i + 16'd1;
+                    end
+                    if (lab_c0_pi_i != 19'h7ffff) begin
+                        lab_c0_pi_i <= lab_c0_pi_i + 19'd1;
+                    end
+                end
+            end else if (!lab_c0_should_run) begin
+                lab_c0_active_i <= 1'b0;
+                lab_c0_seed_i <= smoke_c0_current_seed_i[15:0];
+                lab_c0_cur_i <= 16'd0;
+                lab_c0_state_i <= LAB_C0_ST_IDLE;
+                lab_c0_pi_i <= 19'd0;
+                lab_c0_stall_count_i <= 16'd0;
+                lab_c0_pending_i <= 1'b0;
+                lab_c0_need_read_i <= 1'b0;
+            end else begin
+                unique case (lab_c0_state_i)
+                    LAB_C0_ST_IDLE: begin
+                        if (lab_c0_arm) begin
+                            lab_c0_active_i <= 1'b1;
+                            lab_c0_seed_i <= smoke_c0_current_seed_i[15:0];
+                            lab_c0_cur_i <= smoke_c0_current_seed_i[15:0];
+                            lab_c0_pi_i <= 19'd0;
+                            lab_c0_return_pi_i <= 19'd0;
+                            lab_c0_advance_count_i <= 16'd0;
+                            lab_c0_stall_count_i <= 16'd0;
+                            lab_c0_request_count_i <= 16'd0;
+                            lab_c0_return_count_i <= 16'd0;
+                            lab_c0_sample_i <= 8'h80;
+                            lab_c0_output_i <= 16'sd0;
+                            lab_c0_pending_i <= 1'b0;
+                            lab_c0_need_read_i <= 1'b0;
+                            lab_c0_fixed_index_i <= 3'd0;
+                            lab_c0_state_i <= LAB_C0_ST_REQ;
+                        end
+                    end
+                    LAB_C0_ST_REQ: begin
+                        if (segapcm_cen) begin
+                            if (lab_c0_force_mode) begin
+                                lab_c0_sample_i <= 8'h80;
+                                lab_c0_output_i <= LAB_C0_FORCE_SAMPLE;
+                                lab_c0_need_read_i <= 1'b0;
+                                lab_c0_state_i <= LAB_C0_ST_CONSUME;
+                            end else if (lab_c0_fixed_mode) begin
+                                lab_c0_sample_i <= lab_c0_fixed_byte;
+                                lab_c0_output_i <= lab_gain_sample(lab_c0_fixed_byte);
+                                lab_c0_need_read_i <= 1'b0;
+                                lab_c0_state_i <= LAB_C0_ST_CONSUME;
+                            end else if (lab_c0_pi_in_range &&
+                                         !loaded_ddr_rd_req &&
+                                         !smoke_c0_probe_pending_i &&
+                                         !smoke_ddr_c0_pending_i &&
+                                         !smoke_ddr_c0_return_valid_i) begin
+                                lab_c0_req_addr_i <= lab_c0_pi_i;
+                                lab_c0_req_live_i <= 1'b1;
+                                lab_c0_need_read_i <= 1'b1;
+                                lab_c0_pending_i <= 1'b1;
+                                lab_c0_state_i <= LAB_C0_ST_WAIT;
+                                if (lab_c0_request_count_i != 16'hffff) begin
+                                    lab_c0_request_count_i <=
+                                        lab_c0_request_count_i + 16'd1;
+                                end
+                            end else if (lab_c0_stall_count_i != 16'hffff) begin
+                                lab_c0_stall_count_i <= lab_c0_stall_count_i + 16'd1;
+                            end
+                        end
+                    end
+                    LAB_C0_ST_WAIT: begin
+                        if (lab_c0_return_pulse) begin
+                            lab_c0_pending_i <= 1'b0;
+                            lab_c0_return_pi_i <= lab_c0_req_addr_i;
+                            lab_c0_sample_i <= loaded_ddr_rd_data;
+                            lab_c0_output_i <= lab_gain_sample(loaded_ddr_rd_data);
+                            lab_c0_state_i <= LAB_C0_ST_CONSUME;
+                            if (lab_c0_return_count_i != 16'hffff) begin
+                                lab_c0_return_count_i <=
+                                    lab_c0_return_count_i + 16'd1;
+                            end
+                        end else if (segapcm_cen &&
+                                     (lab_c0_stall_count_i != 16'hffff)) begin
+                            lab_c0_stall_count_i <= lab_c0_stall_count_i + 16'd1;
+                        end
+                    end
+                    LAB_C0_ST_CONSUME: begin
+                        lab_c0_consume_pulse_i <= 1'b1;
+                        if (!lab_c0_fixed_mode &&
+                            (lab_c0_advance_count_i != 16'hffff)) begin
+                            lab_c0_advance_count_i <=
+                                lab_c0_advance_count_i + 16'd1;
+                        end
+                        if (!lab_c0_force_mode) begin
+                            if (lab_c0_fixed_mode) begin
+                                lab_c0_fixed_index_i <= lab_c0_fixed_index_i + 3'd1;
+                            end else if (lab_c0_pi_i != 19'h7ffff) begin
+                                lab_c0_pi_i <= lab_c0_pi_i +
+                                    ((smoke_c0_sample_mode_sel == LAB_C0_PUMP_LOCAL_DELTA) ?
+                                     {11'd0, c0_capture_ch3_delta_i} : 19'd1);
+                                lab_c0_cur_i <= lab_c0_seed_i + lab_c0_pi_i[15:0] + 16'd1;
+                            end
+                        end
+                        lab_c0_state_i <= LAB_C0_ST_REQ;
+                    end
+                    default: begin
+                        lab_c0_state_i <= LAB_C0_ST_IDLE;
+                    end
+                endcase
+            end
+        end
+    end
+`endif
+`endif
 
     always_ff @(posedge clk) begin
         if (reset) begin
@@ -2443,6 +2873,7 @@ module segapcm_sound_module #(
                     core_cen_write_count_i <= core_cen_write_count_i + 16'd1;
                 end
             end
+`ifndef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
             if (rom_request_event) begin
                 last_rom_request_addr_i <= core_rom_addr;
                 rom_range_group_i[7] <= 1'b1;
@@ -2653,6 +3084,7 @@ module segapcm_sound_module #(
                     end
                 end
             end
+`endif
         end
     end
 
@@ -2817,8 +3249,18 @@ module segapcm_sound_module #(
                 smoke_type80_table_valid_i[smoke_type80_table_count_i[2:0]] <= 1'b1;
                 smoke_type80_table_dest_i[smoke_type80_table_count_i[2:0]] <=
                     loaded_type80_rom_dest[20:0];
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+                if (smoke_type80_table_count_i == 4'd2) begin
+                    smoke_type80_table_base_i[smoke_type80_table_count_i[2:0]] <=
+                        19'd0;
+                end else begin
+                    smoke_type80_table_base_i[smoke_type80_table_count_i[2:0]] <=
+                        smoke_type80_table_next_base_i;
+                end
+`else
                 smoke_type80_table_base_i[smoke_type80_table_count_i[2:0]] <=
                     smoke_type80_table_next_base_i;
+`endif
                 smoke_type80_table_len_i[smoke_type80_table_count_i[2:0]] <=
                     smoke_type80_payload_len_19;
                 smoke_type80_table_next_base_i <=
@@ -2828,7 +3270,13 @@ module segapcm_sound_module #(
                 smoke_type80_table_last_write_index_i <= smoke_type80_table_count_i;
                 smoke_type80_table_last_write_dest_i <= loaded_type80_rom_dest[20:0];
                 smoke_type80_table_last_write_len_i <= smoke_type80_payload_len_19;
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+                smoke_type80_table_last_write_base_i <=
+                    (smoke_type80_table_count_i == 4'd2) ?
+                    19'd0 : smoke_type80_table_next_base_i;
+`else
                 smoke_type80_table_last_write_base_i <= smoke_type80_table_next_base_i;
+`endif
                 smoke_type80_table_last_write_valid_i <= 1'b1;
                 smoke_type80_table_count_i <= smoke_type80_table_count_i + 4'd1;
             end
@@ -2881,6 +3329,12 @@ module segapcm_sound_module #(
                     smoke_ddr_follow_jt_seen_count_i <=
                         smoke_ddr_follow_jt_seen_count_i + 16'd1;
                 end
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+            end else if (core_sample && smoke_ddr_c0drive_active) begin
+                // The lab stub consumes one returned byte per sample tick.
+                smoke_ddr_c0_return_valid_i <= 1'b0;
+                smoke_ddr_c0_return_in_range_i <= 1'b0;
+`endif
             end
 `ifndef MEGAVGMDRIVE_SEGAPCM_MIN_DEBUG_PROBE
             if (smoke_c0_first_hit_stop) begin
@@ -3123,7 +3577,11 @@ module segapcm_sound_module #(
                         smoke_ddr_read_blocked_count_i + 16'd1;
                 end
             end else if (smoke_c0_probe_needed &&
-                         !smoke_c0_probe_pending_i) begin
+                         !smoke_c0_probe_pending_i
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+                         && !lab_c0_active_i
+`endif
+                         ) begin
                 smoke_ddr_read_div_i <= 16'd0;
                 loaded_ddr_rd_req <= 1'b1;
                 loaded_ddr_rd_addr <= smoke_c0_probe_read_index;
@@ -3134,6 +3592,29 @@ module segapcm_sound_module #(
                 end
             end else if (smoke_ddr_follow_mode) begin
                 smoke_ddr_read_div_i <= 16'd0;
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+                if (lab_c0_active_i) begin
+                    if (lab_c0_request_fire) begin
+                        loaded_ddr_rd_req <= 1'b1;
+                        loaded_ddr_rd_addr <= lab_c0_req_addr_i;
+                        if (smoke_ddr_read_req_count_i != 16'hffff) begin
+                            smoke_ddr_read_req_count_i <=
+                                smoke_ddr_read_req_count_i + 16'd1;
+                        end
+                        if (smoke_ddr_follow_top_request_count_i != 16'hffff) begin
+                            smoke_ddr_follow_top_request_count_i <=
+                                smoke_ddr_follow_top_request_count_i + 16'd1;
+                        end
+                        smoke_ddr_c0_pending_i <= 1'b1;
+                        smoke_ddr_c0_return_valid_i <= 1'b0;
+                        smoke_ddr_c0_return_in_range_i <= 1'b0;
+                        smoke_ddr_c0_wait_count_i <= 16'd0;
+                        smoke_ddr_c0_wait_timeout_seen_i <= 1'b0;
+                    end else begin
+                        loaded_ddr_rd_req <= 1'b0;
+                    end
+                end else
+`endif
                 if (rom_request_event) begin
                     if (smoke_ddr_c0drive_active &&
                         (smoke_ddr_follow_top_request_count_i != 16'hffff)) begin
@@ -3372,9 +3853,14 @@ module segapcm_sound_module #(
                         smoke_ddr_audio_data_ok_i <= 1'b1;
                         smoke_ddr_audio_valid_seen_i <= 1'b1;
                         smoke_ddr_c0_pending_i <= 1'b0;
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+                        smoke_ddr_c0_return_valid_i <= 1'b0;
+                        smoke_ddr_c0_return_in_range_i <= 1'b1;
+`else
                         smoke_ddr_c0_return_valid_i <= 1'b1;
                         smoke_ddr_c0_return_in_range_i <=
                             smoke_ddr_follow_read_in_range_i;
+`endif
                         smoke_ddr_c0_wait_count_i <= 16'd0;
                         smoke_ddr_c0_wait_timeout_seen_i <= 1'b0;
                         if (smoke_ddr_follow_return_count_i != 16'hffff) begin
@@ -3384,6 +3870,10 @@ module segapcm_sound_module #(
                         if (smoke_ddr_audio_update_count_i != 16'hffff) begin
                             smoke_ddr_audio_update_count_i <=
                                 smoke_ddr_audio_update_count_i + 16'd1;
+                        end
+                        if (smoke_ddr_read_valid_count_i != 16'hffff) begin
+                            smoke_ddr_read_valid_count_i <=
+                                smoke_ddr_read_valid_count_i + 16'd1;
                         end
                     end
                 end else begin
@@ -3639,15 +4129,34 @@ module segapcm_sound_module #(
 
 `ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
     assign cpu_din = 8'd0;
-    assign core_rom_addr = 19'd0;
-    assign core_rom_cs = 1'b0;
-    assign core_snd_left = 16'sd0;
-    assign core_snd_right = 16'sd0;
-    assign core_sample = 1'b0;
+    assign core_rom_addr = {3'd0, lab_c0_cur_i};
+    assign core_rom_cs =
+        (lab_c0_active_i && smoke_ddr_c0drive_active) ||
+        lab_c0_force_output ||
+        lab_c0_seq_output ||
+        lab_c0_local_output;
+    assign core_snd_left =
+        lab_c0_force_output ? LAB_C0_FORCE_SAMPLE :
+        lab_c0_seq_output ?
+        lab_c0_selected_direct_sample :
+        lab_c0_local_output ? lab_c0_selected_direct_sample :
+        lab_c0_consume_pulse_i ?
+        lab_c0_snd_left : 16'sd0;
+    assign core_snd_right =
+        lab_c0_force_output ? LAB_C0_FORCE_SAMPLE :
+        lab_c0_seq_output ?
+        lab_c0_selected_direct_sample :
+        lab_c0_local_output ? lab_c0_selected_direct_sample :
+        lab_c0_consume_pulse_i ?
+        lab_c0_snd_right : 16'sd0;
+    assign core_sample =
+        lab_c0_consume_pulse_i ||
+        (segapcm_cen &&
+         (lab_c0_force_output || lab_c0_seq_output || lab_c0_local_output));
     assign core_status_dout = 8'd0;
     assign core_dbg_bank_channel_state = 16'd0;
-    assign core_dbg_cur_addr_high = 16'd0;
-    assign core_dbg_cur_addr_low_state = 16'd0;
+    assign core_dbg_cur_addr_high = {8'd0, lab_c0_cur_i[15:8]};
+    assign core_dbg_cur_addr_low_state = {lab_c0_cur_i[7:0], 8'd8};
     assign core_dbg_38686_en_addr = 16'd0;
     assign core_dbg_38686_en_value = 16'd0;
     assign core_dbg_38686_d0_addr = 16'd0;
@@ -3662,40 +4171,51 @@ module segapcm_sound_module #(
     assign core_dbg_38686_cur_07 = 16'd0;
     assign core_dbg_38686_delta = 16'd0;
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_TEST
-    assign core_dbg_smoke_jt_vol_l = 16'd0;
-    assign core_dbg_smoke_jt_vol_r = 16'd0;
-    assign core_dbg_smoke_sample_byte = 16'd0;
+    assign core_dbg_smoke_jt_vol_l = {9'd0, smoke_c0_vol_l_mapped};
+    assign core_dbg_smoke_jt_vol_r = {9'd0, smoke_c0_vol_r_mapped};
+    assign core_dbg_smoke_sample_byte =
+        {8'd0, lab_c0_selected_sample_byte};
     assign core_dbg_smoke_c0_byte_accept = 1'b0;
-    assign core_dbg_smoke_c0_mixer_consume = 1'b0;
-    assign core_dbg_smoke_out_l = 16'd0;
-    assign core_dbg_smoke_out_r = 16'd0;
+    assign core_dbg_smoke_c0_mixer_consume = lab_c0_return_pulse;
+    assign core_dbg_smoke_out_l = core_snd_left;
+    assign core_dbg_smoke_out_r = core_snd_right;
     assign core_dbg_smoke_end_hit = 16'd0;
     assign core_dbg_smoke_loop_wrap = 16'd0;
     assign core_dbg_smoke_end_cmp = 16'd0;
     assign core_dbg_smoke_end_hit_at = 16'd0;
     assign core_dbg_smoke_loop_to = 16'd0;
     assign core_dbg_smoke_end_eq = 16'd0;
-    assign core_dbg_smoke_cur_initialized = 16'd0;
-    assign core_dbg_smoke_cur_seed_event = 16'd0;
-    assign core_dbg_smoke_cur_live_low = 16'd0;
-    assign core_dbg_smoke_cur_live_high = 16'd0;
-    assign core_dbg_smoke_cur_live_mid = 16'd0;
+    assign core_dbg_smoke_cur_initialized = {15'd0, lab_c0_active_i};
+    assign core_dbg_smoke_cur_seed_event = {15'd0, c0_capture_ch3_start_pulse_i};
+    assign core_dbg_smoke_cur_live_low = lab_c0_cur_i;
+    assign core_dbg_smoke_cur_live_high = {8'd0, lab_c0_cur_i[15:8]};
+    assign core_dbg_smoke_cur_live_mid = {8'd0, lab_c0_cur_i[7:0]};
     assign core_dbg_smoke_cur_live_frac = 16'd0;
     assign core_dbg_smoke_cur_zero_event = 16'd0;
-    assign core_dbg_smoke_cur_seed_ref = 16'd0;
+    assign core_dbg_smoke_cur_seed_ref = smoke_c0_current_seed_i[15:0];
     assign core_dbg_smoke_seed_reload_req = 16'd0;
     assign core_dbg_smoke_seed_commit_count = 16'd0;
     assign core_dbg_smoke_seed_commit_addr = 16'd0;
     assign core_dbg_smoke_seed_write_value = 16'd0;
     assign core_dbg_smoke_seed_overwrite = 16'd0;
-    assign core_dbg_smoke_request_addr = 16'd0;
-    assign core_dbg_smoke_playback_addr = 16'd0;
-    assign core_dbg_smoke_first_addr = 16'd0;
-    assign core_dbg_smoke_current_input = 16'd0;
+    assign core_dbg_smoke_request_addr = lab_c0_pi_i[15:0];
+    assign core_dbg_smoke_playback_addr = lab_c0_return_pi_i[15:0];
+    assign core_dbg_smoke_first_addr = smoke_c0_current_seed_i[15:0];
+    assign core_dbg_smoke_current_input = smoke_c0_current_seed_i[15:0];
     assign core_dbg_smoke_loop_input = 16'd0;
     assign core_dbg_smoke_end_input = 16'd0;
-    assign core_dbg_smoke_source_addr = 16'd0;
-    assign core_dbg_smoke_cur_state = 16'd0;
+    assign core_dbg_smoke_source_addr = lab_c0_stall_count_i;
+    assign core_dbg_smoke_cur_state = {
+        8'hC0,
+        lab_c0_active_i,
+        lab_c0_force_output,
+        lab_c0_pv_match,
+        smoke_ddr_c0_pending_i,
+        smoke_ddr_c0_return_valid_i,
+        smoke_ddr_audio_data_ok_i,
+        core_sample,
+        (core_snd_left != 16'sd0) || (core_snd_right != 16'sd0)
+    };
 `endif
     assign core_dbg_ch3_evolution_flags = 16'd0;
     assign core_dbg_ch3_delta = 16'd0;
