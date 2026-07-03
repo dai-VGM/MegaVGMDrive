@@ -1279,7 +1279,8 @@ module emu
     wire [1:0] segapcm_smoke_c0_use = status[7:6];
 `endif
 `ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
-    wire [1:0] segapcm_smoke_c0_sample_mode = 2'd2;
+    wire [1:0] segapcm_smoke_c0_sample_mode =
+        (status[12:11] == 2'd0) ? 2'd2 : status[12:11];
 `else
     wire [1:0] segapcm_smoke_c0_sample_mode = status[12:11];
 `endif

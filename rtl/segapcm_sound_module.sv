@@ -1311,6 +1311,7 @@ module segapcm_sound_module #(
     logic [18:0] lab_c0_req_addr_i;
     logic [2:0] lab_c0_fixed_index_i;
     logic [11:0] lab_c0_fixed_div_i;
+    logic [26:0] lab_c0_phase_i;
     wire lab_c0_return_pulse =
         loaded_ddr_rd_valid &&
         smoke_ddr_c0drive_active &&
@@ -1375,7 +1376,9 @@ module segapcm_sound_module #(
     wire lab_c0_local_delta_mode =
         smoke_c0_sample_mode_sel == LAB_C0_PUMP_LOCAL_DELTA;
     wire lab_c0_seq_mode =
-        lab_c0_fixed_mode || lab_c0_local_seq_mode;
+        lab_c0_fixed_mode || lab_c0_local_seq_mode || lab_c0_local_delta_mode;
+    wire lab_c0_local_pcm_mode =
+        lab_c0_local_seq_mode || lab_c0_local_delta_mode;
     wire lab_c0_local_mode = lab_c0_local_delta_mode;
     wire lab_c0_force_output =
         lab_c0_force_mode && lab_c0_pv_match && lab_c0_raw_audible;
@@ -1389,8 +1392,13 @@ module segapcm_sound_module #(
         segapcm_cen &&
         (lab_c0_fixed_div_i == 12'hfff);
     wire lab_c0_fixed_emit_pulse = lab_c0_seq_emit_pulse;
+    wire [7:0] lab_c0_delta_step =
+        (c0_capture_ch3_delta_i != 8'd0) ? c0_capture_ch3_delta_i : 8'hA0;
+    wire [26:0] lab_c0_phase_next =
+        lab_c0_phase_i + {19'd0, lab_c0_delta_step};
+    wire [18:0] lab_c0_delta_pi_next = lab_c0_phase_next[26:8];
     wire [7:0] lab_c0_selected_sample_byte =
-        lab_c0_local_seq_mode ? lab_c0_sample_i : lab_c0_fixed_byte;
+        lab_c0_local_pcm_mode ? lab_c0_sample_i : lab_c0_fixed_byte;
     wire signed [8:0] lab_c0_selected_cv =
         $signed({1'b0, lab_c0_selected_sample_byte}) - 9'sd128;
     wire signed [15:0] lab_c0_selected_direct_sample =
@@ -2440,6 +2448,7 @@ module segapcm_sound_module #(
             lab_c0_req_addr_i <= 19'd0;
             lab_c0_fixed_index_i <= 3'd0;
             lab_c0_fixed_div_i <= 12'd0;
+            lab_c0_phase_i <= 27'd0;
         end else begin
             lab_c0_consume_pulse_i <= 1'b0;
             lab_c0_req_live_i <= 1'b0;
@@ -2447,7 +2456,7 @@ module segapcm_sound_module #(
                 lab_c0_active_i <= lab_c0_seq_output;
                 lab_c0_state_i <= lab_c0_seq_output ?
                     LAB_C0_ST_CONSUME : LAB_C0_ST_IDLE;
-                if (!lab_c0_local_seq_mode) begin
+                if (!lab_c0_local_pcm_mode) begin
                     lab_c0_pending_i <= 1'b0;
                     lab_c0_need_read_i <= 1'b0;
                 end
@@ -2463,6 +2472,7 @@ module segapcm_sound_module #(
                     lab_c0_req_addr_i <= 19'd0;
                     lab_c0_sample_i <= 8'h80;
                     lab_c0_output_i <= 16'sd0;
+                    lab_c0_phase_i <= 27'd0;
                 end else begin
                     if (lab_c0_return_pulse) begin
                         lab_c0_pending_i <= 1'b0;
@@ -2476,7 +2486,7 @@ module segapcm_sound_module #(
                     end
                     if (segapcm_cen) begin
                         lab_c0_fixed_div_i <= lab_c0_fixed_div_i + 12'd1;
-                    if (lab_c0_local_seq_mode &&
+                    if (lab_c0_local_pcm_mode &&
                         !lab_c0_pending_i &&
                         !lab_c0_req_live_i &&
                         lab_c0_pi_in_range) begin
@@ -2490,7 +2500,7 @@ module segapcm_sound_module #(
                         end
                     end
                     if (lab_c0_seq_emit_pulse) begin
-                        if (!lab_c0_local_seq_mode) begin
+                        if (!lab_c0_local_pcm_mode) begin
                             lab_c0_sample_i <= lab_c0_selected_sample_byte;
                         end
                         lab_c0_output_i <= lab_c0_selected_direct_sample;
@@ -2504,6 +2514,9 @@ module segapcm_sound_module #(
                             if (lab_c0_pi_i != 19'h7ffff) begin
                                 lab_c0_pi_i <= lab_c0_pi_i + 19'd1;
                             end
+                        end else if (lab_c0_local_delta_mode) begin
+                            lab_c0_phase_i <= lab_c0_phase_next;
+                            lab_c0_pi_i <= lab_c0_delta_pi_next;
                         end else begin
                             lab_c0_pi_i <= {16'd0, lab_c0_fixed_index_i};
                             lab_c0_return_pi_i <= {16'd0, lab_c0_fixed_index_i};
