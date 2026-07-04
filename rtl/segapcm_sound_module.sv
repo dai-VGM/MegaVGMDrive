@@ -1341,6 +1341,46 @@ module segapcm_sound_module #(
     logic [15:0] lab_c0_mame_loud_m1_i;
     logic [15:0] lab_c0_mame_loud_m2_i;
     logic [15:0] lab_c0_mame_loud_m3_i;
+    logic [15:0] lab16_active_i;
+    logic [7:0]  lab16_ctrl_i [0:15];
+    logic [7:0]  lab16_cur_mid_i [0:15];
+    logic [7:0]  lab16_cur_high_i [0:15];
+    logic [7:0]  lab16_loop_mid_i [0:15];
+    logic [7:0]  lab16_loop_high_i [0:15];
+    logic [7:0]  lab16_end_i [0:15];
+    logic [7:0]  lab16_delta_i [0:15];
+    logic [6:0]  lab16_vol_l_i [0:15];
+    logic [6:0]  lab16_vol_r_i [0:15];
+    logic [26:0] lab16_phase_i [0:15];
+    logic [18:0] lab16_pi_i [0:15];
+    logic [7:0]  lab16_sample_i [0:15];
+    logic signed [15:0] lab16_out_l_i [0:15];
+    logic signed [15:0] lab16_out_r_i [0:15];
+    logic [3:0] lab16_rr_ch_i;
+    logic [3:0] lab16_pending_ch_i;
+    logic [11:0] lab16_emit_div_i;
+    logic [15:0] lab16_request_count_i;
+    logic [15:0] lab16_return_count_i;
+    logic [15:0] lab16_clip_count_i;
+    logic [15:0] lab16_retrigger_count_i;
+    logic [15:0] lab16_reseed_count_i;
+    logic [15:0] lab16_ch3_reseed_count_i;
+    logic [15:0] lab16_ch3_stop_reason_i;
+    logic        lab16_ch3_map_valid_i;
+    logic [15:0] lab16_ch3_tick_count_i;
+    logic [15:0] lab16_ch3_emit_count_i;
+    logic [15:0] lab16_ch3_output_i;
+    logic [15:0] lab16_ch3_hold_i;
+    logic [15:0] lab16_ch3_sticky_i;
+    logic [15:0] lab16_ch3_range_count_i;
+    logic [15:0] lab16_mix_peak_i;
+    logic [15:0] lab16_ch3_peak_i;
+    logic signed [23:0] lab16_mix_l_i;
+    logic signed [23:0] lab16_mix_r_i;
+    logic signed [15:0] lab16_mix_l_sample_i;
+    logic signed [15:0] lab16_mix_r_sample_i;
+    logic [3:0] lab16_debug_ch_i;
+    integer lab16_loop_i;
     wire lab_c0_return_pulse =
         loaded_ddr_rd_valid &&
         smoke_ddr_c0drive_active &&
@@ -1361,6 +1401,12 @@ module segapcm_sound_module #(
         smoke_ddr_c0drive_active &&
         lab_c0_pv_match &&
         lab_c0_raw_audible;
+    wire lab16_run_gate =
+        smoke_playback_running &&
+        !smoke_playback_done &&
+        !smoke_vgm_end_seen &&
+        smoke_ddr_c0drive_active;
+    wire lab16_retrigger_pulse;
     wire lab_c0_arm =
         lab_c0_playback_gate &&
         lab_c0_has_seed;
@@ -1406,6 +1452,12 @@ module segapcm_sound_module #(
         smoke_c0_sample_mode_sel == LAB_C0_PUMP_LOCAL_DELTA;
     wire lab_c0_mame_exact_mode =
         smoke_c0_sample_mode_sel == LAB_C0_PUMP_MAME_EXACT;
+    wire lab_c0_multich_delta_mode = lab_c0_local_delta_mode;
+    wire lab16_service_tick =
+        lab_c0_multich_delta_mode &&
+        lab16_run_gate &&
+        segapcm_cen &&
+        (lab16_emit_div_i == 12'hfff);
     wire lab_c0_seq_mode =
         lab_c0_fixed_mode ||
         lab_c0_local_seq_mode ||
@@ -1420,7 +1472,11 @@ module segapcm_sound_module #(
     wire lab_c0_force_output =
         lab_c0_force_mode && lab_c0_pv_match && lab_c0_raw_audible;
     wire lab_c0_seq_output =
-        lab_c0_seq_mode && lab_c0_playback_gate;
+        lab_c0_seq_mode &&
+        (lab_c0_multich_delta_mode ?
+            (lab16_run_gate &&
+             ((lab16_active_i != 16'd0) || lab16_retrigger_pulse)) :
+            lab_c0_playback_gate);
     wire lab_c0_fixed_output = lab_c0_seq_output;
     wire lab_c0_local_output =
         (lab_c0_local_delta_mode || lab_c0_mame_exact_mode) &&
@@ -1555,6 +1611,130 @@ module segapcm_sound_module #(
         lab_c0_selected_event_pulse;
     wire lab_c0_retrigger_pulse =
         lab_c0_pm3_reseed_pulse || lab_c0_pm4_reseed_pulse;
+    wire [3:0] lab16_write_ch = mapped_cpu_addr[6:3];
+    wire [2:0] lab16_write_off = mapped_cpu_addr[2:0];
+    wire lab16_write_low = !mapped_cpu_addr[7];
+    wire lab16_write_high = mapped_cpu_addr[7];
+    wire [7:0] lab16_event_ctrl =
+        (lab16_write_high && (lab16_write_off == 3'd6)) ?
+        segapcm_cmd_data : lab16_ctrl_i[lab16_write_ch];
+    wire [7:0] lab16_event_cur_mid =
+        (lab16_write_high && (lab16_write_off == 3'd4)) ?
+        segapcm_cmd_data : lab16_cur_mid_i[lab16_write_ch];
+    wire [7:0] lab16_event_cur_high =
+        (lab16_write_high && (lab16_write_off == 3'd5)) ?
+        segapcm_cmd_data : lab16_cur_high_i[lab16_write_ch];
+    wire [6:0] lab16_event_vol_l =
+        (lab16_write_low && (lab16_write_off == 3'd2)) ?
+        segapcm_cmd_data[6:0] : lab16_vol_l_i[lab16_write_ch];
+    wire [6:0] lab16_event_vol_r =
+        (lab16_write_low && (lab16_write_off == 3'd3)) ?
+        segapcm_cmd_data[6:0] : lab16_vol_r_i[lab16_write_ch];
+    wire lab16_event_audible =
+        (lab16_event_vol_l != 7'd0) || (lab16_event_vol_r != 7'd0);
+    wire lab16_event_retrigger_reg =
+        (lab16_write_high &&
+         ((lab16_write_off == 3'd4) ||
+          (lab16_write_off == 3'd5) ||
+          (lab16_write_off == 3'd6))) ||
+        (lab16_write_low &&
+         ((lab16_write_off == 3'd2) ||
+          (lab16_write_off == 3'd3)));
+    wire [20:0] lab16_event_bank =
+        ({13'd0, (lab16_event_ctrl & 8'hf8)} << 13);
+    wire [20:0] lab16_event_full_addr =
+        lab16_event_bank + {5'd0, lab16_event_cur_high, lab16_event_cur_mid};
+    wire lab16_event_block2_match =
+        smoke_type80_table_valid_i[2] &&
+        (lab16_event_full_addr >= smoke_type80_table_dest_i[2]) &&
+        (lab16_event_full_addr <
+         (smoke_type80_table_dest_i[2] + {2'd0, smoke_type80_table_len_i[2]}));
+    wire [20:0] lab16_event_offset_21 =
+        lab16_event_full_addr - smoke_type80_table_dest_i[2];
+    wire [18:0] lab16_event_local_pi =
+        smoke_type80_table_base_i[2] + lab16_event_offset_21[18:0];
+    assign lab16_retrigger_pulse =
+        lab_c0_multich_delta_mode &&
+        segapcm_cmd_valid &&
+        (smoke_c0_drive_sel != 2'd0) &&
+        lab16_event_retrigger_reg &&
+        lab16_event_audible &&
+        lab16_event_block2_match &&
+        !lab16_event_ctrl[0];
+    logic [15:0] lab16_active_mask;
+    logic [4:0] lab16_active_count;
+    logic [3:0] lab16_next_ch;
+    logic lab16_next_valid;
+    logic signed [23:0] lab16_mix_l_next;
+    logic signed [23:0] lab16_mix_r_next;
+    logic signed [15:0] lab16_mix_l_sample_next;
+    logic signed [15:0] lab16_mix_r_sample_next;
+    logic [7:0] lab16_selected_sample_byte;
+    logic signed [8:0] lab16_selected_cv;
+    logic signed [15:0] lab16_selected_out_l;
+    logic signed [15:0] lab16_selected_out_r;
+    logic lab16_clip_next;
+    logic signed [8:0] lab16_return_cv;
+    logic signed [16:0] lab16_return_scaled_l;
+    logic signed [16:0] lab16_return_scaled_r;
+    logic [10:0] lab16_return_delta_x4;
+    logic [26:0] lab16_return_phase_next;
+    logic [15:0] lab16_return_abs_l;
+    logic [15:0] lab16_mix_abs_l_next;
+    integer lab16_comb_i;
+    integer lab16_scan_i;
+    always_comb begin
+        lab16_active_mask = lab16_active_i;
+        lab16_active_count = 5'd0;
+        lab16_mix_l_next = 24'sd0;
+        lab16_mix_r_next = 24'sd0;
+        for (lab16_comb_i = 0; lab16_comb_i < 16;
+             lab16_comb_i = lab16_comb_i + 1) begin
+            if (lab16_active_i[lab16_comb_i]) begin
+                lab16_active_count = lab16_active_count + 5'd1;
+            end
+            lab16_mix_l_next =
+                lab16_mix_l_next +
+                {{8{lab16_out_l_i[lab16_comb_i][15]}},
+                 lab16_out_l_i[lab16_comb_i]};
+            lab16_mix_r_next =
+                lab16_mix_r_next +
+                {{8{lab16_out_r_i[lab16_comb_i][15]}},
+                 lab16_out_r_i[lab16_comb_i]};
+        end
+        lab16_mix_l_sample_next = lab16_mix_l_next[17:2];
+        lab16_mix_r_sample_next = lab16_mix_r_next[17:2];
+        lab16_clip_next =
+            (lab16_mix_l_next > 24'sd131071) ||
+            (lab16_mix_l_next < -24'sd131072) ||
+            (lab16_mix_r_next > 24'sd131071) ||
+            (lab16_mix_r_next < -24'sd131072);
+
+        lab16_next_ch = lab16_rr_ch_i;
+        lab16_next_valid = 1'b0;
+        for (lab16_scan_i = 0; lab16_scan_i < 16;
+             lab16_scan_i = lab16_scan_i + 1) begin
+            if (!lab16_next_valid &&
+                lab16_active_i[(lab16_rr_ch_i + lab16_scan_i[3:0]) & 4'hf]) begin
+                lab16_next_ch =
+                    (lab16_rr_ch_i + lab16_scan_i[3:0]) & 4'hf;
+                lab16_next_valid = 1'b1;
+            end
+        end
+
+        lab16_selected_sample_byte = lab16_sample_i[lab16_debug_ch_i];
+        lab16_selected_cv = smoke_c0_format_sel[0] ?
+            (9'sd128 - $signed({1'b0, lab16_selected_sample_byte})) :
+            ($signed({1'b0, lab16_selected_sample_byte}) - 9'sd128);
+        lab16_selected_out_l = lab16_out_l_i[lab16_debug_ch_i];
+        lab16_selected_out_r = lab16_out_r_i[lab16_debug_ch_i];
+        lab16_mix_abs_l_next = lab16_mix_l_sample_next[15] ?
+            (~lab16_mix_l_sample_next + 16'd1) :
+            lab16_mix_l_sample_next;
+        lab16_return_abs_l = lab16_return_scaled_l[15] ?
+            (~lab16_return_scaled_l[15:0] + 16'd1) :
+            lab16_return_scaled_l[15:0];
+    end
     wire [15:0] lab_c0_pm4_reseed_reason_next = {
         7'd0,
         lab_c0_selected_event_pulse,
@@ -2407,8 +2587,9 @@ module segapcm_sound_module #(
     assign c0_capture_write_count_debug =
 `ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
         (smoke_c0_drive_sel != 2'd0) ?
-            (lab_c0_mame_exact_mode ?
-                lab_c0_pm4_write_count_i : smoke_c0_write_probe_seen_i) :
+            (lab_c0_multich_delta_mode ? lab16_clip_count_i :
+             (lab_c0_mame_exact_mode ?
+                lab_c0_pm4_write_count_i : smoke_c0_write_probe_seen_i)) :
 `else
         (smoke_c0_drive_sel != 2'd0) ? smoke_c0_write_probe_seen_i :
 `endif
@@ -2420,8 +2601,9 @@ module segapcm_sound_module #(
     assign c0_capture_last_data_debug =
 `ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
         (smoke_c0_drive_sel != 2'd0) ?
-            (lab_c0_mame_exact_mode ?
-                lab_c0_pm4_reseed_count_i : lab_c0_reseed_count_i) :
+            (lab_c0_multich_delta_mode ? lab16_reseed_count_i :
+             (lab_c0_mame_exact_mode ?
+                lab_c0_pm4_reseed_count_i : lab_c0_reseed_count_i)) :
 `else
         (smoke_c0_drive_sel != 2'd0) ? loaded_ddr_probe_write_index_debug :
 `endif
@@ -2434,14 +2616,18 @@ module segapcm_sound_module #(
         16'h0003;
     assign c0_capture_ch3_ctrl_debug =
 `ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
-        (smoke_c0_drive_sel != 2'd0) ? lab_c0_retrigger_count_i :
+        (smoke_c0_drive_sel != 2'd0) ?
+            (lab_c0_multich_delta_mode ?
+                lab16_retrigger_count_i : lab_c0_retrigger_count_i) :
 `else
         (smoke_c0_drive_sel != 2'd0) ? loaded_ddr_probe_write_lane_debug :
 `endif
         {8'd0, c0_capture_ch3_ctrl_i};
     assign c0_capture_ch3_cur_low_debug =
 `ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
-        (smoke_c0_drive_sel != 2'd0) ? lab_c0_event_seed_i :
+        (smoke_c0_drive_sel != 2'd0) ?
+            (lab_c0_multich_delta_mode ?
+                lab16_ch3_emit_count_i : lab_c0_event_seed_i) :
 `else
         (smoke_c0_drive_sel != 2'd0) ? loaded_ddr_probe_write_addr_debug :
 `endif
@@ -2449,31 +2635,43 @@ module segapcm_sound_module #(
     assign c0_capture_ch3_cur_mid_debug =
 `ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
         (smoke_c0_drive_sel != 2'd0) ?
-            {{7{lab_c0_selected_cv[8]}}, lab_c0_selected_cv} :
+            (lab_c0_multich_delta_mode ?
+                {{7{lab16_selected_cv[8]}}, lab16_selected_cv} :
+                {{7{lab_c0_selected_cv[8]}}, lab_c0_selected_cv}) :
 `else
         (smoke_c0_drive_sel != 2'd0) ? loaded_ddr_probe_write_count_debug :
 `endif
         {8'd0, c0_capture_ch3_cur_mid_i};
     assign c0_capture_ch3_cur_high_debug =
 `ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
-        (smoke_c0_drive_sel != 2'd0) ? lab_c0_mame_tick_count_i :
+        (smoke_c0_drive_sel != 2'd0) ?
+            (lab_c0_multich_delta_mode ?
+                lab16_ch3_tick_count_i : lab_c0_mame_tick_count_i) :
 `else
         (smoke_c0_drive_sel != 2'd0) ? loaded_ddr_probe_write_flags_debug :
 `endif
         {8'd0, c0_capture_ch3_cur_high_i};
-    assign c0_capture_ch3_delta_debug = {8'd0, c0_capture_ch3_delta_i};
+    assign c0_capture_ch3_delta_debug =
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+        (smoke_c0_drive_sel != 2'd0 && lab_c0_multich_delta_mode) ?
+            lab16_active_mask :
+`endif
+        {8'd0, c0_capture_ch3_delta_i};
     assign c0_capture_ch3_vol_l_debug = {8'd0, c0_capture_ch3_vol_l_i};
     assign c0_capture_ch3_vol_r_debug = {8'd0, c0_capture_ch3_vol_r_i};
     assign c0_capture_ch3_loop_debug =
 `ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
-        (smoke_c0_drive_sel != 2'd0) ? {8'd0, lab_c0_phase_i[7:0]} :
+        (smoke_c0_drive_sel != 2'd0) ?
+            (lab_c0_multich_delta_mode ?
+                lab16_ch3_output_i : {8'd0, lab_c0_phase_i[7:0]}) :
 `else
         (smoke_c0_drive_sel != 2'd0) ? loaded_ddr_probe_write_word0_debug :
 `endif
         {c0_capture_ch3_loop_mid_i, c0_capture_ch3_loop_high_i};
     assign c0_capture_ch3_end_debug =
 `ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
-        (smoke_c0_drive_sel != 2'd0) ? {
+        (smoke_c0_drive_sel != 2'd0) ?
+        (lab_c0_multich_delta_mode ? lab16_ch3_hold_i : {
             6'd0,
             lab_c0_active_i,
             !lab_c0_pi_in_range,
@@ -2487,14 +2685,31 @@ module segapcm_sound_module #(
             lab_c0_mame_trace_count_i == 3'd4,
             lab_c0_pi_in_range,
             smoke_playback_running
-        } :
+        }) :
 `else
         (smoke_c0_drive_sel != 2'd0) ? loaded_ddr_probe_write_word6_debug :
 `endif
         {8'd0, c0_capture_ch3_end_i};
 `ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
     assign jt_smoke_vol_l_debug = (smoke_c0_drive_sel != 2'd0) ?
-        {
+        (lab_c0_multich_delta_mode ? {
+            lab16_active_i[0],
+            lab16_active_i[1],
+            lab16_active_i[2],
+            lab16_active_i[3],
+            lab16_active_i[4],
+            lab16_active_i[5],
+            lab16_active_i[6],
+            lab16_active_i[7],
+            lab16_active_i[8],
+            lab16_active_i[9],
+            lab16_active_i[10],
+            lab16_active_i[11],
+            lab16_active_i[12],
+            lab16_active_i[13],
+            lab16_active_i[14],
+            lab16_active_i[15]
+        } : {
             lab_c0_fixed_mode,
             lab_c0_local_seq_mode,
             smoke_playback_running,
@@ -2508,11 +2723,13 @@ module segapcm_sound_module #(
             lab_c0_active_i,
             lab_c0_state_i,
             smoke_c0_drive_sel
-        } :
+        }) :
         core_dbg_smoke_seed_reload_req;
     assign jt_smoke_vol_r_debug = (smoke_c0_drive_sel != 2'd0) ?
-        (lab_c0_fixed_mode ? {13'd0, lab_c0_fixed_index_i} :
-                             lab_c0_pi_i[15:0]) :
+        (lab_c0_multich_delta_mode ?
+            lab16_pi_i[lab16_debug_ch_i][15:0] :
+            (lab_c0_fixed_mode ? {13'd0, lab_c0_fixed_index_i} :
+                                 lab_c0_pi_i[15:0])) :
         core_dbg_smoke_first_addr;
 `else
     assign jt_smoke_vol_l_debug = (smoke_c0_drive_sel != 2'd0) ?
@@ -2526,7 +2743,9 @@ module segapcm_sound_module #(
     assign jt_smoke_out_l_debug = core_dbg_smoke_out_l;
     assign jt_smoke_out_r_debug =
 `ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
-        (smoke_c0_drive_sel != 2'd0) ? lab_c0_mame_mv_wide[15:0] :
+        (smoke_c0_drive_sel != 2'd0) ?
+            (lab_c0_multich_delta_mode ?
+                lab16_ch3_sticky_i : lab_c0_mame_mv_wide[15:0]) :
 `endif
         core_dbg_smoke_out_r;
 `else
@@ -2553,14 +2772,17 @@ module segapcm_sound_module #(
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_TEST
 `ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
     assign ch3_evolution_flags_debug =
-        (lab_c0_local_delta_mode || lab_c0_mame_exact_mode) ?
+        lab_c0_multich_delta_mode ? core_dbg_ch3_evolution_flags :
+        (lab_c0_mame_exact_mode) ?
         lab_c0_hit_count_i :
         lab_c0_advance_count_i;
 `else
     assign ch3_evolution_flags_debug =
         smoke_ddr_audio_update_count_i;
 `endif
-    assign ch3_delta_debug = lab_c0_phase_increment[15:0];
+    assign ch3_delta_debug =
+        lab_c0_multich_delta_mode ? core_dbg_ch3_delta :
+        lab_c0_phase_increment[15:0];
 `else
     assign ch3_evolution_flags_debug = core_dbg_ch3_evolution_flags;
     assign ch3_delta_debug = core_dbg_ch3_delta;
@@ -2569,62 +2791,87 @@ module segapcm_sound_module #(
     assign ch1_first_low_debug = core_dbg_ch1_first_low;
     assign ch1_first_raw_high_debug =
 `ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
-        (smoke_c0_drive_sel != 2'd0) ? lab_c0_mame_loud_p0_i :
+        (smoke_c0_drive_sel != 2'd0) ?
+            (lab_c0_multich_delta_mode ?
+                {15'd0, lab16_active_i[3]} : lab_c0_mame_loud_p0_i) :
 `endif
         core_dbg_ch1_first_raw_high;
     assign ch1_first_raw_low_debug =
 `ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
-        (smoke_c0_drive_sel != 2'd0) ? lab_c0_mame_loud_p1_i :
+        (smoke_c0_drive_sel != 2'd0) ?
+            (lab_c0_multich_delta_mode ?
+                lab16_ch3_reseed_count_i : lab_c0_mame_loud_p1_i) :
 `endif
         core_dbg_ch1_first_raw_low;
     assign ch3_first_high_debug =
 `ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
-        (smoke_c0_drive_sel != 2'd0) ? lab_c0_mame_loud_p2_i :
+        (smoke_c0_drive_sel != 2'd0) ?
+            (lab_c0_multich_delta_mode ?
+                {15'd0, lab16_ch3_map_valid_i} : lab_c0_mame_loud_p2_i) :
 `endif
         core_dbg_ch3_first_high;
     assign ch3_first_low_debug =
 `ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
-        (smoke_c0_drive_sel != 2'd0) ? lab_c0_mame_loud_p3_i :
+        (smoke_c0_drive_sel != 2'd0) ?
+            (lab_c0_multich_delta_mode ?
+                lab16_pi_i[3][15:0] : lab_c0_mame_loud_p3_i) :
 `endif
         core_dbg_ch3_first_low;
     assign ch3_first_raw_high_debug =
 `ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
-        (smoke_c0_drive_sel != 2'd0) ? lab_c0_mame_loud_q0_i :
+        (smoke_c0_drive_sel != 2'd0) ?
+            (lab_c0_multich_delta_mode ?
+                {8'd0, lab16_delta_i[3]} : lab_c0_mame_loud_q0_i) :
 `endif
         core_dbg_ch3_first_raw_high;
     assign ch3_first_raw_low_debug =
 `ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
-        (smoke_c0_drive_sel != 2'd0) ? lab_c0_mame_loud_q1_i :
+        (smoke_c0_drive_sel != 2'd0) ?
+            (lab_c0_multich_delta_mode ?
+                {1'b0, lab16_vol_l_i[3],
+                 1'b0, lab16_vol_r_i[3]} : lab_c0_mame_loud_q1_i) :
 `endif
         core_dbg_ch3_first_raw_low;
     assign ch3_r0_high_debug =
 `ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
-        (smoke_c0_drive_sel != 2'd0) ? lab_c0_mame_loud_q2_i :
+        (smoke_c0_drive_sel != 2'd0) ?
+            (lab_c0_multich_delta_mode ?
+                {8'd0, lab16_ctrl_i[3]} : lab_c0_mame_loud_q2_i) :
 `endif
         core_dbg_ch3_r0_high;
     assign ch3_r0_low_debug =
 `ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
-        (smoke_c0_drive_sel != 2'd0) ? lab_c0_mame_loud_q3_i :
+        (smoke_c0_drive_sel != 2'd0) ?
+            (lab_c0_multich_delta_mode ?
+                lab16_ch3_stop_reason_i : lab_c0_mame_loud_q3_i) :
 `endif
         core_dbg_ch3_r0_low;
     assign ch3_r1_high_debug =
 `ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
-        (smoke_c0_drive_sel != 2'd0) ? lab_c0_mame_loud_m0_i :
+        (smoke_c0_drive_sel != 2'd0) ?
+            (lab_c0_multich_delta_mode ?
+                lab16_ch3_range_count_i : lab_c0_mame_loud_m0_i) :
 `endif
         core_dbg_ch3_r1_high;
     assign ch3_r1_low_debug =
 `ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
-        (smoke_c0_drive_sel != 2'd0) ? lab_c0_mame_loud_m1_i :
+        (smoke_c0_drive_sel != 2'd0) ?
+            (lab_c0_multich_delta_mode ?
+                lab16_mix_peak_i : lab_c0_mame_loud_m1_i) :
 `endif
         core_dbg_ch3_r1_low;
     assign ch3_r2_high_debug =
 `ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
-        (smoke_c0_drive_sel != 2'd0) ? lab_c0_mame_loud_m2_i :
+        (smoke_c0_drive_sel != 2'd0) ?
+            (lab_c0_multich_delta_mode ?
+                lab16_ch3_peak_i : lab_c0_mame_loud_m2_i) :
 `endif
         core_dbg_ch3_r2_high;
     assign ch3_r2_low_debug =
 `ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
-        (smoke_c0_drive_sel != 2'd0) ? lab_c0_mame_loud_m3_i :
+        (smoke_c0_drive_sel != 2'd0) ?
+            (lab_c0_multich_delta_mode ?
+                {4'd0, lab16_emit_div_i} : lab_c0_mame_loud_m3_i) :
 `endif
         core_dbg_ch3_r2_low;
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_TEST
@@ -2794,10 +3041,270 @@ module segapcm_sound_module #(
             lab_c0_mame_loud_m1_i <= 16'd0;
             lab_c0_mame_loud_m2_i <= 16'd0;
             lab_c0_mame_loud_m3_i <= 16'd0;
+            lab16_active_i <= 16'd0;
+            lab16_rr_ch_i <= 4'd0;
+            lab16_pending_ch_i <= 4'd0;
+            lab16_emit_div_i <= 12'd0;
+            lab16_request_count_i <= 16'd0;
+            lab16_return_count_i <= 16'd0;
+            lab16_clip_count_i <= 16'd0;
+            lab16_retrigger_count_i <= 16'd0;
+            lab16_reseed_count_i <= 16'd0;
+            lab16_ch3_reseed_count_i <= 16'd0;
+            lab16_ch3_stop_reason_i <= 16'd0;
+            lab16_ch3_map_valid_i <= 1'b0;
+            lab16_ch3_tick_count_i <= 16'd0;
+            lab16_ch3_emit_count_i <= 16'd0;
+            lab16_ch3_output_i <= 16'd0;
+            lab16_ch3_hold_i <= 16'd0;
+            lab16_ch3_sticky_i <= 16'd0;
+            lab16_ch3_range_count_i <= 16'd0;
+            lab16_mix_peak_i <= 16'd0;
+            lab16_ch3_peak_i <= 16'd0;
+            lab16_return_cv <= 9'sd0;
+            lab16_return_scaled_l <= 17'sd0;
+            lab16_return_scaled_r <= 17'sd0;
+            lab16_return_delta_x4 <= 11'd0;
+            lab16_return_phase_next <= 27'd0;
+            lab16_mix_l_i <= 24'sd0;
+            lab16_mix_r_i <= 24'sd0;
+            lab16_mix_l_sample_i <= 16'sd0;
+            lab16_mix_r_sample_i <= 16'sd0;
+            lab16_debug_ch_i <= 4'd3;
+            for (lab16_loop_i = 0; lab16_loop_i < 16;
+                 lab16_loop_i = lab16_loop_i + 1) begin
+                lab16_ctrl_i[lab16_loop_i] <= 8'd0;
+                lab16_cur_mid_i[lab16_loop_i] <= 8'd0;
+                lab16_cur_high_i[lab16_loop_i] <= 8'd0;
+                lab16_loop_mid_i[lab16_loop_i] <= 8'd0;
+                lab16_loop_high_i[lab16_loop_i] <= 8'd0;
+                lab16_end_i[lab16_loop_i] <= 8'd0;
+                lab16_delta_i[lab16_loop_i] <= 8'd0;
+                lab16_vol_l_i[lab16_loop_i] <= 7'd0;
+                lab16_vol_r_i[lab16_loop_i] <= 7'd0;
+                lab16_phase_i[lab16_loop_i] <= 27'd0;
+                lab16_pi_i[lab16_loop_i] <= 19'd0;
+                lab16_sample_i[lab16_loop_i] <= 8'h80;
+                lab16_out_l_i[lab16_loop_i] <= 16'sd0;
+                lab16_out_r_i[lab16_loop_i] <= 16'sd0;
+            end
         end else begin
             lab_c0_consume_pulse_i <= 1'b0;
             lab_c0_req_live_i <= 1'b0;
-            if (lab_c0_seq_mode) begin
+            if (lab_c0_multich_delta_mode) begin
+                lab_c0_state_i <= lab16_run_gate ?
+                    LAB_C0_ST_CONSUME : LAB_C0_ST_IDLE;
+                lab_c0_seed_i <= lab16_event_cur_high;
+                lab_c0_cur_i <= {lab16_cur_high_i[lab16_debug_ch_i],
+                                 lab16_cur_mid_i[lab16_debug_ch_i]};
+                lab_c0_pi_i <= lab16_pi_i[lab16_debug_ch_i];
+                lab_c0_return_pi_i <= {15'd0, lab16_pending_ch_i};
+                lab_c0_sample_i <= lab16_sample_i[lab16_debug_ch_i];
+                lab_c0_output_i <= lab16_selected_out_l;
+                lab_c0_phase_i <= lab16_phase_i[lab16_debug_ch_i];
+                lab_c0_hit_count_i <= lab16_return_count_i;
+                lab_c0_active_i <= lab16_run_gate &&
+                    ((lab16_active_i != 16'd0) || lab16_retrigger_pulse);
+                lab16_mix_l_i <= lab16_mix_l_next;
+                lab16_mix_r_i <= lab16_mix_r_next;
+                lab16_mix_l_sample_i <= lab16_mix_l_sample_next;
+                lab16_mix_r_sample_i <= lab16_mix_r_sample_next;
+                if (lab16_clip_next && (lab16_clip_count_i != 16'hffff)) begin
+                    lab16_clip_count_i <= lab16_clip_count_i + 16'd1;
+                end
+                if (lab16_mix_abs_l_next > lab16_mix_peak_i) begin
+                    lab16_mix_peak_i <= lab16_mix_abs_l_next;
+                end
+
+                if (!lab16_run_gate) begin
+                    if (lab16_active_i[3]) begin
+                        lab16_ch3_stop_reason_i <= 16'h8001;
+                    end
+                    lab_c0_pending_i <= 1'b0;
+                    lab_c0_need_read_i <= 1'b0;
+                    lab_c0_req_addr_i <= 19'd0;
+                    lab16_emit_div_i <= 12'd0;
+                    lab16_active_i <= 16'd0;
+                    for (lab16_loop_i = 0; lab16_loop_i < 16;
+                         lab16_loop_i = lab16_loop_i + 1) begin
+                        lab16_out_l_i[lab16_loop_i] <= 16'sd0;
+                        lab16_out_r_i[lab16_loop_i] <= 16'sd0;
+                    end
+                end else begin
+                    if (segapcm_cen) begin
+                        lab16_emit_div_i <= lab16_emit_div_i + 12'd1;
+                    end
+                    if (segapcm_cmd_valid) begin
+                        if (lab16_write_low) begin
+                            unique case (lab16_write_off)
+                                3'd2: lab16_vol_l_i[lab16_write_ch] <=
+                                    segapcm_cmd_data[6:0];
+                                3'd3: lab16_vol_r_i[lab16_write_ch] <=
+                                    segapcm_cmd_data[6:0];
+                                3'd4: lab16_loop_mid_i[lab16_write_ch] <=
+                                    segapcm_cmd_data;
+                                3'd5: lab16_loop_high_i[lab16_write_ch] <=
+                                    segapcm_cmd_data;
+                                3'd6: lab16_end_i[lab16_write_ch] <=
+                                    segapcm_cmd_data;
+                                3'd7: lab16_delta_i[lab16_write_ch] <=
+                                    segapcm_cmd_data;
+                                default: begin end
+                            endcase
+                        end else begin
+                            unique case (lab16_write_off)
+                                3'd4: lab16_cur_mid_i[lab16_write_ch] <=
+                                    segapcm_cmd_data;
+                                3'd5: lab16_cur_high_i[lab16_write_ch] <=
+                                    segapcm_cmd_data;
+                                3'd6: lab16_ctrl_i[lab16_write_ch] <=
+                                    segapcm_cmd_data;
+                                default: begin end
+                            endcase
+                        end
+                    end
+
+                    if (lab16_retrigger_pulse) begin
+                        lab16_active_i[lab16_write_ch] <= 1'b1;
+                        lab16_phase_i[lab16_write_ch] <=
+                            {lab16_event_local_pi, 8'd0};
+                        lab16_pi_i[lab16_write_ch] <= lab16_event_local_pi;
+                        lab16_sample_i[lab16_write_ch] <= 8'h80;
+                        lab16_out_l_i[lab16_write_ch] <= 16'sd0;
+                        lab16_out_r_i[lab16_write_ch] <= 16'sd0;
+                        if (lab16_retrigger_count_i != 16'hffff) begin
+                            lab16_retrigger_count_i <=
+                                lab16_retrigger_count_i + 16'd1;
+                        end
+                        if (lab16_reseed_count_i != 16'hffff) begin
+                            lab16_reseed_count_i <= lab16_reseed_count_i + 16'd1;
+                        end
+                        lab_c0_event_time_i <= lab16_return_count_i;
+                        lab_c0_event_seed_i <= {
+                            lab16_event_cur_high,
+                            lab16_event_cur_mid
+                        };
+                        lab_c0_reseed_pi_i <= lab16_event_local_pi;
+                        if (lab16_write_ch == 4'd3) begin
+                            if (lab16_ch3_reseed_count_i != 16'hffff) begin
+                                lab16_ch3_reseed_count_i <=
+                                    lab16_ch3_reseed_count_i + 16'd1;
+                            end
+                            lab16_ch3_stop_reason_i <= 16'd0;
+                            lab16_ch3_map_valid_i <= lab16_event_block2_match;
+                            lab16_ch3_sticky_i[0] <= 1'b1;
+                        end
+                    end
+
+                    if (lab_c0_return_pulse) begin
+                        lab_c0_pending_i <= 1'b0;
+                        lab_c0_need_read_i <= 1'b0;
+                        lab16_return_cv = smoke_c0_format_sel[0] ?
+                            (9'sd128 -
+                             $signed({1'b0, loaded_ddr_rd_data})) :
+                            ($signed({1'b0, loaded_ddr_rd_data}) - 9'sd128);
+                        lab16_return_scaled_l =
+                            lab16_return_cv *
+                            $signed({2'b00, lab16_vol_l_i[lab16_pending_ch_i]});
+                        lab16_return_scaled_r =
+                            lab16_return_cv *
+                            $signed({2'b00, lab16_vol_r_i[lab16_pending_ch_i]});
+                        lab16_return_delta_x4 =
+                            {3'd0,
+                             (lab16_delta_i[lab16_pending_ch_i] != 8'd0) ?
+                             lab16_delta_i[lab16_pending_ch_i] : 8'hA0} << 2;
+                        lab16_return_phase_next =
+                            lab16_phase_i[lab16_pending_ch_i] +
+                            {16'd0, lab16_return_delta_x4};
+                        lab16_sample_i[lab16_pending_ch_i] <= loaded_ddr_rd_data;
+                        lab16_out_l_i[lab16_pending_ch_i] <=
+                            lab16_return_scaled_l[15:0];
+                        lab16_out_r_i[lab16_pending_ch_i] <=
+                            lab16_return_scaled_r[15:0];
+                        lab16_phase_i[lab16_pending_ch_i] <=
+                            lab16_return_phase_next;
+                        lab16_pi_i[lab16_pending_ch_i] <=
+                            lab16_return_phase_next[26:8];
+                        if (lab16_return_phase_next[26:8] >=
+                            smoke_type80_table_len_i[2]) begin
+                            lab16_active_i[lab16_pending_ch_i] <= 1'b0;
+                            lab16_out_l_i[lab16_pending_ch_i] <= 16'sd0;
+                            lab16_out_r_i[lab16_pending_ch_i] <= 16'sd0;
+                            if (lab16_pending_ch_i == 4'd3) begin
+                                lab16_ch3_stop_reason_i <= 16'h0004;
+                                if (lab16_ch3_range_count_i != 16'hffff) begin
+                                    lab16_ch3_range_count_i <=
+                                        lab16_ch3_range_count_i + 16'd1;
+                                end
+                            end
+                        end
+                        if (lab16_pending_ch_i == 4'd3) begin
+                            if (lab16_ch3_tick_count_i != 16'hffff) begin
+                                lab16_ch3_tick_count_i <=
+                                    lab16_ch3_tick_count_i + 16'd1;
+                            end
+                            lab16_ch3_output_i <= lab16_return_scaled_l[15:0];
+                            lab16_ch3_hold_i <= lab16_return_scaled_l[15:0];
+                            if (lab16_return_scaled_l[15:0] != 16'd0) begin
+                                lab16_ch3_sticky_i[1] <= 1'b1;
+                                if (lab16_ch3_emit_count_i != 16'hffff) begin
+                                    lab16_ch3_emit_count_i <=
+                                        lab16_ch3_emit_count_i + 16'd1;
+                                end
+                            end
+                            if (lab16_return_abs_l > lab16_ch3_peak_i) begin
+                                lab16_ch3_peak_i <= lab16_return_abs_l;
+                            end
+                        end
+                        if (lab16_return_count_i != 16'hffff) begin
+                            lab16_return_count_i <= lab16_return_count_i + 16'd1;
+                        end
+                        if (lab_c0_advance_count_i != 16'hffff) begin
+                            lab_c0_advance_count_i <=
+                                lab_c0_advance_count_i + 16'd1;
+                        end
+                    end
+
+                    if (lab16_service_tick && !lab_c0_pending_i &&
+                        !lab_c0_req_live_i && lab16_next_valid) begin
+                        if ((lab16_ctrl_i[lab16_next_ch][0]) ||
+                            (lab16_vol_l_i[lab16_next_ch] == 7'd0 &&
+                             lab16_vol_r_i[lab16_next_ch] == 7'd0) ||
+                            (lab16_pi_i[lab16_next_ch] >=
+                             smoke_type80_table_len_i[2])) begin
+                            lab16_active_i[lab16_next_ch] <= 1'b0;
+                            lab16_out_l_i[lab16_next_ch] <= 16'sd0;
+                            lab16_out_r_i[lab16_next_ch] <= 16'sd0;
+                            if (lab16_next_ch == 4'd3) begin
+                                lab16_ch3_stop_reason_i <= {
+                                    13'd0,
+                                    lab16_pi_i[lab16_next_ch] >=
+                                        smoke_type80_table_len_i[2],
+                                    lab16_vol_l_i[lab16_next_ch] == 7'd0 &&
+                                        lab16_vol_r_i[lab16_next_ch] == 7'd0,
+                                    lab16_ctrl_i[lab16_next_ch][0]
+                                };
+                            end
+                            lab16_rr_ch_i <= lab16_next_ch + 4'd1;
+                        end else begin
+                            lab_c0_req_addr_i <= lab16_pi_i[lab16_next_ch];
+                            lab_c0_req_live_i <= 1'b1;
+                            lab_c0_need_read_i <= 1'b1;
+                            lab_c0_pending_i <= 1'b1;
+                            lab16_pending_ch_i <= lab16_next_ch;
+                            lab16_rr_ch_i <= lab16_next_ch + 4'd1;
+                            if (lab16_request_count_i != 16'hffff) begin
+                                lab16_request_count_i <=
+                                    lab16_request_count_i + 16'd1;
+                            end
+                            if (lab_c0_request_count_i != 16'hffff) begin
+                                lab_c0_request_count_i <=
+                                    lab_c0_request_count_i + 16'd1;
+                            end
+                        end
+                    end
+                end
+            end else if (lab_c0_seq_mode) begin
                 lab_c0_active_i <= lab_c0_seq_output;
                 lab_c0_state_i <= lab_c0_seq_output ?
                     LAB_C0_ST_CONSUME : LAB_C0_ST_IDLE;
@@ -4742,6 +5249,8 @@ module segapcm_sound_module #(
         lab_c0_seq_output ||
         lab_c0_local_output;
     wire signed [15:0] lab_c0_actual_output_sample =
+        (lab_c0_multich_delta_mode && lab_c0_seq_output) ?
+        lab16_mix_l_sample_i :
         lab_c0_force_output ? LAB_C0_FORCE_SAMPLE :
         (lab_c0_mame_exact_mode && lab_c0_seq_output) ?
         lab_c0_output_i :
@@ -4751,7 +5260,9 @@ module segapcm_sound_module #(
         lab_c0_consume_pulse_i ?
         lab_c0_output_i : 16'sd0;
     assign core_snd_left = lab_c0_actual_output_sample;
-    assign core_snd_right = lab_c0_actual_output_sample;
+    assign core_snd_right =
+        (lab_c0_multich_delta_mode && lab_c0_seq_output) ?
+        lab16_mix_r_sample_i : lab_c0_actual_output_sample;
     assign core_sample =
         lab_c0_consume_pulse_i ||
         (segapcm_cen && lab_c0_force_output) ||
@@ -4778,6 +5289,8 @@ module segapcm_sound_module #(
     assign core_dbg_smoke_jt_vol_l = {9'd0, smoke_c0_vol_l_mapped};
     assign core_dbg_smoke_jt_vol_r = {9'd0, smoke_c0_vol_r_mapped};
     assign core_dbg_smoke_sample_byte =
+        lab_c0_multich_delta_mode ?
+        {8'd0, lab16_selected_sample_byte} :
         {8'd0, lab_c0_selected_sample_byte};
     assign core_dbg_smoke_c0_byte_accept = 1'b0;
     assign core_dbg_smoke_c0_mixer_consume = lab_c0_return_pulse;
@@ -4836,7 +5349,10 @@ module segapcm_sound_module #(
         lab_c0_pi_in_range,
         lab_c0_actual_output_sample != 16'sd0
     };
-    assign core_dbg_ch3_delta = {5'd0, lab_c0_effective_delta};
+    assign core_dbg_ch3_delta =
+        lab_c0_multich_delta_mode ?
+        {11'd0, lab16_active_count} :
+        {5'd0, lab_c0_effective_delta};
     assign core_dbg_ch1_first_high = 16'd0;
     assign core_dbg_ch1_first_low = 16'd0;
     assign core_dbg_ch1_first_raw_high = 16'd0;
