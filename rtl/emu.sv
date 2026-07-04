@@ -2512,13 +2512,13 @@ module emu
 `endif
                 5'd12: segapcm_debug_label_char =
 `ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
-                    (col == 2'd0) ? "F" : (col == 2'd1) ? "U" : " ";
+                    (col == 2'd0) ? "M" : (col == 2'd1) ? "C" : " ";
 `else
                     (col == 2'd0) ? "A" : (col == 2'd1) ? "V" : " ";
 `endif
                 5'd13: segapcm_debug_label_char =
 `ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
-                    (col == 2'd0) ? "V" : (col == 2'd1) ? "L" : " ";
+                    (col == 2'd0) ? "G" : (col == 2'd1) ? "C" : " ";
 `else
                     (col == 2'd0) ? "I" : (col == 2'd1) ? "R" : " ";
 `endif
@@ -2528,28 +2528,33 @@ module emu
 `else
                     (col == 2'd0) ? "C" : (col == 2'd1) ? "H" : " ";
 `endif
-                5'd15: segapcm_debug_label_char = (col == 2'd0) ? "C" : (col == 2'd1) ? "2" : " ";
+                5'd15: segapcm_debug_label_char =
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+                    (col == 2'd0) ? "P" : (col == 2'd1) ? "C" : " ";
+`else
+                    (col == 2'd0) ? "C" : (col == 2'd1) ? "2" : " ";
+`endif
                 5'd16: segapcm_debug_label_char =
 `ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
-                    (col == 2'd0) ? "C" : (col == 2'd1) ? "S" : " ";
+                    (col == 2'd0) ? "P" : (col == 2'd1) ? "G" : " ";
 `else
                     (col == 2'd0) ? "C" : (col == 2'd1) ? "1" : " ";
 `endif
                 5'd17: segapcm_debug_label_char =
 `ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
-                    (col == 2'd0) ? "F" : (col == 2'd1) ? "R" : " ";
+                    (col == 2'd0) ? "F" : (col == 2'd1) ? "M" : " ";
 `else
                     (col == 2'd0) ? "C" : (col == 2'd1) ? "0" : " ";
 `endif
                 5'd18: segapcm_debug_label_char =
 `ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
-                    (col == 2'd0) ? "E" : (col == 2'd1) ? "W" : " ";
+                    (col == 2'd0) ? "M" : (col == 2'd1) ? "X" : " ";
 `else
                     (col == 2'd0) ? "A" : (col == 2'd1) ? "P" : " ";
 `endif
                 5'd19: segapcm_debug_label_char =
 `ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
-                    (col == 2'd0) ? "F" : (col == 2'd1) ? "M" : " ";
+                    (col == 2'd0) ? "Y" : (col == 2'd1) ? "W" : " ";
 `else
                     (col == 2'd0) ? "O" : (col == 2'd1) ? "N" : " ";
 `endif
@@ -2632,17 +2637,14 @@ module emu
                         5'd10: segapcm_debug_value = segapcm_core_c0_capture_ch3_cur_mid;
                         5'd11: segapcm_debug_value = segapcm_core_status_debug;
                         5'd12: segapcm_debug_value = fm_adjust_clip_count_l;
-                        5'd13: segapcm_debug_value = {
-                            1'b0, segapcm_core_c0_capture_ch3_vol_l[6:0],
-                            1'b0, segapcm_core_c0_capture_ch3_vol_r[6:0]
-                        };
+                        5'd13: segapcm_debug_value = fm_adjust_clip_count_r;
                         5'd14: segapcm_debug_value =
                             {14'd0, segapcm_smoke_c0_format[0]};
-                        5'd15: segapcm_debug_value = ym_write_requested_count[15:0];
-                        5'd16: segapcm_debug_value = {last_ym_addr, last_ym_data};
+                        5'd15: segapcm_debug_value = fm_lpf_abs_peak;
+                        5'd16: segapcm_debug_value = fm_adjust_abs_peak;
                         5'd17: segapcm_debug_value = fm_raw_abs_peak;
-                        5'd18: segapcm_debug_value = segapcm_core_audio_abs_peak;
-                        5'd19: segapcm_debug_value = md_final_audio_abs_peak;
+                        5'd18: segapcm_debug_value = md_final_audio_abs_peak;
+                        5'd19: segapcm_debug_value = ym_write_requested_count[15:0];
                         5'd20: segapcm_debug_value = segapcm_core_ch1_first_raw_high;
                         5'd21: segapcm_debug_value = segapcm_core_ch1_first_raw_low;
                         5'd22: segapcm_debug_value = segapcm_core_ch3_first_high;

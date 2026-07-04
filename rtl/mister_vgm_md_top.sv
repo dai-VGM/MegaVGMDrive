@@ -551,6 +551,35 @@ module mister_vgm_md_top #(
             abs16_top = value[15] ? (~value + 16'd1) : value;
         end
     endfunction
+
+    function automatic logic signed [15:0] sat_shift_left_16(
+        input logic signed [15:0] value,
+        input logic [1:0] shift
+    );
+        logic signed [19:0] scaled;
+        begin
+            scaled = $signed({{4{value[15]}}, value}) <<< shift;
+            if (scaled > 20'sd32767) begin
+                sat_shift_left_16 = 16'sh7fff;
+            end else if (scaled < -20'sd32768) begin
+                sat_shift_left_16 = 16'sh8000;
+            end else begin
+                sat_shift_left_16 = scaled[15:0];
+            end
+        end
+    endfunction
+
+    function automatic logic sat_shift_left_16_clips(
+        input logic signed [15:0] value,
+        input logic [1:0] shift
+    );
+        logic signed [19:0] scaled;
+        begin
+            scaled = $signed({{4{value[15]}}, value}) <<< shift;
+            sat_shift_left_16_clips =
+                (scaled > 20'sd32767) || (scaled < -20'sd32768);
+        end
+    endfunction
 `ifdef MEGAVGMDRIVE_START_HOLD_NO_BUSY_CLEAR
     localparam bit START_HOLD_NO_BUSY_CLEAR = 1'b1;
 `else
@@ -566,6 +595,14 @@ module mister_vgm_md_top #(
 `else
     localparam bit SEGAPCM_SMOKE_PARSER_RUN_TEST = 1'b0;
 `endif
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_JT51_LAB_PCM_GAIN_SHIFT
+    localparam int C0_JT51_LAB_PCM_GAIN_SHIFT =
+        `MEGAVGMDRIVE_SEGAPCM_C0_JT51_LAB_PCM_GAIN_SHIFT;
+`else
+    localparam int C0_JT51_LAB_PCM_GAIN_SHIFT = 1;
+`endif
+    localparam logic [1:0] C0_JT51_LAB_PCM_GAIN_SHIFT_SEL =
+        C0_JT51_LAB_PCM_GAIN_SHIFT[1:0];
 
     localparam int MODE5_BACKEND_BRAM  = 0;
     localparam int MODE5_BACKEND_DDRAM = 1;
@@ -981,8 +1018,10 @@ module mister_vgm_md_top #(
             logic signed [15:0] ym2151_segapcm_selected_l;
             logic signed [15:0] ym2151_segapcm_selected_r;
             logic [15:0] lab_mix_clip_count_i = 16'd0;
+            logic [15:0] lab_pcm_gain_clip_count_i = 16'd0;
             logic [15:0] lab_ym_abs_peak_i = 16'd0;
             logic [15:0] lab_pcm_abs_peak_i = 16'd0;
+            logic [15:0] lab_pcm_mix_abs_peak_i = 16'd0;
             logic [15:0] lab_mix_abs_peak_i = 16'd0;
             wire lab_mix_clip =
                 (ym2151_segapcm_l_sum[16] != ym2151_segapcm_l_sum[15]) ||
@@ -991,10 +1030,23 @@ module mister_vgm_md_top #(
             wire [15:0] lab_ym_abs_now_r = abs16_top(ym2151_audio_r);
             wire [15:0] lab_pcm_abs_now_l = abs16_top(segapcm_audio_l);
             wire [15:0] lab_pcm_abs_now_r = abs16_top(segapcm_audio_r);
+            wire [15:0] lab_pcm_mix_abs_now_l =
+                abs16_top(segapcm_audio_l_mix);
+            wire [15:0] lab_pcm_mix_abs_now_r =
+                abs16_top(segapcm_audio_r_mix);
             wire [15:0] lab_mix_abs_now_l =
                 abs16_top(ym2151_segapcm_selected_l);
             wire [15:0] lab_mix_abs_now_r =
                 abs16_top(ym2151_segapcm_selected_r);
+            wire lab_pcm_gain_clip =
+                sat_shift_left_16_clips(
+                    segapcm_audio_l,
+                    C0_JT51_LAB_PCM_GAIN_SHIFT_SEL
+                ) ||
+                sat_shift_left_16_clips(
+                    segapcm_audio_r,
+                    C0_JT51_LAB_PCM_GAIN_SHIFT_SEL
+                );
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
 `ifdef SEGA_PCM_STARTUP_SMOKE
             wire segapcm_smoke_output_enabled = 1'b1;
@@ -1552,8 +1604,16 @@ module mister_vgm_md_top #(
                 YM2151_EXPERIMENTAL_MODE ? ym2151_last_data : md_last_ym_data;
 `ifdef MEGAVGMDRIVE_SEGAPCM_AUDIO_STUB_BUILD
 `ifdef MEGAVGMDRIVE_SEGAPCM_C0_JT51_LAB_BUILD
-            assign segapcm_audio_l_mix = segapcm_audio_l >>> 1;
-            assign segapcm_audio_r_mix = segapcm_audio_r >>> 1;
+            assign segapcm_audio_l_mix =
+                sat_shift_left_16(
+                    segapcm_audio_l,
+                    C0_JT51_LAB_PCM_GAIN_SHIFT_SEL
+                );
+            assign segapcm_audio_r_mix =
+                sat_shift_left_16(
+                    segapcm_audio_r,
+                    C0_JT51_LAB_PCM_GAIN_SHIFT_SEL
+                );
             assign ym2151_segapcm_l_sum =
                 {ym2151_audio_l[15], ym2151_audio_l} +
                 {segapcm_audio_l_mix[15], segapcm_audio_l_mix};
@@ -1707,8 +1767,10 @@ module mister_vgm_md_top #(
                     mode5_zero_state_debug_i <= 16'd0;
                     mode5_zero_pc_debug_i <= 16'd0;
                     lab_mix_clip_count_i <= 16'd0;
+                    lab_pcm_gain_clip_count_i <= 16'd0;
                     lab_ym_abs_peak_i <= 16'd0;
                     lab_pcm_abs_peak_i <= 16'd0;
+                    lab_pcm_mix_abs_peak_i <= 16'd0;
                     lab_mix_abs_peak_i <= 16'd0;
                     mode5_zero_cmd_debug_i <= 16'd0;
                     mode5_raw_event_seen_i <= 16'd0;
@@ -1808,13 +1870,20 @@ module mister_vgm_md_top #(
 `ifdef MEGAVGMDRIVE_SEGAPCM_C0_JT51_LAB_BUILD
                     if (mode5_load_begin_pulse || mode5_sound_core_reset) begin
                         lab_mix_clip_count_i <= 16'd0;
+                        lab_pcm_gain_clip_count_i <= 16'd0;
                         lab_ym_abs_peak_i <= 16'd0;
                         lab_pcm_abs_peak_i <= 16'd0;
+                        lab_pcm_mix_abs_peak_i <= 16'd0;
                         lab_mix_abs_peak_i <= 16'd0;
                     end else begin
                         if (lab_mix_clip &&
                             (lab_mix_clip_count_i != 16'hffff)) begin
                             lab_mix_clip_count_i <= lab_mix_clip_count_i + 16'd1;
+                        end
+                        if (lab_pcm_gain_clip &&
+                            (lab_pcm_gain_clip_count_i != 16'hffff)) begin
+                            lab_pcm_gain_clip_count_i <=
+                                lab_pcm_gain_clip_count_i + 16'd1;
                         end
                         if (lab_ym_abs_now_l > lab_ym_abs_peak_i) begin
                             lab_ym_abs_peak_i <= lab_ym_abs_now_l;
@@ -1827,6 +1896,14 @@ module mister_vgm_md_top #(
                         end
                         if (lab_pcm_abs_now_r > lab_pcm_abs_peak_i) begin
                             lab_pcm_abs_peak_i <= lab_pcm_abs_now_r;
+                        end
+                        if (lab_pcm_mix_abs_now_l >
+                            lab_pcm_mix_abs_peak_i) begin
+                            lab_pcm_mix_abs_peak_i <= lab_pcm_mix_abs_now_l;
+                        end
+                        if (lab_pcm_mix_abs_now_r >
+                            lab_pcm_mix_abs_peak_i) begin
+                            lab_pcm_mix_abs_peak_i <= lab_pcm_mix_abs_now_r;
                         end
                         if (lab_mix_abs_now_l > lab_mix_abs_peak_i) begin
                             lab_mix_abs_peak_i <= lab_mix_abs_now_l;
@@ -4056,9 +4133,9 @@ module mister_vgm_md_top #(
             assign jt12_cen_interval_last = 8'd0;
 `ifdef MEGAVGMDRIVE_SEGAPCM_C0_JT51_LAB_BUILD
             assign fm_adjust_clip_count_l = lab_mix_clip_count_i;
-            assign fm_adjust_clip_count_r = 16'd0;
+            assign fm_adjust_clip_count_r = lab_pcm_gain_clip_count_i;
             assign fm_raw_abs_peak = lab_ym_abs_peak_i;
-            assign fm_adjust_abs_peak = lab_ym_abs_peak_i;
+            assign fm_adjust_abs_peak = lab_pcm_mix_abs_peak_i;
             assign fm_lpf_abs_peak = lab_pcm_abs_peak_i;
             assign genmix_abs_peak = lab_mix_abs_peak_i;
             assign md_final_audio_abs_peak = lab_mix_abs_peak_i;
