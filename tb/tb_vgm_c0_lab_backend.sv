@@ -15,6 +15,8 @@ module tb_vgm_c0_lab_backend;
     wire [15:0] smoke_last_read_word1_debug;
     wire [15:0] smoke_probe_write_word0_debug;
     wire [15:0] smoke_probe_write_word6_debug;
+    logic [31:0] type80_block_dest = 32'h0001_7100;
+    logic [31:0] type80_block_size = 32'h0000_1208;
 
     logic payload_tap_valid = 1'b0;
     logic [18:0] payload_tap_addr = 19'd0;
@@ -39,8 +41,8 @@ module tb_vgm_c0_lab_backend;
         .payload_tap_valid(payload_tap_valid),
         .payload_tap_addr(payload_tap_addr),
         .payload_tap_data(payload_tap_data),
-        .type80_block_dest(32'h0001_7100),
-        .type80_block_size(32'h0000_1208),
+        .type80_block_dest(type80_block_dest),
+        .type80_block_size(type80_block_size),
         .smoke_rd_req(smoke_rd_req),
         .smoke_rd_ready(smoke_rd_ready),
         .smoke_rd_addr(smoke_rd_addr),
@@ -118,19 +120,27 @@ module tb_vgm_c0_lab_backend;
     endtask
 
     initial begin
-        logic [7:0] d0;
-        logic [7:0] d2;
+        logic [7:0] b2_0;
+        logic [7:0] b2_2;
+        logic [7:0] b4_0;
 
         repeat (4) @(posedge clk);
         reset <= 1'b0;
 
-        write_payload(19'd0, 8'h80);
-        write_payload(19'd1, 8'h80);
-        write_payload(19'd2, 8'h81);
-        write_payload(19'd3, 8'h80);
+        type80_block_dest <= 32'h0001_7100;
+        type80_block_size <= 32'h0000_1208;
+        write_payload(19'h05c00, 8'h80);
+        write_payload(19'h05c01, 8'h80);
+        write_payload(19'h05c02, 8'h81);
+        write_payload(19'h05c03, 8'h80);
+        type80_block_dest <= 32'h0011_3a00;
+        type80_block_size <= 32'h0000_5408;
+        write_payload(19'h0cc00, 8'h75);
+        write_payload(19'h0cc01, 8'h6b);
         @(posedge clk);
 
-        if (!smoke_payload_present || smoke_payload_length != 19'h01200) begin
+        if (!smoke_payload_present ||
+            smoke_payload_length != (19'h0cc01 + 19'd1)) begin
             $display("FAIL payload present=%0d len=%05h",
                      smoke_payload_present, smoke_payload_length);
             $finish;
@@ -143,10 +153,12 @@ module tb_vgm_c0_lab_backend;
             $finish;
         end
 
-        read_payload(19'd0, d0);
-        read_payload(19'd2, d2);
-        if (d0 != 8'h80 || d2 != 8'h81) begin
-            $display("FAIL read d0=%02h d2=%02h", d0, d2);
+        read_payload(19'h05c00, b2_0);
+        read_payload(19'h05c02, b2_2);
+        read_payload(19'h0cc00, b4_0);
+        if (b2_0 != 8'h80 || b2_2 != 8'h81 || b4_0 != 8'h75) begin
+            $display("FAIL read b2_0=%02h b2_2=%02h b4_0=%02h",
+                     b2_0, b2_2, b4_0);
             $finish;
         end
         if (smoke_last_read_word0_debug != 16'h8080 ||

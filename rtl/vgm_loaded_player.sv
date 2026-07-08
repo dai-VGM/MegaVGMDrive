@@ -474,6 +474,9 @@ module vgm_loaded_player #(
     wire segapcm_tap_global_capture_last =
         segapcm_payload_tap_byte_count_debug ==
         (SEGAPCM_SMOKE_DDR_CAPTURE_BYTES - 32'd1);
+`elsif MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+    wire [18:0] segapcm_tap_payload_global_index =
+        segapcm_payload_tap_byte_count_debug[18:0];
 `endif
     wire [31:0] segapcm_rom_header_end_32 = block_data_start_32 + 32'd8;
     wire segapcm_rom_header_in_range =
@@ -3350,6 +3353,36 @@ module vgm_loaded_player #(
                                     segapcm_tap_payload_next_addr[ADDR_WIDTH-1:0],
                                     ST_SEGAPCM_TAP_PAYLOAD);
                             end
+                        end
+`elsif MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+                        segapcm_payload_tap_valid <= 1'b1;
+                        segapcm_payload_tap_addr <=
+                            segapcm_tap_payload_global_index;
+                        segapcm_payload_tap_data <= read_data;
+                        if (segapcm_payload_tap_byte_count_debug !=
+                            32'hffff_ffff) begin
+                            segapcm_payload_tap_byte_count_debug <=
+                                segapcm_payload_tap_byte_count_debug + 32'd1;
+                        end
+                        if (segapcm_tap_payload_remaining <= 32'd1) begin
+                            segapcm_tap_payload_remaining <= 32'd0;
+                            segapcm_tap_payload_addr <= 32'd0;
+                            segapcm_tap_payload_index <= 19'd0;
+                            pc <= block_skip_target;
+                            current_pc_debug <= block_skip_target;
+                            request_byte(block_skip_target, ST_FETCH_CMD);
+                        end else begin
+                            segapcm_tap_payload_remaining <=
+                                segapcm_tap_payload_remaining - 32'd1;
+                            segapcm_tap_payload_addr <=
+                                segapcm_tap_payload_next_addr;
+                            segapcm_tap_payload_index <=
+                                segapcm_tap_payload_next_index;
+                            current_pc_debug <=
+                                segapcm_tap_payload_next_addr[ADDR_WIDTH-1:0];
+                            request_byte(
+                                segapcm_tap_payload_next_addr[ADDR_WIDTH-1:0],
+                                ST_SEGAPCM_TAP_PAYLOAD);
                         end
 `else
                         segapcm_payload_tap_valid <= 1'b1;

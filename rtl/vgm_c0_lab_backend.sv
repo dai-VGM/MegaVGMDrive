@@ -1,8 +1,8 @@
 // Lightweight Mode5 backend for the SegaPCM C0-only lab build.
 //
 // This keeps DDRAM only as the OSD-loaded VGM byte store used by
-// vgm_loaded_player. SegaPCM type80 payload debug uses a tiny local RAM that
-// captures only the Stage Clear block2 payload at dest 0x17100.
+// vgm_loaded_player. SegaPCM type80 payload debug uses a local RAM matching
+// the loaded player's cumulative payload tap address space.
 
 module vgm_c0_lab_backend #(
     parameter int ADDR_WIDTH = 23,
@@ -12,7 +12,8 @@ module vgm_c0_lab_backend #(
     parameter logic [28:0] DDRAM_BASE_ADDR = 29'd0,
     parameter logic [20:0] TARGET_DEST = 21'h17100,
     parameter logic [18:0] TARGET_LEN = 19'h01200,
-    parameter int PAYLOAD_ADDR_WIDTH = 13
+    parameter logic [18:0] CAPTURE_LEN = 19'h20000,
+    parameter int PAYLOAD_ADDR_WIDTH = 17
 ) (
     input  logic                         clk,
     input  logic                         reset,
@@ -93,7 +94,7 @@ module vgm_c0_lab_backend #(
     localparam int BYTE_ADDR_WIDTH = DDRAM_ADDR_WIDTH + 3;
     localparam logic [18:0] TARGET_LAST = TARGET_LEN - 19'd1;
 
-    (* ramstyle = "M9K" *) logic [7:0] payload_ram [0:TARGET_LEN-1];
+    (* ramstyle = "M9K" *) logic [7:0] payload_ram [0:CAPTURE_LEN-1];
 
     logic ioctl_download_q;
     logic download_active;
@@ -110,6 +111,9 @@ module vgm_c0_lab_backend #(
     logic [7:0] first_byte1_next;
     logic [7:0] first_byte2_next;
     logic [7:0] first_byte3_next;
+    logic target_seen;
+    logic [18:0] target_base;
+    logic [18:0] target_offset;
 
     wire download_start = ioctl_download && !ioctl_download_q;
     wire download_end = !ioctl_download && ioctl_download_q;
@@ -126,10 +130,19 @@ module vgm_c0_lab_backend #(
     wire target_block_active =
         (type80_block_dest[20:0] == TARGET_DEST) &&
         (type80_block_size >= {13'd0, TARGET_LEN} + 32'd8);
+    wire payload_addr_in_range = payload_tap_addr < CAPTURE_LEN;
+    wire [18:0] payload_next_length = payload_tap_addr + 19'd1;
     wire payload_write_live =
         payload_tap_valid &&
-        target_block_active &&
-        (payload_tap_addr < TARGET_LEN);
+        payload_addr_in_range;
+    wire target_payload_start =
+        payload_write_live && target_block_active && !target_seen;
+    wire target_payload_live =
+        payload_write_live && target_block_active;
+    wire [18:0] target_offset_next =
+        target_payload_start ? 19'd0 : (payload_tap_addr - target_base);
+    wire target_probe_write_live =
+        target_payload_live && (target_offset_next < 19'd4);
     // WR/capture status bit layout:
     // [15:8]=A0 marker, [7]=payload present, [6]=target block active,
     // [5]=read request, [4]=read ready, [3]=read valid,
@@ -180,8 +193,8 @@ module vgm_c0_lab_backend #(
         first_byte1_next = first_byte1;
         first_byte2_next = first_byte2;
         first_byte3_next = first_byte3;
-        if (payload_write_live) begin
-            unique case (payload_tap_addr)
+        if (target_probe_write_live) begin
+            unique case (target_offset_next)
                 19'd0: first_byte0_next = payload_tap_data;
                 19'd1: first_byte1_next = payload_tap_data;
                 19'd2: first_byte2_next = payload_tap_data;
@@ -231,6 +244,9 @@ module vgm_c0_lab_backend #(
             smoke_probe_write_flags_debug <= 16'd0;
             smoke_probe_write_word0_debug <= 16'd0;
             smoke_probe_write_word6_debug <= 16'd0;
+            target_seen <= 1'b0;
+            target_base <= 19'd0;
+            target_offset <= 19'd0;
             first_byte0 <= 8'd0;
             first_byte1 <= 8'd0;
             first_byte2 <= 8'd0;
@@ -295,6 +311,9 @@ module vgm_c0_lab_backend #(
                 smoke_probe_write_addr_debug <= 16'd0;
                 smoke_probe_write_count_debug <= 16'd0;
                 smoke_probe_write_flags_debug <= 16'hC000;
+                target_seen <= 1'b0;
+                target_base <= 19'd0;
+                target_offset <= 19'd0;
                 first_byte0 <= 8'd0;
                 first_byte1 <= 8'd0;
                 first_byte2 <= 8'd0;
@@ -346,8 +365,7 @@ module vgm_c0_lab_backend #(
                 read_pending <= 1'b0;
             end
 
-            if (payload_tap_valid && target_block_active &&
-                (payload_tap_addr >= TARGET_LEN) &&
+            if (payload_tap_valid && !payload_addr_in_range &&
                 (smoke_write_blocked_count_debug != 16'hffff)) begin
                 smoke_write_blocked_count_debug <=
                     smoke_write_blocked_count_debug + 16'd1;
@@ -360,7 +378,9 @@ module vgm_c0_lab_backend #(
                 payload_ram[payload_tap_addr[PAYLOAD_ADDR_WIDTH-1:0]] <=
                     payload_tap_data;
                 smoke_payload_present <= 1'b1;
-                smoke_payload_length <= TARGET_LEN;
+                if (payload_next_length > smoke_payload_length) begin
+                    smoke_payload_length <= payload_next_length;
+                end
                 smoke_last_write_index_debug <= payload_tap_addr[15:0];
                 smoke_last_write_addr_debug <= payload_tap_addr[15:0];
                 smoke_last_write_lane_debug <= {13'd0, payload_tap_addr[2:0]};
@@ -370,6 +390,13 @@ module vgm_c0_lab_backend #(
                 smoke_probe_write_count_debug <= smoke_write_count_debug + 16'd1;
                 smoke_probe_write_word_debug <= {8'd0, payload_tap_data};
                 smoke_write_count_debug <= smoke_write_count_debug + 16'd1;
+                if (target_payload_start) begin
+                    target_seen <= 1'b1;
+                    target_base <= payload_tap_addr;
+                    target_offset <= 19'd0;
+                end else if (target_payload_live) begin
+                    target_offset <= target_offset_next;
+                end
                 first_byte0 <= first_byte0_next;
                 first_byte1 <= first_byte1_next;
                 first_byte2 <= first_byte2_next;
@@ -394,7 +421,8 @@ module vgm_c0_lab_backend #(
             if (smoke_read_pending) begin
                 smoke_read_pending <= 1'b0;
                 smoke_rd_valid <= 1'b1;
-                if (smoke_read_addr_q < TARGET_LEN) begin
+                if ((smoke_read_addr_q < CAPTURE_LEN) &&
+                    (smoke_read_addr_q < smoke_payload_length)) begin
                     smoke_rd_data <=
                         payload_ram[smoke_read_addr_q[PAYLOAD_ADDR_WIDTH-1:0]];
                     smoke_last_read_data_debug <=

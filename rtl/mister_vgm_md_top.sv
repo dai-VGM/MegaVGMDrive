@@ -105,6 +105,11 @@ module mister_vgm_md_top #(
     input  logic        [2:0] segapcm_smoke_c0_mame_tick_div,
     input  logic        [2:0] segapcm_smoke_c0_vol_map,
     input  logic        [1:0] segapcm_smoke_c0_drive,
+    input  logic       [15:0] segapcm_c0_pm3_audio_mask,
+    input  logic        [1:0] segapcm_c0_top_audio_test,
+    input  logic        [1:0] segapcm_c0_pm3_mix_mode,
+    input  logic        [2:0] segapcm_c0_pm3_start_policy,
+    input  logic              segapcm_c0_jt_backend,
     input  logic              segapcm_smoke_ddr_dest_map,
     input  logic        [1:0] segapcm_smoke_ddr_dest_basis,
     input  logic              segapcm_smoke_ddr_full_capture,
@@ -406,6 +411,9 @@ module mister_vgm_md_top #(
     output logic [15:0]       segapcm_core_ch3_r1_low,
     output logic [15:0]       segapcm_core_ch3_r2_high,
     output logic [15:0]       segapcm_core_ch3_r2_low,
+    output logic [15:0]       segapcm_core_ch3_load_after_23,
+    output logic [15:0]       segapcm_core_ch3_load_after_15,
+    output logic [15:0]       segapcm_core_ch3_load_after_07,
     output logic [15:0]       segapcm_core_update_state_channel,
     output logic [15:0]       segapcm_core_update_before_23,
     output logic [15:0]       segapcm_core_update_before_15,
@@ -512,6 +520,16 @@ module mister_vgm_md_top #(
     output logic [15:0]       fm_lpf_abs_peak,
     output logic [15:0]       genmix_abs_peak,
     output logic [15:0]       md_final_audio_abs_peak,
+    output logic [15:0]       c0_top_dbg_tp,
+    output logic [15:0]       c0_top_dbg_sl,
+    output logic [15:0]       c0_top_dbg_sr,
+    output logic [15:0]       c0_top_dbg_ml,
+    output logic [15:0]       c0_top_dbg_mr,
+    output logic [15:0]       c0_top_dbg_fl,
+    output logic [15:0]       c0_top_dbg_fr,
+    output logic [15:0]       c0_top_dbg_ol,
+    output logic [15:0]       c0_top_dbg_or,
+    output logic [15:0]       c0_top_dbg_tm,
 
     // DDRAM interface for future mode5 backend.
     // Backend 0 (BRAM) keeps these inactive.
@@ -1011,6 +1029,12 @@ module mister_vgm_md_top #(
             logic segapcm_audio_sample_valid;
             logic signed [15:0] segapcm_audio_l_mix;
             logic signed [15:0] segapcm_audio_r_mix;
+            logic signed [15:0] segapcm_audio_l_gain;
+            logic signed [15:0] segapcm_audio_r_gain;
+            logic signed [15:0] lab_pcm_mix_l_selected;
+            logic signed [15:0] lab_pcm_mix_r_selected;
+            logic signed [15:0] lab_fm_l_selected;
+            logic signed [15:0] lab_fm_r_selected;
             logic signed [16:0] ym2151_segapcm_l_sum;
             logic signed [16:0] ym2151_segapcm_r_sum;
             logic signed [15:0] ym2151_segapcm_audio_l;
@@ -1604,22 +1628,38 @@ module mister_vgm_md_top #(
                 YM2151_EXPERIMENTAL_MODE ? ym2151_last_data : md_last_ym_data;
 `ifdef MEGAVGMDRIVE_SEGAPCM_AUDIO_STUB_BUILD
 `ifdef MEGAVGMDRIVE_SEGAPCM_C0_JT51_LAB_BUILD
-            assign segapcm_audio_l_mix =
+            assign segapcm_audio_l_gain =
                 sat_shift_left_16(
                     segapcm_audio_l,
                     C0_JT51_LAB_PCM_GAIN_SHIFT_SEL
                 );
-            assign segapcm_audio_r_mix =
+            assign segapcm_audio_r_gain =
                 sat_shift_left_16(
                     segapcm_audio_r,
                     C0_JT51_LAB_PCM_GAIN_SHIFT_SEL
                 );
+            assign lab_pcm_mix_l_selected =
+                (segapcm_c0_top_audio_test == 2'd1) ? 16'sd0 :
+                (segapcm_c0_top_audio_test == 2'd2) ? 16'sh0400 :
+                segapcm_audio_l_gain;
+            assign lab_pcm_mix_r_selected =
+                (segapcm_c0_top_audio_test == 2'd1) ? 16'sd0 :
+                (segapcm_c0_top_audio_test == 2'd2) ? 16'sh0400 :
+                segapcm_audio_r_gain;
+            assign lab_fm_l_selected =
+                (segapcm_c0_top_audio_test == 2'd3) ? 16'sd0 :
+                ym2151_audio_l;
+            assign lab_fm_r_selected =
+                (segapcm_c0_top_audio_test == 2'd3) ? 16'sd0 :
+                ym2151_audio_r;
+            assign segapcm_audio_l_mix = lab_pcm_mix_l_selected;
+            assign segapcm_audio_r_mix = lab_pcm_mix_r_selected;
             assign ym2151_segapcm_l_sum =
-                {ym2151_audio_l[15], ym2151_audio_l} +
-                {segapcm_audio_l_mix[15], segapcm_audio_l_mix};
+                {lab_fm_l_selected[15], lab_fm_l_selected} +
+                {lab_pcm_mix_l_selected[15], lab_pcm_mix_l_selected};
             assign ym2151_segapcm_r_sum =
-                {ym2151_audio_r[15], ym2151_audio_r} +
-                {segapcm_audio_r_mix[15], segapcm_audio_r_mix};
+                {lab_fm_r_selected[15], lab_fm_r_selected} +
+                {lab_pcm_mix_r_selected[15], lab_pcm_mix_r_selected};
             assign ym2151_segapcm_audio_l =
                 (ym2151_segapcm_l_sum[16] != ym2151_segapcm_l_sum[15]) ?
                 (ym2151_segapcm_l_sum[16] ? 16'sh8000 : 16'sh7fff) :
@@ -1635,6 +1675,12 @@ module mister_vgm_md_top #(
             assign raw_audio_sample_valid =
                 ym2151_audio_sample_valid || segapcm_audio_sample_valid;
 `else
+            assign segapcm_audio_l_gain = 16'sd0;
+            assign segapcm_audio_r_gain = 16'sd0;
+            assign lab_pcm_mix_l_selected = 16'sd0;
+            assign lab_pcm_mix_r_selected = 16'sd0;
+            assign lab_fm_l_selected = 16'sd0;
+            assign lab_fm_r_selected = 16'sd0;
             assign segapcm_audio_l_mix = 16'sd0;
             assign segapcm_audio_r_mix = 16'sd0;
             assign ym2151_segapcm_l_sum = 17'sd0;
@@ -1655,6 +1701,12 @@ module mister_vgm_md_top #(
             assign raw_audio_sample_valid = segapcm_audio_sample_valid;
 `endif
 `else
+            assign segapcm_audio_l_gain = segapcm_audio_l_mix;
+            assign segapcm_audio_r_gain = segapcm_audio_r_mix;
+            assign lab_pcm_mix_l_selected = segapcm_audio_l_mix;
+            assign lab_pcm_mix_r_selected = segapcm_audio_r_mix;
+            assign lab_fm_l_selected = ym2151_audio_l;
+            assign lab_fm_r_selected = ym2151_audio_r;
             assign segapcm_audio_l_mix =
                 (SEGAPCM_EXPERIMENTAL_MIX_MODE == 2) ?
                 (segapcm_audio_l >>> 2) :
@@ -3758,6 +3810,10 @@ module mister_vgm_md_top #(
                     .smoke_c0_mame_tick_div_sel    (segapcm_smoke_c0_mame_tick_div),
                     .smoke_c0_vol_map_sel          (segapcm_smoke_c0_vol_map),
                     .smoke_c0_drive_sel            (segapcm_smoke_c0_drive),
+                    .smoke_c0_pm3_audio_mask       (segapcm_c0_pm3_audio_mask),
+                    .smoke_c0_pm3_mix_mode         (segapcm_c0_pm3_mix_mode),
+                    .smoke_c0_pm3_start_policy     (segapcm_c0_pm3_start_policy),
+                    .smoke_c0_jt_backend           (segapcm_c0_jt_backend),
                     .smoke_playback_running        (player_busy),
                     .smoke_playback_done           (player_done),
                     .smoke_vgm_end_seen            (vgm_end_command_seen),
@@ -3924,6 +3980,9 @@ module mister_vgm_md_top #(
                     .ch3_r1_low_debug               (segapcm_core_ch3_r1_low),
                     .ch3_r2_high_debug              (segapcm_core_ch3_r2_high),
                     .ch3_r2_low_debug               (segapcm_core_ch3_r2_low),
+                    .dbg_ch3_load_after_23          (segapcm_core_ch3_load_after_23),
+                    .dbg_ch3_load_after_15          (segapcm_core_ch3_load_after_15),
+                    .dbg_ch3_load_after_07          (segapcm_core_ch3_load_after_07),
                     .update_state_channel_debug     (segapcm_core_update_state_channel),
                     .update_before_23_debug         (segapcm_core_update_before_23),
                     .update_before_15_debug         (segapcm_core_update_before_15),
@@ -4066,6 +4125,9 @@ module mister_vgm_md_top #(
                 assign segapcm_core_ch3_r1_low = 16'd0;
                 assign segapcm_core_ch3_r2_high = 16'd0;
                 assign segapcm_core_ch3_r2_low = 16'd0;
+                assign segapcm_core_ch3_load_after_23 = 16'd0;
+                assign segapcm_core_ch3_load_after_15 = 16'd0;
+                assign segapcm_core_ch3_load_after_07 = 16'd0;
                 assign segapcm_core_update_state_channel = 16'd0;
                 assign segapcm_core_update_before_23 = 16'd0;
                 assign segapcm_core_update_before_15 = 16'd0;
@@ -4139,6 +4201,33 @@ module mister_vgm_md_top #(
             assign fm_lpf_abs_peak = lab_pcm_abs_peak_i;
             assign genmix_abs_peak = lab_mix_abs_peak_i;
             assign md_final_audio_abs_peak = lab_mix_abs_peak_i;
+            assign c0_top_dbg_tp = {
+                8'hC0,
+                2'd0,
+                segapcm_c0_top_audio_test,
+                YM2151_EXPERIMENTAL_MODE,
+                audio_runtime_open,
+                segapcm_audio_sample_valid,
+                ym2151_audio_sample_valid
+            };
+            assign c0_top_dbg_sl = segapcm_audio_l;
+            assign c0_top_dbg_sr = segapcm_audio_r;
+            assign c0_top_dbg_ml = lab_pcm_mix_l_selected;
+            assign c0_top_dbg_mr = lab_pcm_mix_r_selected;
+            assign c0_top_dbg_fl = lab_fm_l_selected;
+            assign c0_top_dbg_fr = lab_fm_r_selected;
+            assign c0_top_dbg_ol = audio_l;
+            assign c0_top_dbg_or = audio_r;
+            assign c0_top_dbg_tm = {
+                8'h54,
+                audio_runtime_open,
+                raw_audio_sample_valid,
+                ym2151_audio_sample_valid,
+                segapcm_audio_sample_valid,
+                segapcm_c0_top_audio_test,
+                lab_mix_clip,
+                lab_pcm_gain_clip
+            };
 `else
             assign fm_adjust_clip_count_l = 16'd0;
             assign fm_adjust_clip_count_r = 16'd0;
@@ -4147,6 +4236,16 @@ module mister_vgm_md_top #(
             assign fm_lpf_abs_peak = 16'd0;
             assign genmix_abs_peak = 16'd0;
             assign md_final_audio_abs_peak = 16'd0;
+            assign c0_top_dbg_tp = 16'd0;
+            assign c0_top_dbg_sl = 16'd0;
+            assign c0_top_dbg_sr = 16'd0;
+            assign c0_top_dbg_ml = 16'd0;
+            assign c0_top_dbg_mr = 16'd0;
+            assign c0_top_dbg_fl = 16'd0;
+            assign c0_top_dbg_fr = 16'd0;
+            assign c0_top_dbg_ol = 16'd0;
+            assign c0_top_dbg_or = 16'd0;
+            assign c0_top_dbg_tm = 16'd0;
 `endif
 `else
             md_sound_module sound (
@@ -4189,9 +4288,19 @@ module mister_vgm_md_top #(
                 .fm_raw_abs_peak      (fm_raw_abs_peak),
                 .fm_adjust_abs_peak   (fm_adjust_abs_peak),
                 .fm_lpf_abs_peak      (fm_lpf_abs_peak),
-                .genmix_abs_peak      (genmix_abs_peak),
-                .final_audio_abs_peak (md_final_audio_abs_peak)
-            );
+	                .genmix_abs_peak      (genmix_abs_peak),
+	                .final_audio_abs_peak (md_final_audio_abs_peak)
+	            );
+	            assign c0_top_dbg_tp = 16'd0;
+	            assign c0_top_dbg_sl = 16'd0;
+	            assign c0_top_dbg_sr = 16'd0;
+	            assign c0_top_dbg_ml = 16'd0;
+	            assign c0_top_dbg_mr = 16'd0;
+	            assign c0_top_dbg_fl = 16'd0;
+	            assign c0_top_dbg_fr = 16'd0;
+	            assign c0_top_dbg_ol = 16'd0;
+	            assign c0_top_dbg_or = 16'd0;
+	            assign c0_top_dbg_tm = 16'd0;
 `endif
         end else begin : fixed_region_mode
             assign vgm_load_busy = 1'b0;
@@ -4465,6 +4574,9 @@ module mister_vgm_md_top #(
             assign segapcm_core_ch3_r1_low = 16'd0;
             assign segapcm_core_ch3_r2_high = 16'd0;
             assign segapcm_core_ch3_r2_low = 16'd0;
+            assign segapcm_core_ch3_load_after_23 = 16'd0;
+            assign segapcm_core_ch3_load_after_15 = 16'd0;
+            assign segapcm_core_ch3_load_after_07 = 16'd0;
             assign segapcm_core_update_state_channel = 16'd0;
             assign segapcm_core_update_before_23 = 16'd0;
             assign segapcm_core_update_before_15 = 16'd0;
@@ -4593,6 +4705,16 @@ module mister_vgm_md_top #(
                 .genmix_abs_peak      (genmix_abs_peak),
                 .final_audio_abs_peak (md_final_audio_abs_peak)
             );
+            assign c0_top_dbg_tp = 16'd0;
+            assign c0_top_dbg_sl = 16'd0;
+            assign c0_top_dbg_sr = 16'd0;
+            assign c0_top_dbg_ml = 16'd0;
+            assign c0_top_dbg_mr = 16'd0;
+            assign c0_top_dbg_fl = 16'd0;
+            assign c0_top_dbg_fr = 16'd0;
+            assign c0_top_dbg_ol = 16'd0;
+            assign c0_top_dbg_or = 16'd0;
+            assign c0_top_dbg_tm = 16'd0;
         end
     endgenerate
 

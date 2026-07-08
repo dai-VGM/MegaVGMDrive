@@ -45,6 +45,10 @@ module segapcm_sound_module #(
     input  logic         [2:0] smoke_c0_mame_tick_div_sel,
     input  logic         [2:0] smoke_c0_vol_map_sel,
     input  logic         [1:0] smoke_c0_drive_sel,
+    input  logic        [15:0] smoke_c0_pm3_audio_mask,
+    input  logic         [1:0] smoke_c0_pm3_mix_mode,
+    input  logic         [2:0] smoke_c0_pm3_start_policy,
+    input  logic               smoke_c0_jt_backend,
     input  logic               smoke_playback_running,
     input  logic               smoke_playback_done,
     input  logic               smoke_vgm_end_seen,
@@ -183,6 +187,9 @@ module segapcm_sound_module #(
     output logic        [15:0] ch3_r1_low_debug,
     output logic        [15:0] ch3_r2_high_debug,
     output logic        [15:0] ch3_r2_low_debug,
+    output logic        [15:0] dbg_ch3_load_after_23,
+    output logic        [15:0] dbg_ch3_load_after_15,
+    output logic        [15:0] dbg_ch3_load_after_07,
     output logic        [15:0] update_state_channel_debug,
     output logic        [15:0] update_before_23_debug,
     output logic        [15:0] update_before_15_debug,
@@ -224,6 +231,16 @@ module segapcm_sound_module #(
     output logic        [15:0] core_status_debug
 );
 
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_PM3_OUTPUT_SHIFT
+    localparam int unsigned LAB16_PM3_OUTPUT_SHIFT =
+        `MEGAVGMDRIVE_SEGAPCM_C0_PM3_OUTPUT_SHIFT;
+`else
+    localparam int unsigned LAB16_PM3_OUTPUT_SHIFT = 1;
+`endif
+    localparam logic [1:0] LAB16_PM3_OUTPUT_SHIFT_SEL =
+        (LAB16_PM3_OUTPUT_SHIFT > 3) ? 2'd3 :
+        LAB16_PM3_OUTPUT_SHIFT[1:0];
+
     logic [31:0] cen_accum;
     logic segapcm_cen;
 
@@ -238,6 +255,108 @@ module segapcm_sound_module #(
     wire signed [15:0] core_snd_right;
     wire core_sample;
     wire [7:0] core_status_dout;
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+    wire [7:0] lab_jt_cpu_din;
+    wire [7:0] lab_jt_status_dout;
+    wire [18:0] lab_jt_rom_addr;
+    wire lab_jt_rom_cs;
+    wire signed [15:0] lab_jt_snd_left;
+    wire signed [15:0] lab_jt_snd_right;
+    wire lab_jt_sample;
+    wire lab_jt_ctrl_write;
+    wire [7:0] lab_jt_cpu_data;
+    logic [15:0] lab_jt_cpu_write_count_i;
+    logic [15:0] lab_jt_rom_request_count_i;
+    logic [15:0] lab_jt_rom_addr_change_count_i;
+    logic [15:0] lab_jt_payload_match_count_i;
+    logic [15:0] lab_jt_payload_miss_count_i;
+    logic [15:0] lab_jt_rom_ok_count_i;
+    logic [15:0] lab_jt_rom_nonzero_count_i;
+    logic [15:0] lab_jt_rom_non80_count_i;
+    logic [15:0] lab_jt_rom_changed_count_i;
+    logic [15:0] lab_jt_rom_ok_while_cs_count_i;
+    logic [15:0] lab_jt_sample_strobe_count_i;
+    logic [15:0] lab_jt_raw_output_nonzero_count_i;
+    logic [15:0] lab_jt_output_nonzero_count_i;
+    logic [15:0] lab_jt_last_cpu_write_i;
+    logic [18:0] lab_jt_last_rom_addr_i;
+    logic [18:0] lab_jt_last_payload_index_i;
+	    logic [18:0] lab_jt_first_rom_addr_i;
+	    logic [18:0] lab_jt_first_ch3_rom_addr_i;
+	    logic [18:0] lab_jt_max_rom_addr_i;
+	    logic [7:0] lab_jt_last_rom_data_i;
+	    logic [18:0] lab_jt_last_non80_rom_addr_i;
+	    logic [18:0] lab_jt_last_non80_payload_index_i;
+	    logic [7:0] lab_jt_first_non80_rom_data_i;
+	    logic [7:0] lab_jt_last_non80_rom_data_i;
+	    logic [15:0] lab_jt_block2_hit_count_i;
+	    logic [18:0] lab_jt_first_block2_rom_addr_i;
+	    logic [18:0] lab_jt_first_block2_payload_index_i;
+	    logic [7:0] lab_jt_first_block2_rom_data_i;
+	    logic [2:0] lab_jt_last_payload_block_i;
+	    logic lab_jt_last_payload_match_i;
+	    logic [2:0] lab_jt_last_non80_payload_block_i;
+	    logic lab_jt_last_non80_payload_match_i;
+	    logic signed [15:0] lab_jt_first_output_l_i;
+	    logic signed [15:0] lab_jt_first_output_r_i;
+		    logic signed [15:0] lab_jt_last_output_l_i;
+		    logic signed [15:0] lab_jt_last_output_r_i;
+	    wire [15:0] lab_jt_dbg_bank_channel_state;
+	    wire [15:0] lab_jt_dbg_cur_addr_high;
+	    wire [15:0] lab_jt_dbg_cur_addr_low_state;
+	    wire [15:0] lab_jt_dbg_cfg_en;
+	    wire [15:0] lab_jt_dbg_update_reason;
+	    wire [15:0] lab_jt_dbg_pcm_raw_cv;
+	    wire [15:0] lab_jt_dbg_mul_data;
+	    wire [15:0] lab_jt_dbg_active_cfg;
+	    wire [15:0] lab_jt_dbg_vol_lr;
+	    wire [15:0] lab_jt_dbg_mul_abs =
+	        lab_jt_dbg_mul_data[15] ?
+	        (~lab_jt_dbg_mul_data + 16'd1) : lab_jt_dbg_mul_data;
+	    logic [7:0] lab_jt_rom_data_hold_i;
+	    logic [7:0] lab_jt_rom_data_hold_d_i;
+	    logic lab_jt_rom_data_hold_valid_i;
+	    logic lab_jt_rom_data_hold_valid_d_i;
+	    logic [15:0] lab_jt_rom_data_latch_count_i;
+	    logic [15:0] lab_jt_rom_neutral_while_cs_count_i;
+	    logic [15:0] lab_jt_rom_repeat_count_i;
+	    logic [15:0] lab_jt_rom_hold_cycle_count_i;
+	    logic [15:0] lab_jt_sample_nonneutral_count_i;
+	    logic [15:0] lab_jt_first_non80_pr_i;
+	    logic [15:0] lab_jt_last_non80_pr_i;
+	    logic [15:0] lab_jt_first_nonzero_mv_i;
+	    logic [15:0] lab_jt_last_nonzero_mv_i;
+	    logic [15:0] lab_jt_max_abs_mv_i;
+	    logic [15:0] lab_jt_cur_write_count_i;
+	    logic [15:0] lab_jt_end_write_count_i;
+	    logic [15:0] lab_jt_delta_write_count_i;
+	    logic [15:0] lab_jt_vol_write_count_i;
+	    logic [15:0] lab_jt_ctrl_write_count_i;
+	    logic [15:0] lab_jt_other_write_count_i;
+	    logic [15:0] lab_jt_cen_write_count_i;
+	    logic [7:0] lab_jt_ch3_cur_mid_i;
+	    logic [7:0] lab_jt_ch3_cur_high_i;
+	    logic [7:0] lab_jt_ch3_end_i;
+	    logic [7:0] lab_jt_ch3_delta_i;
+	    logic [7:0] lab_jt_ch3_vol_l_i;
+	    logic [7:0] lab_jt_ch3_vol_r_i;
+	    logic [7:0] lab_jt_ch3_ctrl_raw_i;
+	    logic [7:0] lab_jt_ch3_ctrl_jt_i;
+	    logic lab_jt_seen_cpu_write_i;
+	    logic lab_jt_seen_rom_cs_i;
+	    logic lab_jt_seen_first_rom_i;
+	    logic lab_jt_seen_first_ch3_rom_i;
+	    logic lab_jt_seen_first_block2_i;
+	    logic lab_jt_seen_first_block2_data_i;
+	    logic lab_jt_seen_payload_match_i;
+	    logic lab_jt_seen_rom_ok_i;
+	    logic lab_jt_seen_rom_nonzero_i;
+	    logic lab_jt_seen_rom_non80_i;
+	    logic lab_jt_seen_first_output_i;
+	    logic lab_jt_seen_output_nonzero_i;
+	    logic lab_jt_seen_first_non80_pr_i;
+	    logic lab_jt_seen_first_nonzero_mv_i;
+`endif
     wire [15:0] core_dbg_bank_channel_state;
     wire [15:0] core_dbg_cur_addr_high;
     wire [15:0] core_dbg_cur_addr_low_state;
@@ -497,10 +616,9 @@ module segapcm_sound_module #(
         loaded_type80_rom_dest[18:0];
 
 `ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
-    // C0-only lab build only needs block2 for the current Stage Clear/foobar
-    // probe, so keep entries 0..2 and drop the wider historical table match.
-    localparam int unsigned SMOKE_TYPE80_TABLE_ENTRIES = 3;
-    localparam logic [3:0] SMOKE_TYPE80_TABLE_LIMIT = 4'd3;
+    // C0-only lab keeps a compact ROM map for captured SegaPCM type80 blocks.
+    localparam int unsigned SMOKE_TYPE80_TABLE_ENTRIES = 8;
+    localparam logic [3:0] SMOKE_TYPE80_TABLE_LIMIT = 4'd8;
 `else
     localparam int unsigned SMOKE_TYPE80_TABLE_ENTRIES = 8;
     localparam logic [3:0] SMOKE_TYPE80_TABLE_LIMIT = 4'd8;
@@ -540,6 +658,81 @@ module segapcm_sound_module #(
     logic [18:0] smoke_c0_mame_read_index_next;
     logic [2:0] smoke_c0_mame_match_index_next;
     logic smoke_c0_mame_match_valid_next;
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+    logic [18:0] lab_jt_payload_read_index_next;
+    logic [18:0] lab_jt_payload_offset_next;
+    logic [18:0] lab_jt_payload_dest_low_next;
+    logic [2:0] lab_jt_payload_block_next;
+    logic lab_jt_payload_match_valid_next;
+    logic [18:0] lab_jt_map_dest_low_tmp;
+    logic [19:0] lab_jt_map_limit_tmp;
+    integer lab_jt_map_loop_i;
+
+    always_comb begin
+        lab_jt_payload_read_index_next = 19'd0;
+        lab_jt_payload_offset_next = 19'd0;
+        lab_jt_payload_dest_low_next = 19'd0;
+        lab_jt_payload_block_next = 3'd0;
+        lab_jt_payload_match_valid_next = 1'b0;
+        lab_jt_map_dest_low_tmp = 19'd0;
+        lab_jt_map_limit_tmp = 20'd0;
+
+        for (lab_jt_map_loop_i = 0;
+             lab_jt_map_loop_i < SMOKE_TYPE80_TABLE_ENTRIES;
+             lab_jt_map_loop_i = lab_jt_map_loop_i + 1) begin
+            lab_jt_map_dest_low_tmp =
+                smoke_type80_table_dest_i[lab_jt_map_loop_i][18:0];
+            lab_jt_map_limit_tmp =
+                {1'b0, lab_jt_map_dest_low_tmp} +
+                {1'b0, smoke_type80_table_len_i[lab_jt_map_loop_i]};
+            if (!lab_jt_payload_match_valid_next &&
+                smoke_type80_table_valid_i[lab_jt_map_loop_i] &&
+                (smoke_type80_table_len_i[lab_jt_map_loop_i] != 19'd0) &&
+                (lab_jt_rom_addr >= lab_jt_map_dest_low_tmp) &&
+                ({1'b0, lab_jt_rom_addr} < lab_jt_map_limit_tmp)) begin
+                lab_jt_payload_match_valid_next = 1'b1;
+                lab_jt_payload_block_next = lab_jt_map_loop_i[2:0];
+                lab_jt_payload_dest_low_next = lab_jt_map_dest_low_tmp;
+                lab_jt_payload_offset_next =
+                    lab_jt_rom_addr - lab_jt_map_dest_low_tmp;
+                lab_jt_payload_read_index_next =
+                    smoke_type80_table_base_i[lab_jt_map_loop_i] +
+                    (lab_jt_rom_addr - lab_jt_map_dest_low_tmp);
+            end
+        end
+
+        if (lab_jt_payload_read_index_next >= smoke_loaded_ddr_usable_bytes) begin
+            lab_jt_payload_match_valid_next = 1'b0;
+        end
+    end
+    wire [15:0] lab_jt_bringup_status = {
+        8'hA5,
+        smoke_c0_jt_backend,
+        lab_jt_seen_cpu_write_i,
+        lab_jt_seen_rom_cs_i,
+        lab_jt_seen_payload_match_i,
+        lab_jt_seen_rom_ok_i,
+        lab_jt_seen_rom_non80_i,
+        lab_jt_seen_output_nonzero_i,
+        smoke_ddr_audio_data_ok_i
+    };
+    wire [15:0] lab_jt_error_status = {
+        8'hE0,
+        smoke_c0_jt_backend && !lab_jt_seen_cpu_write_i,
+        smoke_c0_jt_backend && lab_jt_seen_cpu_write_i &&
+            !lab_jt_seen_rom_cs_i,
+        smoke_c0_jt_backend && lab_jt_seen_rom_cs_i &&
+            !lab_jt_seen_payload_match_i,
+        smoke_c0_jt_backend && lab_jt_seen_payload_match_i &&
+            !lab_jt_seen_rom_ok_i,
+        smoke_c0_jt_backend && lab_jt_seen_rom_ok_i &&
+            !lab_jt_seen_rom_non80_i,
+        smoke_c0_jt_backend && lab_jt_seen_rom_non80_i &&
+            !lab_jt_seen_output_nonzero_i,
+        lab_jt_payload_miss_count_i != 16'd0,
+        lab_jt_payload_read_index_next >= smoke_loaded_ddr_usable_bytes
+    };
+`endif
 `ifndef MEGAVGMDRIVE_SEGAPCM_MIN_DEBUG_PROBE
     logic smoke_c0_first_hit_seen_i;
     logic smoke_c0_first_hit_active_i;
@@ -920,6 +1113,13 @@ module segapcm_sound_module #(
             smoke_ddr_follow_read_in_range_next =
                 smoke_ddr_follow_dest_read_in_range_next;
         end
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+        if (smoke_c0_jt_backend) begin
+            smoke_ddr_follow_read_index = lab_jt_payload_read_index_next;
+            smoke_ddr_follow_read_in_range_next =
+                lab_jt_payload_match_valid_next;
+        end else
+`endif
         if (smoke_ddr_c0drive_active) begin
             smoke_ddr_follow_read_index = smoke_c0_mame_read_index_next;
             smoke_ddr_follow_read_in_range_next =
@@ -1121,6 +1321,82 @@ module segapcm_sound_module #(
     logic [15:0] core_write_count_i;
     logic [15:0] core_cen_write_count_i;
     logic core_cpu_cs_d;
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+    assign lab_jt_ctrl_write =
+        latched_cpu_addr[7] && (latched_cpu_addr[2:0] == 3'd6);
+	    assign lab_jt_cpu_data =
+	        lab_jt_ctrl_write ?
+	        {1'b0, latched_cpu_data[5:3], 1'b0, latched_cpu_data[2:0]} :
+	        latched_cpu_data;
+	    wire [3:0] lab_jt_write_ch = latched_cpu_addr[6:3];
+	    wire [2:0] lab_jt_write_off = latched_cpu_addr[2:0];
+	    wire lab_jt_write_high = latched_cpu_addr[7];
+	    wire lab_jt_write_low = !latched_cpu_addr[7];
+	    wire lab_jt_write_cur =
+	        lab_jt_write_high &&
+	        ((lab_jt_write_off == 3'd4) || (lab_jt_write_off == 3'd5));
+	    wire lab_jt_write_end =
+	        lab_jt_write_low && (lab_jt_write_off == 3'd6);
+	    wire lab_jt_write_delta =
+	        lab_jt_write_low && (lab_jt_write_off == 3'd7);
+	    wire lab_jt_write_vol =
+	        lab_jt_write_low &&
+	        ((lab_jt_write_off == 3'd2) || (lab_jt_write_off == 3'd3));
+	    wire lab_jt_write_ctrl =
+	        lab_jt_write_high && (lab_jt_write_off == 3'd6);
+	    wire lab_jt_write_known =
+	        lab_jt_write_cur || lab_jt_write_end || lab_jt_write_delta ||
+	        lab_jt_write_vol || lab_jt_write_ctrl;
+	    wire [15:0] lab_jt_ch3_current_debug = {
+	        lab_jt_ch3_cur_high_i,
+	        lab_jt_ch3_cur_mid_i
+	    };
+	    wire [15:0] lab_jt_ch3_ctrl_debug = {
+	        lab_jt_ch3_ctrl_jt_i,
+	        lab_jt_ch3_ctrl_raw_i
+	    };
+	    wire [15:0] lab_jt_ch3_end_delta_debug = {
+	        lab_jt_ch3_end_i,
+	        lab_jt_ch3_delta_i
+	    };
+	    wire [15:0] lab_jt_ch3_volume_debug = {
+	        lab_jt_ch3_vol_l_i,
+	        lab_jt_ch3_vol_r_i
+	    };
+	    wire [18:0] lab_jt_first_debug_rom_addr =
+	        lab_jt_seen_first_ch3_rom_i ?
+	        lab_jt_first_ch3_rom_addr_i : lab_jt_first_rom_addr_i;
+	    wire [15:0] lab_jt_last_non80_block_status = {
+	        8'hA5,
+	        4'd0,
+	        lab_jt_last_non80_payload_block_i,
+	        lab_jt_last_non80_payload_match_i
+	    };
+	    wire [15:0] lab_jt_write_category_status = {
+	        8'hC0,
+	        lab_jt_write_cur,
+	        lab_jt_write_end,
+	        lab_jt_write_delta,
+	        lab_jt_write_vol,
+	        lab_jt_write_ctrl,
+	        !lab_jt_write_known,
+	        core_cpu_cs && segapcm_cen,
+	        lab_jt_dbg_bank_channel_state[0]
+		    };
+		    wire [1:0] lab_jt_rom_timing_mode =
+		        smoke_c0_jt_backend ? smoke_c0_pm3_mix_mode : 2'd0;
+	    wire [7:0] lab_jt_rom_data_to_core =
+	        (lab_jt_rom_timing_mode == 2'd1) ?
+	            lab_jt_rom_data_hold_i :
+	        (lab_jt_rom_timing_mode == 2'd2) ?
+	            lab_jt_rom_data_hold_d_i :
+	            core_rom_data;
+	    wire lab_jt_rom_ok_to_core =
+	        (lab_jt_rom_timing_mode == 2'd1) ? lab_jt_rom_data_hold_valid_i :
+	        (lab_jt_rom_timing_mode == 2'd2) ?
+	            lab_jt_rom_data_hold_valid_d_i :
+	            core_rom_ok;
+	`endif
     logic [15:0] rom_activity_count_i;
     logic [15:0] rom_range_hit_count_i;
     logic [15:0] rom_range_miss_count_i;
@@ -1179,6 +1455,13 @@ module segapcm_sound_module #(
     logic [15:0] audio_abs_peak_i;
     logic signed [15:0] last_audio_l_i;
     logic signed [15:0] last_audio_r_i;
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+    logic [15:0] lab_c0_sb_debug_i;
+    logic signed [15:0] lab_c0_so_debug_i;
+    logic signed [15:0] lab_c0_lo_debug_i;
+    logic signed [15:0] lab_c0_mo_debug_i;
+    logic [15:0] lab_c0_mux_err_i;
+`endif
     logic [7:0] shadow_ram [0:255];
     logic [15:0] shadow_decode_i;
     logic [15:0] active_req_start_debug_i;
@@ -1342,6 +1625,7 @@ module segapcm_sound_module #(
     logic [15:0] lab_c0_mame_loud_m2_i;
     logic [15:0] lab_c0_mame_loud_m3_i;
     logic [15:0] lab16_active_i;
+    logic [15:0] lab16_strict_seen_i;
     logic [7:0]  lab16_ctrl_i [0:15];
     logic [7:0]  lab16_cur_mid_i [0:15];
     logic [7:0]  lab16_cur_high_i [0:15];
@@ -1353,9 +1637,27 @@ module segapcm_sound_module #(
     logic [6:0]  lab16_vol_r_i [0:15];
     logic [26:0] lab16_phase_i [0:15];
     logic [18:0] lab16_pi_i [0:15];
+    logic [18:0] lab16_start_i [0:15];
+    logic [18:0] lab16_base_i [0:15];
+    logic [18:0] lab16_limit_i [0:15];
+    logic [2:0]  lab16_block_i [0:15];
+    logic        lab16_map_valid_i [0:15];
+    logic [2:0]  lab16_sticky_block_i [0:15];
+    logic [15:0] lab16_sticky_map_i;
     logic [7:0]  lab16_sample_i [0:15];
     logic signed [15:0] lab16_out_l_i [0:15];
     logic signed [15:0] lab16_out_r_i [0:15];
+    logic        lab16_mix_fresh_i [0:15];
+    logic [7:0]  lab16_hold_sample_i [0:15];
+    logic signed [8:0] lab16_hold_cv_i [0:15];
+    logic [15:0] lab16_start_current_i [0:15];
+    logic [15:0] lab16_start_full_low_i [0:15];
+    logic [15:0] lab16_start_end_low_i [0:15];
+    logic [15:0] lab16_first8_01_i [0:15];
+    logic [15:0] lab16_first8_23_i [0:15];
+    logic [15:0] lab16_first8_45_i [0:15];
+    logic [15:0] lab16_first8_67_i [0:15];
+    logic [3:0]  lab16_first8_count_i [0:15];
     logic [3:0] lab16_rr_ch_i;
     logic [3:0] lab16_pending_ch_i;
     logic [11:0] lab16_emit_div_i;
@@ -1373,18 +1675,316 @@ module segapcm_sound_module #(
     logic [15:0] lab16_ch3_hold_i;
     logic [15:0] lab16_ch3_sticky_i;
     logic [15:0] lab16_ch3_range_count_i;
+    logic [15:0] lab16_ch3_hit_len_i;
+    logic [15:0] lab16_ch3_intro_reseed_count_i;
     logic [15:0] lab16_mix_peak_i;
     logic [15:0] lab16_ch3_peak_i;
+    logic [15:0] lab16_map_hit_count_i;
+    logic [15:0] lab16_map_miss_count_i;
+    logic [15:0] lab16_ever_active_i;
+    logic [15:0] lab16_ever_nonzero_i;
+    logic [4:0]  lab16_max_active_count_i;
+    logic [15:0] lab16_start_tuple_count_i;
+    logic [15:0] lab16_target_start_count_i;
+    logic [15:0] lab16_skipped_start_count_i;
+    logic [15:0] lab16_target_current_i;
+    logic [15:0] lab16_target_full_low_i;
+    logic [7:0]  lab16_target_match_bits_i;
+    logic [3:0]  lab16_start_tuple_ch_i;
+    logic [2:0]  lab16_start_tuple_block_i;
+    logic [15:0] lab16_start_tuple_current_i;
+    logic [20:0] lab16_start_tuple_bank_i;
+    logic [20:0] lab16_start_tuple_full_addr_i;
+    logic [7:0]  lab16_start_tuple_delta_i;
+    logic [6:0]  lab16_start_tuple_vol_l_i;
+    logic [6:0]  lab16_start_tuple_vol_r_i;
+    logic [15:0] lab16_start_tuple_source_i;
+    logic        lab16_start_tuple_valid_i;
+    logic        lab16_first_samples_valid_i;
+    logic        lab16_first_capture_armed_i;
+    logic        lab16_first_capture_has_any_i;
+    logic        lab16_first_capture_reader_match_i;
+    logic        lab16_first_capture_overwrite_i;
+    logic        lab16_first_capture_cleared_i;
+    logic        lab16_runtime_active_seen_i;
+    logic [15:0] lab16_runtime_consume_count_i;
+    logic [15:0] lab16_runtime_status_i;
+    logic [15:0] lab16_runtime_offset_i;
+    logic [15:0] lab16_runtime_addr_i;
+    logic [15:0] lab16_runtime_pr_hold_i;
+    logic [18:0] lab16_runtime_pi_i;
+    logic [15:0] lab16_runtime_phase_hint_i;
+    logic [15:0] lab16_runtime_rd_i;
+    logic signed [15:0] lab16_runtime_l_i;
+    logic signed [15:0] lab16_runtime_r_i;
+    logic [15:0] lab16_runtime_stop_i;
+    logic [20:0] lab16_start_tuple_end_addr_i;
+    logic [18:0] lab16_start_tuple_limit_i;
+    logic        lab16_start_tuple_end_limited_i;
+    logic [18:0] lab16_last_stop_pi_i;
+    logic [15:0] lab16_end_debug_flags_i;
+    logic lab16_stop_valid_i;
+    logic [15:0] lab16_stop_count_i;
+    logic [15:0] lab16_stop_offset_i;
+    logic [15:0] lab16_stop_pi_i;
+    logic [15:0] lab16_stop_full_i;
+    logic [15:0] lab16_stop_phase_i;
+    logic [15:0] lab16_stop_flags_i;
+    logic [15:0] lab16_first_s0_addr_i;
+    logic [15:0] lab16_first_s0_index_i;
+    logic [15:0] lab16_first_s0_phase_i;
+    logic [15:0] lab16_first_s0_capture_count_i;
+    logic [4:0]  lab16_first_sample_count_i;
+    logic [15:0] lab16_first_raw01_i;
+    logic [15:0] lab16_first_raw23_i;
+    logic [15:0] lab16_first_raw45_i;
+    logic [15:0] lab16_first_raw67_i;
+    logic [15:0] lab16_first_raw89_i;
+    logic [15:0] lab16_first_rawab_i;
+    logic [15:0] lab16_first_rawcd_i;
+    logic [15:0] lab16_first_rawef_i;
+    logic [15:0] lab16_first_dec01_i;
+    logic [15:0] lab16_first_dec23_i;
+    logic [15:0] lab16_first_dec45_i;
+    logic [15:0] lab16_first_dec67_i;
+    logic [15:0] lab16_first_dec89_i;
+    logic [15:0] lab16_first_decab_i;
+    logic [15:0] lab16_first_deccd_i;
+    logic [15:0] lab16_first_decef_i;
+    logic [15:0] lab16_wave_rawcv0_i;
+    logic [15:0] lab16_wave_addr0_i;
+    logic [15:0] lab16_wave_pi0_i;
+    logic [15:0] lab16_wave_out0_i;
+    logic [15:0] lab16_wave_rawcv1_i;
+    logic [15:0] lab16_wave_addr1_i;
+    logic [15:0] lab16_wave_pi1_i;
+    logic [15:0] lab16_wave_out1_i;
+    logic [15:0] lab16_wave_rawcv2_i;
+    logic [15:0] lab16_wave_addr2_i;
+    logic [15:0] lab16_wave_pi2_i;
+    logic [15:0] lab16_wave_out2_i;
+    logic [15:0] lab16_wave_rawcv3_i;
+    logic [15:0] lab16_wave_addr3_i;
+    logic [15:0] lab16_wave_pi3_i;
+    logic [15:0] lab16_wave_out3_i;
+    logic [15:0] lab16_wave_vol_i;
+    logic [15:0] lab16_ch3_raw_event_count_i;
+    logic [15:0] lab16_ch3_block_hit_count_i;
+    logic [20:0] lab16_ch3_full_addr_i;
+    logic [2:0]  lab16_ch3_block_i;
+    logic [20:0] lab16_ch3_block_dest_i;
+    logic [18:0] lab16_ch3_block_base_i;
+    logic [18:0] lab16_ch3_block_len_i;
+    logic [18:0] lab16_ch3_block_offset_i;
+    logic [15:0] lab16_ch3_reject_i;
+    logic        lab16_ch3_snapshot_valid_i;
+    logic [15:0] lab16_ch3_snapshot_count_i;
+    logic [7:0]  lab16_ch3_snapshot_ctrl_i;
+    logic [6:0]  lab16_ch3_snapshot_vol_l_i;
+    logic [6:0]  lab16_ch3_snapshot_vol_r_i;
+    logic [7:0]  lab16_ch3_snapshot_delta_i;
+    logic [15:0] lab16_ch3_snapshot_current_i;
+    logic [20:0] lab16_ch3_snapshot_full_addr_i;
+    logic [20:0] lab16_ch3_snapshot_bank_i;
+    logic        lab16_ch3_snapshot_hit_i;
+    logic [2:0]  lab16_ch3_snapshot_block_i;
+    logic [20:0] lab16_ch3_snapshot_dest_i;
+    logic [18:0] lab16_ch3_snapshot_base_i;
+    logic [18:0] lab16_ch3_snapshot_len_i;
+    logic [18:0] lab16_ch3_snapshot_offset_i;
+    logic [15:0] lab16_ch3_snapshot_reject_i;
     logic signed [23:0] lab16_mix_l_i;
     logic signed [23:0] lab16_mix_r_i;
     logic signed [15:0] lab16_mix_l_sample_i;
     logic signed [15:0] lab16_mix_r_sample_i;
     logic [3:0] lab16_debug_ch_i;
+    logic [3:0] lab16_view_ch;
+    logic [15:0] lab16_block_summary_03;
+    logic [15:0] lab16_block_summary_47;
+    logic [3:0] lab16_loud_ch;
+    logic [15:0] lab16_loud_abs;
+    logic lab16_loud_valid;
+    logic [19:0] lab16_ch3_snapshot_local_start_20;
+    logic lab16_loud_snap_valid_i;
+    logic [15:0] lab16_loud_snap_abs_i;
+    logic [3:0] lab16_loud_snap_ch_i;
+    logic [2:0] lab16_loud_snap_block_i;
+    logic [18:0] lab16_loud_snap_start_i;
+    logic [18:0] lab16_loud_snap_pi_i;
+    logic [7:0] lab16_loud_snap_sample_i;
+    logic signed [8:0] lab16_loud_snap_cv_i;
+    logic signed [15:0] lab16_loud_snap_out_i;
+    logic [15:0] lab16_loud_snap_delta_reason_i;
+    logic [15:0] lab16_loud_snap_volume_i;
+    logic [15:0] lab16_loud_snap_reason_i;
+    logic        lab16_expl_valid_i;
+    logic [15:0] lab16_expl_count_i;
+    logic [15:0] lab16_expl_abs_i;
+    logic [3:0]  lab16_expl_ch_i;
+    logic [2:0]  lab16_expl_block_i;
+    logic [15:0] lab16_expl_current_i;
+    logic [15:0] lab16_expl_end_i;
+    logic [7:0]  lab16_expl_delta_i;
+    logic [15:0] lab16_expl_volume_i;
+    logic [15:0] lab16_expl_base_i;
+    logic [15:0] lab16_expl_first_index_i;
+    logic [15:0] lab16_expl_index_i;
+    logic [15:0] lab16_expl_raw_cv_i;
+    logic signed [15:0] lab16_expl_l_i;
+    logic signed [15:0] lab16_expl_r_i;
+    logic [15:0] lab16_expl_mix_i;
+    logic [15:0] lab16_expl_active_i;
+    logic [15:0] lab16_expl_reason_i;
+    logic [15:0] lab16_expl_e0_i;
+    logic [15:0] lab16_expl_e1_i;
+    logic [15:0] lab16_expl_e2_i;
+    logic [15:0] lab16_expl_e3_i;
+    logic        lab16_expl_first8_done_i;
+    logic [15:0] lab16_ch3_live_count_i;
+    logic [15:0] lab16_ch3_live_pi_i;
+    logic [15:0] lab16_ch3_live_offset_i;
+    logic [15:0] lab16_ch3_live_phase_i;
+    logic [15:0] lab16_ch3_live_raw_cv_i;
+    logic signed [15:0] lab16_ch3_live_l_i;
+    logic [15:0] lab16_ch3_live_reason_i;
+    logic [15:0] lab16_ch3_snap_abs_i;
+    logic [15:0] lab16_ch3_snap_pi_i;
+    logic [15:0] lab16_ch3_snap_offset_i;
+    logic [15:0] lab16_ch3_snap_phase_i;
+    logic [15:0] lab16_ch3_snap_raw_cv_i;
+    logic signed [15:0] lab16_ch3_snap_l_i;
+    logic [15:0] lab16_ch3_snap_reason_i;
+    logic [15:0] lab16_ch3_snap_base_i;
+    logic [15:0] lab16_ch3_snap_limit_i;
+    logic [15:0] lab16_ch3_snap_block_i;
+    logic [15:0] lab16_ch3_write_count_i;
+    logic [15:0] lab16_ch3_current_update_count_i;
+    logic [15:0] lab16_ch3_end_delta_update_count_i;
+    logic [15:0] lab16_ch3_end_update_count_i;
+    logic [15:0] lab16_ch3_delta_update_count_i;
+    logic [15:0] lab16_ch3_ctrl_update_count_i;
+    logic [15:0] lab16_ch3_volume_update_count_i;
+    logic [15:0] lab16_ch3_retrig_write_i;
+    logic [15:0] lab16_ch3_active_start_count_i;
+    logic [15:0] lab16_ch3_ignored_update_count_i;
+    logic [15:0] lab16_ch3_clear_count_i;
+    logic [15:0] lab16_ch3_last_retrigger_time_i;
+    logic [15:0] lab16_ch3_last_write_time_i;
+    logic [15:0] lab16_ch3_last_read_time_i;
+    logic [15:0] lab16_ch3_last_clear_time_i;
+    logic [15:0] lab16_ch3_last_expl_time_i;
+    logic        lab16_ch3_retrig_valid_i;
+    logic [15:0] lab16_ch3_retrig_count_i;
+    logic [15:0] lab16_ch3_broad_restart_count_i;
+    logic [15:0] lab16_ch3_qualified_start_count_i;
+    logic [15:0] lab16_ch3_selected_reposition_count_i;
+    logic [15:0] lab16_ch3_selected_active_current_count_i;
+    logic [15:0] lab16_ch3_qual_duplicate_count_i;
+    logic [15:0] lab16_ch3_qual_backward_count_i;
+    logic [15:0] lab16_ch3_qual_forward_small_count_i;
+    logic [15:0] lab16_ch3_qual_far_count_i;
+    logic [15:0] lab16_ch3_qual_end_near_count_i;
+    logic [15:0] lab16_ch3_qual_last_flags_i;
+    logic [15:0] lab16_ch3_qual_last_old_current_i;
+    logic [15:0] lab16_ch3_qual_last_new_current_i;
+    logic [15:0] lab16_ch3_qual_last_old_pi_i;
+    logic signed [15:0] lab16_ch3_qual_last_old_l_i;
+    logic [15:0] lab16_ch3_retrig_time_i;
+    logic [15:0] lab16_ch3_retrig_flags_i;
+    logic [15:0] lab16_ch3_retrig_old_current_i;
+    logic [15:0] lab16_ch3_retrig_old_pi_i;
+    logic [15:0] lab16_ch3_retrig_old_offset_i;
+    logic [15:0] lab16_ch3_retrig_old_phase_i;
+    logic signed [15:0] lab16_ch3_retrig_old_l_i;
+    logic [15:0] lab16_ch3_retrig_new_current_i;
+    logic [15:0] lab16_ch3_retrig_new_end_i;
+    logic [15:0] lab16_ch3_retrig_new_delta_i;
+    logic [15:0] lab16_ch3_retrig_new_pi_i;
+    logic [15:0] lab16_ch3_retrig_new_offset_i;
+    logic [15:0] lab16_ch3_retrig_base_i;
+    logic [15:0] lab16_ch3_retrig_limit_i;
+    logic [15:0] lab16_ch3_retrig_block_i;
+    logic [15:0] lab16_ch3_retrig_first0_i;
+    logic [15:0] lab16_ch3_retrig_first1_i;
+    logic [15:0] lab16_ch3_retrig_first2_i;
+    logic [15:0] lab16_ch3_retrig_first3_i;
+    logic signed [15:0] lab16_ch3_retrig_first_l_i;
+    logic [15:0] lab16_ch3_retrig_first_pi_i;
+    logic [15:0] lab16_ch3_retrig_first_offset_i;
+    logic [3:0]  lab16_ch3_retrig_first_count_i;
+    logic [15:0] lab16_ch3_worst_abs_i;
+    logic [15:0] lab16_ch3_worst_pi_i;
+    logic [15:0] lab16_ch3_worst_time_i;
+    logic [15:0] lab16_ch3_worst_rc_i;
+    logic [15:0] lab16_ch3_worst_offset_i;
+    logic [15:0] lab16_ch3_worst_current_i;
+    logic [15:0] lab16_ch3_worst_raw_cv_i;
+    logic signed [15:0] lab16_ch3_worst_l_i;
+    logic [15:0] lab16_ch3_worst_reason_i;
+    logic [15:0] lab16_ch3_hold_mix_count_i;
+    logic [15:0] lab16_ch3_fresh_read_count_i;
+    logic [15:0] lab16_ch3_mix_contrib_count_i;
+    logic [15:0] lab16_ch3_output_clear_count_i;
+    logic [15:0] lab16_ch3_end_reached_count_i;
+    logic [15:0] lab16_ch3_no_read_mix_count_i;
+    logic [15:0] lab16_ch3_clear_end_count_i;
+    logic [15:0] lab16_ch3_clear_disable_count_i;
+    logic [15:0] lab16_ch3_clear_volume_count_i;
+    logic [15:0] lab16_ch3_clear_map_count_i;
+    localparam logic [1:0] LAB16_PM3_MIX_HOLD  = 2'd0;
+    localparam logic [1:0] LAB16_PM3_MIX_FRESH = 2'd1;
+    localparam logic [1:0] LAB16_PM3_MIX_GATE  = 2'd2;
+    localparam logic [2:0] LAB16_PM3_START_STRICT       = 3'd0;
+    localparam logic [2:0] LAB16_PM3_START_QUAL_RESTART = 3'd1;
+    localparam logic [2:0] LAB16_PM3_START_QUAL_REPOS   = 3'd2;
+    localparam logic [2:0] LAB16_PM3_START_QUAL_IDLE    = 3'd3;
+    localparam logic [2:0] LAB16_PM3_START_BROAD        = 3'd4;
+    localparam logic [2:0] LAB16_PM3_START_BACK_ONLY    = 3'd5;
+    localparam logic [2:0] LAB16_PM3_START_NO_DUP       = 3'd6;
+    localparam logic [2:0] LAB16_PM3_START_NEAR_ONLY    = 3'd7;
+    logic lab16_snap_view;
+    logic [2:0] lab16_selected_block;
+    logic [18:0] lab16_selected_start;
+    logic [18:0] lab16_selected_pi;
+    logic [15:0] lab16_selected_delta_reason;
+    logic [15:0] lab16_selected_volume;
+    logic [15:0] lab16_selected_reason;
+    logic [15:0] lab16_abs_l_tmp;
+    logic [15:0] lab16_abs_r_tmp;
+    logic [15:0] lab16_abs_tmp;
+    logic lab16_comb_mix_ok;
     integer lab16_loop_i;
     wire lab_c0_return_pulse =
         loaded_ddr_rd_valid &&
         smoke_ddr_c0drive_active &&
         lab_c0_pending_i;
+    wire lab16_ch3_return_pulse =
+        lab_c0_return_pulse &&
+        (lab16_pending_ch_i == 4'd3) &&
+        smoke_c0_pm3_audio_mask[3];
+    wire lab16_ch3_mix_hold_ok =
+        smoke_c0_pm3_audio_mask[3] &&
+        lab16_active_i[3];
+    wire lab16_ch3_mix_gate_ok =
+        lab16_ch3_mix_hold_ok &&
+        lab16_map_valid_i[3] &&
+        (lab16_pi_i[3] >= lab16_base_i[3]) &&
+        (lab16_pi_i[3] < lab16_limit_i[3]) &&
+        !lab16_ctrl_i[3][0] &&
+        ((lab16_vol_l_i[3] != 7'd0) ||
+         (lab16_vol_r_i[3] != 7'd0));
+    wire lab16_ch3_mix_fresh_ok =
+        lab16_ch3_mix_hold_ok &&
+        lab16_mix_fresh_i[3];
+    wire lab16_ch3_mix_ok_now =
+        (smoke_c0_pm3_mix_mode == LAB16_PM3_MIX_FRESH) ?
+            lab16_ch3_mix_fresh_ok :
+        (smoke_c0_pm3_mix_mode == LAB16_PM3_MIX_GATE) ?
+            lab16_ch3_mix_gate_ok :
+            lab16_ch3_mix_hold_ok;
+    wire lab16_ch3_no_fresh_for_mix =
+        !lab16_mix_fresh_i[3] &&
+        !lab16_ch3_return_pulse;
     wire [18:0] lab_c0_req_pi_i = lab_c0_pi_i;
     wire lab_c0_raw_audible =
         (c0_capture_ch3_vol_l_i[6:0] != 7'd0) ||
@@ -1416,13 +2016,6 @@ module segapcm_sound_module #(
     wire lab_c0_pi_in_range =
         smoke_type80_table_valid_i[2] &&
         (lab_c0_pi_i < smoke_type80_table_len_i[2]);
-    wire lab_c0_request_fire =
-        smoke_ddr_follow_mode &&
-        lab_c0_req_live_i &&
-        !loaded_ddr_rd_req &&
-        !smoke_c0_probe_pending_i &&
-        !smoke_ddr_c0_return_valid_i &&
-        (!lab_c0_need_read_i || lab_c0_pi_in_range);
     wire [7:0] lab_c0_sample_byte_next = lab_c0_sample_i;
     wire [7:0] lab_c0_fixed_byte =
         (lab_c0_fixed_index_i == 3'd0) ? 8'h80 :
@@ -1452,7 +2045,31 @@ module segapcm_sound_module #(
         smoke_c0_sample_mode_sel == LAB_C0_PUMP_LOCAL_DELTA;
     wire lab_c0_mame_exact_mode =
         smoke_c0_sample_mode_sel == LAB_C0_PUMP_MAME_EXACT;
-    wire lab_c0_multich_delta_mode = lab_c0_local_delta_mode;
+    wire lab_c0_pm3_backend_active = !smoke_c0_jt_backend;
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_PM3_LEGACY_CH3_BLOCK2
+    wire lab_c0_legacy_ch3_block2_mode =
+        lab_c0_pm3_backend_active && lab_c0_local_delta_mode;
+`else
+    wire lab_c0_legacy_ch3_block2_mode =
+        lab_c0_pm3_backend_active &&
+        lab_c0_local_delta_mode &&
+        smoke_c0_vol_map_sel[0];
+`endif
+    wire lab_c0_multich_delta_mode =
+        lab_c0_pm3_backend_active &&
+        lab_c0_local_delta_mode &&
+        !lab_c0_legacy_ch3_block2_mode;
+    wire lab_c0_req_payload_in_range =
+        lab_c0_multich_delta_mode ?
+            (lab_c0_req_addr_i < smoke_loaded_ddr_usable_bytes) :
+            lab_c0_pi_in_range;
+    wire lab_c0_request_fire =
+        smoke_ddr_follow_mode &&
+        lab_c0_req_live_i &&
+        !loaded_ddr_rd_req &&
+        !smoke_c0_probe_pending_i &&
+        !smoke_ddr_c0_return_valid_i &&
+        (!lab_c0_need_read_i || lab_c0_req_payload_in_range);
     wire lab16_service_tick =
         lab_c0_multich_delta_mode &&
         lab16_run_gate &&
@@ -1470,8 +2087,10 @@ module segapcm_sound_module #(
     wire lab_c0_local_mode =
         lab_c0_local_delta_mode || lab_c0_mame_exact_mode;
     wire lab_c0_force_output =
+        lab_c0_pm3_backend_active &&
         lab_c0_force_mode && lab_c0_pv_match && lab_c0_raw_audible;
     wire lab_c0_seq_output =
+        lab_c0_pm3_backend_active &&
         lab_c0_seq_mode &&
         (lab_c0_multich_delta_mode ?
             (lab16_run_gate &&
@@ -1479,6 +2098,7 @@ module segapcm_sound_module #(
             lab_c0_playback_gate);
     wire lab_c0_fixed_output = lab_c0_seq_output;
     wire lab_c0_local_output =
+        lab_c0_pm3_backend_active &&
         (lab_c0_local_delta_mode || lab_c0_mame_exact_mode) &&
         lab_c0_playback_gate;
     wire lab_c0_seq_base_emit_pulse =
@@ -1632,6 +2252,13 @@ module segapcm_sound_module #(
         segapcm_cmd_data[6:0] : lab16_vol_r_i[lab16_write_ch];
     wire lab16_event_audible =
         (lab16_event_vol_l != 7'd0) || (lab16_event_vol_r != 7'd0);
+    wire lab16_prev_audible =
+        (lab16_vol_l_i[lab16_write_ch] != 7'd0) ||
+        (lab16_vol_r_i[lab16_write_ch] != 7'd0);
+    wire lab16_event_current_nonzero =
+        ({lab16_event_cur_high, lab16_event_cur_mid} != 16'd0);
+    wire lab16_event_ctrl_enabled = !lab16_event_ctrl[0];
+    wire lab16_prev_ctrl_disabled = lab16_ctrl_i[lab16_write_ch][0];
     wire lab16_event_retrigger_reg =
         (lab16_write_high &&
          ((lab16_write_off == 3'd4) ||
@@ -1644,23 +2271,11 @@ module segapcm_sound_module #(
         ({13'd0, (lab16_event_ctrl & 8'hf8)} << 13);
     wire [20:0] lab16_event_full_addr =
         lab16_event_bank + {5'd0, lab16_event_cur_high, lab16_event_cur_mid};
-    wire lab16_event_block2_match =
-        smoke_type80_table_valid_i[2] &&
-        (lab16_event_full_addr >= smoke_type80_table_dest_i[2]) &&
-        (lab16_event_full_addr <
-         (smoke_type80_table_dest_i[2] + {2'd0, smoke_type80_table_len_i[2]}));
-    wire [20:0] lab16_event_offset_21 =
-        lab16_event_full_addr - smoke_type80_table_dest_i[2];
-    wire [18:0] lab16_event_local_pi =
-        smoke_type80_table_base_i[2] + lab16_event_offset_21[18:0];
-    assign lab16_retrigger_pulse =
-        lab_c0_multich_delta_mode &&
-        segapcm_cmd_valid &&
-        (smoke_c0_drive_sel != 2'd0) &&
-        lab16_event_retrigger_reg &&
-        lab16_event_audible &&
-        lab16_event_block2_match &&
-        !lab16_event_ctrl[0];
+    wire [7:0] lab16_event_end =
+        (lab16_write_low && (lab16_write_off == 3'd6)) ?
+        segapcm_cmd_data : lab16_end_i[lab16_write_ch];
+    wire [20:0] lab16_event_end_full_addr =
+        lab16_event_bank + {5'd0, lab16_event_end, 8'd0};
     logic [15:0] lab16_active_mask;
     logic [4:0] lab16_active_count;
     logic [3:0] lab16_next_ch;
@@ -1675,32 +2290,154 @@ module segapcm_sound_module #(
     logic signed [15:0] lab16_selected_out_r;
     logic lab16_clip_next;
     logic signed [8:0] lab16_return_cv;
+    logic signed [16:0] lab16_return_product_l;
+    logic signed [16:0] lab16_return_product_r;
     logic signed [16:0] lab16_return_scaled_l;
     logic signed [16:0] lab16_return_scaled_r;
     logic [10:0] lab16_return_delta_x4;
     logic [26:0] lab16_return_phase_next;
+    logic lab16_return_read_valid;
+    logic lab16_return_next_valid;
+    logic lab16_return_output_valid;
+    logic [18:0] lab16_return_stop_pi;
+    logic lab16_return_read_range_cross;
+    logic lab16_return_next_range_cross;
+    logic lab16_return_true_cross;
+    logic lab16_service_true_cross;
     logic [15:0] lab16_return_abs_l;
+    logic [15:0] lab16_return_abs_r;
+    logic [15:0] lab16_return_abs_max;
     logic [15:0] lab16_mix_abs_l_next;
+    logic [15:0] lab16_mix_abs_r_next;
+    logic [15:0] lab16_mix_abs_max_next;
+    logic lab16_event_map_valid;
+    logic [2:0] lab16_event_map_block;
+    logic [18:0] lab16_event_map_base;
+    logic [18:0] lab16_event_map_len;
+    logic [18:0] lab16_event_map_limit;
+    logic [18:0] lab16_event_local_pi;
+    logic [20:0] lab16_event_map_offset_21;
+    logic [19:0] lab16_event_map_limit_20;
+    logic [20:0] lab16_event_end_offset_21;
+    logic [19:0] lab16_event_end_limit_20;
+    logic [19:0] lab16_event_effective_limit_20;
+    logic [19:0] lab16_event_local_pi_20;
+    logic        lab16_event_end_limit_valid;
+    logic        lab16_event_end_limit_used;
+    logic lab16_event_rom_hit;
+    logic [2:0] lab16_event_rom_block;
+    logic [18:0] lab16_event_rom_base;
+    logic [18:0] lab16_event_rom_len;
+    logic [18:0] lab16_event_rom_offset;
     integer lab16_comb_i;
     integer lab16_scan_i;
+    integer lab16_map_loop_i;
+    localparam logic [15:0] LAB16_EXPLOSION_ABS_THRESHOLD = 16'h1800;
+    wire lab16_expl_masked_return =
+        smoke_c0_pm3_audio_mask[lab16_pending_ch_i];
+    wire lab16_expl_loud_return =
+        lab16_clip_next ||
+        (lab16_mix_abs_max_next >= LAB16_EXPLOSION_ABS_THRESHOLD) ||
+        (lab16_return_output_valid &&
+         (lab16_return_abs_max >= LAB16_EXPLOSION_ABS_THRESHOLD));
+    wire lab16_expl_peak_return =
+        lab16_return_output_valid &&
+        ((lab16_return_abs_max > lab16_expl_abs_i) ||
+         (lab16_mix_abs_max_next > lab16_expl_abs_i));
+    wire lab16_expl_fault_return =
+        lab16_return_true_cross || !lab16_return_read_valid;
+    wire lab16_expl_bootstrap_return =
+        lab16_return_read_valid &&
+        (!lab16_expl_valid_i || !lab16_expl_reason_i[0]);
+    wire lab16_expl_first8_refresh =
+        lab16_expl_valid_i &&
+        !lab16_expl_first8_done_i &&
+        lab16_return_read_valid &&
+        (lab16_pending_ch_i == lab16_expl_ch_i) &&
+        (lab16_block_i[lab16_pending_ch_i] == lab16_expl_block_i);
+    wire [3:0] lab16_block_nib0 =
+        lab16_sticky_map_i[0] ? {1'b0, lab16_sticky_block_i[0]} : 4'hf;
+    wire [3:0] lab16_block_nib1 =
+        lab16_sticky_map_i[1] ? {1'b0, lab16_sticky_block_i[1]} : 4'hf;
+    wire [3:0] lab16_block_nib2 =
+        lab16_sticky_map_i[2] ? {1'b0, lab16_sticky_block_i[2]} : 4'hf;
+    wire [3:0] lab16_block_nib3 =
+        lab16_sticky_map_i[3] ? {1'b0, lab16_sticky_block_i[3]} : 4'hf;
+    wire [3:0] lab16_block_nib4 =
+        lab16_sticky_map_i[4] ? {1'b0, lab16_sticky_block_i[4]} : 4'hf;
+    wire [3:0] lab16_block_nib5 =
+        lab16_sticky_map_i[5] ? {1'b0, lab16_sticky_block_i[5]} : 4'hf;
+    wire [3:0] lab16_block_nib6 =
+        lab16_sticky_map_i[6] ? {1'b0, lab16_sticky_block_i[6]} : 4'hf;
+    wire [3:0] lab16_block_nib7 =
+        lab16_sticky_map_i[7] ? {1'b0, lab16_sticky_block_i[7]} : 4'hf;
     always_comb begin
         lab16_active_mask = lab16_active_i;
         lab16_active_count = 5'd0;
         lab16_mix_l_next = 24'sd0;
         lab16_mix_r_next = 24'sd0;
+        lab16_loud_ch = lab16_debug_ch_i;
+        lab16_loud_abs = 16'd0;
+        lab16_loud_valid = 1'b0;
+        lab16_abs_l_tmp = 16'd0;
+        lab16_abs_r_tmp = 16'd0;
+        lab16_abs_tmp = 16'd0;
+        lab16_comb_mix_ok = 1'b0;
         for (lab16_comb_i = 0; lab16_comb_i < 16;
              lab16_comb_i = lab16_comb_i + 1) begin
             if (lab16_active_i[lab16_comb_i]) begin
                 lab16_active_count = lab16_active_count + 5'd1;
             end
-            lab16_mix_l_next =
-                lab16_mix_l_next +
-                {{8{lab16_out_l_i[lab16_comb_i][15]}},
-                 lab16_out_l_i[lab16_comb_i]};
-            lab16_mix_r_next =
-                lab16_mix_r_next +
-                {{8{lab16_out_r_i[lab16_comb_i][15]}},
-                 lab16_out_r_i[lab16_comb_i]};
+            unique case (smoke_c0_pm3_mix_mode)
+                LAB16_PM3_MIX_FRESH: begin
+                    lab16_comb_mix_ok =
+                        smoke_c0_pm3_audio_mask[lab16_comb_i] &&
+                        lab16_active_i[lab16_comb_i] &&
+                        lab16_mix_fresh_i[lab16_comb_i];
+                end
+                LAB16_PM3_MIX_GATE: begin
+                    lab16_comb_mix_ok =
+                        smoke_c0_pm3_audio_mask[lab16_comb_i] &&
+                        lab16_active_i[lab16_comb_i] &&
+                        lab16_map_valid_i[lab16_comb_i] &&
+                        (lab16_pi_i[lab16_comb_i] >=
+                         lab16_base_i[lab16_comb_i]) &&
+                        (lab16_pi_i[lab16_comb_i] <
+                         lab16_limit_i[lab16_comb_i]) &&
+                        !lab16_ctrl_i[lab16_comb_i][0] &&
+                        ((lab16_vol_l_i[lab16_comb_i] != 7'd0) ||
+                         (lab16_vol_r_i[lab16_comb_i] != 7'd0));
+                end
+                default: begin
+                    lab16_comb_mix_ok =
+                        smoke_c0_pm3_audio_mask[lab16_comb_i] &&
+                        lab16_active_i[lab16_comb_i];
+                end
+            endcase
+            if (lab16_comb_mix_ok) begin
+                lab16_abs_l_tmp = lab16_out_l_i[lab16_comb_i][15] ?
+                    (~lab16_out_l_i[lab16_comb_i] + 16'd1) :
+                    lab16_out_l_i[lab16_comb_i];
+                lab16_abs_r_tmp = lab16_out_r_i[lab16_comb_i][15] ?
+                    (~lab16_out_r_i[lab16_comb_i] + 16'd1) :
+                    lab16_out_r_i[lab16_comb_i];
+                lab16_abs_tmp =
+                    (lab16_abs_l_tmp > lab16_abs_r_tmp) ?
+                    lab16_abs_l_tmp : lab16_abs_r_tmp;
+                if (lab16_abs_tmp > lab16_loud_abs) begin
+                    lab16_loud_abs = lab16_abs_tmp;
+                    lab16_loud_ch = lab16_comb_i[3:0];
+                    lab16_loud_valid = lab16_abs_tmp != 16'd0;
+                end
+                lab16_mix_l_next =
+                    lab16_mix_l_next +
+                    {{8{lab16_out_l_i[lab16_comb_i][15]}},
+                     lab16_out_l_i[lab16_comb_i]};
+                lab16_mix_r_next =
+                    lab16_mix_r_next +
+                    {{8{lab16_out_r_i[lab16_comb_i][15]}},
+                     lab16_out_r_i[lab16_comb_i]};
+            end
         end
         lab16_mix_l_sample_next = lab16_mix_l_next[17:2];
         lab16_mix_r_sample_next = lab16_mix_r_next[17:2];
@@ -1722,19 +2459,381 @@ module segapcm_sound_module #(
             end
         end
 
-        lab16_selected_sample_byte = lab16_sample_i[lab16_debug_ch_i];
-        lab16_selected_cv = smoke_c0_format_sel[0] ?
-            (9'sd128 - $signed({1'b0, lab16_selected_sample_byte})) :
-            ($signed({1'b0, lab16_selected_sample_byte}) - 9'sd128);
-        lab16_selected_out_l = lab16_out_l_i[lab16_debug_ch_i];
-        lab16_selected_out_r = lab16_out_r_i[lab16_debug_ch_i];
+        lab16_snap_view = !lab16_loud_valid && lab16_loud_snap_valid_i;
+        lab16_view_ch = lab16_loud_valid ? lab16_loud_ch :
+            (lab16_loud_snap_valid_i ? lab16_loud_snap_ch_i : lab16_debug_ch_i);
+        lab16_selected_block =
+            lab16_snap_view ? lab16_loud_snap_block_i :
+            lab16_block_i[lab16_view_ch];
+        lab16_selected_start =
+            lab16_snap_view ? lab16_loud_snap_start_i :
+            lab16_start_i[lab16_view_ch];
+        lab16_selected_pi =
+            lab16_snap_view ? lab16_loud_snap_pi_i :
+            lab16_pi_i[lab16_view_ch];
+        lab16_selected_sample_byte =
+            lab16_snap_view ? lab16_loud_snap_sample_i :
+            lab16_hold_sample_i[lab16_view_ch];
+        lab16_selected_cv = lab16_snap_view ? lab16_loud_snap_cv_i :
+            lab16_hold_cv_i[lab16_view_ch];
+        lab16_selected_out_l =
+            lab16_snap_view ? lab16_loud_snap_out_i :
+            lab16_out_l_i[lab16_view_ch];
+        lab16_selected_out_r =
+            lab16_snap_view ? lab16_loud_snap_out_i :
+            lab16_out_r_i[lab16_view_ch];
         lab16_mix_abs_l_next = lab16_mix_l_sample_next[15] ?
             (~lab16_mix_l_sample_next + 16'd1) :
             lab16_mix_l_sample_next;
+        lab16_mix_abs_r_next = lab16_mix_r_sample_next[15] ?
+            (~lab16_mix_r_sample_next + 16'd1) :
+            lab16_mix_r_sample_next;
+        lab16_mix_abs_max_next =
+            (lab16_mix_abs_l_next > lab16_mix_abs_r_next) ?
+            lab16_mix_abs_l_next : lab16_mix_abs_r_next;
         lab16_return_abs_l = lab16_return_scaled_l[15] ?
             (~lab16_return_scaled_l[15:0] + 16'd1) :
             lab16_return_scaled_l[15:0];
+        lab16_return_abs_r = lab16_return_scaled_r[15] ?
+            (~lab16_return_scaled_r[15:0] + 16'd1) :
+            lab16_return_scaled_r[15:0];
+        lab16_return_abs_max =
+            (lab16_return_abs_l > lab16_return_abs_r) ?
+            lab16_return_abs_l : lab16_return_abs_r;
+        lab16_block_summary_03 = {
+            lab16_block_nib3,
+            lab16_block_nib2,
+            lab16_block_nib1,
+            lab16_block_nib0
+        };
+        lab16_block_summary_47 = {
+            lab16_block_nib7,
+            lab16_block_nib6,
+            lab16_block_nib5,
+            lab16_block_nib4
+        };
+        lab16_ch3_snapshot_local_start_20 =
+            {1'b0, lab16_ch3_snapshot_base_i} +
+            {1'b0, lab16_ch3_snapshot_offset_i};
+        lab16_selected_reason = lab16_snap_view ?
+            lab16_loud_snap_reason_i : {
+            11'd0,
+            lab16_pi_i[lab16_view_ch] < lab16_base_i[lab16_view_ch],
+            lab16_pi_i[lab16_view_ch] >= lab16_limit_i[lab16_view_ch],
+            !lab16_map_valid_i[lab16_view_ch],
+            lab16_vol_l_i[lab16_view_ch] == 7'd0 &&
+                lab16_vol_r_i[lab16_view_ch] == 7'd0,
+            lab16_ctrl_i[lab16_view_ch][0]
+        };
+        lab16_selected_delta_reason = lab16_snap_view ?
+            lab16_loud_snap_delta_reason_i : {
+            lab16_selected_reason[7:0],
+            lab16_delta_i[lab16_view_ch]
+        };
+        lab16_selected_volume = lab16_snap_view ?
+            lab16_loud_snap_volume_i : {
+            1'b0, lab16_vol_l_i[lab16_view_ch],
+            1'b0, lab16_vol_r_i[lab16_view_ch]
+        };
+
+        lab16_event_map_valid = 1'b0;
+        lab16_event_map_block = 3'd0;
+        lab16_event_map_base = 19'd0;
+        lab16_event_map_len = 19'd0;
+        lab16_event_map_limit = 19'd0;
+        lab16_event_local_pi = 19'd0;
+        lab16_event_map_offset_21 = 21'd0;
+        lab16_event_map_limit_20 = 20'd0;
+        lab16_event_end_offset_21 = 21'd0;
+        lab16_event_end_limit_20 = 20'd0;
+        lab16_event_effective_limit_20 = 20'd0;
+        lab16_event_local_pi_20 = 20'd0;
+        lab16_event_end_limit_valid = 1'b0;
+        lab16_event_end_limit_used = 1'b0;
+        lab16_event_rom_hit = 1'b0;
+        lab16_event_rom_block = 3'd0;
+        lab16_event_rom_base = 19'd0;
+        lab16_event_rom_len = 19'd0;
+        lab16_event_rom_offset = 19'd0;
+        for (lab16_map_loop_i = 0;
+             lab16_map_loop_i < SMOKE_TYPE80_TABLE_ENTRIES;
+             lab16_map_loop_i = lab16_map_loop_i + 1) begin
+            if (!lab16_event_rom_hit &&
+                smoke_type80_table_valid_i[lab16_map_loop_i] &&
+                (smoke_type80_table_len_i[lab16_map_loop_i] != 19'd0) &&
+                (lab16_event_full_addr >=
+                 smoke_type80_table_dest_i[lab16_map_loop_i]) &&
+                (lab16_event_full_addr <
+                 (smoke_type80_table_dest_i[lab16_map_loop_i] +
+                  {2'd0, smoke_type80_table_len_i[lab16_map_loop_i]}))) begin
+                lab16_event_rom_hit = 1'b1;
+                lab16_event_rom_block = lab16_map_loop_i[2:0];
+                lab16_event_map_offset_21 =
+                    lab16_event_full_addr -
+                    smoke_type80_table_dest_i[lab16_map_loop_i];
+                lab16_event_rom_base =
+                    smoke_type80_table_base_i[lab16_map_loop_i];
+                lab16_event_rom_len =
+                    smoke_type80_table_len_i[lab16_map_loop_i];
+                lab16_event_rom_offset = lab16_event_map_offset_21[18:0];
+                lab16_event_map_limit_20 =
+                    {1'b0, smoke_type80_table_base_i[lab16_map_loop_i]} +
+                    {1'b0, smoke_type80_table_len_i[lab16_map_loop_i]};
+                lab16_event_end_offset_21 =
+                    lab16_event_end_full_addr -
+                    smoke_type80_table_dest_i[lab16_map_loop_i];
+                lab16_event_end_limit_20 =
+                    {1'b0, smoke_type80_table_base_i[lab16_map_loop_i]} +
+                    {1'b0, lab16_event_end_offset_21[18:0]};
+                lab16_event_local_pi_20 =
+                    {1'b0, smoke_type80_table_base_i[lab16_map_loop_i]} +
+                    {1'b0, lab16_event_map_offset_21[18:0]};
+                lab16_event_effective_limit_20 = lab16_event_map_limit_20;
+                lab16_event_end_limit_valid =
+                    (lab16_event_end != 8'd0) &&
+                    (lab16_event_end_full_addr > lab16_event_full_addr) &&
+                    (lab16_event_end_full_addr <=
+                     (smoke_type80_table_dest_i[lab16_map_loop_i] +
+                      {2'd0, smoke_type80_table_len_i[lab16_map_loop_i]})) &&
+                    (lab16_event_end_limit_20 <=
+                     {1'b0, smoke_loaded_ddr_usable_bytes});
+                if (lab16_event_end_limit_valid) begin
+                    lab16_event_effective_limit_20 =
+                        lab16_event_end_limit_20;
+                end
+                if ((lab16_event_effective_limit_20 <=
+                     {1'b0, smoke_loaded_ddr_usable_bytes}) &&
+                    (lab16_event_local_pi_20 <
+                     {1'b0, smoke_loaded_ddr_usable_bytes}) &&
+                    (lab16_event_local_pi_20 <
+                     lab16_event_effective_limit_20)) begin
+                    lab16_event_map_valid = 1'b1;
+                    lab16_event_map_block = lab16_map_loop_i[2:0];
+                    lab16_event_map_base =
+                        smoke_type80_table_base_i[lab16_map_loop_i];
+                    lab16_event_map_len =
+                        smoke_type80_table_len_i[lab16_map_loop_i];
+                    lab16_event_map_limit =
+                        lab16_event_effective_limit_20[18:0];
+                    lab16_event_local_pi =
+                        lab16_event_local_pi_20[18:0];
+                    lab16_event_end_limit_used =
+                        lab16_event_end_limit_valid;
+                end
+            end
+        end
     end
+    wire lab16_event_candidate_pulse =
+        lab_c0_multich_delta_mode &&
+        segapcm_cmd_valid &&
+        (smoke_c0_drive_sel != 2'd0) &&
+        lab16_event_retrigger_reg &&
+        lab16_event_audible &&
+        lab16_event_ctrl_enabled;
+    wire lab16_event_valid_play_state =
+        lab_c0_multich_delta_mode &&
+        segapcm_cmd_valid &&
+        (smoke_c0_drive_sel != 2'd0) &&
+        lab16_event_audible &&
+        lab16_event_ctrl_enabled &&
+        lab16_event_current_nonzero &&
+        lab16_event_map_valid;
+    wire lab16_event_ctrl_enable =
+        lab16_write_high &&
+        (lab16_write_off == 3'd6) &&
+        lab16_prev_ctrl_disabled &&
+        lab16_event_ctrl_enabled;
+    wire lab16_event_volume_on =
+        lab16_write_low &&
+        ((lab16_write_off == 3'd2) ||
+         (lab16_write_off == 3'd3)) &&
+        !lab16_prev_audible &&
+        lab16_event_audible;
+    wire lab16_event_first_valid_start =
+        !lab16_strict_seen_i[lab16_write_ch] &&
+        lab16_event_valid_play_state;
+    wire lab16_event_strict_start_pulse =
+        lab16_event_valid_play_state &&
+        (lab16_event_ctrl_enable ||
+         lab16_event_volume_on ||
+         lab16_event_first_valid_start);
+    wire lab16_event_current_commit =
+        lab16_write_high &&
+        (lab16_write_off == 3'd5);
+    wire lab16_event_qualified_current_pulse =
+        lab16_event_valid_play_state &&
+        lab16_event_current_commit;
+    wire lab16_event_qualified_start_pulse =
+        lab16_event_strict_start_pulse ||
+        lab16_event_qualified_current_pulse;
+    wire lab16_event_broad_start_pulse =
+        lab16_event_candidate_pulse &&
+        lab16_event_map_valid &&
+        lab16_event_current_nonzero;
+    wire [15:0] lab16_event_current_word = {
+        lab16_event_cur_high,
+        lab16_event_cur_mid
+    };
+    wire lab16_event_current_active =
+        lab16_event_qualified_current_pulse &&
+        lab16_active_i[lab16_write_ch];
+    wire lab16_event_current_inactive =
+        lab16_event_qualified_current_pulse &&
+        !lab16_active_i[lab16_write_ch];
+    wire [15:0] lab16_event_runtime_offset =
+        (lab16_active_i[lab16_write_ch] &&
+         lab16_map_valid_i[lab16_write_ch]) ?
+        (lab16_pi_i[lab16_write_ch][15:0] -
+         lab16_base_i[lab16_write_ch][15:0]) :
+        16'd0;
+    wire [15:0] lab16_event_runtime_current =
+        (lab16_start_current_i[lab16_write_ch] +
+         lab16_event_runtime_offset);
+    wire lab16_event_current_duplicate =
+        lab16_event_current_word ==
+        lab16_start_current_i[lab16_write_ch];
+    wire lab16_event_current_backward =
+        lab16_event_current_word < lab16_event_runtime_current;
+    wire [16:0] lab16_event_current_abs_delta =
+        lab16_event_current_backward ?
+        ({1'b0, lab16_event_runtime_current} -
+         {1'b0, lab16_event_current_word}) :
+        ({1'b0, lab16_event_current_word} -
+         {1'b0, lab16_event_runtime_current});
+    wire lab16_event_current_near =
+        lab16_event_current_abs_delta <= 17'h00200;
+    wire lab16_event_current_far =
+        lab16_event_current_abs_delta > 17'h00200;
+    wire lab16_event_current_same_block =
+        lab16_map_valid_i[lab16_write_ch] &&
+        lab16_event_map_valid &&
+        (lab16_block_i[lab16_write_ch] == lab16_event_map_block);
+    wire lab16_event_current_block_change =
+        lab16_map_valid_i[lab16_write_ch] &&
+        lab16_event_map_valid &&
+        (lab16_block_i[lab16_write_ch] != lab16_event_map_block);
+    wire [15:0] lab16_event_end_gap =
+        lab16_event_end_full_addr[15:0] - lab16_event_current_word;
+    wire lab16_event_current_end_near =
+        (lab16_event_end != 8'd0) &&
+        (lab16_event_end_full_addr[15:0] > lab16_event_current_word) &&
+        (lab16_event_end_gap <= 16'h0200);
+    wire lab16_event_current_back_ok =
+        lab16_event_current_active &&
+        lab16_event_current_backward;
+    wire lab16_event_current_no_dup_ok =
+        lab16_event_current_active &&
+        !lab16_event_current_duplicate;
+    wire lab16_event_current_near_ok =
+        lab16_event_current_active &&
+        lab16_event_current_near;
+    wire lab16_selected_policy_current_pulse =
+        lab16_event_qualified_current_pulse &&
+        (smoke_c0_pm3_start_policy != LAB16_PM3_START_STRICT);
+    wire lab16_selected_policy_active_current_pulse =
+        lab16_selected_policy_current_pulse &&
+        lab16_active_i[lab16_write_ch];
+    wire lab16_reposition_pulse =
+        (smoke_c0_pm3_start_policy == LAB16_PM3_START_QUAL_REPOS) &&
+        lab16_event_current_active &&
+        !lab16_event_strict_start_pulse;
+    wire lab16_ch3_raw_event_pulse =
+        lab_c0_multich_delta_mode &&
+        segapcm_cmd_valid &&
+        (smoke_c0_drive_sel != 2'd0) &&
+        (lab16_write_ch == 4'd3) &&
+        lab16_event_retrigger_reg;
+    wire lab16_ch3_snapshot_pulse =
+        lab16_ch3_raw_event_pulse &&
+        lab16_event_audible &&
+        lab16_event_ctrl_enabled &&
+        ({lab16_event_cur_high, lab16_event_cur_mid} != 16'd0);
+    wire lab16_event_block2_match = lab16_event_map_valid;
+    wire lab16_retrigger_masked_pulse =
+        lab16_retrigger_pulse &&
+        smoke_c0_pm3_audio_mask[lab16_write_ch];
+    wire [15:0] lab16_event_full_low = lab16_event_full_addr[15:0];
+    wire [7:0] lab16_event_delta_effective =
+        (lab16_delta_i[lab16_write_ch] != 8'd0) ?
+        lab16_delta_i[lab16_write_ch] : 8'hA0;
+    wire lab16_target_ch_ok = lab16_write_ch == 4'd3;
+    wire lab16_target_block_ok = lab16_event_map_block == 3'd2;
+    wire lab16_target_current_ok = lab16_event_current_word == 16'h7100;
+    wire lab16_target_delta_ok = lab16_event_delta_effective == 8'hA0;
+    wire lab16_target_map_ok = lab16_event_map_valid;
+    wire lab16_target_source_ok =
+        lab_c0_multich_delta_mode && !lab_c0_legacy_ch3_block2_mode;
+    wire lab16_target_mask_ok = smoke_c0_pm3_audio_mask[4'd3];
+    wire lab16_retrigger_target_pulse =
+        lab16_retrigger_masked_pulse &&
+        lab16_target_ch_ok &&
+        lab16_target_block_ok &&
+        lab16_target_current_ok &&
+        lab16_target_delta_ok &&
+        lab16_target_map_ok &&
+        lab16_target_source_ok &&
+        lab16_target_mask_ok;
+    wire [7:0] lab16_target_match_bits = {
+        lab16_retrigger_target_pulse,
+        lab16_target_mask_ok,
+        lab16_target_source_ok,
+        lab16_target_map_ok,
+        lab16_target_delta_ok,
+        lab16_target_current_ok,
+        lab16_target_block_ok,
+        lab16_target_ch_ok
+    };
+    wire [7:0] lab16_runtime_pr_flags = {
+        lab16_first_capture_cleared_i,
+        lab16_first_capture_overwrite_i,
+        lab16_first_samples_valid_i,
+        lab16_first_capture_reader_match_i,
+        lab16_first_capture_has_any_i,
+        lab16_first_samples_valid_i,
+        lab16_first_capture_armed_i,
+        lab16_start_tuple_valid_i
+    };
+    wire [15:0] lab16_runtime_pr_live = {
+        8'hE6,
+        lab16_runtime_pr_flags
+    };
+    wire [15:0] lab16_runtime_pr_debug =
+        lab16_first_samples_valid_i ?
+        lab16_runtime_pr_hold_i : lab16_runtime_pr_live;
+    wire [15:0] lab16_runtime_offset_next =
+        lab16_pi_i[lab16_pending_ch_i][15:0] -
+        lab16_base_i[lab16_pending_ch_i][15:0];
+    wire [16:0] lab16_runtime_addr_next =
+        {1'b0, lab16_start_tuple_full_addr_i[15:0]} +
+        {1'b0, lab16_runtime_offset_next};
+    wire lab16_ch3_known_coord_fail =
+        (lab16_write_ch == 4'd3) &&
+        (lab16_event_full_addr == 21'h17100) &&
+        lab16_event_rom_hit &&
+        (smoke_type80_table_dest_i[lab16_event_rom_block] == 21'h17100) &&
+        (lab16_event_rom_offset != 19'd0);
+    assign lab16_retrigger_pulse =
+        (smoke_c0_pm3_start_policy == LAB16_PM3_START_BROAD) ?
+            lab16_event_broad_start_pulse :
+        (smoke_c0_pm3_start_policy == LAB16_PM3_START_QUAL_RESTART) ?
+            lab16_event_qualified_start_pulse :
+        (smoke_c0_pm3_start_policy == LAB16_PM3_START_QUAL_REPOS) ?
+            (lab16_event_strict_start_pulse || lab16_event_current_inactive) :
+        (smoke_c0_pm3_start_policy == LAB16_PM3_START_QUAL_IDLE) ?
+            (lab16_event_strict_start_pulse || lab16_event_current_inactive) :
+        (smoke_c0_pm3_start_policy == LAB16_PM3_START_BACK_ONLY) ?
+            (lab16_event_strict_start_pulse ||
+             lab16_event_current_inactive ||
+             lab16_event_current_back_ok) :
+        (smoke_c0_pm3_start_policy == LAB16_PM3_START_NO_DUP) ?
+            (lab16_event_strict_start_pulse ||
+             lab16_event_current_inactive ||
+             lab16_event_current_no_dup_ok) :
+        (smoke_c0_pm3_start_policy == LAB16_PM3_START_NEAR_ONLY) ?
+            (lab16_event_strict_start_pulse ||
+             lab16_event_current_inactive ||
+             lab16_event_current_near_ok) :
+            lab16_event_strict_start_pulse;
     wire [15:0] lab_c0_pm4_reseed_reason_next = {
         7'd0,
         lab_c0_selected_event_pulse,
@@ -1779,6 +2878,32 @@ module segapcm_sound_module #(
             lab_c0_windowed_direct_sample) :
         16'sd0;
     localparam logic signed [15:0] LAB_C0_FORCE_SAMPLE = 16'sh0800;
+    wire signed [15:0] lab_c0_legacy_output_sample =
+        (lab_c0_legacy_ch3_block2_mode && lab_c0_seq_output) ?
+        lab_c0_direct_output_sample : 16'sd0;
+    wire signed [15:0] lab_c0_multich_output_l_sample =
+        (lab_c0_multich_delta_mode && lab_c0_seq_output) ?
+        lab16_mix_l_sample_i : 16'sd0;
+    wire signed [15:0] lab_c0_multich_output_r_sample =
+        (lab_c0_multich_delta_mode && lab_c0_seq_output) ?
+        lab16_mix_r_sample_i : 16'sd0;
+    wire signed [15:0] lab_c0_single_output_sample =
+        lab_c0_force_output ? LAB_C0_FORCE_SAMPLE :
+        (lab_c0_mame_exact_mode && lab_c0_seq_output) ?
+        lab_c0_output_i :
+        ((lab_c0_fixed_mode || lab_c0_local_seq_mode) &&
+         lab_c0_seq_output) ?
+        lab_c0_direct_output_sample :
+        lab_c0_legacy_ch3_block2_mode ?
+        lab_c0_legacy_output_sample :
+        lab_c0_consume_pulse_i ?
+        lab_c0_output_i : 16'sd0;
+    wire signed [15:0] lab_c0_actual_output_sample =
+        (lab_c0_multich_delta_mode && lab_c0_seq_output) ?
+        lab_c0_multich_output_l_sample : lab_c0_single_output_sample;
+    wire signed [15:0] lab_c0_actual_output_r_sample =
+        (lab_c0_multich_delta_mode && lab_c0_seq_output) ?
+        lab_c0_multich_output_r_sample : lab_c0_single_output_sample;
     wire signed [15:0] lab_c0_snd_left = lab_c0_output_i;
     wire signed [15:0] lab_c0_snd_right = lab_c0_output_i;
     wire signed [8:0] lab_c0_cv =
@@ -1887,7 +3012,11 @@ module segapcm_sound_module #(
     end
 
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+    assign core_cpu_cs = smoke_c0_jt_backend ? cpu_write_pulse : 1'b0;
+`else
     assign core_cpu_cs = 1'b0;
+`endif
 `else
     assign core_cpu_cs = cpu_write_pulse;
 `endif
@@ -2210,6 +3339,9 @@ module segapcm_sound_module #(
 `endif
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
     assign preload_rom_data_valid =
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+        smoke_c0_jt_backend ? smoke_ddr_audio_data_ok_i :
+`endif
         smoke_ddr_c0drive_active ?
         (smoke_ddr_c0_return_valid_i && smoke_ddr_c0_return_in_range_i) :
         (selected_preload_addr_valid && smoke_effective_addr_in_range);
@@ -2690,28 +3822,13 @@ module segapcm_sound_module #(
         (smoke_c0_drive_sel != 2'd0) ? loaded_ddr_probe_write_word6_debug :
 `endif
         {8'd0, c0_capture_ch3_end_i};
-`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
-    assign jt_smoke_vol_l_debug = (smoke_c0_drive_sel != 2'd0) ?
-        (lab_c0_multich_delta_mode ? {
-            lab16_active_i[0],
-            lab16_active_i[1],
-            lab16_active_i[2],
-            lab16_active_i[3],
-            lab16_active_i[4],
-            lab16_active_i[5],
-            lab16_active_i[6],
-            lab16_active_i[7],
-            lab16_active_i[8],
-            lab16_active_i[9],
-            lab16_active_i[10],
-            lab16_active_i[11],
-            lab16_active_i[12],
-            lab16_active_i[13],
-            lab16_active_i[14],
-            lab16_active_i[15]
-        } : {
-            lab_c0_fixed_mode,
-            lab_c0_local_seq_mode,
+	`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+	    assign jt_smoke_vol_l_debug = smoke_c0_jt_backend ?
+            core_dbg_smoke_jt_vol_l :
+            (smoke_c0_drive_sel != 2'd0) ?
+	        (lab_c0_multich_delta_mode ? lab16_active_mask : {
+	            lab_c0_fixed_mode,
+	            lab_c0_local_seq_mode,
             smoke_playback_running,
             !smoke_playback_done,
             !smoke_vgm_end_seen,
@@ -2724,12 +3841,14 @@ module segapcm_sound_module #(
             lab_c0_state_i,
             smoke_c0_drive_sel
         }) :
-        core_dbg_smoke_seed_reload_req;
-    assign jt_smoke_vol_r_debug = (smoke_c0_drive_sel != 2'd0) ?
-        (lab_c0_multich_delta_mode ?
-            lab16_pi_i[lab16_debug_ch_i][15:0] :
-            (lab_c0_fixed_mode ? {13'd0, lab_c0_fixed_index_i} :
-                                 lab_c0_pi_i[15:0])) :
+	        core_dbg_smoke_seed_reload_req;
+	    assign jt_smoke_vol_r_debug = smoke_c0_jt_backend ?
+            core_dbg_smoke_jt_vol_r :
+            (smoke_c0_drive_sel != 2'd0) ?
+	        (lab_c0_multich_delta_mode ?
+	            lab16_ch3_worst_reason_i :
+	            (lab_c0_fixed_mode ? {13'd0, lab_c0_fixed_index_i} :
+	                                 lab_c0_pi_i[15:0])) :
         core_dbg_smoke_first_addr;
 `else
     assign jt_smoke_vol_l_debug = (smoke_c0_drive_sel != 2'd0) ?
@@ -2739,14 +3858,28 @@ module segapcm_sound_module #(
         core_dbg_smoke_first_addr :
         core_dbg_smoke_first_addr;
 `endif
-    assign jt_smoke_sample_byte_debug = core_dbg_smoke_sample_byte;
-    assign jt_smoke_out_l_debug = core_dbg_smoke_out_l;
-    assign jt_smoke_out_r_debug =
-`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
-        (smoke_c0_drive_sel != 2'd0) ?
-            (lab_c0_multich_delta_mode ?
-                lab16_ch3_sticky_i : lab_c0_mame_mv_wide[15:0]) :
-`endif
+	    assign jt_smoke_sample_byte_debug =
+	`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+	        smoke_c0_jt_backend ? core_dbg_smoke_sample_byte :
+	        (smoke_c0_drive_sel != 2'd0 && lab_c0_multich_delta_mode) ?
+	            lab16_ch3_worst_raw_cv_i :
+	`endif
+	        core_dbg_smoke_sample_byte;
+	    assign jt_smoke_out_l_debug =
+	`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+	        smoke_c0_jt_backend ? core_dbg_smoke_out_l :
+	        (smoke_c0_drive_sel != 2'd0 && lab_c0_multich_delta_mode) ?
+	            lab16_ch3_worst_l_i :
+	`endif
+	        core_dbg_smoke_out_l;
+	    assign jt_smoke_out_r_debug =
+	`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+	        smoke_c0_jt_backend ? core_dbg_smoke_out_r :
+	        (smoke_c0_drive_sel != 2'd0) ?
+	            (lab_c0_multich_delta_mode ?
+	                lab16_ch3_retrig_base_i :
+	                lab_c0_mame_mv_wide[15:0]) :
+	`endif
         core_dbg_smoke_out_r;
 `else
     assign c0_capture_write_count_debug = 16'd0;
@@ -2791,90 +3924,91 @@ module segapcm_sound_module #(
     assign ch1_first_low_debug = core_dbg_ch1_first_low;
     assign ch1_first_raw_high_debug =
 `ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
-        (smoke_c0_drive_sel != 2'd0) ?
-            (lab_c0_multich_delta_mode ?
-                {15'd0, lab16_active_i[3]} : lab_c0_mame_loud_p0_i) :
+        (smoke_c0_drive_sel != 2'd0 && lab_c0_mame_exact_mode) ?
+            lab_c0_mame_loud_p0_i :
 `endif
         core_dbg_ch1_first_raw_high;
     assign ch1_first_raw_low_debug =
 `ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
-        (smoke_c0_drive_sel != 2'd0) ?
-            (lab_c0_multich_delta_mode ?
-                lab16_ch3_reseed_count_i : lab_c0_mame_loud_p1_i) :
+        (smoke_c0_drive_sel != 2'd0 && lab_c0_mame_exact_mode) ?
+            lab_c0_mame_loud_p1_i :
 `endif
         core_dbg_ch1_first_raw_low;
     assign ch3_first_high_debug =
 `ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
-        (smoke_c0_drive_sel != 2'd0) ?
-            (lab_c0_multich_delta_mode ?
-                {15'd0, lab16_ch3_map_valid_i} : lab_c0_mame_loud_p2_i) :
+        (smoke_c0_drive_sel != 2'd0 && lab_c0_mame_exact_mode) ?
+            lab_c0_mame_loud_p2_i :
 `endif
         core_dbg_ch3_first_high;
     assign ch3_first_low_debug =
 `ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
-        (smoke_c0_drive_sel != 2'd0) ?
-            (lab_c0_multich_delta_mode ?
-                lab16_pi_i[3][15:0] : lab_c0_mame_loud_p3_i) :
+        (smoke_c0_drive_sel != 2'd0 && lab_c0_mame_exact_mode) ?
+            lab_c0_mame_loud_p3_i :
 `endif
         core_dbg_ch3_first_low;
     assign ch3_first_raw_high_debug =
 `ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
-        (smoke_c0_drive_sel != 2'd0) ?
-            (lab_c0_multich_delta_mode ?
-                {8'd0, lab16_delta_i[3]} : lab_c0_mame_loud_q0_i) :
+        (smoke_c0_drive_sel != 2'd0 && lab_c0_mame_exact_mode) ?
+            lab_c0_mame_loud_q0_i :
 `endif
         core_dbg_ch3_first_raw_high;
     assign ch3_first_raw_low_debug =
 `ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
-        (smoke_c0_drive_sel != 2'd0) ?
-            (lab_c0_multich_delta_mode ?
-                {1'b0, lab16_vol_l_i[3],
-                 1'b0, lab16_vol_r_i[3]} : lab_c0_mame_loud_q1_i) :
+        (smoke_c0_drive_sel != 2'd0 && lab_c0_mame_exact_mode) ?
+            lab_c0_mame_loud_q1_i :
 `endif
         core_dbg_ch3_first_raw_low;
     assign ch3_r0_high_debug =
 `ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
-        (smoke_c0_drive_sel != 2'd0) ?
-            (lab_c0_multich_delta_mode ?
-                {8'd0, lab16_ctrl_i[3]} : lab_c0_mame_loud_q2_i) :
+        (smoke_c0_drive_sel != 2'd0 && lab_c0_mame_exact_mode) ?
+            lab_c0_mame_loud_q2_i :
 `endif
         core_dbg_ch3_r0_high;
     assign ch3_r0_low_debug =
 `ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
-        (smoke_c0_drive_sel != 2'd0) ?
-            (lab_c0_multich_delta_mode ?
-                lab16_ch3_stop_reason_i : lab_c0_mame_loud_q3_i) :
+        (smoke_c0_drive_sel != 2'd0 && lab_c0_mame_exact_mode) ?
+            lab_c0_mame_loud_q3_i :
 `endif
         core_dbg_ch3_r0_low;
     assign ch3_r1_high_debug =
 `ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
-        (smoke_c0_drive_sel != 2'd0) ?
-            (lab_c0_multich_delta_mode ?
-                lab16_ch3_range_count_i : lab_c0_mame_loud_m0_i) :
+        (smoke_c0_drive_sel != 2'd0 && lab_c0_mame_exact_mode) ?
+            lab_c0_mame_loud_m0_i :
 `endif
         core_dbg_ch3_r1_high;
     assign ch3_r1_low_debug =
 `ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
-        (smoke_c0_drive_sel != 2'd0) ?
-            (lab_c0_multich_delta_mode ?
-                lab16_mix_peak_i : lab_c0_mame_loud_m1_i) :
+        (smoke_c0_drive_sel != 2'd0 && lab_c0_mame_exact_mode) ?
+            lab_c0_mame_loud_m1_i :
 `endif
         core_dbg_ch3_r1_low;
     assign ch3_r2_high_debug =
 `ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
-        (smoke_c0_drive_sel != 2'd0) ?
-            (lab_c0_multich_delta_mode ?
-                lab16_ch3_peak_i : lab_c0_mame_loud_m2_i) :
+        (smoke_c0_drive_sel != 2'd0 && lab_c0_mame_exact_mode) ?
+            lab_c0_mame_loud_m2_i :
 `endif
         core_dbg_ch3_r2_high;
     assign ch3_r2_low_debug =
 `ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
-        (smoke_c0_drive_sel != 2'd0) ?
-            (lab_c0_multich_delta_mode ?
-                {4'd0, lab16_emit_div_i} : lab_c0_mame_loud_m3_i) :
+        (smoke_c0_drive_sel != 2'd0 && lab_c0_mame_exact_mode) ?
+            lab_c0_mame_loud_m3_i :
 `endif
         core_dbg_ch3_r2_low;
+    assign dbg_ch3_load_after_23 = core_dbg_ch3_load_after_23;
+    assign dbg_ch3_load_after_15 = core_dbg_ch3_load_after_15;
+    assign dbg_ch3_load_after_07 = core_dbg_ch3_load_after_07;
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_TEST
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+    assign update_state_channel_debug = core_dbg_update_state_channel;
+    assign update_before_23_debug = core_dbg_update_before_23;
+    assign update_before_15_debug = core_dbg_update_before_15;
+    assign update_before_07_debug = core_dbg_update_before_07;
+    assign update_addend_debug = core_dbg_update_addend;
+    assign update_after_23_debug = core_dbg_update_after_23;
+    assign update_after_15_debug = core_dbg_update_after_15;
+    assign update_after_07_debug = core_dbg_update_after_07;
+    assign update_reason_debug = core_dbg_update_reason;
+`else
     assign update_state_channel_debug = (smoke_c0_drive_sel != 2'd0) ?
         {12'd0, smoke_type80_table_count_i} :
         core_dbg_smoke_end_input;
@@ -2902,6 +4036,7 @@ module segapcm_sound_module #(
     assign update_reason_debug = (smoke_c0_drive_sel != 2'd0) ?
         core_dbg_smoke_current_input :
         core_dbg_smoke_current_input;
+`endif
 `else
     assign update_state_channel_debug = known38686_state8_channel3 ?
                                         {8'd0, known38686_state_i, known38686_channel_i} :
@@ -2918,7 +4053,23 @@ module segapcm_sound_module #(
     assign cpu_write_count_debug = core_write_count_i;
     assign cpu_cen_write_count_debug = core_cen_write_count_i;
     assign cpu_addr_debug = {latched_raw_addr[7:0], latched_cpu_addr};
-    assign shadow_decode_debug = shadow_decode_i;
+    assign shadow_decode_debug =
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+        smoke_c0_jt_backend ? lab_jt_last_cpu_write_i :
+`endif
+        shadow_decode_i;
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+	    assign shadow_ch0_vol_debug = lab16_ch3_write_count_i;
+	    assign shadow_ch0_end_delta_debug =
+	        lab16_ch3_current_update_count_i;
+	    assign shadow_ch0_start_debug = lab16_ch3_end_update_count_i;
+	    assign shadow_ch0_ctrl_debug = lab16_ch3_delta_update_count_i;
+	    assign shadow_ch1_vol_debug = lab16_ch3_volume_update_count_i;
+	    assign shadow_ch1_loop_debug = lab16_ch3_ctrl_update_count_i;
+	    assign shadow_ch1_end_delta_debug = lab16_ch3_reseed_count_i;
+	    assign shadow_ch1_start_debug = lab16_ch3_qualified_start_count_i;
+	    assign shadow_ch1_ctrl_debug = lab16_ch3_ignored_update_count_i;
+`else
     assign shadow_ch0_vol_debug = {shadow_ram[8'h02], shadow_ram[8'h03]};
     assign shadow_ch0_end_delta_debug = {shadow_ram[8'h06], shadow_ram[8'h07]};
     assign shadow_ch0_start_debug = {shadow_ram[8'h84], shadow_ram[8'h85]};
@@ -2928,6 +4079,7 @@ module segapcm_sound_module #(
     assign shadow_ch1_end_delta_debug = {shadow_ram[8'h0e], shadow_ram[8'h0f]};
     assign shadow_ch1_start_debug = {shadow_ram[8'h8c], shadow_ram[8'h8d]};
     assign shadow_ch1_ctrl_debug = {shadow_ram[8'h8e], shadow_ram[8'h8f]};
+`endif
     assign shadow_ch3_loop_debug = {shadow_ram[8'h1c], shadow_ram[8'h1d]};
     assign shadow_ch3_end_delta_debug = {shadow_ram[8'h1e], shadow_ram[8'h1f]};
     assign shadow_ch3_start_debug = {shadow_ram[8'h9c], shadow_ram[8'h9d]};
@@ -2946,6 +4098,7 @@ module segapcm_sound_module #(
     assign last_audio_r_debug = last_audio_r_i;
 `ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
     assign core_status_debug =
+        smoke_c0_jt_backend ? lab_jt_bringup_status :
         {12'd0, lab_c0_pump_branch_debug};
 `else
     assign core_status_debug = {
@@ -3042,6 +4195,7 @@ module segapcm_sound_module #(
             lab_c0_mame_loud_m2_i <= 16'd0;
             lab_c0_mame_loud_m3_i <= 16'd0;
             lab16_active_i <= 16'd0;
+            lab16_strict_seen_i <= 16'd0;
             lab16_rr_ch_i <= 4'd0;
             lab16_pending_ch_i <= 4'd0;
             lab16_emit_div_i <= 12'd0;
@@ -3059,13 +4213,266 @@ module segapcm_sound_module #(
             lab16_ch3_hold_i <= 16'd0;
             lab16_ch3_sticky_i <= 16'd0;
             lab16_ch3_range_count_i <= 16'd0;
+            lab16_ch3_hit_len_i <= 16'd0;
+            lab16_ch3_intro_reseed_count_i <= 16'd0;
             lab16_mix_peak_i <= 16'd0;
             lab16_ch3_peak_i <= 16'd0;
+            lab16_map_hit_count_i <= 16'd0;
+            lab16_map_miss_count_i <= 16'd0;
+            lab16_ever_active_i <= 16'd0;
+            lab16_ever_nonzero_i <= 16'd0;
+            lab16_sticky_map_i <= 16'd0;
+            lab16_max_active_count_i <= 5'd0;
+            lab16_start_tuple_count_i <= 16'd0;
+            lab16_target_start_count_i <= 16'd0;
+            lab16_skipped_start_count_i <= 16'd0;
+            lab16_target_current_i <= 16'd0;
+            lab16_target_full_low_i <= 16'd0;
+            lab16_target_match_bits_i <= 8'd0;
+            lab16_start_tuple_ch_i <= 4'd0;
+            lab16_start_tuple_block_i <= 3'd0;
+            lab16_start_tuple_current_i <= 16'd0;
+            lab16_start_tuple_bank_i <= 21'd0;
+            lab16_start_tuple_full_addr_i <= 21'd0;
+            lab16_start_tuple_delta_i <= 8'd0;
+            lab16_start_tuple_vol_l_i <= 7'd0;
+            lab16_start_tuple_vol_r_i <= 7'd0;
+            lab16_start_tuple_source_i <= 16'd0;
+            lab16_start_tuple_valid_i <= 1'b0;
+            lab16_first_samples_valid_i <= 1'b0;
+            lab16_first_capture_armed_i <= 1'b0;
+            lab16_first_capture_has_any_i <= 1'b0;
+            lab16_first_capture_reader_match_i <= 1'b0;
+            lab16_first_capture_overwrite_i <= 1'b0;
+            lab16_first_capture_cleared_i <= 1'b1;
+            lab16_runtime_active_seen_i <= 1'b0;
+            lab16_runtime_consume_count_i <= 16'd0;
+            lab16_runtime_status_i <= 16'hE500;
+            lab16_runtime_offset_i <= 16'd0;
+            lab16_runtime_addr_i <= 16'd0;
+            lab16_runtime_pr_hold_i <= 16'hE600;
+            lab16_runtime_pi_i <= 19'd0;
+            lab16_runtime_phase_hint_i <= 16'd0;
+            lab16_runtime_rd_i <= 16'd0;
+            lab16_runtime_l_i <= 16'sd0;
+            lab16_runtime_r_i <= 16'sd0;
+            lab16_runtime_stop_i <= 16'hE500;
+            lab16_start_tuple_end_addr_i <= 21'd0;
+            lab16_start_tuple_limit_i <= 19'd0;
+            lab16_start_tuple_end_limited_i <= 1'b0;
+            lab16_last_stop_pi_i <= 19'd0;
+            lab16_end_debug_flags_i <= 16'hE900;
+            lab16_stop_valid_i <= 1'b0;
+            lab16_stop_count_i <= 16'd0;
+            lab16_stop_offset_i <= 16'd0;
+            lab16_stop_pi_i <= 16'd0;
+            lab16_stop_full_i <= 16'd0;
+            lab16_stop_phase_i <= 16'd0;
+            lab16_stop_flags_i <= 16'hEA00;
+            lab16_first_s0_addr_i <= 16'd0;
+            lab16_first_s0_index_i <= 16'd0;
+            lab16_first_s0_phase_i <= 16'd0;
+            lab16_first_s0_capture_count_i <= 16'd0;
+            lab16_first_sample_count_i <= 5'd0;
+            lab16_first_raw01_i <= 16'd0;
+            lab16_first_raw23_i <= 16'd0;
+            lab16_first_raw45_i <= 16'd0;
+            lab16_first_raw67_i <= 16'd0;
+            lab16_first_raw89_i <= 16'd0;
+            lab16_first_rawab_i <= 16'd0;
+            lab16_first_rawcd_i <= 16'd0;
+            lab16_first_rawef_i <= 16'd0;
+            lab16_first_dec01_i <= 16'd0;
+            lab16_first_dec23_i <= 16'd0;
+            lab16_first_dec45_i <= 16'd0;
+            lab16_first_dec67_i <= 16'd0;
+            lab16_first_dec89_i <= 16'd0;
+            lab16_first_decab_i <= 16'd0;
+            lab16_first_deccd_i <= 16'd0;
+            lab16_first_decef_i <= 16'd0;
+            lab16_wave_rawcv0_i <= 16'd0;
+            lab16_wave_addr0_i <= 16'd0;
+            lab16_wave_pi0_i <= 16'd0;
+            lab16_wave_out0_i <= 16'd0;
+            lab16_wave_rawcv1_i <= 16'd0;
+            lab16_wave_addr1_i <= 16'd0;
+            lab16_wave_pi1_i <= 16'd0;
+            lab16_wave_out1_i <= 16'd0;
+            lab16_wave_rawcv2_i <= 16'd0;
+            lab16_wave_addr2_i <= 16'd0;
+            lab16_wave_pi2_i <= 16'd0;
+            lab16_wave_out2_i <= 16'd0;
+            lab16_wave_rawcv3_i <= 16'd0;
+            lab16_wave_addr3_i <= 16'd0;
+            lab16_wave_pi3_i <= 16'd0;
+            lab16_wave_out3_i <= 16'd0;
+            lab16_wave_vol_i <= 16'd0;
+            lab16_ch3_raw_event_count_i <= 16'd0;
+            lab16_ch3_block_hit_count_i <= 16'd0;
+            lab16_ch3_full_addr_i <= 21'd0;
+            lab16_ch3_block_i <= 3'd0;
+            lab16_ch3_block_dest_i <= 21'd0;
+            lab16_ch3_block_base_i <= 19'd0;
+            lab16_ch3_block_len_i <= 19'd0;
+            lab16_ch3_block_offset_i <= 19'd0;
+            lab16_ch3_reject_i <= 16'd0;
+            lab16_ch3_snapshot_valid_i <= 1'b0;
+            lab16_ch3_snapshot_count_i <= 16'd0;
+            lab16_ch3_snapshot_ctrl_i <= 8'd0;
+            lab16_ch3_snapshot_vol_l_i <= 7'd0;
+            lab16_ch3_snapshot_vol_r_i <= 7'd0;
+            lab16_ch3_snapshot_delta_i <= 8'd0;
+            lab16_ch3_snapshot_current_i <= 16'd0;
+            lab16_ch3_snapshot_full_addr_i <= 21'd0;
+            lab16_ch3_snapshot_bank_i <= 21'd0;
+            lab16_ch3_snapshot_hit_i <= 1'b0;
+            lab16_ch3_snapshot_block_i <= 3'd0;
+            lab16_ch3_snapshot_dest_i <= 21'd0;
+            lab16_ch3_snapshot_base_i <= 19'd0;
+            lab16_ch3_snapshot_len_i <= 19'd0;
+            lab16_ch3_snapshot_offset_i <= 19'd0;
+            lab16_ch3_snapshot_reject_i <= 16'd0;
+            lab16_loud_snap_valid_i <= 1'b0;
+            lab16_loud_snap_abs_i <= 16'd0;
+            lab16_loud_snap_ch_i <= 4'd0;
+            lab16_loud_snap_block_i <= 3'd0;
+            lab16_loud_snap_start_i <= 19'd0;
+            lab16_loud_snap_pi_i <= 19'd0;
+            lab16_loud_snap_sample_i <= 8'h80;
+            lab16_loud_snap_cv_i <= 9'sd0;
+            lab16_loud_snap_out_i <= 16'sd0;
+            lab16_loud_snap_delta_reason_i <= 16'd0;
+            lab16_loud_snap_volume_i <= 16'd0;
+            lab16_loud_snap_reason_i <= 16'd0;
+            lab16_expl_valid_i <= 1'b0;
+            lab16_expl_count_i <= 16'd0;
+            lab16_expl_abs_i <= 16'd0;
+            lab16_expl_ch_i <= 4'd0;
+            lab16_expl_block_i <= 3'd0;
+            lab16_expl_current_i <= 16'd0;
+            lab16_expl_end_i <= 16'd0;
+            lab16_expl_delta_i <= 8'd0;
+            lab16_expl_volume_i <= 16'd0;
+            lab16_expl_base_i <= 16'd0;
+            lab16_expl_first_index_i <= 16'd0;
+            lab16_expl_index_i <= 16'd0;
+            lab16_expl_raw_cv_i <= 16'd0;
+            lab16_expl_l_i <= 16'sd0;
+            lab16_expl_r_i <= 16'sd0;
+            lab16_expl_mix_i <= 16'd0;
+            lab16_expl_active_i <= 16'd0;
+            lab16_expl_reason_i <= 16'hEC00;
+            lab16_expl_e0_i <= 16'd0;
+            lab16_expl_e1_i <= 16'd0;
+            lab16_expl_e2_i <= 16'd0;
+            lab16_expl_e3_i <= 16'd0;
+            lab16_expl_first8_done_i <= 1'b0;
+            lab16_ch3_live_count_i <= 16'd0;
+            lab16_ch3_live_pi_i <= 16'd0;
+            lab16_ch3_live_offset_i <= 16'd0;
+            lab16_ch3_live_phase_i <= 16'd0;
+            lab16_ch3_live_raw_cv_i <= 16'd0;
+            lab16_ch3_live_l_i <= 16'sd0;
+            lab16_ch3_live_reason_i <= 16'hC300;
+            lab16_ch3_snap_abs_i <= 16'd0;
+            lab16_ch3_snap_pi_i <= 16'd0;
+            lab16_ch3_snap_offset_i <= 16'd0;
+            lab16_ch3_snap_phase_i <= 16'd0;
+            lab16_ch3_snap_raw_cv_i <= 16'd0;
+            lab16_ch3_snap_l_i <= 16'sd0;
+            lab16_ch3_snap_reason_i <= 16'hC300;
+            lab16_ch3_snap_base_i <= 16'd0;
+            lab16_ch3_snap_limit_i <= 16'd0;
+            lab16_ch3_snap_block_i <= 16'hC300;
+            lab16_ch3_write_count_i <= 16'd0;
+            lab16_ch3_current_update_count_i <= 16'd0;
+            lab16_ch3_end_delta_update_count_i <= 16'd0;
+            lab16_ch3_end_update_count_i <= 16'd0;
+            lab16_ch3_delta_update_count_i <= 16'd0;
+            lab16_ch3_ctrl_update_count_i <= 16'd0;
+            lab16_ch3_volume_update_count_i <= 16'd0;
+            lab16_ch3_retrig_write_i <= 16'd0;
+            lab16_ch3_active_start_count_i <= 16'd0;
+            lab16_ch3_ignored_update_count_i <= 16'd0;
+            lab16_ch3_clear_count_i <= 16'd0;
+            lab16_ch3_last_retrigger_time_i <= 16'd0;
+            lab16_ch3_last_write_time_i <= 16'd0;
+            lab16_ch3_last_read_time_i <= 16'd0;
+            lab16_ch3_last_clear_time_i <= 16'd0;
+            lab16_ch3_last_expl_time_i <= 16'd0;
+            lab16_ch3_retrig_valid_i <= 1'b0;
+            lab16_ch3_retrig_count_i <= 16'd0;
+            lab16_ch3_broad_restart_count_i <= 16'd0;
+            lab16_ch3_qualified_start_count_i <= 16'd0;
+            lab16_ch3_selected_reposition_count_i <= 16'd0;
+            lab16_ch3_selected_active_current_count_i <= 16'd0;
+            lab16_ch3_qual_duplicate_count_i <= 16'd0;
+            lab16_ch3_qual_backward_count_i <= 16'd0;
+            lab16_ch3_qual_forward_small_count_i <= 16'd0;
+            lab16_ch3_qual_far_count_i <= 16'd0;
+            lab16_ch3_qual_end_near_count_i <= 16'd0;
+            lab16_ch3_qual_last_flags_i <= 16'd0;
+            lab16_ch3_qual_last_old_current_i <= 16'd0;
+            lab16_ch3_qual_last_new_current_i <= 16'd0;
+            lab16_ch3_qual_last_old_pi_i <= 16'd0;
+            lab16_ch3_qual_last_old_l_i <= 16'sd0;
+            lab16_ch3_retrig_time_i <= 16'd0;
+            lab16_ch3_retrig_flags_i <= 16'hF700;
+            lab16_ch3_retrig_old_current_i <= 16'd0;
+            lab16_ch3_retrig_old_pi_i <= 16'd0;
+            lab16_ch3_retrig_old_offset_i <= 16'd0;
+            lab16_ch3_retrig_old_phase_i <= 16'd0;
+            lab16_ch3_retrig_old_l_i <= 16'sd0;
+            lab16_ch3_retrig_new_current_i <= 16'd0;
+            lab16_ch3_retrig_new_end_i <= 16'd0;
+            lab16_ch3_retrig_new_delta_i <= 16'd0;
+            lab16_ch3_retrig_new_pi_i <= 16'd0;
+            lab16_ch3_retrig_new_offset_i <= 16'd0;
+            lab16_ch3_retrig_base_i <= 16'd0;
+            lab16_ch3_retrig_limit_i <= 16'd0;
+            lab16_ch3_retrig_block_i <= 16'hC300;
+            lab16_ch3_retrig_first0_i <= 16'd0;
+            lab16_ch3_retrig_first1_i <= 16'd0;
+            lab16_ch3_retrig_first2_i <= 16'd0;
+            lab16_ch3_retrig_first3_i <= 16'd0;
+            lab16_ch3_retrig_first_l_i <= 16'sd0;
+            lab16_ch3_retrig_first_pi_i <= 16'd0;
+            lab16_ch3_retrig_first_offset_i <= 16'd0;
+            lab16_ch3_retrig_first_count_i <= 4'd0;
+            lab16_ch3_worst_abs_i <= 16'd0;
+            lab16_ch3_worst_pi_i <= 16'd0;
+            lab16_ch3_worst_time_i <= 16'd0;
+            lab16_ch3_worst_rc_i <= 16'd0;
+            lab16_ch3_worst_offset_i <= 16'd0;
+            lab16_ch3_worst_current_i <= 16'd0;
+            lab16_ch3_worst_raw_cv_i <= 16'd0;
+            lab16_ch3_worst_l_i <= 16'sd0;
+            lab16_ch3_worst_reason_i <= 16'hC300;
+            lab16_ch3_hold_mix_count_i <= 16'd0;
+            lab16_ch3_fresh_read_count_i <= 16'd0;
+            lab16_ch3_mix_contrib_count_i <= 16'd0;
+            lab16_ch3_output_clear_count_i <= 16'd0;
+            lab16_ch3_end_reached_count_i <= 16'd0;
+            lab16_ch3_no_read_mix_count_i <= 16'd0;
+            lab16_ch3_clear_end_count_i <= 16'd0;
+            lab16_ch3_clear_disable_count_i <= 16'd0;
+            lab16_ch3_clear_volume_count_i <= 16'd0;
+            lab16_ch3_clear_map_count_i <= 16'd0;
             lab16_return_cv <= 9'sd0;
+            lab16_return_product_l <= 17'sd0;
+            lab16_return_product_r <= 17'sd0;
             lab16_return_scaled_l <= 17'sd0;
             lab16_return_scaled_r <= 17'sd0;
             lab16_return_delta_x4 <= 11'd0;
             lab16_return_phase_next <= 27'd0;
+            lab16_return_read_valid <= 1'b0;
+            lab16_return_next_valid <= 1'b0;
+            lab16_return_output_valid <= 1'b0;
+            lab16_return_stop_pi <= 19'd0;
+            lab16_return_read_range_cross <= 1'b0;
+            lab16_return_next_range_cross <= 1'b0;
+            lab16_return_true_cross <= 1'b0;
+            lab16_service_true_cross <= 1'b0;
             lab16_mix_l_i <= 24'sd0;
             lab16_mix_r_i <= 24'sd0;
             lab16_mix_l_sample_i <= 16'sd0;
@@ -3084,9 +4491,26 @@ module segapcm_sound_module #(
                 lab16_vol_r_i[lab16_loop_i] <= 7'd0;
                 lab16_phase_i[lab16_loop_i] <= 27'd0;
                 lab16_pi_i[lab16_loop_i] <= 19'd0;
+                lab16_start_i[lab16_loop_i] <= 19'd0;
+                lab16_base_i[lab16_loop_i] <= 19'd0;
+                lab16_limit_i[lab16_loop_i] <= 19'd0;
+                lab16_block_i[lab16_loop_i] <= 3'd0;
+                lab16_map_valid_i[lab16_loop_i] <= 1'b0;
+                lab16_sticky_block_i[lab16_loop_i] <= 3'd0;
                 lab16_sample_i[lab16_loop_i] <= 8'h80;
                 lab16_out_l_i[lab16_loop_i] <= 16'sd0;
                 lab16_out_r_i[lab16_loop_i] <= 16'sd0;
+                lab16_mix_fresh_i[lab16_loop_i] <= 1'b0;
+                lab16_hold_sample_i[lab16_loop_i] <= 8'h80;
+                lab16_hold_cv_i[lab16_loop_i] <= 9'sd0;
+                lab16_start_current_i[lab16_loop_i] <= 16'd0;
+                lab16_start_full_low_i[lab16_loop_i] <= 16'd0;
+                lab16_start_end_low_i[lab16_loop_i] <= 16'd0;
+                lab16_first8_01_i[lab16_loop_i] <= 16'd0;
+                lab16_first8_23_i[lab16_loop_i] <= 16'd0;
+                lab16_first8_45_i[lab16_loop_i] <= 16'd0;
+                lab16_first8_67_i[lab16_loop_i] <= 16'd0;
+                lab16_first8_count_i[lab16_loop_i] <= 4'd0;
             end
         end else begin
             lab_c0_consume_pulse_i <= 1'b0;
@@ -3095,13 +4519,13 @@ module segapcm_sound_module #(
                 lab_c0_state_i <= lab16_run_gate ?
                     LAB_C0_ST_CONSUME : LAB_C0_ST_IDLE;
                 lab_c0_seed_i <= lab16_event_cur_high;
-                lab_c0_cur_i <= {lab16_cur_high_i[lab16_debug_ch_i],
-                                 lab16_cur_mid_i[lab16_debug_ch_i]};
-                lab_c0_pi_i <= lab16_pi_i[lab16_debug_ch_i];
+                lab_c0_cur_i <= {lab16_cur_high_i[lab16_view_ch],
+                                 lab16_cur_mid_i[lab16_view_ch]};
+                lab_c0_pi_i <= lab16_pi_i[lab16_view_ch];
                 lab_c0_return_pi_i <= {15'd0, lab16_pending_ch_i};
-                lab_c0_sample_i <= lab16_sample_i[lab16_debug_ch_i];
+                lab_c0_sample_i <= lab16_sample_i[lab16_view_ch];
                 lab_c0_output_i <= lab16_selected_out_l;
-                lab_c0_phase_i <= lab16_phase_i[lab16_debug_ch_i];
+                lab_c0_phase_i <= lab16_phase_i[lab16_view_ch];
                 lab_c0_hit_count_i <= lab16_return_count_i;
                 lab_c0_active_i <= lab16_run_gate &&
                     ((lab16_active_i != 16'd0) || lab16_retrigger_pulse);
@@ -3112,27 +4536,65 @@ module segapcm_sound_module #(
                 if (lab16_clip_next && (lab16_clip_count_i != 16'hffff)) begin
                     lab16_clip_count_i <= lab16_clip_count_i + 16'd1;
                 end
+                if (lab16_active_count > lab16_max_active_count_i) begin
+                    lab16_max_active_count_i <= lab16_active_count;
+                end
                 if (lab16_mix_abs_l_next > lab16_mix_peak_i) begin
                     lab16_mix_peak_i <= lab16_mix_abs_l_next;
                 end
 
-                if (!lab16_run_gate) begin
-                    if (lab16_active_i[3]) begin
-                        lab16_ch3_stop_reason_i <= 16'h8001;
-                    end
+	                if (!lab16_run_gate) begin
+	                    if (lab16_active_i[3]) begin
+	                        lab16_ch3_stop_reason_i <= 16'h8001;
+	                        if (lab16_ch3_clear_count_i != 16'hffff) begin
+	                                lab16_ch3_clear_count_i <=
+	                                    lab16_ch3_clear_count_i + 16'd1;
+	                        end
+	                        lab16_ch3_last_clear_time_i <=
+	                            lab16_return_count_i;
+	                    end
                     lab_c0_pending_i <= 1'b0;
                     lab_c0_need_read_i <= 1'b0;
                     lab_c0_req_addr_i <= 19'd0;
                     lab16_emit_div_i <= 12'd0;
-                    lab16_active_i <= 16'd0;
-                    for (lab16_loop_i = 0; lab16_loop_i < 16;
-                         lab16_loop_i = lab16_loop_i + 1) begin
-                        lab16_out_l_i[lab16_loop_i] <= 16'sd0;
-                        lab16_out_r_i[lab16_loop_i] <= 16'sd0;
-                    end
+                        lab16_active_i <= 16'd0;
+                        lab16_ch3_hit_len_i <= 16'd0;
+                        for (lab16_loop_i = 0; lab16_loop_i < 16;
+                             lab16_loop_i = lab16_loop_i + 1) begin
+                            lab16_out_l_i[lab16_loop_i] <= 16'sd0;
+                            lab16_out_r_i[lab16_loop_i] <= 16'sd0;
+                            lab16_mix_fresh_i[lab16_loop_i] <= 1'b0;
+                            lab16_hold_sample_i[lab16_loop_i] <= 8'h80;
+                            lab16_hold_cv_i[lab16_loop_i] <= 9'sd0;
+                            lab16_map_valid_i[lab16_loop_i] <= 1'b0;
+                        end
                 end else begin
                     if (segapcm_cen) begin
+                        for (lab16_loop_i = 0; lab16_loop_i < 16;
+                             lab16_loop_i = lab16_loop_i + 1) begin
+                            lab16_mix_fresh_i[lab16_loop_i] <= 1'b0;
+                        end
                         lab16_emit_div_i <= lab16_emit_div_i + 12'd1;
+                        if (lab16_ch3_mix_ok_now &&
+                            (lab16_out_l_i[3] != 16'sd0)) begin
+                            if (lab16_ch3_hold_mix_count_i != 16'hffff) begin
+                                lab16_ch3_hold_mix_count_i <=
+                                    lab16_ch3_hold_mix_count_i + 16'd1;
+                            end
+                            if (lab16_ch3_mix_contrib_count_i !=
+                                16'hffff) begin
+                                lab16_ch3_mix_contrib_count_i <=
+                                    lab16_ch3_mix_contrib_count_i + 16'd1;
+                            end
+                            if (lab16_ch3_no_fresh_for_mix) begin
+                                if (lab16_ch3_no_read_mix_count_i !=
+                                    16'hffff) begin
+                                    lab16_ch3_no_read_mix_count_i <=
+                                        lab16_ch3_no_read_mix_count_i +
+                                        16'd1;
+                                end
+                            end
+                        end
                     end
                     if (segapcm_cmd_valid) begin
                         if (lab16_write_low) begin
@@ -3160,18 +4622,438 @@ module segapcm_sound_module #(
                                 3'd6: lab16_ctrl_i[lab16_write_ch] <=
                                     segapcm_cmd_data;
                                 default: begin end
-                            endcase
+	                            endcase
+	                        end
+	                        if (lab16_write_ch == 4'd3) begin
+	                            if (lab16_ch3_write_count_i != 16'hffff) begin
+	                                lab16_ch3_write_count_i <=
+	                                    lab16_ch3_write_count_i + 16'd1;
+	                            end
+	                            lab16_ch3_last_write_time_i <=
+	                                lab16_return_count_i;
+	                            if (!lab16_write_low &&
+	                                ((lab16_write_off == 3'd4) ||
+	                                 (lab16_write_off == 3'd5))) begin
+	                                if (lab16_ch3_current_update_count_i !=
+	                                    16'hffff) begin
+	                                    lab16_ch3_current_update_count_i <=
+	                                        lab16_ch3_current_update_count_i +
+	                                        16'd1;
+	                                end
+	                            end
+	                            if (lab16_write_low &&
+	                                ((lab16_write_off == 3'd6) ||
+	                                 (lab16_write_off == 3'd7))) begin
+	                                if (lab16_ch3_end_delta_update_count_i !=
+	                                    16'hffff) begin
+	                                    lab16_ch3_end_delta_update_count_i <=
+	                                        lab16_ch3_end_delta_update_count_i +
+	                                        16'd1;
+	                                end
+	                            end
+	                            if (lab16_write_low &&
+	                                (lab16_write_off == 3'd6)) begin
+	                                if (lab16_ch3_end_update_count_i !=
+	                                    16'hffff) begin
+	                                    lab16_ch3_end_update_count_i <=
+	                                        lab16_ch3_end_update_count_i +
+	                                        16'd1;
+	                                end
+	                            end
+	                            if (lab16_write_low &&
+	                                (lab16_write_off == 3'd7)) begin
+	                                if (lab16_ch3_delta_update_count_i !=
+	                                    16'hffff) begin
+	                                    lab16_ch3_delta_update_count_i <=
+	                                        lab16_ch3_delta_update_count_i +
+	                                        16'd1;
+	                                end
+	                            end
+	                            if (!lab16_write_low &&
+	                                (lab16_write_off == 3'd6)) begin
+	                                if (lab16_ch3_ctrl_update_count_i !=
+	                                    16'hffff) begin
+	                                    lab16_ch3_ctrl_update_count_i <=
+	                                        lab16_ch3_ctrl_update_count_i +
+	                                        16'd1;
+	                                end
+	                            end
+		                            if (lab16_write_low &&
+		                                ((lab16_write_off == 3'd2) ||
+		                                 (lab16_write_off == 3'd3))) begin
+		                                if (lab16_ch3_volume_update_count_i !=
+		                                    16'hffff) begin
+		                                    lab16_ch3_volume_update_count_i <=
+		                                        lab16_ch3_volume_update_count_i +
+		                                        16'd1;
+		                                end
+		                            end
+		                            if (lab16_event_strict_start_pulse &&
+		                                (lab16_ch3_reseed_count_i !=
+		                                 16'hffff)) begin
+		                                lab16_ch3_reseed_count_i <=
+		                                    lab16_ch3_reseed_count_i + 16'd1;
+		                            end
+		                            if (lab16_event_qualified_start_pulse &&
+		                                (lab16_ch3_qualified_start_count_i !=
+		                                 16'hffff)) begin
+		                                lab16_ch3_qualified_start_count_i <=
+		                                    lab16_ch3_qualified_start_count_i +
+		                                    16'd1;
+		                            end
+		                            if (lab16_event_qualified_current_pulse) begin
+		                                lab16_ch3_qual_last_flags_i <= {
+		                                    8'hD0,
+		                                    lab16_event_current_duplicate,
+		                                    lab16_event_current_backward,
+		                                    lab16_event_current_near,
+		                                    lab16_event_current_far,
+		                                    lab16_event_current_same_block,
+		                                    lab16_event_current_block_change,
+		                                    lab16_event_current_end_near,
+		                                    lab16_event_current_active
+		                                };
+		                                lab16_ch3_qual_last_old_current_i <=
+		                                    lab16_event_runtime_current;
+		                                lab16_ch3_qual_last_new_current_i <=
+		                                    lab16_event_current_word;
+		                                lab16_ch3_qual_last_old_pi_i <=
+		                                    lab16_pi_i[3][15:0];
+		                                lab16_ch3_qual_last_old_l_i <=
+		                                    lab16_out_l_i[3];
+		                                if (lab16_event_current_duplicate &&
+		                                    (lab16_ch3_qual_duplicate_count_i !=
+		                                     16'hffff)) begin
+		                                    lab16_ch3_qual_duplicate_count_i <=
+		                                        lab16_ch3_qual_duplicate_count_i +
+		                                        16'd1;
+		                                end
+		                                if (lab16_event_current_backward &&
+		                                    (lab16_ch3_qual_backward_count_i !=
+		                                     16'hffff)) begin
+		                                    lab16_ch3_qual_backward_count_i <=
+		                                        lab16_ch3_qual_backward_count_i +
+		                                        16'd1;
+		                                end
+		                                if (!lab16_event_current_backward &&
+		                                    lab16_event_current_near &&
+		                                    (lab16_ch3_qual_forward_small_count_i !=
+		                                     16'hffff)) begin
+		                                    lab16_ch3_qual_forward_small_count_i <=
+		                                        lab16_ch3_qual_forward_small_count_i +
+		                                        16'd1;
+		                                end
+		                                if (lab16_event_current_far &&
+		                                    (lab16_ch3_qual_far_count_i !=
+		                                     16'hffff)) begin
+		                                    lab16_ch3_qual_far_count_i <=
+		                                        lab16_ch3_qual_far_count_i +
+		                                        16'd1;
+		                                end
+		                                if (lab16_event_current_end_near &&
+		                                    (lab16_ch3_qual_end_near_count_i !=
+		                                     16'hffff)) begin
+		                                    lab16_ch3_qual_end_near_count_i <=
+		                                        lab16_ch3_qual_end_near_count_i +
+		                                        16'd1;
+		                                end
+		                            end
+		                            if (lab16_selected_policy_active_current_pulse &&
+		                                (lab16_ch3_selected_active_current_count_i !=
+		                                 16'hffff)) begin
+		                                lab16_ch3_selected_active_current_count_i <=
+		                                    lab16_ch3_selected_active_current_count_i +
+		                                    16'd1;
+		                            end
+		                            if (!lab16_retrigger_pulse &&
+		                                !lab16_reposition_pulse &&
+		                                (lab16_ch3_ignored_update_count_i !=
+		                                 16'hffff)) begin
+	                                lab16_ch3_ignored_update_count_i <=
+	                                    lab16_ch3_ignored_update_count_i +
+	                                    16'd1;
+	                            end
+	                        end
+	                    end
+
+	                    if (lab16_event_candidate_pulse) begin
+                        if ((lab16_write_ch == 4'd3) &&
+                            lab16_event_map_valid &&
+                            (lab16_ch3_broad_restart_count_i !=
+                             16'hffff)) begin
+                            lab16_ch3_broad_restart_count_i <=
+                                lab16_ch3_broad_restart_count_i + 16'd1;
+                        end
+                        if (lab16_event_map_valid) begin
+                            if (lab16_map_hit_count_i != 16'hffff) begin
+                                lab16_map_hit_count_i <=
+                                    lab16_map_hit_count_i + 16'd1;
+                            end
+                        end else if (lab16_map_miss_count_i != 16'hffff) begin
+                            lab16_map_miss_count_i <=
+                                lab16_map_miss_count_i + 16'd1;
                         end
                     end
 
-                    if (lab16_retrigger_pulse) begin
-                        lab16_active_i[lab16_write_ch] <= 1'b1;
+                    if (lab16_ch3_raw_event_pulse) begin
+                        if (lab16_ch3_raw_event_count_i != 16'hffff) begin
+                            lab16_ch3_raw_event_count_i <=
+                                lab16_ch3_raw_event_count_i + 16'd1;
+                        end
+                        lab16_ch3_full_addr_i <= lab16_event_full_addr;
+                        lab16_ch3_reject_i <= {
+                            lab16_ch3_known_coord_fail,
+                            8'd0,
+                            lab16_event_rom_hit && !lab16_event_map_valid,
+                            smoke_type80_table_count_i == 4'd0,
+                            !lab16_event_rom_hit,
+                            lab16_event_ctrl[0],
+                            !lab16_event_audible,
+                            !lab16_event_retrigger_reg,
+                            1'b0
+                        };
+                        if (lab16_event_rom_hit) begin
+                            if (lab16_ch3_block_hit_count_i != 16'hffff) begin
+                                lab16_ch3_block_hit_count_i <=
+                                    lab16_ch3_block_hit_count_i + 16'd1;
+                            end
+                            lab16_ch3_block_i <= lab16_event_rom_block;
+                            lab16_ch3_block_dest_i <=
+                                smoke_type80_table_dest_i[lab16_event_rom_block];
+                            lab16_ch3_block_base_i <= lab16_event_rom_base;
+                            lab16_ch3_block_len_i <= lab16_event_rom_len;
+                            lab16_ch3_block_offset_i <=
+                                lab16_event_rom_offset;
+                        end
+                        if ((!lab16_ch3_snapshot_valid_i ||
+                             (!lab16_ch3_snapshot_hit_i &&
+                              lab16_event_rom_hit)) &&
+                            lab16_ch3_snapshot_pulse) begin
+                            lab16_ch3_snapshot_valid_i <= 1'b1;
+                            lab16_ch3_snapshot_count_i <=
+                                lab16_ch3_raw_event_count_i + 16'd1;
+                            lab16_ch3_snapshot_ctrl_i <= lab16_event_ctrl;
+                            lab16_ch3_snapshot_vol_l_i <= lab16_event_vol_l;
+                            lab16_ch3_snapshot_vol_r_i <= lab16_event_vol_r;
+                            lab16_ch3_snapshot_delta_i <=
+                                (lab16_delta_i[3] != 8'd0) ?
+                                lab16_delta_i[3] : 8'hA0;
+                            lab16_ch3_snapshot_current_i <= {
+                                lab16_event_cur_high,
+                                lab16_event_cur_mid
+                            };
+                            lab16_ch3_snapshot_full_addr_i <=
+                                lab16_event_full_addr;
+                            lab16_ch3_snapshot_bank_i <= lab16_event_bank;
+                            lab16_ch3_snapshot_hit_i <= lab16_event_rom_hit;
+                            lab16_ch3_snapshot_block_i <= lab16_event_rom_block;
+                            lab16_ch3_snapshot_base_i <= lab16_event_rom_base;
+                            lab16_ch3_snapshot_len_i <= lab16_event_rom_len;
+                            lab16_ch3_snapshot_offset_i <=
+                            lab16_event_rom_offset;
+                            lab16_ch3_snapshot_reject_i <= {
+                                lab16_ch3_known_coord_fail,
+                                8'd0,
+                                lab16_event_rom_hit && !lab16_event_map_valid,
+                                smoke_type80_table_count_i == 4'd0,
+                                !lab16_event_rom_hit,
+                                lab16_event_ctrl[0],
+                                !lab16_event_audible,
+                                !lab16_event_retrigger_reg,
+                                1'b0
+                            };
+                            if (lab16_event_rom_hit) begin
+                                lab16_ch3_snapshot_dest_i <=
+                                    smoke_type80_table_dest_i[
+                                        lab16_event_rom_block
+                                    ];
+                            end else begin
+                                lab16_ch3_snapshot_dest_i <= 21'd0;
+                            end
+                        end
+                    end
+
+	                    if (lab16_retrigger_pulse) begin
+	                        lab16_debug_ch_i <= lab16_write_ch;
+	                        if (lab16_event_strict_start_pulse) begin
+	                            lab16_strict_seen_i[lab16_write_ch] <= 1'b1;
+	                        end
+	                        lab16_active_i[lab16_write_ch] <= 1'b1;
                         lab16_phase_i[lab16_write_ch] <=
                             {lab16_event_local_pi, 8'd0};
                         lab16_pi_i[lab16_write_ch] <= lab16_event_local_pi;
+                        lab16_start_i[lab16_write_ch] <= lab16_event_local_pi;
+                        lab16_base_i[lab16_write_ch] <= lab16_event_map_base;
+                        lab16_limit_i[lab16_write_ch] <= lab16_event_map_limit;
+                        lab16_block_i[lab16_write_ch] <= lab16_event_map_block;
+                        lab16_map_valid_i[lab16_write_ch] <= 1'b1;
+                        lab16_sticky_block_i[lab16_write_ch] <=
+                            lab16_event_map_block;
+                        lab16_sticky_map_i[lab16_write_ch] <= 1'b1;
                         lab16_sample_i[lab16_write_ch] <= 8'h80;
                         lab16_out_l_i[lab16_write_ch] <= 16'sd0;
                         lab16_out_r_i[lab16_write_ch] <= 16'sd0;
+                        lab16_mix_fresh_i[lab16_write_ch] <= 1'b0;
+                        lab16_hold_sample_i[lab16_write_ch] <= 8'h80;
+                        lab16_hold_cv_i[lab16_write_ch] <= 9'sd0;
+                        lab16_start_current_i[lab16_write_ch] <=
+                            lab16_event_current_word;
+                        lab16_start_full_low_i[lab16_write_ch] <=
+                            lab16_event_full_low;
+                        lab16_start_end_low_i[lab16_write_ch] <=
+                            lab16_event_end_full_addr[15:0];
+                        lab16_first8_01_i[lab16_write_ch] <= 16'd0;
+                        lab16_first8_23_i[lab16_write_ch] <= 16'd0;
+                        lab16_first8_45_i[lab16_write_ch] <= 16'd0;
+                        lab16_first8_67_i[lab16_write_ch] <= 16'd0;
+                        lab16_first8_count_i[lab16_write_ch] <= 4'd0;
+                        lab16_ever_active_i[lab16_write_ch] <= 1'b1;
+                        if (lab16_retrigger_masked_pulse) begin
+                            if (!lab16_start_tuple_valid_i) begin
+                                lab16_target_current_i <=
+                                    lab16_event_current_word;
+                                lab16_target_full_low_i <=
+                                    lab16_event_full_low;
+                                lab16_target_match_bits_i <=
+                                    lab16_target_match_bits;
+                            end
+                            if (lab16_start_tuple_count_i != 16'hffff) begin
+                                lab16_start_tuple_count_i <=
+                                    lab16_start_tuple_count_i + 16'd1;
+                            end
+                            if (lab16_retrigger_target_pulse) begin
+                                if (lab16_target_start_count_i != 16'hffff) begin
+                                    lab16_target_start_count_i <=
+                                        lab16_target_start_count_i + 16'd1;
+                                end
+                            end else if (!lab16_start_tuple_valid_i) begin
+                                if (lab16_skipped_start_count_i != 16'hffff) begin
+                                    lab16_skipped_start_count_i <=
+                                        lab16_skipped_start_count_i + 16'd1;
+                                end
+                            end
+                            if (lab16_retrigger_target_pulse &&
+                                !lab16_start_tuple_valid_i) begin
+                                lab16_start_tuple_ch_i <= lab16_write_ch;
+                                lab16_start_tuple_block_i <= lab16_event_map_block;
+                                lab16_start_tuple_current_i <=
+                                    lab16_event_current_word;
+                                lab16_start_tuple_bank_i <= lab16_event_bank;
+                                lab16_start_tuple_full_addr_i <= lab16_event_full_addr;
+                                lab16_start_tuple_delta_i <=
+                                    lab16_event_delta_effective;
+                                lab16_start_tuple_vol_l_i <= lab16_event_vol_l;
+                                lab16_start_tuple_vol_r_i <= lab16_event_vol_r;
+                                lab16_start_tuple_end_addr_i <=
+                                    lab16_event_end_full_addr;
+                                lab16_start_tuple_limit_i <=
+                                    lab16_event_map_limit;
+                                lab16_start_tuple_end_limited_i <=
+                                    lab16_event_end_limit_used;
+                                lab16_start_tuple_valid_i <= 1'b1;
+                                lab16_first_samples_valid_i <= 1'b0;
+                                lab16_first_capture_armed_i <= 1'b1;
+                                lab16_first_capture_has_any_i <= 1'b0;
+                                lab16_first_capture_reader_match_i <= 1'b0;
+                                lab16_runtime_active_seen_i <= 1'b0;
+                                lab16_runtime_consume_count_i <= 16'd0;
+                                lab16_runtime_pr_hold_i <= 16'hE600;
+                                lab16_start_tuple_source_i <= {
+                                    5'd0,
+                                    smoke_c0_pm3_audio_mask[lab16_write_ch],
+                                    smoke_c0_format_sel[0],
+                                    lab16_event_map_valid,
+                                    lab16_retrigger_pulse,
+                                    lab16_write_high &&
+                                        ((lab16_write_off == 3'd4) ||
+                                         (lab16_write_off == 3'd5)),
+                                    (lab16_write_high &&
+                                     (lab16_write_off == 3'd6)) ||
+                                        (lab16_write_low &&
+                                         ((lab16_write_off == 3'd2) ||
+                                          (lab16_write_off == 3'd3))),
+                                    lab_c0_legacy_ch3_block2_mode,
+                                    lab_c0_multich_delta_mode,
+                                    1'b0,
+                                    1'b1
+                                };
+                                lab16_runtime_status_i <= 16'hE600;
+                                lab16_runtime_offset_i <=
+                                    lab16_event_local_pi - lab16_event_map_base;
+                                lab16_runtime_addr_i <= lab16_event_full_low;
+                                lab16_runtime_pi_i <= lab16_event_local_pi;
+                                lab16_runtime_phase_hint_i <=
+                                    lab16_event_local_pi[15:0];
+                                lab16_runtime_rd_i <= 16'h8000;
+                                lab16_runtime_l_i <= 16'sd0;
+                                lab16_runtime_r_i <= 16'sd0;
+                                lab16_runtime_stop_i <= 16'hE510;
+                                lab16_last_stop_pi_i <= 19'd0;
+                                lab16_stop_valid_i <= 1'b0;
+                                lab16_stop_count_i <= 16'd0;
+                                lab16_stop_offset_i <= 16'd0;
+                                lab16_stop_pi_i <= 16'd0;
+                                lab16_stop_full_i <= 16'd0;
+                                lab16_stop_phase_i <= 16'd0;
+                                lab16_stop_flags_i <= 16'hEA00;
+                                lab16_end_debug_flags_i <= {
+                                    8'hE9,
+                                    1'b0,
+                                    lab16_event_end_limit_used,
+                                    lab16_event_end_limit_valid,
+                                    lab16_event_end != 8'd0,
+                                    lab16_event_end_full_addr >
+                                        lab16_event_full_addr,
+                                    lab16_event_map_valid,
+                                    lab16_event_rom_hit,
+                                    lab16_event_map_limit !=
+                                        lab16_event_map_limit_20[18:0]
+                                };
+                                lab16_first_s0_addr_i <= 16'd0;
+                                lab16_first_s0_index_i <= 16'd0;
+                                lab16_first_s0_phase_i <= 16'd0;
+                                lab16_first_s0_capture_count_i <= 16'd0;
+                                lab16_first_sample_count_i <= 5'd0;
+                                lab16_first_raw01_i <= 16'd0;
+                                lab16_first_raw23_i <= 16'd0;
+                                lab16_first_raw45_i <= 16'd0;
+                                lab16_first_raw67_i <= 16'd0;
+                                lab16_first_raw89_i <= 16'd0;
+                                lab16_first_rawab_i <= 16'd0;
+                                lab16_first_rawcd_i <= 16'd0;
+                                lab16_first_rawef_i <= 16'd0;
+                                lab16_first_dec01_i <= 16'd0;
+                                lab16_first_dec23_i <= 16'd0;
+                                lab16_first_dec45_i <= 16'd0;
+                                lab16_first_dec67_i <= 16'd0;
+                                lab16_first_dec89_i <= 16'd0;
+                                lab16_first_decab_i <= 16'd0;
+                                lab16_first_deccd_i <= 16'd0;
+                                lab16_first_decef_i <= 16'd0;
+                                lab16_wave_rawcv0_i <= 16'd0;
+                                lab16_wave_addr0_i <= 16'd0;
+                                lab16_wave_pi0_i <= 16'd0;
+                                lab16_wave_out0_i <= 16'd0;
+                                lab16_wave_rawcv1_i <= 16'd0;
+                                lab16_wave_addr1_i <= 16'd0;
+                                lab16_wave_pi1_i <= 16'd0;
+                                lab16_wave_out1_i <= 16'd0;
+                                lab16_wave_rawcv2_i <= 16'd0;
+                                lab16_wave_addr2_i <= 16'd0;
+                                lab16_wave_pi2_i <= 16'd0;
+                                lab16_wave_out2_i <= 16'd0;
+                                lab16_wave_rawcv3_i <= 16'd0;
+                                lab16_wave_addr3_i <= 16'd0;
+                                lab16_wave_pi3_i <= 16'd0;
+                                lab16_wave_out3_i <= 16'd0;
+                                lab16_wave_vol_i <= {
+                                    1'b0, lab16_event_vol_l[6:0],
+                                    1'b0, lab16_event_vol_r[6:0]
+                                };
+                            end else if (lab16_retrigger_target_pulse) begin
+                                lab16_first_capture_overwrite_i <= 1'b1;
+                            end
+                        end
                         if (lab16_retrigger_count_i != 16'hffff) begin
                             lab16_retrigger_count_i <=
                                 lab16_retrigger_count_i + 16'd1;
@@ -3184,31 +5066,245 @@ module segapcm_sound_module #(
                             lab16_event_cur_high,
                             lab16_event_cur_mid
                         };
-                        lab_c0_reseed_pi_i <= lab16_event_local_pi;
-                        if (lab16_write_ch == 4'd3) begin
-                            if (lab16_ch3_reseed_count_i != 16'hffff) begin
-                                lab16_ch3_reseed_count_i <=
-                                    lab16_ch3_reseed_count_i + 16'd1;
-                            end
-                            lab16_ch3_stop_reason_i <= 16'd0;
-                            lab16_ch3_map_valid_i <= lab16_event_block2_match;
-                            lab16_ch3_sticky_i[0] <= 1'b1;
-                        end
-                    end
+	                        lab_c0_reseed_pi_i <= lab16_event_local_pi;
+	                        if (lab16_write_ch == 4'd3) begin
+		                            lab16_ch3_last_retrigger_time_i <=
+		                                lab16_return_count_i;
+	                            lab16_ch3_retrig_valid_i <= 1'b1;
+	                            if (lab16_ch3_retrig_count_i != 16'hffff) begin
+	                                lab16_ch3_retrig_count_i <=
+	                                    lab16_ch3_retrig_count_i + 16'd1;
+	                            end
+	                            if (lab16_active_i[3] &&
+	                                (lab16_ch3_active_start_count_i !=
+	                                 16'hffff)) begin
+	                                lab16_ch3_active_start_count_i <=
+	                                    lab16_ch3_active_start_count_i + 16'd1;
+	                            end
+	                            lab16_ch3_retrig_time_i <=
+	                                lab16_return_count_i;
+	                            lab16_ch3_retrig_write_i <= {
+	                                mapped_cpu_addr,
+	                                segapcm_cmd_data
+	                            };
+	                            lab16_ch3_retrig_flags_i <= {
+	                                4'hF,
+	                                lab16_active_i[3],
+	                                lab16_strict_seen_i[3],
+	                                lab16_event_first_valid_start,
+	                                lab16_event_ctrl_enable,
+	                                lab16_event_volume_on,
+	                                lab16_event_map_valid,
+	                                lab16_event_map_block == 3'd2,
+	                                lab16_event_current_word == 16'h7100,
+	                                lab16_event_delta_effective == 8'hA0,
+	                                lab16_write_high &&
+	                                    ((lab16_write_off == 3'd4) ||
+	                                     (lab16_write_off == 3'd5)),
+	                                lab16_write_high &&
+	                                    (lab16_write_off == 3'd6),
+	                                lab16_write_low &&
+	                                    ((lab16_write_off == 3'd2) ||
+	                                     (lab16_write_off == 3'd3))
+	                            };
+	                            lab16_ch3_retrig_old_offset_i <=
+	                                lab16_pi_i[3][15:0] -
+	                                lab16_base_i[3][15:0];
+	                            lab16_ch3_retrig_old_current_i <=
+	                                lab16_start_current_i[3] +
+	                                (lab16_pi_i[3][15:0] -
+	                                 lab16_base_i[3][15:0]);
+	                            lab16_ch3_retrig_old_pi_i <=
+	                                lab16_pi_i[3][15:0];
+	                            lab16_ch3_retrig_old_phase_i <=
+	                                lab16_phase_i[3][23:8];
+	                            lab16_ch3_retrig_old_l_i <=
+	                                lab16_out_l_i[3];
+	                            lab16_ch3_retrig_new_current_i <=
+	                                lab16_event_current_word;
+	                            lab16_ch3_retrig_new_end_i <=
+	                                lab16_event_end_full_addr[15:0];
+	                            lab16_ch3_retrig_new_delta_i <=
+	                                {8'd0, lab16_event_delta_effective};
+	                            lab16_ch3_retrig_new_pi_i <=
+	                                lab16_event_local_pi[15:0];
+	                            lab16_ch3_retrig_new_offset_i <=
+	                                lab16_event_local_pi[15:0] -
+	                                lab16_event_map_base[15:0];
+	                            lab16_ch3_retrig_base_i <=
+	                                lab16_event_map_base[15:0];
+	                            lab16_ch3_retrig_limit_i <=
+	                                lab16_event_map_limit[15:0];
+	                            lab16_ch3_retrig_block_i <= {
+	                                8'hC3,
+	                                lab16_active_i[3],
+	                                lab16_map_valid_i[3],
+	                                smoke_c0_pm3_audio_mask[3],
+	                                lab16_event_map_valid,
+	                                lab16_event_map_block,
+	                                lab16_event_end_limit_used
+	                            };
+	                            lab16_ch3_retrig_first0_i <= 16'd0;
+	                            lab16_ch3_retrig_first1_i <= 16'd0;
+	                            lab16_ch3_retrig_first2_i <= 16'd0;
+	                            lab16_ch3_retrig_first3_i <= 16'd0;
+	                            lab16_ch3_retrig_first_l_i <= 16'sd0;
+	                            lab16_ch3_retrig_first_pi_i <= 16'd0;
+	                            lab16_ch3_retrig_first_offset_i <= 16'd0;
+	                            lab16_ch3_retrig_first_count_i <= 4'd0;
+	                            lab16_ch3_stop_reason_i <= 16'd0;
+	                            lab16_ch3_map_valid_i <= lab16_event_map_valid;
+	                            lab16_ch3_sticky_i[0] <= 1'b1;
+                            lab16_ch3_hit_len_i <= 16'd0;
+                            if ((lab16_return_count_i < 16'h0800) &&
+                                (lab16_ch3_intro_reseed_count_i != 16'hffff)) begin
+                                lab16_ch3_intro_reseed_count_i <=
+                                    lab16_ch3_intro_reseed_count_i + 16'd1;
+	                            end
+	                        end
+	                    end
 
-                    if (lab_c0_return_pulse) begin
+	                    if (lab16_reposition_pulse) begin
+	                        lab16_debug_ch_i <= lab16_write_ch;
+	                        lab16_active_i[lab16_write_ch] <= 1'b1;
+	                        lab16_phase_i[lab16_write_ch] <=
+	                            {lab16_event_local_pi, 8'd0};
+	                        lab16_pi_i[lab16_write_ch] <= lab16_event_local_pi;
+	                        lab16_start_i[lab16_write_ch] <= lab16_event_local_pi;
+	                        lab16_base_i[lab16_write_ch] <= lab16_event_map_base;
+	                        lab16_limit_i[lab16_write_ch] <= lab16_event_map_limit;
+	                        lab16_block_i[lab16_write_ch] <= lab16_event_map_block;
+	                        lab16_map_valid_i[lab16_write_ch] <= 1'b1;
+	                        lab16_sticky_block_i[lab16_write_ch] <=
+	                            lab16_event_map_block;
+	                        lab16_sticky_map_i[lab16_write_ch] <= 1'b1;
+	                        lab16_start_current_i[lab16_write_ch] <=
+	                            lab16_event_current_word;
+	                        lab16_start_full_low_i[lab16_write_ch] <=
+	                            lab16_event_full_low;
+	                        lab16_start_end_low_i[lab16_write_ch] <=
+	                            lab16_event_end_full_addr[15:0];
+	                        lab16_ever_active_i[lab16_write_ch] <= 1'b1;
+	                        lab_c0_event_time_i <= lab16_return_count_i;
+	                        lab_c0_event_seed_i <= {
+	                            lab16_event_cur_high,
+	                            lab16_event_cur_mid
+	                        };
+	                        lab_c0_reseed_pi_i <= lab16_event_local_pi;
+	                        if (lab16_write_ch == 4'd3) begin
+	                            if (lab16_ch3_selected_reposition_count_i !=
+	                                16'hffff) begin
+	                                lab16_ch3_selected_reposition_count_i <=
+	                                    lab16_ch3_selected_reposition_count_i +
+	                                    16'd1;
+	                            end
+	                            lab16_ch3_last_retrigger_time_i <=
+	                                lab16_return_count_i;
+	                            lab16_ch3_retrig_valid_i <= 1'b1;
+	                            lab16_ch3_retrig_time_i <=
+	                                lab16_return_count_i;
+	                            lab16_ch3_retrig_write_i <= {
+	                                mapped_cpu_addr,
+	                                segapcm_cmd_data
+	                            };
+	                            lab16_ch3_retrig_flags_i <= {
+	                                4'hE,
+	                                lab16_active_i[3],
+	                                lab16_strict_seen_i[3],
+	                                lab16_event_first_valid_start,
+	                                lab16_event_ctrl_enable,
+	                                lab16_event_volume_on,
+	                                lab16_event_map_valid,
+	                                lab16_event_map_block == 3'd2,
+	                                lab16_event_current_word == 16'h7100,
+	                                lab16_event_delta_effective == 8'hA0,
+	                                lab16_event_current_commit,
+	                                lab16_write_high &&
+	                                    (lab16_write_off == 3'd6),
+	                                lab16_write_low &&
+	                                    ((lab16_write_off == 3'd2) ||
+	                                     (lab16_write_off == 3'd3))
+	                            };
+	                            lab16_ch3_retrig_old_offset_i <=
+	                                lab16_pi_i[3][15:0] -
+	                                lab16_base_i[3][15:0];
+	                            lab16_ch3_retrig_old_current_i <=
+	                                lab16_start_current_i[3] +
+	                                (lab16_pi_i[3][15:0] -
+	                                 lab16_base_i[3][15:0]);
+	                            lab16_ch3_retrig_old_pi_i <=
+	                                lab16_pi_i[3][15:0];
+	                            lab16_ch3_retrig_old_phase_i <=
+	                                lab16_phase_i[3][23:8];
+	                            lab16_ch3_retrig_old_l_i <=
+	                                lab16_out_l_i[3];
+	                            lab16_ch3_retrig_new_current_i <=
+	                                lab16_event_current_word;
+	                            lab16_ch3_retrig_new_end_i <=
+	                                lab16_event_end_full_addr[15:0];
+	                            lab16_ch3_retrig_new_delta_i <=
+	                                {8'd0, lab16_event_delta_effective};
+	                            lab16_ch3_retrig_new_pi_i <=
+	                                lab16_event_local_pi[15:0];
+	                            lab16_ch3_retrig_new_offset_i <=
+	                                lab16_event_local_pi[15:0] -
+	                                lab16_event_map_base[15:0];
+	                            lab16_ch3_retrig_base_i <=
+	                                lab16_event_map_base[15:0];
+	                            lab16_ch3_retrig_limit_i <=
+	                                lab16_event_map_limit[15:0];
+	                            lab16_ch3_retrig_block_i <= {
+	                                8'hC3,
+	                                lab16_active_i[3],
+	                                lab16_map_valid_i[3],
+	                                smoke_c0_pm3_audio_mask[3],
+	                                lab16_event_map_valid,
+	                                lab16_event_map_block,
+	                                lab16_event_end_limit_used
+	                            };
+	                        end
+	                    end
+
+	                    if (lab_c0_return_pulse) begin
+                        lab16_debug_ch_i <= lab16_pending_ch_i;
                         lab_c0_pending_i <= 1'b0;
                         lab_c0_need_read_i <= 1'b0;
                         lab16_return_cv = smoke_c0_format_sel[0] ?
                             (9'sd128 -
                              $signed({1'b0, loaded_ddr_rd_data})) :
                             ($signed({1'b0, loaded_ddr_rd_data}) - 9'sd128);
-                        lab16_return_scaled_l =
+                        lab16_return_product_l =
                             lab16_return_cv *
                             $signed({2'b00, lab16_vol_l_i[lab16_pending_ch_i]});
-                        lab16_return_scaled_r =
+                        lab16_return_product_r =
                             lab16_return_cv *
                             $signed({2'b00, lab16_vol_r_i[lab16_pending_ch_i]});
+                        unique case (LAB16_PM3_OUTPUT_SHIFT_SEL)
+                            2'd1: begin
+                                lab16_return_scaled_l =
+                                    lab16_return_product_l >>> 1;
+                                lab16_return_scaled_r =
+                                    lab16_return_product_r >>> 1;
+                            end
+                            2'd2: begin
+                                lab16_return_scaled_l =
+                                    lab16_return_product_l >>> 2;
+                                lab16_return_scaled_r =
+                                    lab16_return_product_r >>> 2;
+                            end
+                            2'd3: begin
+                                lab16_return_scaled_l =
+                                    lab16_return_product_l >>> 3;
+                                lab16_return_scaled_r =
+                                    lab16_return_product_r >>> 3;
+                            end
+                            default: begin
+                                lab16_return_scaled_l =
+                                    lab16_return_product_l;
+                                lab16_return_scaled_r =
+                                    lab16_return_product_r;
+                            end
+                        endcase
                         lab16_return_delta_x4 =
                             {3'd0,
                              (lab16_delta_i[lab16_pending_ch_i] != 8'd0) ?
@@ -3216,23 +5312,738 @@ module segapcm_sound_module #(
                         lab16_return_phase_next =
                             lab16_phase_i[lab16_pending_ch_i] +
                             {16'd0, lab16_return_delta_x4};
-                        lab16_sample_i[lab16_pending_ch_i] <= loaded_ddr_rd_data;
-                        lab16_out_l_i[lab16_pending_ch_i] <=
-                            lab16_return_scaled_l[15:0];
-                        lab16_out_r_i[lab16_pending_ch_i] <=
-                            lab16_return_scaled_r[15:0];
+                        lab16_return_read_valid =
+                            lab16_map_valid_i[lab16_pending_ch_i] &&
+                            (lab16_pi_i[lab16_pending_ch_i] >=
+                             lab16_base_i[lab16_pending_ch_i]) &&
+                            (lab16_pi_i[lab16_pending_ch_i] <
+                             lab16_limit_i[lab16_pending_ch_i]) &&
+                            !(lab16_vol_l_i[lab16_pending_ch_i] == 7'd0 &&
+                              lab16_vol_r_i[lab16_pending_ch_i] == 7'd0) &&
+                            !lab16_ctrl_i[lab16_pending_ch_i][0];
+                        lab16_return_next_valid =
+                            lab16_map_valid_i[lab16_pending_ch_i] &&
+                            (lab16_return_phase_next[26:8] >=
+                             lab16_base_i[lab16_pending_ch_i]) &&
+                            (lab16_return_phase_next[26:8] <
+                             lab16_limit_i[lab16_pending_ch_i]) &&
+                            !(lab16_vol_l_i[lab16_pending_ch_i] == 7'd0 &&
+                              lab16_vol_r_i[lab16_pending_ch_i] == 7'd0) &&
+                            !lab16_ctrl_i[lab16_pending_ch_i][0];
+                        lab16_return_output_valid =
+                            lab16_return_read_valid &&
+                            lab16_return_next_valid;
+                        lab16_return_stop_pi =
+                            lab16_return_read_valid ?
+                            lab16_return_phase_next[26:8] :
+                            lab16_pi_i[lab16_pending_ch_i];
+                        lab16_return_read_range_cross =
+                            lab16_map_valid_i[lab16_pending_ch_i] &&
+                            ((lab16_pi_i[lab16_pending_ch_i] <
+                              lab16_base_i[lab16_pending_ch_i]) ||
+                             (lab16_pi_i[lab16_pending_ch_i] >=
+                              lab16_limit_i[lab16_pending_ch_i]));
+                        lab16_return_next_range_cross =
+                            lab16_map_valid_i[lab16_pending_ch_i] &&
+                            ((lab16_return_phase_next[26:8] <
+                              lab16_base_i[lab16_pending_ch_i]) ||
+                             (lab16_return_phase_next[26:8] >=
+                              lab16_limit_i[lab16_pending_ch_i]));
+                        lab16_return_true_cross =
+                            lab16_return_read_range_cross ||
+                            lab16_return_next_range_cross;
+                        if ((lab16_pending_ch_i == 4'd3) &&
+                            smoke_c0_pm3_audio_mask[3]) begin
+                            if (lab16_ch3_live_count_i != 16'hffff) begin
+                                lab16_ch3_live_count_i <=
+                                    lab16_ch3_live_count_i + 16'd1;
+                            end
+                            if (lab16_ch3_fresh_read_count_i !=
+                                16'hffff) begin
+                                lab16_ch3_fresh_read_count_i <=
+                                    lab16_ch3_fresh_read_count_i + 16'd1;
+                            end
+	                            lab16_ch3_live_pi_i <=
+	                                lab16_pi_i[lab16_pending_ch_i][15:0];
+	                            lab16_ch3_last_read_time_i <=
+	                                lab16_return_count_i;
+	                            lab16_ch3_live_offset_i <=
+                                lab16_runtime_offset_next;
+                            lab16_ch3_live_phase_i <=
+                                lab16_phase_i[lab16_pending_ch_i][23:8];
+                            lab16_ch3_live_raw_cv_i <= {
+                                loaded_ddr_rd_data,
+                                lab16_return_cv[7:0]
+                            };
+                            lab16_ch3_live_l_i <=
+                                lab16_return_scaled_l[15:0];
+		                            lab16_ch3_live_reason_i <= {
+		                                4'hC,
+		                                lab16_return_true_cross,
+	                                lab16_return_next_range_cross,
+	                                lab16_return_read_range_cross,
+                                lab16_return_read_valid,
+                                lab16_return_output_valid,
+                                lab16_active_i[3],
+                                lab16_map_valid_i[3],
+                                smoke_c0_pm3_audio_mask[3],
+                                lab16_pi_i[3] < lab16_base_i[3],
+                                lab16_pi_i[3] >= lab16_limit_i[3],
+                                lab16_ctrl_i[3][0],
+		                                lab16_vol_l_i[3] == 7'd0 &&
+		                                    lab16_vol_r_i[3] == 7'd0
+		                            };
+                            if (!lab16_return_output_valid &&
+                                (lab16_ch3_output_clear_count_i !=
+                                 16'hffff)) begin
+                                lab16_ch3_output_clear_count_i <=
+                                    lab16_ch3_output_clear_count_i + 16'd1;
+                            end
+                            if (!lab16_return_output_valid) begin
+                                if (lab16_return_true_cross &&
+                                    (lab16_ch3_clear_end_count_i !=
+                                     16'hffff)) begin
+                                    lab16_ch3_clear_end_count_i <=
+                                        lab16_ch3_clear_end_count_i + 16'd1;
+                                end
+                                if (lab16_ctrl_i[3][0] &&
+                                    (lab16_ch3_clear_disable_count_i !=
+                                     16'hffff)) begin
+                                    lab16_ch3_clear_disable_count_i <=
+                                        lab16_ch3_clear_disable_count_i +
+                                        16'd1;
+                                end
+                                if ((lab16_vol_l_i[3] == 7'd0 &&
+                                     lab16_vol_r_i[3] == 7'd0) &&
+                                    (lab16_ch3_clear_volume_count_i !=
+                                     16'hffff)) begin
+                                    lab16_ch3_clear_volume_count_i <=
+                                        lab16_ch3_clear_volume_count_i +
+                                        16'd1;
+                                end
+                                if (!lab16_map_valid_i[3] &&
+                                    (lab16_ch3_clear_map_count_i !=
+                                     16'hffff)) begin
+                                    lab16_ch3_clear_map_count_i <=
+                                        lab16_ch3_clear_map_count_i + 16'd1;
+                                end
+                            end
+                            if (lab16_return_true_cross &&
+                                (lab16_ch3_end_reached_count_i !=
+                                 16'hffff)) begin
+                                lab16_ch3_end_reached_count_i <=
+                                    lab16_ch3_end_reached_count_i + 16'd1;
+                            end
+	                            if (lab16_ch3_retrig_valid_i &&
+	                                (lab16_ch3_retrig_first_count_i < 4'd4)) begin
+	                                unique case (lab16_ch3_retrig_first_count_i)
+	                                    4'd0: lab16_ch3_retrig_first0_i <= {
+	                                        loaded_ddr_rd_data,
+	                                        lab16_return_cv[7:0]
+	                                    };
+	                                    4'd1: lab16_ch3_retrig_first1_i <= {
+	                                        loaded_ddr_rd_data,
+	                                        lab16_return_cv[7:0]
+	                                    };
+	                                    4'd2: lab16_ch3_retrig_first2_i <= {
+	                                        loaded_ddr_rd_data,
+	                                        lab16_return_cv[7:0]
+	                                    };
+	                                    default: lab16_ch3_retrig_first3_i <= {
+	                                        loaded_ddr_rd_data,
+	                                        lab16_return_cv[7:0]
+	                                    };
+	                                endcase
+	                                if (lab16_ch3_retrig_first_count_i == 4'd0) begin
+	                                    lab16_ch3_retrig_first_l_i <=
+	                                        lab16_return_scaled_l[15:0];
+	                                    lab16_ch3_retrig_first_pi_i <=
+	                                        lab16_pi_i[lab16_pending_ch_i][15:0];
+	                                    lab16_ch3_retrig_first_offset_i <=
+	                                        lab16_runtime_offset_next;
+	                                end
+	                                lab16_ch3_retrig_first_count_i <=
+	                                    lab16_ch3_retrig_first_count_i + 4'd1;
+	                            end
+	                            if (lab16_return_read_valid &&
+	                                ((lab16_return_abs_max >
+	                                  lab16_ch3_snap_abs_i) ||
+	                                 lab16_return_true_cross ||
+	                                 !lab16_return_output_valid ||
+	                                 (lab16_ch3_snap_abs_i == 16'd0))) begin
+	                                lab16_ch3_snap_abs_i <=
+	                                    lab16_return_abs_max;
+	                                lab16_ch3_snap_pi_i <=
+	                                    lab16_pi_i[lab16_pending_ch_i][15:0];
+	                                lab16_ch3_snap_offset_i <=
+	                                    lab16_runtime_offset_next;
+	                                lab16_ch3_snap_phase_i <=
+	                                    lab16_phase_i[
+	                                        lab16_pending_ch_i][23:8];
+	                                lab16_ch3_snap_raw_cv_i <= {
+	                                    loaded_ddr_rd_data,
+	                                    lab16_return_cv[7:0]
+	                                };
+	                                lab16_ch3_snap_l_i <=
+	                                    lab16_return_scaled_l[15:0];
+	                                lab16_ch3_snap_reason_i <= {
+	                                    4'hC,
+	                                    lab16_return_true_cross,
+	                                    lab16_return_next_range_cross,
+	                                    lab16_return_read_range_cross,
+	                                    lab16_return_read_valid,
+	                                    lab16_return_output_valid,
+	                                    lab16_active_i[3],
+	                                    lab16_map_valid_i[3],
+	                                    smoke_c0_pm3_audio_mask[3],
+	                                    lab16_pi_i[3] < lab16_base_i[3],
+	                                    lab16_pi_i[3] >= lab16_limit_i[3],
+	                                    lab16_ctrl_i[3][0],
+	                                    lab16_vol_l_i[3] == 7'd0 &&
+	                                        lab16_vol_r_i[3] == 7'd0
+	                                };
+	                                lab16_ch3_snap_base_i <=
+	                                    lab16_base_i[3][15:0];
+	                                lab16_ch3_snap_limit_i <=
+	                                    lab16_limit_i[3][15:0];
+	                                lab16_ch3_snap_block_i <= {
+	                                    8'hC3,
+	                                    lab16_active_i[3],
+	                                    lab16_map_valid_i[3],
+	                                    smoke_c0_pm3_audio_mask[3],
+	                                    1'b0,
+	                                    lab16_block_i[3],
+	                                    1'b0
+	                                };
+	                            end
+	                            if (lab16_return_abs_max > lab16_ch3_worst_abs_i) begin
+                                lab16_ch3_worst_abs_i <= lab16_return_abs_max;
+                                lab16_ch3_worst_pi_i <=
+                                    lab16_pi_i[lab16_pending_ch_i][15:0];
+                                lab16_ch3_worst_time_i <=
+                                    lab16_return_count_i;
+                                lab16_ch3_worst_rc_i <=
+                                    lab16_ch3_retrig_count_i;
+                                lab16_ch3_worst_offset_i <=
+                                    lab16_runtime_offset_next;
+                                lab16_ch3_worst_current_i <=
+                                    lab16_start_current_i[3] +
+                                    lab16_runtime_offset_next;
+                                lab16_ch3_worst_raw_cv_i <= {
+                                    loaded_ddr_rd_data,
+                                    lab16_return_cv[7:0]
+                                };
+                                lab16_ch3_worst_l_i <=
+                                    lab16_return_scaled_l[15:0];
+                                lab16_ch3_worst_reason_i <= {
+                                    4'hC,
+                                    lab16_return_true_cross,
+                                    lab16_return_next_range_cross,
+                                    lab16_return_read_range_cross,
+                                    lab16_return_read_valid,
+                                    lab16_return_output_valid,
+                                    lab16_active_i[3],
+                                    lab16_map_valid_i[3],
+                                    smoke_c0_pm3_audio_mask[3],
+                                    1'b1,
+                                    lab16_ch3_hold_mix_count_i >
+                                        lab16_ch3_emit_count_i,
+                                    lab16_ctrl_i[3][0],
+                                    lab16_vol_l_i[3] == 7'd0 &&
+                                        lab16_vol_r_i[3] == 7'd0
+                                };
+                            end
+                        end
+                        if (lab16_start_tuple_valid_i &&
+                            (lab16_pending_ch_i == lab16_start_tuple_ch_i)) begin
+                            lab16_runtime_status_i <= 16'hE600;
+                            lab16_runtime_active_seen_i <= 1'b1;
+                            lab16_first_capture_reader_match_i <= 1'b1;
+                            if (lab16_runtime_consume_count_i != 16'hffff) begin
+                                lab16_runtime_consume_count_i <=
+                                    lab16_runtime_consume_count_i + 16'd1;
+                            end
+                            lab16_runtime_offset_i <=
+                                lab16_runtime_offset_next;
+                            lab16_runtime_addr_i <=
+                                lab16_runtime_addr_next[15:0];
+                            lab16_runtime_pi_i <= lab16_pi_i[lab16_pending_ch_i];
+                            lab16_runtime_phase_hint_i <= {
+                                lab16_phase_i[lab16_pending_ch_i][15:8],
+                                lab16_phase_i[lab16_pending_ch_i][7:0]
+                            };
+                            lab16_runtime_rd_i <= {
+                                loaded_ddr_rd_data,
+                                lab16_return_cv[7:0]
+                            };
+                            lab16_runtime_l_i <= lab16_return_scaled_l[15:0];
+                            lab16_runtime_r_i <= lab16_return_scaled_r[15:0];
+                            lab16_runtime_stop_i <= {
+                                11'd0,
+                                lab16_return_phase_next[26:8] <
+                                    lab16_base_i[lab16_pending_ch_i],
+                                lab16_return_phase_next[26:8] >=
+                                    lab16_limit_i[lab16_pending_ch_i],
+                                !lab16_map_valid_i[lab16_pending_ch_i],
+                                lab16_vol_l_i[lab16_pending_ch_i] == 7'd0 &&
+                                    lab16_vol_r_i[lab16_pending_ch_i] == 7'd0,
+                                lab16_ctrl_i[lab16_pending_ch_i][0]
+                            };
+                            if (lab16_return_read_valid &&
+                                lab16_first_capture_armed_i &&
+                                !lab16_first_samples_valid_i &&
+                                (lab16_first_sample_count_i < 5'd16)) begin
+                                lab16_first_capture_has_any_i <= 1'b1;
+                                if (lab16_first_sample_count_i == 5'd0) begin
+                                    lab16_first_s0_addr_i <=
+                                        lab16_runtime_addr_next[15:0];
+                                    lab16_first_s0_index_i <=
+                                        lab16_pi_i[lab16_pending_ch_i][15:0];
+                                    lab16_first_s0_phase_i <=
+                                        lab16_phase_i[lab16_pending_ch_i][23:8];
+                                    lab16_first_s0_capture_count_i <=
+                                        (lab16_runtime_consume_count_i ==
+                                         16'hffff) ?
+                                        16'hffff :
+                                        (lab16_runtime_consume_count_i +
+                                         16'd1);
+                                end
+                                unique case (lab16_first_sample_count_i[3:0])
+                                    4'd0: begin
+                                        lab16_first_raw01_i[15:8] <=
+                                            loaded_ddr_rd_data;
+                                        lab16_first_dec01_i[15:8] <=
+                                            lab16_return_cv[7:0];
+                                        lab16_wave_rawcv0_i <= {
+                                            loaded_ddr_rd_data,
+                                            lab16_return_cv[7:0]
+                                        };
+                                        lab16_wave_addr0_i <=
+                                            lab16_runtime_addr_next[15:0];
+                                        lab16_wave_pi0_i <=
+                                            lab16_pi_i[
+                                                lab16_pending_ch_i][15:0];
+                                        lab16_wave_out0_i <=
+                                            lab16_return_scaled_l[15:0];
+                                    end
+                                    4'd1: begin
+                                        lab16_first_raw01_i[7:0] <=
+                                            loaded_ddr_rd_data;
+                                        lab16_first_dec01_i[7:0] <=
+                                            lab16_return_cv[7:0];
+                                        lab16_wave_rawcv1_i <= {
+                                            loaded_ddr_rd_data,
+                                            lab16_return_cv[7:0]
+                                        };
+                                        lab16_wave_addr1_i <=
+                                            lab16_runtime_addr_next[15:0];
+                                        lab16_wave_pi1_i <=
+                                            lab16_pi_i[
+                                                lab16_pending_ch_i][15:0];
+                                        lab16_wave_out1_i <=
+                                            lab16_return_scaled_l[15:0];
+                                    end
+                                    4'd2: begin
+                                        lab16_first_raw23_i[15:8] <=
+                                            loaded_ddr_rd_data;
+                                        lab16_first_dec23_i[15:8] <=
+                                            lab16_return_cv[7:0];
+                                        lab16_wave_rawcv2_i <= {
+                                            loaded_ddr_rd_data,
+                                            lab16_return_cv[7:0]
+                                        };
+                                        lab16_wave_addr2_i <=
+                                            lab16_runtime_addr_next[15:0];
+                                        lab16_wave_pi2_i <=
+                                            lab16_pi_i[
+                                                lab16_pending_ch_i][15:0];
+                                        lab16_wave_out2_i <=
+                                            lab16_return_scaled_l[15:0];
+                                    end
+                                    4'd3: begin
+                                        lab16_first_raw23_i[7:0] <=
+                                            loaded_ddr_rd_data;
+                                        lab16_first_dec23_i[7:0] <=
+                                            lab16_return_cv[7:0];
+                                        lab16_wave_rawcv3_i <= {
+                                            loaded_ddr_rd_data,
+                                            lab16_return_cv[7:0]
+                                        };
+                                        lab16_wave_addr3_i <=
+                                            lab16_runtime_addr_next[15:0];
+                                        lab16_wave_pi3_i <=
+                                            lab16_pi_i[
+                                                lab16_pending_ch_i][15:0];
+                                        lab16_wave_out3_i <=
+                                            lab16_return_scaled_l[15:0];
+                                    end
+                                    4'd4: begin
+                                        lab16_first_raw45_i[15:8] <=
+                                            loaded_ddr_rd_data;
+                                        lab16_first_dec45_i[15:8] <=
+                                            lab16_return_cv[7:0];
+                                    end
+                                    4'd5: begin
+                                        lab16_first_raw45_i[7:0] <=
+                                            loaded_ddr_rd_data;
+                                        lab16_first_dec45_i[7:0] <=
+                                            lab16_return_cv[7:0];
+                                    end
+                                    4'd6: begin
+                                        lab16_first_raw67_i[15:8] <=
+                                            loaded_ddr_rd_data;
+                                        lab16_first_dec67_i[15:8] <=
+                                            lab16_return_cv[7:0];
+                                    end
+                                    4'd7: begin
+                                        lab16_first_raw67_i[7:0] <=
+                                            loaded_ddr_rd_data;
+                                        lab16_first_dec67_i[7:0] <=
+                                            lab16_return_cv[7:0];
+                                    end
+                                    4'd8: begin
+                                        lab16_first_raw89_i[15:8] <=
+                                            loaded_ddr_rd_data;
+                                        lab16_first_dec89_i[15:8] <=
+                                            lab16_return_cv[7:0];
+                                    end
+                                    4'd9: begin
+                                        lab16_first_raw89_i[7:0] <=
+                                            loaded_ddr_rd_data;
+                                        lab16_first_dec89_i[7:0] <=
+                                            lab16_return_cv[7:0];
+                                    end
+                                    4'd10: begin
+                                        lab16_first_rawab_i[15:8] <=
+                                            loaded_ddr_rd_data;
+                                        lab16_first_decab_i[15:8] <=
+                                            lab16_return_cv[7:0];
+                                    end
+                                    4'd11: begin
+                                        lab16_first_rawab_i[7:0] <=
+                                            loaded_ddr_rd_data;
+                                        lab16_first_decab_i[7:0] <=
+                                            lab16_return_cv[7:0];
+                                    end
+                                    4'd12: begin
+                                        lab16_first_rawcd_i[15:8] <=
+                                            loaded_ddr_rd_data;
+                                        lab16_first_deccd_i[15:8] <=
+                                            lab16_return_cv[7:0];
+                                    end
+                                    4'd13: begin
+                                        lab16_first_rawcd_i[7:0] <=
+                                            loaded_ddr_rd_data;
+                                        lab16_first_deccd_i[7:0] <=
+                                            lab16_return_cv[7:0];
+                                    end
+                                    4'd14: begin
+                                        lab16_first_rawef_i[15:8] <=
+                                            loaded_ddr_rd_data;
+                                        lab16_first_decef_i[15:8] <=
+                                            lab16_return_cv[7:0];
+                                    end
+                                    default: begin
+                                        lab16_first_rawef_i[7:0] <=
+                                            loaded_ddr_rd_data;
+                                        lab16_first_decef_i[7:0] <=
+                                            lab16_return_cv[7:0];
+                                    end
+                                endcase
+                                if (lab16_first_sample_count_i == 5'd15) begin
+                                    lab16_first_sample_count_i <= 5'd16;
+                                    lab16_first_samples_valid_i <= 1'b1;
+                                    lab16_first_capture_armed_i <= 1'b0;
+                                    lab16_runtime_pr_hold_i <= {
+                                        8'hE6,
+                                        lab16_first_capture_cleared_i,
+                                        lab16_first_capture_overwrite_i,
+                                        1'b1,
+                                        lab16_first_capture_reader_match_i,
+                                        1'b1,
+                                        1'b1,
+                                        1'b0,
+                                        lab16_start_tuple_valid_i
+                                    };
+                                end else begin
+                                    lab16_first_sample_count_i <=
+                                        lab16_first_sample_count_i + 5'd1;
+                                end
+                            end
+                        end
+                        if (lab16_return_read_valid &&
+                            (lab16_first8_count_i[lab16_pending_ch_i] <
+                             4'd8)) begin
+                            unique case (lab16_first8_count_i[
+                                             lab16_pending_ch_i])
+                                4'd0: lab16_first8_01_i[
+                                    lab16_pending_ch_i][15:8] <=
+                                    loaded_ddr_rd_data;
+                                4'd1: lab16_first8_01_i[
+                                    lab16_pending_ch_i][7:0] <=
+                                    loaded_ddr_rd_data;
+                                4'd2: lab16_first8_23_i[
+                                    lab16_pending_ch_i][15:8] <=
+                                    loaded_ddr_rd_data;
+                                4'd3: lab16_first8_23_i[
+                                    lab16_pending_ch_i][7:0] <=
+                                    loaded_ddr_rd_data;
+                                4'd4: lab16_first8_45_i[
+                                    lab16_pending_ch_i][15:8] <=
+                                    loaded_ddr_rd_data;
+                                4'd5: lab16_first8_45_i[
+                                    lab16_pending_ch_i][7:0] <=
+                                    loaded_ddr_rd_data;
+                                4'd6: lab16_first8_67_i[
+                                    lab16_pending_ch_i][15:8] <=
+                                    loaded_ddr_rd_data;
+                                default: lab16_first8_67_i[
+                                    lab16_pending_ch_i][7:0] <=
+                                    loaded_ddr_rd_data;
+                            endcase
+                            lab16_first8_count_i[lab16_pending_ch_i] <=
+                                lab16_first8_count_i[lab16_pending_ch_i] +
+                                4'd1;
+                        end
+                        if (lab16_return_read_valid) begin
+                            lab16_sample_i[lab16_pending_ch_i] <=
+                                loaded_ddr_rd_data;
+                            lab16_hold_sample_i[lab16_pending_ch_i] <=
+                                loaded_ddr_rd_data;
+                            lab16_hold_cv_i[lab16_pending_ch_i] <=
+                                lab16_return_cv;
+                        end else begin
+                            lab16_sample_i[lab16_pending_ch_i] <= 8'h80;
+                            lab16_hold_sample_i[lab16_pending_ch_i] <= 8'h80;
+                            lab16_hold_cv_i[lab16_pending_ch_i] <= 9'sd0;
+                        end
+                        if (lab16_return_output_valid) begin
+                            lab16_out_l_i[lab16_pending_ch_i] <=
+                                lab16_return_scaled_l[15:0];
+                            lab16_out_r_i[lab16_pending_ch_i] <=
+                                lab16_return_scaled_r[15:0];
+                            lab16_mix_fresh_i[lab16_pending_ch_i] <= 1'b1;
+                        end else begin
+                            lab16_out_l_i[lab16_pending_ch_i] <= 16'sd0;
+                            lab16_out_r_i[lab16_pending_ch_i] <= 16'sd0;
+                            lab16_mix_fresh_i[lab16_pending_ch_i] <= 1'b0;
+                        end
+                        if (lab16_return_output_valid &&
+                            smoke_c0_pm3_audio_mask[lab16_pending_ch_i] &&
+                            ((lab16_return_scaled_l[15:0] != 16'sd0) ||
+                             (lab16_return_scaled_r[15:0] != 16'sd0))) begin
+                            lab16_ever_nonzero_i[lab16_pending_ch_i] <= 1'b1;
+                        end
+                        if (lab16_return_output_valid &&
+                            (lab16_return_abs_l > lab16_loud_snap_abs_i)) begin
+                            lab16_loud_snap_valid_i <= 1'b1;
+                            lab16_loud_snap_abs_i <= lab16_return_abs_l;
+                            lab16_loud_snap_ch_i <= lab16_pending_ch_i;
+                            lab16_loud_snap_block_i <=
+                                lab16_block_i[lab16_pending_ch_i];
+                            lab16_loud_snap_start_i <=
+                                lab16_start_i[lab16_pending_ch_i];
+                            lab16_loud_snap_pi_i <=
+                                lab16_pi_i[lab16_pending_ch_i];
+                            lab16_loud_snap_sample_i <= loaded_ddr_rd_data;
+                            lab16_loud_snap_cv_i <= lab16_return_cv;
+                            lab16_loud_snap_out_i <=
+                                lab16_return_scaled_l[15:0];
+                            lab16_loud_snap_delta_reason_i <= {
+                                3'd0,
+                                lab16_pi_i[lab16_pending_ch_i] <
+                                    lab16_base_i[lab16_pending_ch_i],
+                                lab16_pi_i[lab16_pending_ch_i] >=
+                                    lab16_limit_i[lab16_pending_ch_i],
+                                !lab16_map_valid_i[lab16_pending_ch_i],
+                                lab16_vol_l_i[lab16_pending_ch_i] == 7'd0 &&
+                                    lab16_vol_r_i[lab16_pending_ch_i] == 7'd0,
+                                lab16_ctrl_i[lab16_pending_ch_i][0],
+                                lab16_delta_i[lab16_pending_ch_i]
+                            };
+                            lab16_loud_snap_volume_i <= {
+                                1'b0, lab16_vol_l_i[lab16_pending_ch_i],
+                                1'b0, lab16_vol_r_i[lab16_pending_ch_i]
+                            };
+                            lab16_loud_snap_reason_i <= {
+                                11'd0,
+                                lab16_pi_i[lab16_pending_ch_i] <
+                                    lab16_base_i[lab16_pending_ch_i],
+                                lab16_pi_i[lab16_pending_ch_i] >=
+                                    lab16_limit_i[lab16_pending_ch_i],
+                                !lab16_map_valid_i[lab16_pending_ch_i],
+                                lab16_vol_l_i[lab16_pending_ch_i] == 7'd0 &&
+                                    lab16_vol_r_i[lab16_pending_ch_i] == 7'd0,
+                                lab16_ctrl_i[lab16_pending_ch_i][0]
+                            };
+                        end
+                        if (lab16_expl_masked_return &&
+                            (lab16_expl_loud_return ||
+                             lab16_expl_peak_return ||
+                             lab16_expl_fault_return ||
+                             ((lab16_return_true_cross ||
+                             !lab16_return_read_valid) &&
+                              !lab16_expl_valid_i) ||
+                             lab16_expl_bootstrap_return ||
+                             lab16_expl_first8_refresh)) begin
+                            if (lab16_expl_count_i != 16'hffff) begin
+                                lab16_expl_count_i <=
+                                    lab16_expl_count_i + 16'd1;
+                            end
+	                            if (!lab16_expl_valid_i ||
+	                                lab16_expl_loud_return ||
+                                lab16_expl_peak_return ||
+                                lab16_expl_fault_return ||
+                                lab16_expl_first8_refresh ||
+                                (lab16_mix_abs_max_next >=
+                                 lab16_expl_abs_i) ||
+	                                (lab16_return_abs_max >=
+	                                 lab16_expl_abs_i)) begin
+	                                lab16_expl_valid_i <= 1'b1;
+	                                lab16_ch3_last_expl_time_i <=
+	                                    lab16_return_count_i;
+	                                lab16_expl_first8_done_i <=
+                                    lab16_first8_count_i[
+                                        lab16_pending_ch_i] >= 4'd8;
+                                if (lab16_return_output_valid &&
+                                    ((lab16_return_abs_max >
+                                      lab16_expl_abs_i) ||
+                                     (lab16_mix_abs_max_next >
+                                      lab16_expl_abs_i))) begin
+                                    lab16_expl_abs_i <=
+                                        (lab16_return_abs_max >
+                                         lab16_mix_abs_max_next) ?
+                                        lab16_return_abs_max :
+                                        lab16_mix_abs_max_next;
+                                end
+                                lab16_expl_ch_i <= lab16_pending_ch_i;
+                                lab16_expl_block_i <=
+                                    lab16_block_i[lab16_pending_ch_i];
+                                lab16_expl_current_i <=
+                                    lab16_start_current_i[lab16_pending_ch_i];
+                                lab16_expl_end_i <=
+                                    lab16_start_end_low_i[lab16_pending_ch_i];
+                                lab16_expl_delta_i <=
+                                    lab16_delta_i[lab16_pending_ch_i];
+                                lab16_expl_volume_i <= {
+                                    1'b0, lab16_vol_l_i[lab16_pending_ch_i],
+                                    1'b0, lab16_vol_r_i[lab16_pending_ch_i]
+                                };
+                                lab16_expl_base_i <=
+                                    lab16_base_i[lab16_pending_ch_i][15:0];
+                                lab16_expl_first_index_i <=
+                                    lab16_start_i[lab16_pending_ch_i][15:0];
+                                lab16_expl_index_i <=
+                                    lab16_pi_i[lab16_pending_ch_i][15:0];
+                                lab16_expl_raw_cv_i <= {
+                                    loaded_ddr_rd_data,
+                                    lab16_return_cv[7:0]
+                                };
+                                lab16_expl_l_i <=
+                                    lab16_return_scaled_l[15:0];
+                                lab16_expl_r_i <=
+                                    lab16_return_scaled_r[15:0];
+                                lab16_expl_mix_i <=
+                                    lab16_mix_abs_max_next;
+                                lab16_expl_active_i <= lab16_active_i;
+                                lab16_expl_reason_i <= {
+                                    8'hEC,
+                                    lab16_expl_loud_return,
+                                    lab16_return_true_cross,
+                                    lab16_return_next_range_cross,
+                                    lab16_return_read_range_cross,
+                                    !lab16_return_read_valid,
+                                    !lab16_return_output_valid,
+                                    smoke_c0_pm3_audio_mask[
+                                        lab16_pending_ch_i],
+                                    lab16_return_read_valid
+                                };
+                                lab16_expl_e0_i <=
+                                    lab16_first8_01_i[lab16_pending_ch_i];
+                                lab16_expl_e1_i <=
+                                    lab16_first8_23_i[lab16_pending_ch_i];
+                                lab16_expl_e2_i <=
+                                    lab16_first8_45_i[lab16_pending_ch_i];
+                                lab16_expl_e3_i <=
+                                    lab16_first8_67_i[lab16_pending_ch_i];
+                            end
+                        end
                         lab16_phase_i[lab16_pending_ch_i] <=
                             lab16_return_phase_next;
                         lab16_pi_i[lab16_pending_ch_i] <=
                             lab16_return_phase_next[26:8];
-                        if (lab16_return_phase_next[26:8] >=
-                            smoke_type80_table_len_i[2]) begin
+                        if (!lab16_return_next_valid) begin
+                            if (lab16_start_tuple_valid_i &&
+                                (lab16_pending_ch_i == lab16_start_tuple_ch_i)) begin
+                                lab16_last_stop_pi_i <= lab16_return_stop_pi;
+                                if (lab16_return_true_cross &&
+                                    (lab16_stop_count_i != 16'hffff)) begin
+                                    lab16_stop_count_i <=
+                                        lab16_stop_count_i + 16'd1;
+                                end
+                                if (lab16_return_true_cross &&
+                                    !lab16_stop_valid_i) begin
+                                    lab16_stop_valid_i <= 1'b1;
+                                    lab16_stop_pi_i <=
+                                        lab16_return_stop_pi[15:0];
+                                    lab16_stop_offset_i <=
+                                        lab16_return_stop_pi[15:0] -
+                                        lab16_start_i[lab16_pending_ch_i][15:0];
+                                    lab16_stop_full_i <=
+                                        lab16_start_tuple_full_addr_i[15:0] +
+                                        (lab16_return_stop_pi[15:0] -
+                                         lab16_start_i[lab16_pending_ch_i][15:0]);
+                                    lab16_stop_phase_i <= {
+                                        lab16_return_phase_next[15:8],
+                                        lab16_return_phase_next[7:0]
+                                    };
+                                    lab16_stop_flags_i <= {
+                                        8'hEA,
+                                        2'd0,
+                                        1'b0,
+                                        1'b1,
+                                        1'b1,
+                                        !lab16_return_read_valid,
+                                        lab16_start_tuple_end_limited_i &&
+                                            (lab16_return_stop_pi >=
+                                             lab16_limit_i[lab16_pending_ch_i]),
+                                        lab16_return_stop_pi >=
+                                            lab16_limit_i[lab16_pending_ch_i]
+                                    };
+                                end else if (lab16_return_true_cross) begin
+                                    lab16_stop_flags_i[5] <= 1'b1;
+                                end
+                                lab16_end_debug_flags_i <= {
+                                    8'hE9,
+                                    1'b1,
+                                    lab16_start_tuple_end_limited_i,
+                                    lab16_return_phase_next[26:8] <
+                                        lab16_base_i[lab16_pending_ch_i],
+                                    lab16_return_phase_next[26:8] >=
+                                        lab16_limit_i[lab16_pending_ch_i],
+                                    !lab16_map_valid_i[lab16_pending_ch_i],
+                                    lab16_vol_l_i[lab16_pending_ch_i] == 7'd0 &&
+                                        lab16_vol_r_i[lab16_pending_ch_i] == 7'd0,
+                                    lab16_ctrl_i[lab16_pending_ch_i][0],
+                                    1'b0
+                                };
+                            end
                             lab16_active_i[lab16_pending_ch_i] <= 1'b0;
+                            lab16_map_valid_i[lab16_pending_ch_i] <= 1'b0;
                             lab16_out_l_i[lab16_pending_ch_i] <= 16'sd0;
                             lab16_out_r_i[lab16_pending_ch_i] <= 16'sd0;
-                            if (lab16_pending_ch_i == 4'd3) begin
-                                lab16_ch3_stop_reason_i <= 16'h0004;
-                                if (lab16_ch3_range_count_i != 16'hffff) begin
+                            lab16_mix_fresh_i[lab16_pending_ch_i] <= 1'b0;
+                            lab16_hold_sample_i[lab16_pending_ch_i] <= 8'h80;
+                            lab16_hold_cv_i[lab16_pending_ch_i] <= 9'sd0;
+	                            if (lab16_pending_ch_i == 4'd3) begin
+	                                lab16_ch3_stop_reason_i <= 16'h0004;
+	                                if (lab16_ch3_clear_count_i != 16'hffff) begin
+	                                    lab16_ch3_clear_count_i <=
+	                                        lab16_ch3_clear_count_i + 16'd1;
+	                                end
+	                                lab16_ch3_last_clear_time_i <=
+	                                    lab16_return_count_i;
+	                                if (lab16_ch3_range_count_i != 16'hffff) begin
                                     lab16_ch3_range_count_i <=
                                         lab16_ch3_range_count_i + 16'd1;
                                 end
@@ -3243,16 +6054,26 @@ module segapcm_sound_module #(
                                 lab16_ch3_tick_count_i <=
                                     lab16_ch3_tick_count_i + 16'd1;
                             end
-                            lab16_ch3_output_i <= lab16_return_scaled_l[15:0];
-                            lab16_ch3_hold_i <= lab16_return_scaled_l[15:0];
-                            if (lab16_return_scaled_l[15:0] != 16'd0) begin
+                            if (!lab16_return_output_valid) begin
+                                lab16_ch3_output_i <= 16'd0;
+                                lab16_ch3_hold_i <= 16'd0;
+                            end else begin
+                                lab16_ch3_output_i <= lab16_return_scaled_l[15:0];
+                                lab16_ch3_hold_i <= lab16_return_scaled_l[15:0];
+                                if (lab16_ch3_hit_len_i != 16'hffff) begin
+                                    lab16_ch3_hit_len_i <= lab16_ch3_hit_len_i + 16'd1;
+                                end
+                            end
+                            if ((lab16_return_scaled_l[15:0] != 16'd0) &&
+                                lab16_return_output_valid) begin
                                 lab16_ch3_sticky_i[1] <= 1'b1;
                                 if (lab16_ch3_emit_count_i != 16'hffff) begin
                                     lab16_ch3_emit_count_i <=
                                         lab16_ch3_emit_count_i + 16'd1;
                                 end
                             end
-                            if (lab16_return_abs_l > lab16_ch3_peak_i) begin
+                            if ((lab16_return_abs_l > lab16_ch3_peak_i) &&
+                                lab16_return_output_valid) begin
                                 lab16_ch3_peak_i <= lab16_return_abs_l;
                             end
                         end
@@ -3270,21 +6091,139 @@ module segapcm_sound_module #(
                         if ((lab16_ctrl_i[lab16_next_ch][0]) ||
                             (lab16_vol_l_i[lab16_next_ch] == 7'd0 &&
                              lab16_vol_r_i[lab16_next_ch] == 7'd0) ||
+                            !lab16_map_valid_i[lab16_next_ch] ||
+                            (lab16_pi_i[lab16_next_ch] <
+                             lab16_base_i[lab16_next_ch]) ||
                             (lab16_pi_i[lab16_next_ch] >=
-                             smoke_type80_table_len_i[2])) begin
-                            lab16_active_i[lab16_next_ch] <= 1'b0;
-                            lab16_out_l_i[lab16_next_ch] <= 16'sd0;
-                            lab16_out_r_i[lab16_next_ch] <= 16'sd0;
-                            if (lab16_next_ch == 4'd3) begin
-                                lab16_ch3_stop_reason_i <= {
-                                    13'd0,
+                             lab16_limit_i[lab16_next_ch])) begin
+                            lab16_service_true_cross =
+                                lab16_map_valid_i[lab16_next_ch] &&
+                                ((lab16_pi_i[lab16_next_ch] <
+                                  lab16_base_i[lab16_next_ch]) ||
+                                 (lab16_pi_i[lab16_next_ch] >=
+                                  lab16_limit_i[lab16_next_ch]));
+                            if (lab16_start_tuple_valid_i &&
+                                (lab16_next_ch == lab16_start_tuple_ch_i)) begin
+                                lab16_last_stop_pi_i <= lab16_pi_i[lab16_next_ch];
+                                if (lab16_service_true_cross &&
+                                    (lab16_stop_count_i != 16'hffff)) begin
+                                    lab16_stop_count_i <=
+                                        lab16_stop_count_i + 16'd1;
+                                end
+                                if (lab16_service_true_cross &&
+                                    !lab16_stop_valid_i) begin
+                                    lab16_stop_valid_i <= 1'b1;
+                                    lab16_stop_pi_i <=
+                                        lab16_pi_i[lab16_next_ch][15:0];
+                                    lab16_stop_offset_i <=
+                                        lab16_pi_i[lab16_next_ch][15:0] -
+                                        lab16_start_i[lab16_next_ch][15:0];
+                                    lab16_stop_full_i <=
+                                        lab16_start_tuple_full_addr_i[15:0] +
+                                        (lab16_pi_i[lab16_next_ch][15:0] -
+                                         lab16_start_i[lab16_next_ch][15:0]);
+                                    lab16_stop_phase_i <= {
+                                        lab16_phase_i[lab16_next_ch][15:8],
+                                        lab16_phase_i[lab16_next_ch][7:0]
+                                    };
+                                    lab16_stop_flags_i <= {
+                                        8'hEA,
+                                        2'd0,
+                                        1'b0,
+                                        1'b1,
+                                        1'b1,
+                                        lab16_pi_i[lab16_next_ch] >=
+                                            lab16_limit_i[lab16_next_ch],
+                                        lab16_start_tuple_end_limited_i &&
+                                            (lab16_pi_i[lab16_next_ch] >=
+                                             lab16_limit_i[lab16_next_ch]),
+                                        lab16_pi_i[lab16_next_ch] >=
+                                            lab16_limit_i[lab16_next_ch]
+                                    };
+                                end else if (lab16_service_true_cross) begin
+                                    lab16_stop_flags_i[5] <= 1'b1;
+                                end
+                                lab16_end_debug_flags_i <= {
+                                    8'hE9,
+                                    1'b1,
+                                    lab16_start_tuple_end_limited_i,
+                                    lab16_pi_i[lab16_next_ch] <
+                                        lab16_base_i[lab16_next_ch],
                                     lab16_pi_i[lab16_next_ch] >=
-                                        smoke_type80_table_len_i[2],
+                                        lab16_limit_i[lab16_next_ch],
+                                    !lab16_map_valid_i[lab16_next_ch],
                                     lab16_vol_l_i[lab16_next_ch] == 7'd0 &&
                                         lab16_vol_r_i[lab16_next_ch] == 7'd0,
-                                    lab16_ctrl_i[lab16_next_ch][0]
+                                    lab16_ctrl_i[lab16_next_ch][0],
+                                    1'b1
                                 };
                             end
+                            lab16_active_i[lab16_next_ch] <= 1'b0;
+                            lab16_map_valid_i[lab16_next_ch] <= 1'b0;
+                            lab16_out_l_i[lab16_next_ch] <= 16'sd0;
+                            lab16_out_r_i[lab16_next_ch] <= 16'sd0;
+                            lab16_mix_fresh_i[lab16_next_ch] <= 1'b0;
+	                            if (lab16_next_ch == 4'd3) begin
+	                                lab16_ch3_stop_reason_i <= {
+                                    11'd0,
+                                    lab16_pi_i[lab16_next_ch] <
+                                        lab16_base_i[lab16_next_ch],
+                                    lab16_pi_i[lab16_next_ch] >=
+                                        lab16_limit_i[lab16_next_ch],
+                                    !lab16_map_valid_i[lab16_next_ch],
+                                    lab16_vol_l_i[lab16_next_ch] == 7'd0 &&
+                                        lab16_vol_r_i[lab16_next_ch] == 7'd0,
+	                                    lab16_ctrl_i[lab16_next_ch][0]
+	                                };
+	                                if (lab16_ch3_clear_count_i != 16'hffff) begin
+	                                    lab16_ch3_clear_count_i <=
+	                                        lab16_ch3_clear_count_i + 16'd1;
+	                                end
+                                    if (lab16_ch3_output_clear_count_i !=
+                                        16'hffff) begin
+                                        lab16_ch3_output_clear_count_i <=
+                                            lab16_ch3_output_clear_count_i +
+                                            16'd1;
+                                    end
+                                    if (lab16_service_true_cross &&
+                                        (lab16_ch3_end_reached_count_i !=
+                                         16'hffff)) begin
+                                        lab16_ch3_end_reached_count_i <=
+                                            lab16_ch3_end_reached_count_i +
+                                            16'd1;
+                                    end
+                                    if (lab16_service_true_cross &&
+                                        (lab16_ch3_clear_end_count_i !=
+                                         16'hffff)) begin
+                                        lab16_ch3_clear_end_count_i <=
+                                            lab16_ch3_clear_end_count_i +
+                                            16'd1;
+                                    end
+                                    if (lab16_ctrl_i[lab16_next_ch][0] &&
+                                        (lab16_ch3_clear_disable_count_i !=
+                                         16'hffff)) begin
+                                        lab16_ch3_clear_disable_count_i <=
+                                            lab16_ch3_clear_disable_count_i +
+                                            16'd1;
+                                    end
+                                    if ((lab16_vol_l_i[lab16_next_ch] == 7'd0 &&
+                                         lab16_vol_r_i[lab16_next_ch] == 7'd0) &&
+                                        (lab16_ch3_clear_volume_count_i !=
+                                         16'hffff)) begin
+                                        lab16_ch3_clear_volume_count_i <=
+                                            lab16_ch3_clear_volume_count_i +
+                                            16'd1;
+                                    end
+                                    if (!lab16_map_valid_i[lab16_next_ch] &&
+                                        (lab16_ch3_clear_map_count_i !=
+                                         16'hffff)) begin
+                                        lab16_ch3_clear_map_count_i <=
+                                            lab16_ch3_clear_map_count_i +
+                                            16'd1;
+                                    end
+	                                lab16_ch3_last_clear_time_i <=
+	                                    lab16_return_count_i;
+	                            end
                             lab16_rr_ch_i <= lab16_next_ch + 4'd1;
                         end else begin
                             lab_c0_req_addr_i <= lab16_pi_i[lab16_next_ch];
@@ -3841,6 +6780,92 @@ module segapcm_sound_module #(
             audio_abs_peak_i <= 16'd0;
             last_audio_l_i <= 16'sd0;
             last_audio_r_i <= 16'sd0;
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+            lab_c0_sb_debug_i <= 16'd0;
+            lab_c0_so_debug_i <= 16'sd0;
+            lab_c0_lo_debug_i <= 16'sd0;
+            lab_c0_mo_debug_i <= 16'sd0;
+            lab_c0_mux_err_i <= 16'd0;
+            lab_jt_cpu_write_count_i <= 16'd0;
+            lab_jt_rom_request_count_i <= 16'd0;
+            lab_jt_rom_addr_change_count_i <= 16'd0;
+            lab_jt_payload_match_count_i <= 16'd0;
+            lab_jt_payload_miss_count_i <= 16'd0;
+            lab_jt_rom_ok_count_i <= 16'd0;
+	            lab_jt_rom_nonzero_count_i <= 16'd0;
+	            lab_jt_rom_non80_count_i <= 16'd0;
+	            lab_jt_rom_changed_count_i <= 16'd0;
+	            lab_jt_rom_ok_while_cs_count_i <= 16'd0;
+	            lab_jt_sample_strobe_count_i <= 16'd0;
+	            lab_jt_raw_output_nonzero_count_i <= 16'd0;
+	            lab_jt_output_nonzero_count_i <= 16'd0;
+		            lab_jt_last_cpu_write_i <= 16'd0;
+		            lab_jt_last_rom_addr_i <= 19'd0;
+		            lab_jt_last_payload_index_i <= 19'd0;
+		            lab_jt_first_rom_addr_i <= 19'd0;
+		            lab_jt_first_ch3_rom_addr_i <= 19'd0;
+		            lab_jt_max_rom_addr_i <= 19'd0;
+		            lab_jt_last_rom_data_i <= 8'd0;
+		            lab_jt_last_non80_rom_addr_i <= 19'd0;
+		            lab_jt_last_non80_payload_index_i <= 19'd0;
+		            lab_jt_first_non80_rom_data_i <= 8'h80;
+		            lab_jt_last_non80_rom_data_i <= 8'h80;
+		            lab_jt_block2_hit_count_i <= 16'd0;
+		            lab_jt_first_block2_rom_addr_i <= 19'd0;
+		            lab_jt_first_block2_payload_index_i <= 19'd0;
+		            lab_jt_first_block2_rom_data_i <= 8'd0;
+		            lab_jt_last_payload_block_i <= 3'd0;
+		            lab_jt_last_payload_match_i <= 1'b0;
+		            lab_jt_last_non80_payload_block_i <= 3'd0;
+		            lab_jt_last_non80_payload_match_i <= 1'b0;
+		            lab_jt_first_output_l_i <= 16'sd0;
+		            lab_jt_first_output_r_i <= 16'sd0;
+		            lab_jt_last_output_l_i <= 16'sd0;
+		            lab_jt_last_output_r_i <= 16'sd0;
+	            lab_jt_cur_write_count_i <= 16'd0;
+	            lab_jt_end_write_count_i <= 16'd0;
+	            lab_jt_delta_write_count_i <= 16'd0;
+	            lab_jt_vol_write_count_i <= 16'd0;
+	            lab_jt_ctrl_write_count_i <= 16'd0;
+	            lab_jt_other_write_count_i <= 16'd0;
+	            lab_jt_cen_write_count_i <= 16'd0;
+	            lab_jt_ch3_cur_mid_i <= 8'd0;
+	            lab_jt_ch3_cur_high_i <= 8'd0;
+	            lab_jt_ch3_end_i <= 8'd0;
+	            lab_jt_ch3_delta_i <= 8'd0;
+	            lab_jt_ch3_vol_l_i <= 8'd0;
+	            lab_jt_ch3_vol_r_i <= 8'd0;
+	            lab_jt_ch3_ctrl_raw_i <= 8'd0;
+	            lab_jt_ch3_ctrl_jt_i <= 8'd0;
+		            lab_jt_seen_cpu_write_i <= 1'b0;
+	            lab_jt_seen_rom_cs_i <= 1'b0;
+	            lab_jt_seen_first_rom_i <= 1'b0;
+	            lab_jt_seen_first_ch3_rom_i <= 1'b0;
+	            lab_jt_seen_first_block2_i <= 1'b0;
+	            lab_jt_seen_first_block2_data_i <= 1'b0;
+	            lab_jt_seen_payload_match_i <= 1'b0;
+	            lab_jt_seen_rom_ok_i <= 1'b0;
+	            lab_jt_seen_rom_nonzero_i <= 1'b0;
+		            lab_jt_seen_rom_non80_i <= 1'b0;
+		            lab_jt_seen_first_output_i <= 1'b0;
+		            lab_jt_seen_output_nonzero_i <= 1'b0;
+		            lab_jt_seen_first_non80_pr_i <= 1'b0;
+		            lab_jt_seen_first_nonzero_mv_i <= 1'b0;
+		            lab_jt_rom_data_hold_i <= 8'h80;
+		            lab_jt_rom_data_hold_d_i <= 8'h80;
+		            lab_jt_rom_data_hold_valid_i <= 1'b0;
+		            lab_jt_rom_data_hold_valid_d_i <= 1'b0;
+		            lab_jt_rom_data_latch_count_i <= 16'd0;
+		            lab_jt_rom_neutral_while_cs_count_i <= 16'd0;
+		            lab_jt_rom_repeat_count_i <= 16'd0;
+		            lab_jt_rom_hold_cycle_count_i <= 16'd0;
+		            lab_jt_sample_nonneutral_count_i <= 16'd0;
+		            lab_jt_first_non80_pr_i <= 16'h8000;
+		            lab_jt_last_non80_pr_i <= 16'h8000;
+		            lab_jt_first_nonzero_mv_i <= 16'd0;
+		            lab_jt_last_nonzero_mv_i <= 16'd0;
+		            lab_jt_max_abs_mv_i <= 16'd0;
+`endif
             shadow_decode_i <= 16'd0;
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_TEST
             c0_capture_write_count_i <= 16'd0;
@@ -3924,6 +6949,87 @@ module segapcm_sound_module #(
                 c0_capture_ch3_ctrl_i <= 8'd0;
                 c0_capture_ch3_ctrl_ext_i <= 8'd0;
                 c0_capture_ch3_start_count_i <= 16'd0;
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+                lab_jt_cpu_write_count_i <= 16'd0;
+                lab_jt_rom_request_count_i <= 16'd0;
+                lab_jt_rom_addr_change_count_i <= 16'd0;
+                lab_jt_payload_match_count_i <= 16'd0;
+                lab_jt_payload_miss_count_i <= 16'd0;
+                lab_jt_rom_ok_count_i <= 16'd0;
+	                lab_jt_rom_nonzero_count_i <= 16'd0;
+	                lab_jt_rom_non80_count_i <= 16'd0;
+	                lab_jt_rom_changed_count_i <= 16'd0;
+	                lab_jt_rom_ok_while_cs_count_i <= 16'd0;
+	                lab_jt_sample_strobe_count_i <= 16'd0;
+	                lab_jt_raw_output_nonzero_count_i <= 16'd0;
+	                lab_jt_output_nonzero_count_i <= 16'd0;
+		                lab_jt_last_cpu_write_i <= 16'd0;
+		                lab_jt_last_rom_addr_i <= 19'd0;
+		                lab_jt_last_payload_index_i <= 19'd0;
+		                lab_jt_first_rom_addr_i <= 19'd0;
+		                lab_jt_first_ch3_rom_addr_i <= 19'd0;
+		                lab_jt_max_rom_addr_i <= 19'd0;
+		                lab_jt_last_rom_data_i <= 8'd0;
+		                lab_jt_last_non80_rom_addr_i <= 19'd0;
+		                lab_jt_last_non80_payload_index_i <= 19'd0;
+		                lab_jt_first_non80_rom_data_i <= 8'h80;
+		                lab_jt_last_non80_rom_data_i <= 8'h80;
+		                lab_jt_block2_hit_count_i <= 16'd0;
+		                lab_jt_first_block2_rom_addr_i <= 19'd0;
+		                lab_jt_first_block2_payload_index_i <= 19'd0;
+		                lab_jt_first_block2_rom_data_i <= 8'd0;
+		                lab_jt_last_payload_block_i <= 3'd0;
+		                lab_jt_last_payload_match_i <= 1'b0;
+		                lab_jt_last_non80_payload_block_i <= 3'd0;
+		                lab_jt_last_non80_payload_match_i <= 1'b0;
+		                lab_jt_first_output_l_i <= 16'sd0;
+		                lab_jt_first_output_r_i <= 16'sd0;
+		                lab_jt_last_output_l_i <= 16'sd0;
+		                lab_jt_last_output_r_i <= 16'sd0;
+	                lab_jt_cur_write_count_i <= 16'd0;
+	                lab_jt_end_write_count_i <= 16'd0;
+	                lab_jt_delta_write_count_i <= 16'd0;
+	                lab_jt_vol_write_count_i <= 16'd0;
+	                lab_jt_ctrl_write_count_i <= 16'd0;
+	                lab_jt_other_write_count_i <= 16'd0;
+	                lab_jt_cen_write_count_i <= 16'd0;
+	                lab_jt_ch3_cur_mid_i <= 8'd0;
+	                lab_jt_ch3_cur_high_i <= 8'd0;
+	                lab_jt_ch3_end_i <= 8'd0;
+	                lab_jt_ch3_delta_i <= 8'd0;
+	                lab_jt_ch3_vol_l_i <= 8'd0;
+	                lab_jt_ch3_vol_r_i <= 8'd0;
+	                lab_jt_ch3_ctrl_raw_i <= 8'd0;
+		                lab_jt_ch3_ctrl_jt_i <= 8'd0;
+		                lab_jt_seen_cpu_write_i <= 1'b0;
+		                lab_jt_seen_rom_cs_i <= 1'b0;
+		                lab_jt_seen_first_rom_i <= 1'b0;
+		                lab_jt_seen_first_ch3_rom_i <= 1'b0;
+		                lab_jt_seen_first_block2_i <= 1'b0;
+		                lab_jt_seen_first_block2_data_i <= 1'b0;
+		                lab_jt_seen_payload_match_i <= 1'b0;
+		                lab_jt_seen_rom_ok_i <= 1'b0;
+		                lab_jt_seen_rom_nonzero_i <= 1'b0;
+				                lab_jt_seen_rom_non80_i <= 1'b0;
+				                lab_jt_seen_first_output_i <= 1'b0;
+				                lab_jt_seen_output_nonzero_i <= 1'b0;
+				                lab_jt_seen_first_non80_pr_i <= 1'b0;
+				                lab_jt_seen_first_nonzero_mv_i <= 1'b0;
+			                lab_jt_rom_data_hold_i <= 8'h80;
+			                lab_jt_rom_data_hold_d_i <= 8'h80;
+			                lab_jt_rom_data_hold_valid_i <= 1'b0;
+			                lab_jt_rom_data_hold_valid_d_i <= 1'b0;
+			                lab_jt_rom_data_latch_count_i <= 16'd0;
+			                lab_jt_rom_neutral_while_cs_count_i <= 16'd0;
+			                lab_jt_rom_repeat_count_i <= 16'd0;
+			                lab_jt_rom_hold_cycle_count_i <= 16'd0;
+			                lab_jt_sample_nonneutral_count_i <= 16'd0;
+			                lab_jt_first_non80_pr_i <= 16'h8000;
+			                lab_jt_last_non80_pr_i <= 16'h8000;
+			                lab_jt_first_nonzero_mv_i <= 16'd0;
+			                lab_jt_last_nonzero_mv_i <= 16'd0;
+			                lab_jt_max_abs_mv_i <= 16'd0;
+`endif
             end else if (segapcm_cmd_valid) begin
                 if (c0_capture_write_count_i != 16'hffff) begin
                     c0_capture_write_count_i <=
@@ -3980,14 +7086,143 @@ module segapcm_sound_module #(
                 if (core_write_count_i != 16'hffff) begin
                     core_write_count_i <= core_write_count_i + 16'd1;
                 end
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+                if (smoke_c0_jt_backend) begin
+                    lab_jt_seen_cpu_write_i <= 1'b1;
+                    lab_jt_last_cpu_write_i <= {latched_cpu_addr, lab_jt_cpu_data};
+	                    if (lab_jt_cpu_write_count_i != 16'hffff) begin
+	                        lab_jt_cpu_write_count_i <=
+	                            lab_jt_cpu_write_count_i + 16'd1;
+	                    end
+	                    if (core_cpu_cs && segapcm_cen &&
+	                        (lab_jt_cen_write_count_i != 16'hffff)) begin
+	                        lab_jt_cen_write_count_i <=
+	                            lab_jt_cen_write_count_i + 16'd1;
+	                    end
+	                    if (lab_jt_write_cur) begin
+	                        if (lab_jt_cur_write_count_i != 16'hffff) begin
+	                            lab_jt_cur_write_count_i <=
+	                                lab_jt_cur_write_count_i + 16'd1;
+	                        end
+	                    end else if (lab_jt_write_end) begin
+	                        if (lab_jt_end_write_count_i != 16'hffff) begin
+	                            lab_jt_end_write_count_i <=
+	                                lab_jt_end_write_count_i + 16'd1;
+	                        end
+	                    end else if (lab_jt_write_delta) begin
+	                        if (lab_jt_delta_write_count_i != 16'hffff) begin
+	                            lab_jt_delta_write_count_i <=
+	                                lab_jt_delta_write_count_i + 16'd1;
+	                        end
+	                    end else if (lab_jt_write_vol) begin
+	                        if (lab_jt_vol_write_count_i != 16'hffff) begin
+	                            lab_jt_vol_write_count_i <=
+	                                lab_jt_vol_write_count_i + 16'd1;
+	                        end
+	                    end else if (lab_jt_write_ctrl) begin
+	                        if (lab_jt_ctrl_write_count_i != 16'hffff) begin
+	                            lab_jt_ctrl_write_count_i <=
+	                                lab_jt_ctrl_write_count_i + 16'd1;
+	                        end
+	                    end else if (lab_jt_other_write_count_i != 16'hffff) begin
+	                        lab_jt_other_write_count_i <=
+	                            lab_jt_other_write_count_i + 16'd1;
+	                    end
+	                    if (lab_jt_write_ch == 4'd3) begin
+	                        unique case (latched_cpu_addr)
+	                            8'h1a: lab_jt_ch3_vol_l_i <= lab_jt_cpu_data;
+	                            8'h1b: lab_jt_ch3_vol_r_i <= lab_jt_cpu_data;
+	                            8'h1e: lab_jt_ch3_end_i <= lab_jt_cpu_data;
+	                            8'h1f: lab_jt_ch3_delta_i <= lab_jt_cpu_data;
+	                            8'h9c: lab_jt_ch3_cur_mid_i <= lab_jt_cpu_data;
+	                            8'h9d: lab_jt_ch3_cur_high_i <= lab_jt_cpu_data;
+	                            8'h9e: begin
+	                                lab_jt_ch3_ctrl_raw_i <= latched_cpu_data;
+	                                lab_jt_ch3_ctrl_jt_i <= lab_jt_cpu_data;
+	                            end
+	                            default: begin end
+	                        endcase
+	                    end
+	                end
+`endif
             end
             if (core_cpu_cs && segapcm_cen) begin
                 if (core_cen_write_count_i != 16'hffff) begin
                     core_cen_write_count_i <= core_cen_write_count_i + 16'd1;
                 end
             end
-`ifndef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+	            if (smoke_c0_jt_backend) begin
+	                lab_jt_rom_data_hold_d_i <= lab_jt_rom_data_hold_i;
+	                lab_jt_rom_data_hold_valid_d_i <= lab_jt_rom_data_hold_valid_i;
+	                if (lab_jt_rom_data_hold_valid_i &&
+	                    (lab_jt_rom_hold_cycle_count_i != 16'hffff)) begin
+	                    lab_jt_rom_hold_cycle_count_i <=
+	                        lab_jt_rom_hold_cycle_count_i + 16'd1;
+	                end
+	                if (lab_jt_rom_cs &&
+	                    (lab_jt_rom_data_to_core == 8'h80) &&
+	                    (lab_jt_rom_neutral_while_cs_count_i != 16'hffff)) begin
+	                    lab_jt_rom_neutral_while_cs_count_i <=
+	                        lab_jt_rom_neutral_while_cs_count_i + 16'd1;
+	                end
+	            end
+`endif
             if (rom_request_event) begin
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+	                if (smoke_c0_jt_backend) begin
+	                    lab_jt_seen_rom_cs_i <= 1'b1;
+	                    lab_jt_last_rom_addr_i <= lab_jt_rom_addr;
+	                    lab_jt_last_payload_index_i <= lab_jt_payload_read_index_next;
+	                    lab_jt_last_payload_block_i <= lab_jt_payload_block_next;
+	                    lab_jt_last_payload_match_i <=
+	                        lab_jt_payload_match_valid_next;
+	                    if (!lab_jt_seen_first_rom_i) begin
+	                        lab_jt_seen_first_rom_i <= 1'b1;
+	                        lab_jt_first_rom_addr_i <= lab_jt_rom_addr;
+	                    end
+	                    if (!lab_jt_seen_first_ch3_rom_i &&
+	                        (lab_jt_dbg_bank_channel_state[7:4] == 4'd3)) begin
+	                        lab_jt_seen_first_ch3_rom_i <= 1'b1;
+	                        lab_jt_first_ch3_rom_addr_i <= lab_jt_rom_addr;
+	                    end
+	                    if (lab_jt_rom_addr > lab_jt_max_rom_addr_i) begin
+	                        lab_jt_max_rom_addr_i <= lab_jt_rom_addr;
+	                    end
+	                    if (lab_jt_payload_match_valid_next &&
+	                        (lab_jt_payload_block_next == 3'd2)) begin
+	                        if (lab_jt_block2_hit_count_i != 16'hffff) begin
+	                            lab_jt_block2_hit_count_i <=
+	                                lab_jt_block2_hit_count_i + 16'd1;
+	                        end
+	                        if (!lab_jt_seen_first_block2_i) begin
+	                            lab_jt_seen_first_block2_i <= 1'b1;
+	                            lab_jt_first_block2_rom_addr_i <= lab_jt_rom_addr;
+	                            lab_jt_first_block2_payload_index_i <=
+	                                lab_jt_payload_read_index_next;
+	                        end
+	                    end
+	                    if (lab_jt_rom_request_count_i != 16'hffff) begin
+                        lab_jt_rom_request_count_i <=
+                            lab_jt_rom_request_count_i + 16'd1;
+                    end
+                    if ((lab_jt_rom_addr != lab_jt_last_rom_addr_i) &&
+                        (lab_jt_rom_addr_change_count_i != 16'hffff)) begin
+                        lab_jt_rom_addr_change_count_i <=
+                            lab_jt_rom_addr_change_count_i + 16'd1;
+                    end
+                    if (lab_jt_payload_match_valid_next) begin
+                        lab_jt_seen_payload_match_i <= 1'b1;
+                        if (lab_jt_payload_match_count_i != 16'hffff) begin
+                            lab_jt_payload_match_count_i <=
+                                lab_jt_payload_match_count_i + 16'd1;
+                        end
+                    end else if (lab_jt_payload_miss_count_i != 16'hffff) begin
+                        lab_jt_payload_miss_count_i <=
+                            lab_jt_payload_miss_count_i + 16'd1;
+                    end
+                end else begin
+`endif
                 last_rom_request_addr_i <= core_rom_addr;
                 rom_range_group_i[7] <= 1'b1;
                 if ((core_rom_addr >= 19'h38600) &&
@@ -4138,8 +7373,72 @@ module segapcm_sound_module #(
                         rom_range_miss_count_i <= rom_range_miss_count_i + 16'd1;
                     end
                 end
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+                end
+`endif
             end
             if (rom_return_event) begin
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+	                if (smoke_c0_jt_backend) begin
+	                    lab_jt_seen_rom_ok_i <= 1'b1;
+	                    if ((core_rom_data == lab_jt_last_rom_data_i) &&
+	                        (lab_jt_rom_repeat_count_i != 16'hffff)) begin
+	                        lab_jt_rom_repeat_count_i <=
+	                            lab_jt_rom_repeat_count_i + 16'd1;
+	                    end
+	                    lab_jt_last_rom_data_i <= core_rom_data;
+	                    lab_jt_rom_data_hold_i <= core_rom_data;
+	                    lab_jt_rom_data_hold_valid_i <= 1'b1;
+                    if (lab_jt_rom_data_latch_count_i != 16'hffff) begin
+                        lab_jt_rom_data_latch_count_i <=
+                            lab_jt_rom_data_latch_count_i + 16'd1;
+                    end
+                    if (lab_jt_rom_ok_count_i != 16'hffff) begin
+                        lab_jt_rom_ok_count_i <= lab_jt_rom_ok_count_i + 16'd1;
+                    end
+                    if ((core_rom_cs || core_rom_cs_d || core_rom_cs_d2) &&
+                        (lab_jt_rom_ok_while_cs_count_i != 16'hffff)) begin
+                        lab_jt_rom_ok_while_cs_count_i <=
+                            lab_jt_rom_ok_while_cs_count_i + 16'd1;
+                    end
+	                    if (core_rom_data != 8'd0) begin
+	                        lab_jt_seen_rom_nonzero_i <= 1'b1;
+	                        if (lab_jt_rom_nonzero_count_i != 16'hffff) begin
+	                            lab_jt_rom_nonzero_count_i <=
+	                                lab_jt_rom_nonzero_count_i + 16'd1;
+	                        end
+	                    end
+	                    if (lab_jt_last_payload_match_i &&
+	                        (lab_jt_last_payload_block_i == 3'd2) &&
+	                        !lab_jt_seen_first_block2_data_i) begin
+	                        lab_jt_seen_first_block2_data_i <= 1'b1;
+	                        lab_jt_first_block2_rom_data_i <= core_rom_data;
+	                    end
+		                    if (core_rom_data != 8'h80) begin
+	                        lab_jt_seen_rom_non80_i <= 1'b1;
+	                        lab_jt_last_non80_rom_addr_i <= lab_jt_last_rom_addr_i;
+	                        lab_jt_last_non80_payload_index_i <=
+	                            lab_jt_last_payload_index_i;
+	                        lab_jt_last_non80_payload_block_i <=
+	                            lab_jt_last_payload_block_i;
+	                        lab_jt_last_non80_payload_match_i <=
+	                            lab_jt_last_payload_match_i;
+	                        lab_jt_last_non80_rom_data_i <= core_rom_data;
+                        if (!lab_jt_seen_rom_non80_i) begin
+                            lab_jt_first_non80_rom_data_i <= core_rom_data;
+                        end
+                        if (lab_jt_rom_non80_count_i != 16'hffff) begin
+                            lab_jt_rom_non80_count_i <=
+                                lab_jt_rom_non80_count_i + 16'd1;
+                        end
+                    end
+                    if ((core_rom_data != lab_jt_last_rom_data_i) &&
+                        (lab_jt_rom_changed_count_i != 16'hffff)) begin
+                        lab_jt_rom_changed_count_i <=
+                            lab_jt_rom_changed_count_i + 16'd1;
+                    end
+                end else begin
+`endif
                 if (rom_core_ok_count_i != 16'hffff) begin
                     rom_core_ok_count_i <= rom_core_ok_count_i + 16'd1;
                 end
@@ -4173,7 +7472,56 @@ module segapcm_sound_module #(
                             rom_return_change_count_i + 16'd1;
                     end
                 end
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+                end
+`endif
             end
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+	            if (smoke_c0_jt_backend) begin
+	                lab_jt_last_output_l_i <= lab_jt_snd_left;
+	                lab_jt_last_output_r_i <= lab_jt_snd_right;
+	                if (lab_jt_dbg_pcm_raw_cv[15:8] != 8'h80) begin
+	                    if (!lab_jt_seen_first_non80_pr_i) begin
+	                        lab_jt_seen_first_non80_pr_i <= 1'b1;
+	                        lab_jt_first_non80_pr_i <= lab_jt_dbg_pcm_raw_cv;
+	                    end
+	                    lab_jt_last_non80_pr_i <= lab_jt_dbg_pcm_raw_cv;
+	                end
+	                if (lab_jt_dbg_mul_data != 16'd0) begin
+	                    if (!lab_jt_seen_first_nonzero_mv_i) begin
+	                        lab_jt_seen_first_nonzero_mv_i <= 1'b1;
+	                        lab_jt_first_nonzero_mv_i <= lab_jt_dbg_mul_data;
+	                    end
+	                    lab_jt_last_nonzero_mv_i <= lab_jt_dbg_mul_data;
+	                end
+	                if (lab_jt_dbg_mul_abs > lab_jt_max_abs_mv_i) begin
+	                    lab_jt_max_abs_mv_i <= lab_jt_dbg_mul_abs;
+	                end
+	                if (lab_jt_sample &&
+	                    (lab_jt_sample_strobe_count_i != 16'hffff)) begin
+	                    lab_jt_sample_strobe_count_i <=
+	                        lab_jt_sample_strobe_count_i + 16'd1;
+	                end
+	                if (lab_jt_sample &&
+	                    (lab_jt_dbg_pcm_raw_cv[15:8] != 8'h80) &&
+	                    (lab_jt_sample_nonneutral_count_i != 16'hffff)) begin
+	                    lab_jt_sample_nonneutral_count_i <=
+	                        lab_jt_sample_nonneutral_count_i + 16'd1;
+	                end
+		                if (((lab_jt_snd_left != 16'sd0) ||
+		                     (lab_jt_snd_right != 16'sd0)) &&
+	                    (lab_jt_raw_output_nonzero_count_i != 16'hffff)) begin
+	                    lab_jt_seen_output_nonzero_i <= 1'b1;
+	                    if (!lab_jt_seen_first_output_i) begin
+	                        lab_jt_seen_first_output_i <= 1'b1;
+	                        lab_jt_first_output_l_i <= lab_jt_snd_left;
+	                        lab_jt_first_output_r_i <= lab_jt_snd_right;
+	                    end
+	                    lab_jt_raw_output_nonzero_count_i <=
+	                        lab_jt_raw_output_nonzero_count_i + 16'd1;
+                end
+            end
+`endif
             if (core_sample) begin
                 logic [15:0] abs_l;
                 logic [15:0] abs_r;
@@ -4181,6 +7529,37 @@ module segapcm_sound_module #(
 
                 last_audio_l_i <= core_snd_left;
                 last_audio_r_i <= core_snd_right;
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+                if (smoke_c0_jt_backend) begin
+                    lab_jt_last_output_l_i <= core_snd_left;
+                    lab_jt_last_output_r_i <= core_snd_right;
+                end
+`endif
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+                lab_c0_sb_debug_i <=
+                    lab_c0_multich_delta_mode ?
+                    {lab16_selected_sample_byte, lab16_selected_cv[7:0]} :
+                    lab_c0_legacy_ch3_block2_mode ?
+                    lab_c0_mame_sb_cv_debug :
+                    {8'd0, lab_c0_selected_sample_byte};
+                lab_c0_so_debug_i <= lab_c0_actual_output_sample;
+                lab_c0_lo_debug_i <= lab_c0_legacy_output_sample;
+                lab_c0_mo_debug_i <= lab_c0_multich_output_l_sample;
+                if (lab_c0_local_delta_mode &&
+                    (lab_c0_actual_output_sample != 16'sd0) &&
+                    (lab_c0_legacy_output_sample == 16'sd0) &&
+                    (lab_c0_multich_output_l_sample == 16'sd0)) begin
+                    lab_c0_mux_err_i[0] <= 1'b1;
+                end
+                if (lab_c0_legacy_ch3_block2_mode &&
+                    (lab_c0_multich_output_l_sample != 16'sd0)) begin
+                    lab_c0_mux_err_i[1] <= 1'b1;
+                end
+                if (lab_c0_multich_delta_mode &&
+                    (lab_c0_legacy_output_sample != 16'sd0)) begin
+                    lab_c0_mux_err_i[2] <= 1'b1;
+                end
+`endif
                 abs_l = abs16(core_snd_left);
                 abs_r = abs16(core_snd_right);
                 abs_now = (abs_l > abs_r) ? abs_l : abs_r;
@@ -4195,9 +7574,17 @@ module segapcm_sound_module #(
                     if (audio_nonzero_count_i != 16'hffff) begin
                         audio_nonzero_count_i <= audio_nonzero_count_i + 16'd1;
                     end
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+                    if (smoke_c0_jt_backend) begin
+                        lab_jt_seen_output_nonzero_i <= 1'b1;
+                        if (lab_jt_output_nonzero_count_i != 16'hffff) begin
+                            lab_jt_output_nonzero_count_i <=
+                                lab_jt_output_nonzero_count_i + 16'd1;
+                        end
+                    end
+`endif
                 end
             end
-`endif
         end
     end
 
@@ -4363,13 +7750,8 @@ module segapcm_sound_module #(
                 smoke_type80_table_dest_i[smoke_type80_table_count_i[2:0]] <=
                     loaded_type80_rom_dest[20:0];
 `ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
-                if (smoke_type80_table_count_i == 4'd2) begin
-                    smoke_type80_table_base_i[smoke_type80_table_count_i[2:0]] <=
-                        19'd0;
-                end else begin
-                    smoke_type80_table_base_i[smoke_type80_table_count_i[2:0]] <=
-                        smoke_type80_table_next_base_i;
-                end
+                smoke_type80_table_base_i[smoke_type80_table_count_i[2:0]] <=
+                    loaded_payload_wr_addr;
 `else
                 smoke_type80_table_base_i[smoke_type80_table_count_i[2:0]] <=
                     smoke_type80_table_next_base_i;
@@ -4384,9 +7766,7 @@ module segapcm_sound_module #(
                 smoke_type80_table_last_write_dest_i <= loaded_type80_rom_dest[20:0];
                 smoke_type80_table_last_write_len_i <= smoke_type80_payload_len_19;
 `ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
-                smoke_type80_table_last_write_base_i <=
-                    (smoke_type80_table_count_i == 4'd2) ?
-                    19'd0 : smoke_type80_table_next_base_i;
+                smoke_type80_table_last_write_base_i <= loaded_payload_wr_addr;
 `else
                 smoke_type80_table_last_write_base_i <= smoke_type80_table_next_base_i;
 `endif
@@ -4428,6 +7808,16 @@ module segapcm_sound_module #(
                 smoke_ddr_follow_read_in_range_i,
                 smoke_ddr_follow_addr_in_range_i
             };
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+            if (smoke_c0_jt_backend && smoke_ddr_c0_return_valid_i) begin
+                smoke_ddr_c0_return_valid_i <= 1'b0;
+                smoke_ddr_c0_return_in_range_i <= 1'b0;
+                if (smoke_ddr_follow_accept_count_i != 16'hffff) begin
+                    smoke_ddr_follow_accept_count_i <=
+                        smoke_ddr_follow_accept_count_i + 16'd1;
+                end
+            end else
+`endif
             if (core_dbg_smoke_c0_byte_accept) begin
                 smoke_ddr_c0_pending_i <= 1'b0;
                 smoke_ddr_c0_return_valid_i <= 1'b0;
@@ -4777,6 +8167,17 @@ module segapcm_sound_module #(
                     smoke_ddr_follow_word_i <= smoke_ddr_follow_word_next;
                     smoke_ddr_follow_lane_i <= smoke_ddr_follow_lane_next;
                     if (smoke_ddr_c0drive_active) begin
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+                        if (smoke_c0_jt_backend) begin
+                            smoke_ddr_follow_payload_offset_i <=
+                                lab_jt_payload_offset_next[15:0];
+                            smoke_ddr_follow_norm_core_i <= core_rom_addr[15:0];
+                            smoke_ddr_follow_norm_dest_i <=
+                                lab_jt_payload_dest_low_next[15:0];
+                            smoke_ddr_follow_addr_in_range_i <=
+                                lab_jt_payload_match_valid_next;
+                        end else begin
+`endif
                         smoke_ddr_follow_payload_offset_i <=
                             smoke_c0_mame_payload_offset_next[15:0];
                         smoke_ddr_follow_norm_core_i <=
@@ -4785,6 +8186,9 @@ module segapcm_sound_module #(
                             smoke_c0_mame_match_dest_next[15:0];
                         smoke_ddr_follow_addr_in_range_i <=
                             smoke_c0_mame_match_valid_next;
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+                        end
+`endif
                     end else begin
                         smoke_ddr_follow_payload_offset_i <=
                             smoke_ddr_follow_dest_offset_next[15:0];
@@ -4967,7 +8371,7 @@ module segapcm_sound_module #(
                         smoke_ddr_audio_valid_seen_i <= 1'b1;
                         smoke_ddr_c0_pending_i <= 1'b0;
 `ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
-                        smoke_ddr_c0_return_valid_i <= 1'b0;
+                        smoke_ddr_c0_return_valid_i <= smoke_c0_jt_backend;
                         smoke_ddr_c0_return_in_range_i <= 1'b1;
 `else
                         smoke_ddr_c0_return_valid_i <= 1'b1;
@@ -5241,37 +8645,158 @@ module segapcm_sound_module #(
 `endif
 
 `ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
-    assign cpu_din = 8'd0;
-    assign core_rom_addr = {3'd0, lab_c0_cur_i};
+	    jtoutrun_pcm lab_jt_pcm_core (
+        .rst       (reset),
+        .clk       (clk),
+        .cen       (segapcm_cen),
+        .debug_bus (8'd0),
+        .st_dout   (lab_jt_status_dout),
+        .cpu_addr  (latched_cpu_addr),
+        .cpu_dout  (lab_jt_cpu_data),
+        .cpu_din   (lab_jt_cpu_din),
+        .cpu_rnw   (1'b0),
+        .cpu_cs    (smoke_c0_jt_backend ? core_cpu_cs : 1'b0),
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
+        .smoke_variant(3'd0),
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_TEST
+        .smoke_ddr_follow_mode(1'b0),
+        .smoke_ddr_follow_init_enable(1'b0),
+        .smoke_ddr_follow_delta_sel(3'd0),
+        .smoke_c0_use_sel(2'd0),
+        .smoke_c0_sample_mode(2'd0),
+        .smoke_c0_delta(8'd0),
+        .smoke_c0_vol_l(7'd0),
+        .smoke_c0_vol_r(7'd0),
+        .smoke_c0_raw_audible(1'b0),
+        .smoke_c0_drive_sel(2'd0),
+        .smoke_c0_seed_pulse(1'b0),
+        .smoke_c0_endcmp_sel(2'd0),
+        .smoke_c0_loopsrc_sel(2'd0),
+        .smoke_c0_current_seed(24'd0),
+        .smoke_c0_loop_seed(24'd0),
+        .smoke_c0_end_addr(8'd0),
+        .smoke_c0_ctrl(8'd0),
+        .smoke_jt_vol_l_debug(),
+        .smoke_jt_vol_r_debug(),
+        .smoke_sample_byte_debug(),
+        .smoke_c0_byte_accept_debug(),
+        .smoke_c0_mixer_consume_debug(),
+        .smoke_out_l_debug(),
+        .smoke_out_r_debug(),
+        .smoke_end_hit_debug(),
+        .smoke_loop_wrap_debug(),
+        .smoke_end_cmp_debug(),
+        .smoke_end_hit_at_debug(),
+        .smoke_loop_to_debug(),
+        .smoke_end_eq_debug(),
+        .smoke_cur_initialized_debug(),
+        .smoke_cur_seed_event_debug(),
+        .smoke_cur_live_low_debug(),
+        .smoke_cur_live_high_debug(),
+        .smoke_cur_live_mid_debug(),
+        .smoke_cur_live_frac_debug(),
+        .smoke_cur_zero_event_debug(),
+        .smoke_cur_seed_ref_debug(),
+        .smoke_seed_reload_req_debug(),
+        .smoke_seed_commit_count_debug(),
+        .smoke_seed_commit_addr_debug(),
+        .smoke_seed_write_value_debug(),
+        .smoke_seed_overwrite_debug(),
+        .smoke_request_addr_debug(),
+        .smoke_playback_addr_debug(),
+        .smoke_first_addr_debug(),
+        .smoke_current_input_debug(),
+        .smoke_loop_input_debug(),
+        .smoke_end_input_debug(),
+        .smoke_source_addr_debug(),
+        .smoke_cur_state_debug(),
+`endif
+`endif
+        .rom_addr  (lab_jt_rom_addr),
+        .rom_data  (lab_jt_rom_data_to_core),
+        .rom_ok    (lab_jt_rom_ok_to_core),
+	        .rom_cs    (lab_jt_rom_cs),
+	        .snd_left  (lab_jt_snd_left),
+	        .snd_right (lab_jt_snd_right),
+	        .sample    (lab_jt_sample),
+	        .dbg_bank_channel_state(lab_jt_dbg_bank_channel_state),
+	        .dbg_cur_addr_high(lab_jt_dbg_cur_addr_high),
+	        .dbg_cur_addr_low_state(lab_jt_dbg_cur_addr_low_state),
+	        .dbg_38686_en_addr(),
+	        .dbg_38686_en_value(),
+	        .dbg_38686_d0_addr(),
+        .dbg_38686_d0_value(),
+        .dbg_38686_d1_addr(),
+        .dbg_38686_d1_value(),
+        .dbg_38686_d2_addr(),
+        .dbg_38686_d2_value(),
+	        .dbg_38686_cfg_en(lab_jt_dbg_cfg_en),
+	        .dbg_38686_cur_23(),
+	        .dbg_38686_cur_15(),
+	        .dbg_38686_cur_07(),
+        .dbg_38686_delta(),
+        .dbg_ch3_evolution_flags(),
+        .dbg_ch3_delta(),
+        .dbg_ch1_first_high(),
+        .dbg_ch1_first_low(),
+        .dbg_ch1_first_raw_high(),
+        .dbg_ch1_first_raw_low(),
+        .dbg_ch3_first_high(),
+        .dbg_ch3_first_low(),
+        .dbg_ch3_first_raw_high(),
+        .dbg_ch3_first_raw_low(),
+        .dbg_ch3_r0_high(),
+        .dbg_ch3_r0_low(),
+        .dbg_ch3_r1_high(),
+        .dbg_ch3_r1_low(),
+        .dbg_ch3_r2_high(),
+        .dbg_ch3_r2_low(),
+        .dbg_update_state_channel(),
+        .dbg_update_before_23(),
+        .dbg_update_before_15(),
+        .dbg_update_before_07(),
+        .dbg_update_addend(),
+        .dbg_update_after_23(),
+        .dbg_update_after_15(),
+        .dbg_update_after_07(),
+        .dbg_ch3_load_after_23(),
+        .dbg_ch3_load_after_15(),
+        .dbg_ch3_load_after_07(),
+        .dbg_pcm_raw_cv(lab_jt_dbg_pcm_raw_cv),
+        .dbg_mul_data(lab_jt_dbg_mul_data),
+        .dbg_active_cfg(lab_jt_dbg_active_cfg),
+        .dbg_vol_lr(lab_jt_dbg_vol_lr),
+	        .dbg_update_reason(lab_jt_dbg_update_reason)
+	    );
+
+    assign cpu_din = smoke_c0_jt_backend ? lab_jt_cpu_din : 8'd0;
+    assign core_rom_addr =
+        smoke_c0_jt_backend ? lab_jt_rom_addr : {3'd0, lab_c0_cur_i};
     assign core_rom_cs =
+        smoke_c0_jt_backend ? lab_jt_rom_cs :
         (lab_c0_active_i && smoke_ddr_c0drive_active) ||
         lab_c0_force_output ||
         lab_c0_seq_output ||
         lab_c0_local_output;
-    wire signed [15:0] lab_c0_actual_output_sample =
-        (lab_c0_multich_delta_mode && lab_c0_seq_output) ?
-        lab16_mix_l_sample_i :
-        lab_c0_force_output ? LAB_C0_FORCE_SAMPLE :
-        (lab_c0_mame_exact_mode && lab_c0_seq_output) ?
-        lab_c0_output_i :
-        ((lab_c0_fixed_mode || lab_c0_local_seq_mode ||
-          lab_c0_local_delta_mode) && lab_c0_seq_output) ?
-        lab_c0_direct_output_sample :
-        lab_c0_consume_pulse_i ?
-        lab_c0_output_i : 16'sd0;
-    assign core_snd_left = lab_c0_actual_output_sample;
+    assign core_snd_left =
+        smoke_c0_jt_backend ? lab_jt_snd_left : lab_c0_actual_output_sample;
     assign core_snd_right =
-        (lab_c0_multich_delta_mode && lab_c0_seq_output) ?
-        lab16_mix_r_sample_i : lab_c0_actual_output_sample;
+        smoke_c0_jt_backend ? lab_jt_snd_right : lab_c0_actual_output_r_sample;
     assign core_sample =
+        smoke_c0_jt_backend ? lab_jt_sample :
         lab_c0_consume_pulse_i ||
         (segapcm_cen && lab_c0_force_output) ||
         (lab_c0_mame_exact_mode ? lab_c0_seq_emit_pulse :
          (segapcm_cen && (lab_c0_seq_output || lab_c0_local_output)));
-    assign core_status_dout = 8'd0;
-    assign core_dbg_bank_channel_state = 16'd0;
-    assign core_dbg_cur_addr_high = {8'd0, lab_c0_cur_i[15:8]};
-    assign core_dbg_cur_addr_low_state = {lab_c0_cur_i[7:0], 8'd8};
+    assign core_status_dout = smoke_c0_jt_backend ? lab_jt_status_dout : 8'd0;
+	    assign core_dbg_bank_channel_state =
+	        smoke_c0_jt_backend ? lab_jt_dbg_bank_channel_state : 16'd0;
+	    assign core_dbg_cur_addr_high =
+	        smoke_c0_jt_backend ? lab_jt_dbg_cur_addr_high :
+	        {8'd0, lab_c0_cur_i[15:8]};
+	    assign core_dbg_cur_addr_low_state =
+	        smoke_c0_jt_backend ? lab_jt_dbg_cur_addr_low_state :
+	        {lab_c0_cur_i[7:0], 8'd8};
     assign core_dbg_38686_en_addr = 16'd0;
     assign core_dbg_38686_en_value = 16'd0;
     assign core_dbg_38686_d0_addr = 16'd0;
@@ -5280,22 +8805,35 @@ module segapcm_sound_module #(
     assign core_dbg_38686_d1_value = 16'd0;
     assign core_dbg_38686_d2_addr = 16'd0;
     assign core_dbg_38686_d2_value = 16'd0;
-    assign core_dbg_38686_cfg_en = 16'd0;
+	    assign core_dbg_38686_cfg_en =
+	        smoke_c0_jt_backend ? lab_jt_dbg_cfg_en : 16'd0;
     assign core_dbg_38686_cur_23 = 16'd0;
     assign core_dbg_38686_cur_15 = 16'd0;
     assign core_dbg_38686_cur_07 = 16'd0;
     assign core_dbg_38686_delta = 16'd0;
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_TEST
-    assign core_dbg_smoke_jt_vol_l = {9'd0, smoke_c0_vol_l_mapped};
-    assign core_dbg_smoke_jt_vol_r = {9'd0, smoke_c0_vol_r_mapped};
-    assign core_dbg_smoke_sample_byte =
-        lab_c0_multich_delta_mode ?
-        {8'd0, lab16_selected_sample_byte} :
-        {8'd0, lab_c0_selected_sample_byte};
+		    assign core_dbg_smoke_jt_vol_l =
+		        smoke_c0_jt_backend ? lab_jt_last_non80_pr_i :
+		        lab_c0_multich_delta_mode ?
+		        lab16_runtime_rd_i : {9'd0, smoke_c0_vol_l_mapped};
+		    assign core_dbg_smoke_jt_vol_r =
+		        smoke_c0_jt_backend ? lab_jt_last_nonzero_mv_i :
+		        lab_c0_multich_delta_mode ?
+		        lab16_runtime_l_i[15:0] : {9'd0, smoke_c0_vol_r_mapped};
+		    assign core_dbg_smoke_sample_byte =
+		        smoke_c0_jt_backend ? lab_jt_max_abs_mv_i :
+		        lab_c0_multich_delta_mode ?
+		        lab16_runtime_addr_i : lab_c0_sb_debug_i;
     assign core_dbg_smoke_c0_byte_accept = 1'b0;
     assign core_dbg_smoke_c0_mixer_consume = lab_c0_return_pulse;
-    assign core_dbg_smoke_out_l = core_snd_left;
-    assign core_dbg_smoke_out_r = core_snd_right;
+    assign core_dbg_smoke_out_l =
+        smoke_c0_jt_backend ? lab_jt_snd_left :
+        lab_c0_multich_delta_mode ?
+        lab16_runtime_pi_i[15:0] : lab_c0_so_debug_i;
+    assign core_dbg_smoke_out_r =
+        smoke_c0_jt_backend ? lab_jt_snd_right :
+        lab_c0_multich_delta_mode ?
+        lab16_runtime_phase_hint_i : lab_c0_mo_debug_i;
     assign core_dbg_smoke_end_hit = 16'd0;
     assign core_dbg_smoke_loop_wrap = 16'd0;
     assign core_dbg_smoke_end_cmp = 16'd0;
@@ -5324,14 +8862,14 @@ module segapcm_sound_module #(
     assign core_dbg_smoke_source_addr = lab_c0_stall_count_i;
     assign core_dbg_smoke_cur_state = {
         8'hC0,
+        smoke_c0_jt_backend,
         lab_c0_active_i,
         lab_c0_force_output,
         lab_c0_pv_match,
         smoke_ddr_c0_pending_i,
         smoke_ddr_c0_return_valid_i,
         smoke_ddr_audio_data_ok_i,
-        core_sample,
-        (core_snd_left != 16'sd0) || (core_snd_right != 16'sd0)
+        core_sample
     };
 `endif
     assign core_dbg_ch3_evolution_flags = {
@@ -5350,35 +8888,114 @@ module segapcm_sound_module #(
         lab_c0_actual_output_sample != 16'sd0
     };
     assign core_dbg_ch3_delta =
+        smoke_c0_jt_backend ? lab_jt_error_status :
         lab_c0_multich_delta_mode ?
-        {11'd0, lab16_active_count} :
+        lab16_wave_vol_i :
+        lab_c0_legacy_ch3_block2_mode ?
+        {15'd0, lab_c0_seq_output} :
         {5'd0, lab_c0_effective_delta};
-    assign core_dbg_ch1_first_high = 16'd0;
-    assign core_dbg_ch1_first_low = 16'd0;
-    assign core_dbg_ch1_first_raw_high = 16'd0;
-    assign core_dbg_ch1_first_raw_low = 16'd0;
-    assign core_dbg_ch3_first_high = 16'd0;
-    assign core_dbg_ch3_first_low = 16'd0;
-    assign core_dbg_ch3_first_raw_high = 16'd0;
-    assign core_dbg_ch3_first_raw_low = 16'd0;
-    assign core_dbg_ch3_r0_high = 16'd0;
-    assign core_dbg_ch3_r0_low = 16'd0;
-    assign core_dbg_ch3_r1_high = 16'd0;
-    assign core_dbg_ch3_r1_low = 16'd0;
-    assign core_dbg_ch3_r2_high = 16'd0;
-    assign core_dbg_ch3_r2_low = 16'd0;
-    assign core_dbg_update_state_channel = 16'd0;
-    assign core_dbg_update_before_23 = 16'd0;
-    assign core_dbg_update_before_15 = 16'd0;
-    assign core_dbg_update_before_07 = 16'd0;
-    assign core_dbg_update_addend = 16'd0;
-    assign core_dbg_update_after_23 = 16'd0;
-    assign core_dbg_update_after_15 = 16'd0;
-    assign core_dbg_update_after_07 = 16'd0;
-    assign core_dbg_ch3_load_after_23 = 16'd0;
-    assign core_dbg_ch3_load_after_15 = 16'd0;
-    assign core_dbg_ch3_load_after_07 = 16'd0;
-    assign core_dbg_update_reason = 16'd0;
+	    assign core_dbg_ch1_first_high =
+	        smoke_c0_jt_backend ? lab_jt_sample_strobe_count_i :
+	        lab_c0_multich_delta_mode ?
+	        lab16_wave_rawcv1_i : smoke_c0_pm3_audio_mask;
+	    assign core_dbg_ch1_first_low =
+	        smoke_c0_jt_backend ? {13'd0, lab_jt_max_rom_addr_i[18:16]} :
+	        lab_c0_multich_delta_mode ?
+	        lab16_wave_addr1_i : loaded_ddr_write_count_debug;
+	    assign core_dbg_ch1_first_raw_high =
+	        smoke_c0_jt_backend ? lab_jt_rom_ok_while_cs_count_i :
+	        lab_c0_multich_delta_mode ?
+	        lab16_wave_pi1_i : loaded_ddr_last_write_addr_debug;
+	    assign core_dbg_ch1_first_raw_low =
+	        smoke_c0_jt_backend ? lab_jt_rom_non80_count_i :
+	        lab_c0_multich_delta_mode ?
+	        lab16_wave_out1_i :
+	        {8'd0, loaded_ddr_last_write_data_debug};
+	    assign core_dbg_ch3_first_high =
+	        smoke_c0_jt_backend ? lab_jt_rom_request_count_i :
+	        lab_c0_multich_delta_mode ?
+	        lab16_wave_rawcv0_i : lab16_ch3_retrig_first0_i;
+	    assign core_dbg_ch3_first_low =
+	        smoke_c0_jt_backend ? lab_jt_block2_hit_count_i :
+	        lab_c0_multich_delta_mode ?
+	        lab16_wave_addr0_i : lab16_ch3_retrig_first1_i;
+	    assign core_dbg_ch3_first_raw_high =
+	        smoke_c0_jt_backend ? {13'd0, lab_jt_first_block2_rom_addr_i[18:16]} :
+	        lab_c0_multich_delta_mode ?
+	        lab16_wave_pi0_i :
+	        lab16_ch3_retrig_first2_i;
+	    assign core_dbg_ch3_first_raw_low =
+	        smoke_c0_jt_backend ? lab_jt_first_block2_rom_addr_i[15:0] :
+	        lab_c0_multich_delta_mode ?
+	        lab16_wave_out0_i : lab16_ch3_retrig_first3_i;
+		    assign core_dbg_ch3_r0_high =
+		        smoke_c0_jt_backend ? lab_jt_dbg_active_cfg :
+		        lab16_ch3_retrig_old_current_i;
+	    assign core_dbg_ch3_r0_low =
+	        smoke_c0_jt_backend ? lab_jt_cpu_write_count_i :
+	        lab16_ch3_no_read_mix_count_i;
+	    assign core_dbg_ch3_r1_high =
+	        smoke_c0_jt_backend ? lab_jt_error_status :
+	        lab16_ch3_broad_restart_count_i;
+	    assign core_dbg_ch3_r1_low =
+	        smoke_c0_jt_backend ? lab_jt_last_cpu_write_i :
+	        lab16_ch3_retrig_old_offset_i;
+	    assign core_dbg_ch3_r2_high =
+	        smoke_c0_jt_backend ? {14'd0, lab_jt_rom_timing_mode} :
+	        lab16_ch3_retrig_old_phase_i;
+	    assign core_dbg_ch3_r2_low =
+	        smoke_c0_jt_backend ? lab_jt_rom_data_latch_count_i :
+	        lab16_ch3_retrig_flags_i;
+		    assign core_dbg_update_state_channel =
+		        smoke_c0_jt_backend ? lab_jt_first_block2_payload_index_i[15:0] :
+		        lab16_wave_pi3_i;
+		    assign core_dbg_update_before_23 =
+		        smoke_c0_jt_backend ? {8'hB2, lab_jt_first_block2_rom_data_i} :
+		        lab16_ch3_hold_mix_count_i;
+		    assign core_dbg_update_before_15 =
+		        smoke_c0_jt_backend ? lab_jt_ch3_current_debug : {
+		        11'd0,
+		        lab16_first_sample_count_i
+		    };
+		    assign core_dbg_update_before_07 =
+		        smoke_c0_jt_backend ? lab_jt_ch3_ctrl_debug : {
+		        11'd0,
+		        lab16_active_count
+		    };
+		    assign core_dbg_update_addend =
+		        smoke_c0_jt_backend ? lab_jt_ch3_end_delta_debug :
+		        lab_c0_multich_delta_mode ?
+		        lab16_wave_out3_i : lab16_ch3_retrig_write_i;
+	    assign core_dbg_update_after_23 =
+	        smoke_c0_jt_backend ? lab_jt_raw_output_nonzero_count_i :
+	        lab_c0_multich_delta_mode ?
+	        lab16_wave_rawcv2_i : lab16_ch3_worst_abs_i;
+	    assign core_dbg_update_after_15 =
+		        smoke_c0_jt_backend ? lab_jt_rom_changed_count_i :
+		        lab_c0_multich_delta_mode ?
+		        lab16_wave_addr2_i : lab16_ch3_worst_time_i;
+	    assign core_dbg_update_after_07 =
+		        smoke_c0_jt_backend ? lab_jt_rom_neutral_while_cs_count_i :
+		        lab_c0_multich_delta_mode ?
+		        lab16_wave_pi2_i : lab16_ch3_worst_rc_i;
+		    assign core_dbg_ch3_load_after_23 =
+			        smoke_c0_jt_backend ? lab_jt_sample_nonneutral_count_i :
+			        lab_c0_multich_delta_mode ?
+			        lab16_wave_out2_i : lab16_ch3_worst_pi_i;
+		    assign core_dbg_ch3_load_after_15 =
+			        smoke_c0_jt_backend ? lab_jt_rom_repeat_count_i :
+			        lab_c0_multich_delta_mode ?
+			        lab16_wave_rawcv3_i : lab16_ch3_worst_offset_i;
+		    assign core_dbg_ch3_load_after_07 =
+		        smoke_c0_jt_backend ?
+		        lab_jt_output_nonzero_count_i :
+		        lab_c0_multich_delta_mode ?
+		        lab16_wave_addr3_i : lab16_ch3_worst_current_i;
+		    assign core_dbg_update_reason =
+		        smoke_c0_jt_backend ? lab_jt_ch3_volume_debug :
+		        (lab_c0_multich_delta_mode ?
+		         lab16_runtime_pr_hold_i :
+		         lab16_ch3_retrig_first_l_i[15:0]);
 `else
     jtoutrun_pcm pcm_core (
         .rst       (reset),
@@ -5498,6 +9115,10 @@ module segapcm_sound_module #(
         .dbg_ch3_load_after_23 (core_dbg_ch3_load_after_23),
         .dbg_ch3_load_after_15 (core_dbg_ch3_load_after_15),
         .dbg_ch3_load_after_07 (core_dbg_ch3_load_after_07),
+        .dbg_pcm_raw_cv        (),
+        .dbg_mul_data          (),
+        .dbg_active_cfg        (),
+        .dbg_vol_lr            (),
         .dbg_update_reason     (core_dbg_update_reason)
     );
 `endif
