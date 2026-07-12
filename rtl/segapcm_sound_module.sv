@@ -285,18 +285,24 @@ module segapcm_sound_module #(
 	    logic [18:0] lab_jt_first_ch3_rom_addr_i;
 	    logic [18:0] lab_jt_max_rom_addr_i;
 	    logic [7:0] lab_jt_last_rom_data_i;
-	    logic [18:0] lab_jt_last_non80_rom_addr_i;
-	    logic [18:0] lab_jt_last_non80_payload_index_i;
-	    logic [7:0] lab_jt_first_non80_rom_data_i;
-	    logic [7:0] lab_jt_last_non80_rom_data_i;
-	    logic [15:0] lab_jt_block2_hit_count_i;
-	    logic [18:0] lab_jt_first_block2_rom_addr_i;
-	    logic [18:0] lab_jt_first_block2_payload_index_i;
-	    logic [7:0] lab_jt_first_block2_rom_data_i;
-	    logic [2:0] lab_jt_last_payload_block_i;
-	    logic lab_jt_last_payload_match_i;
-	    logic [2:0] lab_jt_last_non80_payload_block_i;
-	    logic lab_jt_last_non80_payload_match_i;
+		    logic [18:0] lab_jt_last_non80_rom_addr_i;
+		    logic [18:0] lab_jt_last_non80_payload_index_i;
+		    logic [7:0] lab_jt_first_non80_rom_data_i;
+		    logic [7:0] lab_jt_last_non80_rom_data_i;
+		    logic [15:0] lab_jt_block2_hit_count_i;
+		    logic [18:0] lab_jt_first_block2_rom_addr_i;
+		    logic [18:0] lab_jt_first_block2_payload_index_i;
+		    logic [7:0] lab_jt_first_block2_rom_data_i;
+		    logic [18:0] lab_jt_last_block2_payload_index_i;
+		    logic [7:0] lab_jt_last_block2_rom_data_i;
+		    logic [2:0] lab_jt_last_payload_block_i;
+		    logic lab_jt_last_payload_match_i;
+		    logic [18:0] lab_jt_last_payload_return_index_i;
+		    logic [2:0] lab_jt_last_payload_return_block_i;
+		    logic [7:0] lab_jt_last_payload_return_data_i;
+		    logic lab_jt_last_payload_return_valid_i;
+		    logic [2:0] lab_jt_last_non80_payload_block_i;
+		    logic lab_jt_last_non80_payload_match_i;
 	    logic signed [15:0] lab_jt_first_output_l_i;
 	    logic signed [15:0] lab_jt_first_output_r_i;
 		    logic signed [15:0] lab_jt_last_output_l_i;
@@ -306,10 +312,42 @@ module segapcm_sound_module #(
 	    wire [15:0] lab_jt_dbg_cur_addr_low_state;
 	    wire [15:0] lab_jt_dbg_cfg_en;
 	    wire [15:0] lab_jt_dbg_update_reason;
+	    wire [15:0] lab_jt_dbg_ch3_delta;
+	    wire [15:0] lab_jt_dbg_focus_status;
+	    wire [15:0] lab_jt_dbg_focus_req_count;
+	    wire [15:0] lab_jt_dbg_focus_advance_count;
+	    wire [15:0] lab_jt_dbg_focus_addr_advance_count;
+	    wire [15:0] lab_jt_dbg_focus_same_addr_count;
+	    wire [15:0] lab_jt_dbg_focus_end_count;
+	    wire [15:0] lab_jt_dbg_focus_cfg_delta;
+	    wire [15:0] lab_jt_dbg_focus_low_frac;
+	    wire [15:0] lab_jt_dbg_update_state_channel;
+	    wire [15:0] lab_jt_dbg_update_before_23;
+	    wire [15:0] lab_jt_dbg_update_before_15;
+	    wire [15:0] lab_jt_dbg_update_before_07;
+	    wire [15:0] lab_jt_dbg_update_addend;
+	    wire [15:0] lab_jt_dbg_update_after_23;
+	    wire [15:0] lab_jt_dbg_update_after_15;
+	    wire [15:0] lab_jt_dbg_update_after_07;
+	    wire [15:0] lab_jt_dbg_ch3_load_after_23;
+	    wire [15:0] lab_jt_dbg_ch3_load_after_15;
+	    wire [15:0] lab_jt_dbg_ch3_load_after_07;
 	    wire [15:0] lab_jt_dbg_pcm_raw_cv;
 	    wire [15:0] lab_jt_dbg_mul_data;
 	    wire [15:0] lab_jt_dbg_active_cfg;
 	    wire [15:0] lab_jt_dbg_vol_lr;
+	    wire [15:0] lab_jt_dbg_contrib_mask;
+	    wire [15:0] lab_jt_dbg_mul_nonzero_mask;
+	    wire [15:0] lab_jt_dbg_last_contrib_info;
+	    wire [15:0] lab_jt_dbg_last_contrib_raw_cv;
+	    wire [15:0] lab_jt_dbg_last_contrib_mul;
+	    wire [15:0] lab_jt_dbg_last_contrib_vol;
+	    wire [15:0] lab_jt_dbg_ch6_contrib_count;
+	    wire [15:0] lab_jt_dbg_ch6_contrib_mul;
+	    wire [15:0] lab_jt_dbg_ch6_contrib_raw_cv;
+	    wire [15:0] lab_jt_dbg_ch7_contrib_count;
+	    wire [15:0] lab_jt_dbg_ch7_contrib_mul;
+	    wire [15:0] lab_jt_dbg_ch7_contrib_raw_cv;
 	    wire [15:0] lab_jt_dbg_mul_abs =
 	        lab_jt_dbg_mul_data[15] ?
 	        (~lab_jt_dbg_mul_data + 16'd1) : lab_jt_dbg_mul_data;
@@ -319,9 +357,28 @@ module segapcm_sound_module #(
 	    logic lab_jt_rom_data_hold_valid_d_i;
 	    logic [15:0] lab_jt_rom_data_latch_count_i;
 	    logic [15:0] lab_jt_rom_neutral_while_cs_count_i;
+	    logic [15:0] lab_jt_rom_neutral_no_match_count_i;
+	    logic [15:0] lab_jt_rom_neutral_range_count_i;
+	    logic [15:0] lab_jt_rom_neutral_latency_count_i;
+	    logic [15:0] lab_jt_rom_neutral_idle_count_i;
+	    logic [15:0] lab_jt_rom_neutral_sample_count_i;
+	    logic [15:0] lab_jt_rom_hold_default_suppress_count_i;
+	    logic [15:0] lab_jt_payload_return_valid_count_i;
+	    logic [15:0] lab_jt_hold_update_block0_count_i;
+	    logic [15:0] lab_jt_req_block0_count_i;
+	    logic [15:0] lab_jt_req_block1_count_i;
+	    logic [15:0] lab_jt_req_block2_count_i;
+	    logic [15:0] lab_jt_req_block_other_count_i;
+	    logic [15:0] lab_jt_hold_update_block2_count_i;
+	    logic [15:0] lab_jt_hold_update_nonblock2_count_i;
+	    logic [15:0] lab_jt_hold_update_index0_count_i;
 	    logic [15:0] lab_jt_rom_repeat_count_i;
+	    logic [15:0] lab_jt_rom_same_addr_count_i;
 	    logic [15:0] lab_jt_rom_hold_cycle_count_i;
 	    logic [15:0] lab_jt_sample_nonneutral_count_i;
+	    logic [15:0] lab_jt_sample_new_data_count_i;
+	    logic [15:0] lab_jt_sample_no_new_addr_count_i;
+	    logic [15:0] lab_jt_sample_no_new_data_count_i;
 	    logic [15:0] lab_jt_first_non80_pr_i;
 	    logic [15:0] lab_jt_last_non80_pr_i;
 	    logic [15:0] lab_jt_first_nonzero_mv_i;
@@ -334,15 +391,141 @@ module segapcm_sound_module #(
 	    logic [15:0] lab_jt_ctrl_write_count_i;
 	    logic [15:0] lab_jt_other_write_count_i;
 	    logic [15:0] lab_jt_cen_write_count_i;
+	    logic lab_jt_last_payload_table_hit_i;
+	    logic lab_jt_last_payload_index_in_range_i;
+	    logic lab_jt_addr_changed_since_sample_i;
+	    logic lab_jt_data_updated_since_sample_i;
+	    logic lab_jt_data_changed_since_sample_i;
+	    logic [18:0] lab_jt_rom_data_hold_index_i;
+	    logic [2:0] lab_jt_rom_data_hold_block_i;
+	    logic [18:0] lab_jt_ddr_req_payload_index_i;
+	    logic [18:0] lab_jt_ddr_req_rom_addr_i;
+	    logic [2:0] lab_jt_ddr_req_payload_block_i;
+	    logic lab_jt_ddr_req_payload_valid_i;
+	    logic lab_jt_ddr_req_payload_in_range_i;
+		    logic [18:0] lab_jt_current_req_payload_index_i;
+		    logic [18:0] lab_jt_current_req_rom_addr_i;
+	    logic [2:0] lab_jt_current_req_payload_block_i;
+	    logic lab_jt_current_req_payload_valid_i;
+	    logic lab_jt_current_req_payload_in_range_i;
+	    logic [15:0] lab_jt_request_count_i;
+	    logic [15:0] lab_jt_real_response_count_i;
+	    logic [15:0] lab_jt_stale_response_count_i;
+	    logic [15:0] lab_jt_response_without_request_count_i;
+	    logic [15:0] lab_jt_response_match_count_i;
+	    logic [15:0] lab_jt_response_reject_count_i;
+	    logic [15:0] lab_jt_response_starve_count_i;
+	    logic [15:0] lab_jt_block0_index0_real_count_i;
+	    logic [15:0] lab_jt_block0_index0_stale_count_i;
+	    logic [15:0] lab_jt_first_real_response_fp_i;
+	    logic [15:0] lab_jt_first_stale_response_fp_i;
+	    logic lab_jt_seen_first_real_response_i;
+	    logic lab_jt_seen_first_stale_response_i;
+	    logic [15:0] lab_jt_hold_update_play_count_i;
+	    logic [15:0] lab_jt_hold_update_idle_count_i;
+	    logic lab_jt_present_valid_i;
+	    logic [2:0] lab_jt_present_block_i;
+	    logic [18:0] lab_jt_present_index_i;
+	    logic [7:0] lab_jt_present_data_i;
+	    logic lab_jt_sample_present_seen_i;
+	    logic [18:0] lab_jt_sample_last_index_i;
+	    logic [7:0] lab_jt_sample_last_data_i;
+	    logic [7:0] lab_jt_win_sample_count_i;
+	    logic [7:0] lab_jt_win_new_addr_count_i;
+	    logic [7:0] lab_jt_win_new_data_count_i;
+	    logic [7:0] lab_jt_win_no_new_data_count_i;
+	    logic [7:0] lab_jt_win_same_index_count_i;
+	    logic [7:0] lab_jt_win_same_byte_count_i;
+	    logic [7:0] lab_jt_same_index_run_i;
+	    logic [7:0] lab_jt_same_byte_run_i;
+	    logic [7:0] lab_jt_max_same_index_run_i;
+	    logic [7:0] lab_jt_max_same_byte_run_i;
+	    logic lab_jt_stream_seen_valid_i;
+	    logic lab_jt_stream_overwrite_attempt_i;
+	    logic [2:0] lab_jt_stream_last_block_i;
+	    logic lab_jt_stream_capture_active_i;
+	    logic lab_jt_stream_capture_done_i;
+	    logic [4:0] lab_jt_stream_capture_count_i;
+	    logic [18:0] lab_jt_stream_last_capture_index_i;
+	    logic [7:0] lab_jt_stream_byte0_i;
+	    logic [7:0] lab_jt_stream_byte1_i;
+	    logic [7:0] lab_jt_stream_byte2_i;
+	    logic [7:0] lab_jt_stream_byte3_i;
+	    logic [7:0] lab_jt_stream_byte4_i;
+	    logic [7:0] lab_jt_stream_byte5_i;
+	    logic [7:0] lab_jt_stream_byte6_i;
+	    logic [7:0] lab_jt_stream_byte7_i;
+	    logic [7:0] lab_jt_stream_byte8_i;
+	    logic [7:0] lab_jt_stream_byte9_i;
+	    logic [7:0] lab_jt_stream_byte10_i;
+	    logic [7:0] lab_jt_stream_byte11_i;
+	    logic [7:0] lab_jt_stream_byte12_i;
+	    logic [7:0] lab_jt_stream_byte13_i;
+	    logic [7:0] lab_jt_stream_byte14_i;
+	    logic [7:0] lab_jt_stream_byte15_i;
+	    logic [15:0] lab_jt_stream_addr0_i;
+	    logic [15:0] lab_jt_stream_addr1_i;
+	    logic [15:0] lab_jt_stream_addr2_i;
+	    logic [15:0] lab_jt_stream_addr3_i;
+	    logic [15:0] lab_jt_stream_pi0_i;
+	    logic [15:0] lab_jt_stream_pi1_i;
+	    logic [15:0] lab_jt_stream_pi2_i;
+	    logic [15:0] lab_jt_stream_pi3_i;
+	    logic [7:0] lab_jt_stream_block2_sample_count_i;
+	    logic [7:0] lab_jt_stream_nonblock2_sample_count_i;
+	    logic [7:0] lab_jt_stream_nohold_sample_count_i;
+	    logic [4:0] lab_jt_global_fp_count_i;
+	    logic [15:0] lab_jt_global_fp0_i;
+	    logic [15:0] lab_jt_global_fp1_i;
+	    logic [15:0] lab_jt_global_fp2_i;
+	    logic [15:0] lab_jt_global_fp3_i;
+	    logic [15:0] lab_jt_global_fp4_i;
+	    logic [15:0] lab_jt_global_fp5_i;
+	    logic [15:0] lab_jt_global_fp6_i;
+	    logic [15:0] lab_jt_global_fp7_i;
+	    logic [15:0] lab_jt_global_fp8_i;
+	    logic [15:0] lab_jt_global_fp9_i;
+	    logic [15:0] lab_jt_global_fpa_i;
+	    logic [15:0] lab_jt_global_fpb_i;
+	    logic [15:0] lab_jt_global_fpc_i;
+	    logic [15:0] lab_jt_global_fpd_i;
+	    logic [15:0] lab_jt_global_fpe_i;
+	    logic [15:0] lab_jt_global_fpf_i;
 	    logic [7:0] lab_jt_ch3_cur_mid_i;
 	    logic [7:0] lab_jt_ch3_cur_high_i;
 	    logic [7:0] lab_jt_ch3_end_i;
 	    logic [7:0] lab_jt_ch3_delta_i;
 	    logic [7:0] lab_jt_ch3_vol_l_i;
-	    logic [7:0] lab_jt_ch3_vol_r_i;
-	    logic [7:0] lab_jt_ch3_ctrl_raw_i;
-	    logic [7:0] lab_jt_ch3_ctrl_jt_i;
-	    logic lab_jt_seen_cpu_write_i;
+		    logic [7:0] lab_jt_ch3_vol_r_i;
+		    logic [7:0] lab_jt_ch3_ctrl_raw_i;
+		    logic [7:0] lab_jt_ch3_ctrl_jt_i;
+		    logic [7:0] lab_jt_shadow_cur_mid_i [0:7];
+		    logic [7:0] lab_jt_shadow_cur_high_i [0:7];
+			    logic [7:0] lab_jt_shadow_end_i [0:7];
+			    logic [7:0] lab_jt_shadow_delta_i [0:7];
+			    logic [7:0] lab_jt_shadow_vol_l_i [0:7];
+			    logic [7:0] lab_jt_shadow_vol_r_i [0:7];
+			    logic [7:0] lab_jt_shadow_max_vol_l_i [0:7];
+			    logic [7:0] lab_jt_shadow_max_vol_r_i [0:7];
+			    logic [7:0] lab_jt_shadow_ctrl_raw_i [0:7];
+			    logic [7:0] lab_jt_shadow_ctrl_jt_i [0:7];
+		    logic [7:0] lab_jt_shadow_ctrl_write_mask_i;
+		    logic [7:0] lab_jt_shadow_cur_write_mask_i;
+		    logic [7:0] lab_jt_shadow_vol_write_mask_i;
+		    logic [15:0] lab_jt_last_req_source_i;
+		    logic [15:0] lab_jt_first_block0_index0_source_i;
+		    logic lab_jt_seen_block0_index0_source_i;
+		    logic [15:0] lab_jt_block0_index0_req_channel_mask_i;
+		    logic [15:0] lab_jt_block2_req_channel_mask_i;
+		    logic [15:0] lab_jt_block0_index0_ch0_req_count_i;
+		    logic [15:0] lab_jt_block0_index0_ch3_req_count_i;
+		    logic [15:0] lab_jt_block0_index0_other_req_count_i;
+		    logic [3:0] lab_jt_current_req_ch_i;
+		    logic [2:0] lab_jt_req_last_block_i [0:7];
+		    logic [15:0] lab_jt_req_last_index_i [0:7];
+		    logic [7:0] lab_jt_req_last_data_i [0:7];
+		    logic lab_jt_req_last_valid_i [0:7];
+		    logic lab_jt_seen_cpu_write_i;
 	    logic lab_jt_seen_rom_cs_i;
 	    logic lab_jt_seen_first_rom_i;
 	    logic lab_jt_seen_first_ch3_rom_i;
@@ -664,6 +847,8 @@ module segapcm_sound_module #(
     logic [18:0] lab_jt_payload_dest_low_next;
     logic [2:0] lab_jt_payload_block_next;
     logic lab_jt_payload_match_valid_next;
+    logic lab_jt_payload_table_hit_next;
+    logic lab_jt_payload_index_in_range_next;
     logic [18:0] lab_jt_map_dest_low_tmp;
     logic [19:0] lab_jt_map_limit_tmp;
     integer lab_jt_map_loop_i;
@@ -674,6 +859,8 @@ module segapcm_sound_module #(
         lab_jt_payload_dest_low_next = 19'd0;
         lab_jt_payload_block_next = 3'd0;
         lab_jt_payload_match_valid_next = 1'b0;
+        lab_jt_payload_table_hit_next = 1'b0;
+        lab_jt_payload_index_in_range_next = 1'b0;
         lab_jt_map_dest_low_tmp = 19'd0;
         lab_jt_map_limit_tmp = 20'd0;
 
@@ -690,6 +877,7 @@ module segapcm_sound_module #(
                 (smoke_type80_table_len_i[lab_jt_map_loop_i] != 19'd0) &&
                 (lab_jt_rom_addr >= lab_jt_map_dest_low_tmp) &&
                 ({1'b0, lab_jt_rom_addr} < lab_jt_map_limit_tmp)) begin
+                lab_jt_payload_table_hit_next = 1'b1;
                 lab_jt_payload_match_valid_next = 1'b1;
                 lab_jt_payload_block_next = lab_jt_map_loop_i[2:0];
                 lab_jt_payload_dest_low_next = lab_jt_map_dest_low_tmp;
@@ -701,7 +889,12 @@ module segapcm_sound_module #(
             end
         end
 
-        if (lab_jt_payload_read_index_next >= smoke_loaded_ddr_usable_bytes) begin
+        if (lab_jt_payload_table_hit_next &&
+            (lab_jt_payload_read_index_next < smoke_loaded_ddr_usable_bytes)) begin
+            lab_jt_payload_index_in_range_next = 1'b1;
+        end
+
+        if (!lab_jt_payload_index_in_range_next) begin
             lab_jt_payload_match_valid_next = 1'b0;
         end
     end
@@ -1359,9 +1552,192 @@ module segapcm_sound_module #(
 	        lab_jt_ch3_end_i,
 	        lab_jt_ch3_delta_i
 	    };
-	    wire [15:0] lab_jt_ch3_volume_debug = {
-	        lab_jt_ch3_vol_l_i,
-	        lab_jt_ch3_vol_r_i
+		    wire [15:0] lab_jt_ch3_volume_debug = {
+		        lab_jt_ch3_vol_l_i,
+		        lab_jt_ch3_vol_r_i
+		    };
+		    wire [15:0] lab_jt_ch3_max_volume_debug = {
+		        lab_jt_shadow_max_vol_l_i[3],
+		        lab_jt_shadow_max_vol_r_i[3]
+		    };
+	    logic [7:0] lab_jt_ctrl_enabled_mask;
+	    logic [7:0] lab_jt_volume_nonzero_mask;
+	    logic [7:0] lab_jt_current_nonzero_mask;
+	    always_comb begin
+	        lab_jt_ctrl_enabled_mask = 8'd0;
+	        lab_jt_volume_nonzero_mask = 8'd0;
+	        lab_jt_current_nonzero_mask = 8'd0;
+	        for (int i = 0; i < 8; i++) begin
+	            lab_jt_ctrl_enabled_mask[i] =
+	                !lab_jt_shadow_ctrl_jt_i[i][0];
+	            lab_jt_volume_nonzero_mask[i] =
+	                (lab_jt_shadow_vol_l_i[i][6:0] != 7'd0) ||
+	                (lab_jt_shadow_vol_r_i[i][6:0] != 7'd0);
+	            lab_jt_current_nonzero_mask[i] =
+	                (lab_jt_shadow_cur_mid_i[i] != 8'd0) ||
+	                (lab_jt_shadow_cur_high_i[i] != 8'd0);
+	        end
+	    end
+	    wire [15:0] lab_jt_ch0_current_debug = {
+	        lab_jt_shadow_cur_high_i[0],
+	        lab_jt_shadow_cur_mid_i[0]
+	    };
+	    wire [15:0] lab_jt_ch0_ctrl_debug = {
+	        lab_jt_shadow_ctrl_jt_i[0],
+	        lab_jt_shadow_ctrl_raw_i[0]
+	    };
+	    wire [15:0] lab_jt_ch0_end_delta_debug = {
+	        lab_jt_shadow_end_i[0],
+	        lab_jt_shadow_delta_i[0]
+	    };
+			    wire [15:0] lab_jt_ch0_volume_debug = {
+			        lab_jt_shadow_vol_l_i[0],
+			        lab_jt_shadow_vol_r_i[0]
+			    };
+			    wire [15:0] lab_jt_ch0_max_volume_debug = {
+			        lab_jt_shadow_max_vol_l_i[0],
+			        lab_jt_shadow_max_vol_r_i[0]
+			    };
+		    wire [15:0] lab_jt_ch1_current_debug = {
+		        lab_jt_shadow_cur_high_i[1],
+		        lab_jt_shadow_cur_mid_i[1]
+		    };
+		    wire [15:0] lab_jt_ch1_ctrl_debug = {
+		        lab_jt_shadow_ctrl_jt_i[1],
+		        lab_jt_shadow_ctrl_raw_i[1]
+		    };
+			    wire [15:0] lab_jt_ch1_volume_debug = {
+			        lab_jt_shadow_vol_l_i[1],
+			        lab_jt_shadow_vol_r_i[1]
+			    };
+			    wire [15:0] lab_jt_ch1_max_volume_debug = {
+			        lab_jt_shadow_max_vol_l_i[1],
+			        lab_jt_shadow_max_vol_r_i[1]
+			    };
+		    wire [15:0] lab_jt_ch2_current_debug = {
+		        lab_jt_shadow_cur_high_i[2],
+		        lab_jt_shadow_cur_mid_i[2]
+		    };
+		    wire [15:0] lab_jt_ch2_ctrl_debug = {
+		        lab_jt_shadow_ctrl_jt_i[2],
+		        lab_jt_shadow_ctrl_raw_i[2]
+		    };
+			    wire [15:0] lab_jt_ch2_volume_debug = {
+			        lab_jt_shadow_vol_l_i[2],
+			        lab_jt_shadow_vol_r_i[2]
+			    };
+			    wire [15:0] lab_jt_ch2_max_volume_debug = {
+			        lab_jt_shadow_max_vol_l_i[2],
+			        lab_jt_shadow_max_vol_r_i[2]
+			    };
+		    wire [15:0] lab_jt_ch6_current_debug = {
+		        lab_jt_shadow_cur_high_i[6],
+		        lab_jt_shadow_cur_mid_i[6]
+		    };
+		    wire [15:0] lab_jt_ch6_ctrl_debug = {
+		        lab_jt_shadow_ctrl_jt_i[6],
+		        lab_jt_shadow_ctrl_raw_i[6]
+		    };
+			    wire [15:0] lab_jt_ch6_volume_debug = {
+			        lab_jt_shadow_vol_l_i[6],
+			        lab_jt_shadow_vol_r_i[6]
+			    };
+			    wire [15:0] lab_jt_ch6_max_volume_debug = {
+			        lab_jt_shadow_max_vol_l_i[6],
+			        lab_jt_shadow_max_vol_r_i[6]
+			    };
+		    wire [15:0] lab_jt_ch7_current_debug = {
+		        lab_jt_shadow_cur_high_i[7],
+		        lab_jt_shadow_cur_mid_i[7]
+		    };
+		    wire [15:0] lab_jt_ch7_ctrl_debug = {
+		        lab_jt_shadow_ctrl_jt_i[7],
+		        lab_jt_shadow_ctrl_raw_i[7]
+		    };
+			    wire [15:0] lab_jt_ch7_volume_debug = {
+			        lab_jt_shadow_vol_l_i[7],
+			        lab_jt_shadow_vol_r_i[7]
+			    };
+			    wire [15:0] lab_jt_ch7_max_volume_debug = {
+			        lab_jt_shadow_max_vol_l_i[7],
+			        lab_jt_shadow_max_vol_r_i[7]
+			    };
+		    wire [15:0] lab_jt_ch1_req_debug = {
+		        lab_jt_req_last_block_i[1],
+		        lab_jt_req_last_index_i[1][4:0],
+		        lab_jt_req_last_data_i[1]
+		    };
+		    wire [15:0] lab_jt_ch0_req_debug = {
+		        lab_jt_req_last_block_i[0],
+		        lab_jt_req_last_index_i[0][4:0],
+		        lab_jt_req_last_data_i[0]
+		    };
+		    wire [15:0] lab_jt_ch2_req_debug = {
+		        lab_jt_req_last_block_i[2],
+		        lab_jt_req_last_index_i[2][4:0],
+		        lab_jt_req_last_data_i[2]
+		    };
+		    wire [15:0] lab_jt_ch3_req_debug = {
+		        lab_jt_req_last_block_i[3],
+		        lab_jt_req_last_index_i[3][4:0],
+		        lab_jt_req_last_data_i[3]
+		    };
+		    wire [15:0] lab_jt_ch4_req_debug = {
+		        lab_jt_req_last_block_i[4],
+		        lab_jt_req_last_index_i[4][4:0],
+		        lab_jt_req_last_data_i[4]
+		    };
+		    wire [15:0] lab_jt_ch5_req_debug = {
+		        lab_jt_req_last_block_i[5],
+		        lab_jt_req_last_index_i[5][4:0],
+		        lab_jt_req_last_data_i[5]
+		    };
+		    wire [15:0] lab_jt_ch6_req_debug = {
+		        lab_jt_req_last_block_i[6],
+		        lab_jt_req_last_index_i[6][4:0],
+		        lab_jt_req_last_data_i[6]
+		    };
+		    wire [15:0] lab_jt_ch7_req_debug = {
+		        lab_jt_req_last_block_i[7],
+		        lab_jt_req_last_index_i[7][4:0],
+		        lab_jt_req_last_data_i[7]
+		    };
+		    localparam logic [3:0] LAB_JT_FOCUS_CH = 4'd3;
+		    wire [15:0] lab_jt_response_status = {
+		        lab_jt_response_match_count_i[7:0],
+		        lab_jt_response_reject_count_i[7:0]
+		    };
+		    wire [15:0] lab_jt_mismatch_status = {
+		        4'hE,
+		        (lab_jt_response_starve_count_i != 16'd0),
+		        (lab_jt_response_reject_count_i != 16'd0),
+		        (lab_jt_stale_response_count_i != 16'd0),
+		        (lab_jt_response_without_request_count_i != 16'd0),
+		        lab_jt_rom_data_hold_valid_i,
+		        lab_jt_data_updated_since_sample_i,
+		        lab_jt_data_changed_since_sample_i,
+		        lab_jt_request_count_i[4:0]
+		    };
+		    wire [15:0] lab_jt_focus_capture_status = {
+		        4'hF,
+		        LAB_JT_FOCUS_CH,
+		        lab_jt_stream_capture_done_i,
+		        lab_jt_stream_capture_active_i,
+		        lab_jt_stream_seen_valid_i,
+		        lab_jt_stream_overwrite_attempt_i,
+		        lab_jt_stream_capture_count_i[3:0]
+		    };
+		    wire [15:0] lab_jt_active_mask_debug = {
+		        8'd0,
+		        lab_jt_dbg_active_cfg[15:8]
+	    };
+	    wire [15:0] lab_jt_ctrl_enabled_mask_debug = {
+	        8'd0,
+	        lab_jt_ctrl_enabled_mask
+	    };
+	    wire [15:0] lab_jt_volume_nonzero_mask_debug = {
+	        8'd0,
+	        lab_jt_volume_nonzero_mask
 	    };
 	    wire [18:0] lab_jt_first_debug_rom_addr =
 	        lab_jt_seen_first_ch3_rom_i ?
@@ -1383,19 +1759,301 @@ module segapcm_sound_module #(
 	        core_cpu_cs && segapcm_cen,
 	        lab_jt_dbg_bank_channel_state[0]
 		    };
-		    wire [1:0] lab_jt_rom_timing_mode =
-		        smoke_c0_jt_backend ? smoke_c0_pm3_mix_mode : 2'd0;
-	    wire [7:0] lab_jt_rom_data_to_core =
-	        (lab_jt_rom_timing_mode == 2'd1) ?
-	            lab_jt_rom_data_hold_i :
-	        (lab_jt_rom_timing_mode == 2'd2) ?
-	            lab_jt_rom_data_hold_d_i :
-	            core_rom_data;
-	    wire lab_jt_rom_ok_to_core =
-	        (lab_jt_rom_timing_mode == 2'd1) ? lab_jt_rom_data_hold_valid_i :
-	        (lab_jt_rom_timing_mode == 2'd2) ?
-	            lab_jt_rom_data_hold_valid_d_i :
-	            core_rom_ok;
+	    wire [15:0] lab_jt_rom_neutral_cause_status = {
+	        4'hD,
+	        lab_jt_rom_neutral_sample_count_i != 16'd0,
+	        lab_jt_rom_neutral_while_cs_count_i != 16'd0,
+	        lab_jt_rom_neutral_no_match_count_i != 16'd0,
+	        lab_jt_rom_neutral_range_count_i != 16'd0,
+	        lab_jt_rom_neutral_latency_count_i != 16'd0,
+	        lab_jt_rom_neutral_idle_count_i != 16'd0,
+	        lab_jt_rom_hold_default_suppress_count_i != 16'd0,
+	        lab_jt_rom_data_hold_valid_i,
+	        lab_jt_last_payload_table_hit_i,
+	        lab_jt_last_payload_index_in_range_i,
+	        lab_jt_seen_rom_ok_i,
+	        lab_jt_seen_rom_non80_i
+	    };
+	    wire [15:0] lab_jt_stream_j0 = {
+	        lab_jt_stream_byte0_i,
+	        lab_jt_stream_byte1_i
+	    };
+	    wire [15:0] lab_jt_stream_j1 = {
+	        lab_jt_stream_byte2_i,
+	        lab_jt_stream_byte3_i
+	    };
+	    wire [15:0] lab_jt_stream_j2 = {
+	        lab_jt_stream_byte4_i,
+	        lab_jt_stream_byte5_i
+	    };
+	    wire [15:0] lab_jt_stream_j3 = {
+	        lab_jt_stream_byte6_i,
+	        lab_jt_stream_byte7_i
+	    };
+	    wire [15:0] lab_jt_stream_j4 = {
+	        lab_jt_stream_byte8_i,
+	        lab_jt_stream_byte9_i
+	    };
+	    wire [15:0] lab_jt_stream_j5 = {
+	        lab_jt_stream_byte10_i,
+	        lab_jt_stream_byte11_i
+	    };
+	    wire [15:0] lab_jt_stream_j6 = {
+	        lab_jt_stream_byte12_i,
+	        lab_jt_stream_byte13_i
+	    };
+	    wire [15:0] lab_jt_stream_j7 = {
+	        lab_jt_stream_byte14_i,
+	        lab_jt_stream_byte15_i
+	    };
+		    wire [15:0] lab_jt_stream_capture_status = {
+		        4'hC,
+		        lab_jt_stream_capture_done_i,
+	        lab_jt_stream_capture_active_i,
+	        lab_jt_stream_seen_valid_i,
+	        lab_jt_stream_overwrite_attempt_i,
+		        lab_jt_stream_capture_count_i,
+		        lab_jt_stream_last_block_i
+		    };
+			    wire [1:0] lab_jt_rom_timing_mode =
+			        smoke_c0_jt_backend ? smoke_c0_pm3_mix_mode : 2'd0;
+		    // PM3 masks gate the scaffold mixer. The JT backend runs the
+		    // full jtoutrun_pcm channel set, so its ROM bus is global.
+		    wire lab_jt_rt_block2_only = lab_jt_rom_timing_mode == 2'd3;
+			    wire [15:0] lab_jt_hold_byte_index_status = {
+			        lab_jt_rom_data_hold_i,
+			        lab_jt_rom_data_hold_index_i[7:0]
+			    };
+			    wire [15:0] lab_jt_hold_index_status =
+			        lab_jt_rom_data_hold_index_i[15:0];
+			    wire lab_jt_ddr_response_matches_current =
+			        lab_jt_ddr_req_payload_valid_i &&
+			        lab_jt_ddr_req_payload_in_range_i &&
+			        lab_jt_current_req_payload_valid_i &&
+			        lab_jt_current_req_payload_in_range_i &&
+			        (lab_jt_ddr_req_payload_block_i ==
+			         lab_jt_current_req_payload_block_i) &&
+			        (lab_jt_ddr_req_payload_index_i ==
+			         lab_jt_current_req_payload_index_i);
+			    wire [15:0] lab_jt_hold_status = {
+			        4'hA,
+			        lab_jt_rom_data_hold_valid_i,
+			        lab_jt_rom_data_hold_block_i,
+			        lab_jt_current_req_payload_valid_i,
+			        lab_jt_current_req_payload_block_i,
+			        lab_jt_ddr_response_matches_current,
+			        lab_jt_ddr_req_payload_valid_i,
+			        lab_jt_ddr_req_payload_in_range_i,
+			        lab_jt_rt_block2_only
+			    };
+				    wire [15:0] lab_jt_present_data_status = {
+				        4'hB,
+				        1'b0,
+				        lab_jt_present_block_i,
+				        lab_jt_present_data_i
+				    };
+		    wire [15:0] lab_jt_any_packet_status = {
+		        4'hA,
+		        lab_jt_last_payload_return_valid_i,
+		        lab_jt_last_payload_return_block_i,
+		        lab_jt_last_payload_return_data_i
+		    };
+		    wire [15:0] lab_jt_block2_packet_status = {
+		        4'hB,
+		        1'b0,
+		        3'd2,
+		        lab_jt_last_block2_rom_data_i
+		    };
+		    wire [15:0] lab_jt_stream_window_addr_status = {
+		        lab_jt_win_sample_count_i,
+		        lab_jt_win_new_addr_count_i
+	    };
+	    wire [15:0] lab_jt_stream_window_data_status = {
+	        lab_jt_stream_nohold_sample_count_i,
+	        lab_jt_win_sample_count_i
+	    };
+	    wire [15:0] lab_jt_stream_repeat_status = {
+	        lab_jt_max_same_index_run_i,
+	        lab_jt_max_same_byte_run_i
+	    };
+	    wire [15:0] lab_jt_stream_sample_block_status = {
+	        lab_jt_stream_block2_sample_count_i,
+	        lab_jt_stream_nonblock2_sample_count_i
+	    };
+	    wire [15:0] lab_jt_last_request_status = {
+	        4'hC,
+	        lab_jt_last_payload_match_i,
+	        lab_jt_last_payload_index_in_range_i,
+	        lab_jt_last_payload_block_i,
+	        lab_jt_last_rom_addr_i[18:16],
+	        4'd0
+	    };
+	    wire [15:0] lab_jt_last_return_status = {
+	        4'hD,
+	        lab_jt_last_payload_return_valid_i,
+	        lab_jt_last_payload_return_block_i,
+	        lab_jt_last_payload_return_data_i
+	    };
+			    wire [15:0] lab_jt_block0_index0_status = {
+			        lab_jt_block0_index0_real_count_i[7:0],
+			        lab_jt_block0_index0_stale_count_i[7:0]
+			    };
+		    wire [15:0] lab_jt_block0_index0_ch03_status = {
+		        lab_jt_block0_index0_ch0_req_count_i[7:0],
+		        lab_jt_block0_index0_ch3_req_count_i[7:0]
+		    };
+						    wire lab_jt_ddr_req_pending_i =
+						        smoke_ddr_c0_pending_i &&
+						        lab_jt_ddr_req_payload_valid_i &&
+						        lab_jt_ddr_req_payload_in_range_i;
+		    wire [15:0] lab_jt_global_bus_status = {
+		        4'hD,
+		        1'b1,
+	        lab_jt_rt_block2_only,
+	        lab_jt_rom_data_hold_valid_i,
+	        lab_jt_ddr_req_pending_i,
+	        lab_jt_current_req_payload_valid_i,
+	        lab_jt_real_response_count_i != 16'd0,
+	        lab_jt_stale_response_count_i != 16'd0,
+	        lab_jt_response_starve_count_i != 16'd0,
+	        lab_jt_global_fp_count_i[4] ?
+	            4'hf : lab_jt_global_fp_count_i[3:0]
+	    };
+		    wire [15:0] lab_jt_stream_repeat_window_status = {
+		        lab_jt_win_same_index_count_i,
+		        lab_jt_win_same_byte_count_i
+		    };
+		    wire [15:0] lab_jt_same_index_status = {
+		        lab_jt_win_same_index_count_i,
+		        lab_jt_max_same_index_run_i
+		    };
+		    wire [15:0] lab_jt_same_byte_status = {
+		        lab_jt_win_same_byte_count_i,
+		        lab_jt_max_same_byte_run_i
+		    };
+	    wire lab_jt_return_packet_valid =
+	        preload_rom_data_valid &&
+	        lab_jt_last_payload_match_i &&
+	        lab_jt_last_payload_index_in_range_i;
+	    wire lab_jt_return_block2_packet_valid =
+	        lab_jt_return_packet_valid &&
+	        (lab_jt_last_payload_block_i == 3'd2);
+	    wire lab_jt_stream_pr_nonneutral =
+	        lab_jt_dbg_pcm_raw_cv[15:8] != 8'h80;
+	    wire lab_jt_stream_mv_nonzero =
+	        lab_jt_dbg_mul_data != 16'd0;
+	    wire lab_jt_stream_output_nonzero =
+	        (lab_jt_snd_left != 16'sd0) || (lab_jt_snd_right != 16'sd0);
+	    wire lab_jt_stream_sample_valid =
+	        (lab_jt_sample ||
+	         lab_jt_stream_pr_nonneutral ||
+	         lab_jt_stream_mv_nonzero ||
+	         lab_jt_stream_output_nonzero) &&
+	        (lab_jt_stream_pr_nonneutral ||
+	         lab_jt_stream_mv_nonzero ||
+	         lab_jt_stream_output_nonzero);
+	    wire lab_jt_stream_sample_new_index =
+	        lab_jt_stream_sample_valid &&
+	        (!lab_jt_stream_seen_valid_i ||
+	         (lab_jt_rom_data_hold_index_i !=
+	          lab_jt_stream_last_capture_index_i));
+	    wire [15:0] lab_jt_stream_live_index_status =
+	        lab_jt_rom_data_hold_index_i[15:0];
+	    wire [15:0] lab_jt_stream_sample_index_low =
+	        lab_jt_rom_data_hold_valid_i ?
+	        lab_jt_rom_data_hold_index_i[15:0] : 16'hffff;
+	    wire [18:0] lab_jt_stream_sample_index_full =
+	        lab_jt_rom_data_hold_valid_i ?
+	        lab_jt_rom_data_hold_index_i : 19'h7ffff;
+	    wire [2:0] lab_jt_stream_sample_block =
+	        lab_jt_rom_data_hold_valid_i ? lab_jt_rom_data_hold_block_i : 3'd7;
+	    wire [15:0] lab_jt_stream_packet_status = {
+	        4'hA,
+	        lab_jt_sample,
+	        lab_jt_stream_pr_nonneutral,
+	        lab_jt_stream_mv_nonzero,
+	        lab_jt_rom_data_hold_valid_i,
+	        lab_jt_stream_sample_block,
+	        lab_jt_stream_capture_done_i,
+	        lab_jt_stream_capture_count_i[3:0]
+	    };
+	    logic rom_request_event;
+	    logic ch3_rom_request_event;
+	    wire [3:0] lab_jt_req_src_ch =
+	        lab_jt_dbg_bank_channel_state[7:4];
+	    wire [3:0] lab_jt_req_src_st =
+	        lab_jt_dbg_bank_channel_state[3:0];
+	    wire lab_jt_req_src_ch_low8 = !lab_jt_req_src_ch[3];
+	    wire lab_jt_req_src_index0 =
+	        lab_jt_payload_read_index_next == 19'd0;
+	    wire lab_jt_req_src_block0_index0 =
+	        lab_jt_payload_match_valid_next &&
+	        lab_jt_payload_index_in_range_next &&
+	        (lab_jt_payload_block_next == 3'd0) &&
+	        lab_jt_req_src_index0;
+	    wire [15:0] lab_jt_req_source_pack_next = {
+	        4'hC,
+	        lab_jt_req_src_ch,
+	        lab_jt_req_src_st,
+	        lab_jt_payload_block_next,
+	        lab_jt_req_src_index0
+	    };
+				    wire lab_jt_ddr_bridge_active =
+				        smoke_c0_jt_backend && smoke_ddr_c0drive_active;
+					    wire lab_jt_ddr_payload_return_event =
+					        lab_jt_ddr_bridge_active &&
+					        loaded_ddr_payload_present &&
+					        loaded_ddr_rd_valid &&
+					        smoke_ddr_c0_pending_i &&
+					        !smoke_ddr_c0_return_valid_i;
+					    wire lab_jt_ddr_payload_real_return_event =
+					        lab_jt_ddr_payload_return_event &&
+					        lab_jt_ddr_req_pending_i &&
+				        lab_jt_ddr_req_payload_valid_i &&
+				        lab_jt_ddr_req_payload_in_range_i;
+				    wire lab_jt_ddr_payload_stale_return_event =
+				        lab_jt_ddr_payload_return_event &&
+				        !lab_jt_ddr_payload_real_return_event;
+				    wire [15:0] lab_jt_ddr_payload_response_fp = {
+				        lab_jt_ddr_req_payload_block_i,
+				        lab_jt_ddr_req_payload_index_i[4:0],
+				        loaded_ddr_rd_data
+				    };
+				    wire lab_jt_request_seen_pulse =
+				        smoke_c0_jt_backend &&
+				        smoke_ddr_follow_mode &&
+				        rom_request_event;
+					    wire lab_jt_response_starve_pulse =
+					        lab_jt_request_seen_pulse &&
+					        smoke_ddr_c0drive_active &&
+					        (smoke_ddr_c0_pending_i ||
+					         smoke_ddr_c0_return_valid_i) &&
+					        lab_jt_payload_match_valid_next &&
+					        lab_jt_payload_index_in_range_next;
+						    wire [7:0] lab_jt_rom_data_to_core =
+						        ((lab_jt_rom_timing_mode == 2'd1) ||
+						         (lab_jt_rom_timing_mode == 2'd3)) ?
+						            lab_jt_rom_data_hold_i :
+			        (lab_jt_rom_timing_mode == 2'd2) ?
+			            lab_jt_rom_data_hold_d_i :
+			            core_rom_data;
+		    wire lab_jt_return_hold_candidate =
+		        lab_jt_return_packet_valid &&
+		        (!lab_jt_rt_block2_only ||
+		         (lab_jt_last_payload_block_i == 3'd2));
+		    wire lab_jt_ddr_return_hold_candidate =
+		        lab_jt_ddr_response_matches_current &&
+		        (!lab_jt_rt_block2_only ||
+		         (lab_jt_ddr_req_payload_block_i == 3'd2));
+	    wire [7:0] lab_jt_stream_sample_byte =
+	        lab_jt_rom_data_hold_valid_i ? lab_jt_rom_data_to_core : 8'hee;
+		    wire lab_jt_rom_ok_to_core =
+		        ((lab_jt_rom_timing_mode == 2'd1) ||
+		         (lab_jt_rom_timing_mode == 2'd3)) ?
+		            lab_jt_rom_data_hold_valid_i :
+		        (lab_jt_rom_timing_mode == 2'd2) ?
+		            lab_jt_rom_data_hold_valid_d_i :
+		            core_rom_ok;
 	`endif
     logic [15:0] rom_activity_count_i;
     logic [15:0] rom_range_hit_count_i;
@@ -1447,8 +2105,6 @@ module segapcm_sound_module #(
     logic [7:0] rom_range_group_i;
     logic [7:0] rom_range_group2_i;
     logic [7:0] ch3_rom_range_i;
-    logic rom_request_event;
-    logic ch3_rom_request_event;
     logic rom_return_event;
     logic [18:0] selected_mapped_rom_addr;
     logic [15:0] audio_nonzero_count_i;
@@ -1575,11 +2231,18 @@ module segapcm_sound_module #(
     logic [15:0] lab_c0_return_count_i;
     logic [7:0] lab_c0_sample_i;
     logic signed [15:0] lab_c0_output_i;
-    logic lab_c0_consume_pulse_i;
-    logic lab_c0_pending_i;
-    logic lab_c0_req_live_i;
-    logic lab_c0_need_read_i;
-    logic [18:0] lab_c0_req_addr_i;
+	    logic lab_c0_consume_pulse_i;
+	    logic lab_c0_pending_i;
+	    logic lab_c0_req_live_i;
+	    logic lab_c0_need_read_i;
+	    logic [18:0] lab_c0_req_addr_i;
+	    wire lab_jt_ddr_read_request_fire =
+	        lab_jt_request_seen_pulse &&
+	        !lab_c0_active_i &&
+	        !(smoke_ddr_c0drive_active &&
+	          (smoke_ddr_c0_pending_i ||
+	           smoke_ddr_c0_return_valid_i)) &&
+	        smoke_ddr_follow_read_in_range_next;
     logic [2:0] lab_c0_fixed_index_i;
     logic [11:0] lab_c0_fixed_div_i;
     logic [3:0] lab_c0_mame_tick_div_count_i;
@@ -3913,9 +4576,10 @@ module segapcm_sound_module #(
     assign ch3_evolution_flags_debug =
         smoke_ddr_audio_update_count_i;
 `endif
-    assign ch3_delta_debug =
-        lab_c0_multich_delta_mode ? core_dbg_ch3_delta :
-        lab_c0_phase_increment[15:0];
+	    assign ch3_delta_debug =
+	        smoke_c0_jt_backend ? lab_jt_ch7_req_debug :
+	        lab_c0_multich_delta_mode ? core_dbg_ch3_delta :
+	        lab_c0_phase_increment[15:0];
 `else
     assign ch3_evolution_flags_debug = core_dbg_ch3_evolution_flags;
     assign ch3_delta_debug = core_dbg_ch3_delta;
@@ -4080,12 +4744,28 @@ module segapcm_sound_module #(
     assign shadow_ch1_start_debug = {shadow_ram[8'h8c], shadow_ram[8'h8d]};
     assign shadow_ch1_ctrl_debug = {shadow_ram[8'h8e], shadow_ram[8'h8f]};
 `endif
-    assign shadow_ch3_loop_debug = {shadow_ram[8'h1c], shadow_ram[8'h1d]};
-    assign shadow_ch3_end_delta_debug = {shadow_ram[8'h1e], shadow_ram[8'h1f]};
-    assign shadow_ch3_start_debug = {shadow_ram[8'h9c], shadow_ram[8'h9d]};
-    assign shadow_ch3_ctrl_debug = {shadow_ram[8'h9e], shadow_ram[8'h9f]};
-    assign shadow_ch3_l0_debug = {shadow_ram[8'h18], shadow_ram[8'h19]};
-    assign shadow_ch3_l2_debug = {shadow_ram[8'h1a], shadow_ram[8'h1b]};
+	    assign shadow_ch3_loop_debug = {shadow_ram[8'h1c], shadow_ram[8'h1d]};
+	    assign shadow_ch3_end_delta_debug =
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+	        smoke_c0_jt_backend ? lab_jt_ch3_end_delta_debug :
+`endif
+	        {shadow_ram[8'h1e], shadow_ram[8'h1f]};
+	    assign shadow_ch3_start_debug =
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+	        smoke_c0_jt_backend ? lab_jt_ch3_current_debug :
+`endif
+	        {shadow_ram[8'h9c], shadow_ram[8'h9d]};
+	    assign shadow_ch3_ctrl_debug =
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+	        smoke_c0_jt_backend ? lab_jt_ch3_ctrl_debug :
+`endif
+	        {shadow_ram[8'h9e], shadow_ram[8'h9f]};
+	    assign shadow_ch3_l0_debug = {shadow_ram[8'h18], shadow_ram[8'h19]};
+	    assign shadow_ch3_l2_debug =
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+	        smoke_c0_jt_backend ? lab_jt_ch3_volume_debug :
+`endif
+	        {shadow_ram[8'h1a], shadow_ram[8'h1b]};
     assign shadow_ch3_l4_debug = {shadow_ram[8'h1c], shadow_ram[8'h1d]};
     assign shadow_ch3_l6_debug = {shadow_ram[8'h1e], shadow_ram[8'h1f]};
     assign shadow_ch3_h0_debug = {shadow_ram[8'h98], shadow_ram[8'h99]};
@@ -6810,12 +7490,18 @@ module segapcm_sound_module #(
 		            lab_jt_last_non80_payload_index_i <= 19'd0;
 		            lab_jt_first_non80_rom_data_i <= 8'h80;
 		            lab_jt_last_non80_rom_data_i <= 8'h80;
-		            lab_jt_block2_hit_count_i <= 16'd0;
-		            lab_jt_first_block2_rom_addr_i <= 19'd0;
-		            lab_jt_first_block2_payload_index_i <= 19'd0;
-		            lab_jt_first_block2_rom_data_i <= 8'd0;
-		            lab_jt_last_payload_block_i <= 3'd0;
-		            lab_jt_last_payload_match_i <= 1'b0;
+			            lab_jt_block2_hit_count_i <= 16'd0;
+			            lab_jt_first_block2_rom_addr_i <= 19'd0;
+			            lab_jt_first_block2_payload_index_i <= 19'd0;
+			            lab_jt_first_block2_rom_data_i <= 8'd0;
+			            lab_jt_last_block2_payload_index_i <= 19'd0;
+			            lab_jt_last_block2_rom_data_i <= 8'd0;
+			            lab_jt_last_payload_block_i <= 3'd0;
+			            lab_jt_last_payload_match_i <= 1'b0;
+			            lab_jt_last_payload_return_index_i <= 19'd0;
+			            lab_jt_last_payload_return_block_i <= 3'd0;
+			            lab_jt_last_payload_return_data_i <= 8'd0;
+			            lab_jt_last_payload_return_valid_i <= 1'b0;
 		            lab_jt_last_non80_payload_block_i <= 3'd0;
 		            lab_jt_last_non80_payload_match_i <= 1'b0;
 		            lab_jt_first_output_l_i <= 16'sd0;
@@ -6837,7 +7523,35 @@ module segapcm_sound_module #(
 	            lab_jt_ch3_vol_r_i <= 8'd0;
 	            lab_jt_ch3_ctrl_raw_i <= 8'd0;
 	            lab_jt_ch3_ctrl_jt_i <= 8'd0;
-		            lab_jt_seen_cpu_write_i <= 1'b0;
+	            for (int unsigned i = 0; i < 8; i = i + 1) begin
+	                lab_jt_shadow_cur_mid_i[i] <= 8'd0;
+	                lab_jt_shadow_cur_high_i[i] <= 8'd0;
+			                    lab_jt_shadow_end_i[i] <= 8'd0;
+			                    lab_jt_shadow_delta_i[i] <= 8'd0;
+			                    lab_jt_shadow_vol_l_i[i] <= 8'd0;
+			                    lab_jt_shadow_vol_r_i[i] <= 8'd0;
+			                    lab_jt_shadow_max_vol_l_i[i] <= 8'd0;
+			                    lab_jt_shadow_max_vol_r_i[i] <= 8'd0;
+			                    lab_jt_shadow_ctrl_raw_i[i] <= 8'd0;
+			                    lab_jt_shadow_ctrl_jt_i[i] <= 8'd0;
+	                lab_jt_req_last_block_i[i] <= 3'd0;
+	                lab_jt_req_last_index_i[i] <= 16'd0;
+	                lab_jt_req_last_data_i[i] <= 8'd0;
+	                lab_jt_req_last_valid_i[i] <= 1'b0;
+	            end
+	            lab_jt_shadow_ctrl_write_mask_i <= 8'd0;
+	            lab_jt_shadow_cur_write_mask_i <= 8'd0;
+	            lab_jt_shadow_vol_write_mask_i <= 8'd0;
+	            lab_jt_last_req_source_i <= 16'd0;
+	            lab_jt_first_block0_index0_source_i <= 16'd0;
+	            lab_jt_seen_block0_index0_source_i <= 1'b0;
+	            lab_jt_block0_index0_req_channel_mask_i <= 16'd0;
+	            lab_jt_block2_req_channel_mask_i <= 16'd0;
+	            lab_jt_block0_index0_ch0_req_count_i <= 16'd0;
+	            lab_jt_block0_index0_ch3_req_count_i <= 16'd0;
+	            lab_jt_block0_index0_other_req_count_i <= 16'd0;
+	            lab_jt_current_req_ch_i <= 4'd0;
+			            lab_jt_seen_cpu_write_i <= 1'b0;
 	            lab_jt_seen_rom_cs_i <= 1'b0;
 	            lab_jt_seen_first_rom_i <= 1'b0;
 	            lab_jt_seen_first_ch3_rom_i <= 1'b0;
@@ -6857,14 +7571,133 @@ module segapcm_sound_module #(
 		            lab_jt_rom_data_hold_valid_d_i <= 1'b0;
 		            lab_jt_rom_data_latch_count_i <= 16'd0;
 		            lab_jt_rom_neutral_while_cs_count_i <= 16'd0;
-		            lab_jt_rom_repeat_count_i <= 16'd0;
+		            lab_jt_rom_neutral_no_match_count_i <= 16'd0;
+		            lab_jt_rom_neutral_range_count_i <= 16'd0;
+		            lab_jt_rom_neutral_latency_count_i <= 16'd0;
+			            lab_jt_rom_neutral_idle_count_i <= 16'd0;
+			            lab_jt_rom_neutral_sample_count_i <= 16'd0;
+			            lab_jt_rom_hold_default_suppress_count_i <= 16'd0;
+			            lab_jt_payload_return_valid_count_i <= 16'd0;
+			            lab_jt_hold_update_block0_count_i <= 16'd0;
+			            lab_jt_req_block0_count_i <= 16'd0;
+			            lab_jt_req_block1_count_i <= 16'd0;
+			            lab_jt_req_block2_count_i <= 16'd0;
+			            lab_jt_req_block_other_count_i <= 16'd0;
+			            lab_jt_hold_update_block2_count_i <= 16'd0;
+			            lab_jt_hold_update_nonblock2_count_i <= 16'd0;
+		            lab_jt_hold_update_index0_count_i <= 16'd0;
+			            lab_jt_request_count_i <= 16'd0;
+		            lab_jt_real_response_count_i <= 16'd0;
+		            lab_jt_stale_response_count_i <= 16'd0;
+		            lab_jt_response_without_request_count_i <= 16'd0;
+		            lab_jt_response_match_count_i <= 16'd0;
+		            lab_jt_response_reject_count_i <= 16'd0;
+		            lab_jt_response_starve_count_i <= 16'd0;
+		            lab_jt_block0_index0_real_count_i <= 16'd0;
+		            lab_jt_block0_index0_stale_count_i <= 16'd0;
+		            lab_jt_first_real_response_fp_i <= 16'd0;
+		            lab_jt_first_stale_response_fp_i <= 16'd0;
+		            lab_jt_seen_first_real_response_i <= 1'b0;
+		            lab_jt_seen_first_stale_response_i <= 1'b0;
+		            lab_jt_hold_update_play_count_i <= 16'd0;
+			            lab_jt_hold_update_idle_count_i <= 16'd0;
+			            lab_jt_rom_repeat_count_i <= 16'd0;
+		            lab_jt_rom_same_addr_count_i <= 16'd0;
 		            lab_jt_rom_hold_cycle_count_i <= 16'd0;
 		            lab_jt_sample_nonneutral_count_i <= 16'd0;
+		            lab_jt_sample_new_data_count_i <= 16'd0;
+		            lab_jt_sample_no_new_addr_count_i <= 16'd0;
+		            lab_jt_sample_no_new_data_count_i <= 16'd0;
 		            lab_jt_first_non80_pr_i <= 16'h8000;
 		            lab_jt_last_non80_pr_i <= 16'h8000;
 		            lab_jt_first_nonzero_mv_i <= 16'd0;
 		            lab_jt_last_nonzero_mv_i <= 16'd0;
 		            lab_jt_max_abs_mv_i <= 16'd0;
+	            lab_jt_last_payload_table_hit_i <= 1'b0;
+	            lab_jt_last_payload_index_in_range_i <= 1'b0;
+	            lab_jt_addr_changed_since_sample_i <= 1'b0;
+	            lab_jt_data_updated_since_sample_i <= 1'b0;
+		            lab_jt_data_changed_since_sample_i <= 1'b0;
+		            lab_jt_rom_data_hold_index_i <= 19'd0;
+		            lab_jt_rom_data_hold_block_i <= 3'd0;
+			            lab_jt_present_valid_i <= 1'b0;
+		            lab_jt_present_block_i <= 3'd0;
+		            lab_jt_present_index_i <= 19'd0;
+		            lab_jt_present_data_i <= 8'd0;
+		            lab_jt_ddr_req_payload_index_i <= 19'd0;
+		            lab_jt_ddr_req_rom_addr_i <= 19'd0;
+		            lab_jt_ddr_req_payload_block_i <= 3'd0;
+		            lab_jt_ddr_req_payload_valid_i <= 1'b0;
+		            lab_jt_ddr_req_payload_in_range_i <= 1'b0;
+		            lab_jt_current_req_payload_index_i <= 19'd0;
+		            lab_jt_current_req_rom_addr_i <= 19'd0;
+		            lab_jt_current_req_payload_block_i <= 3'd0;
+		            lab_jt_current_req_payload_valid_i <= 1'b0;
+		            lab_jt_current_req_payload_in_range_i <= 1'b0;
+		            lab_jt_sample_present_seen_i <= 1'b0;
+	            lab_jt_sample_last_index_i <= 19'd0;
+	            lab_jt_sample_last_data_i <= 8'd0;
+	            lab_jt_win_sample_count_i <= 8'd0;
+	            lab_jt_win_new_addr_count_i <= 8'd0;
+	            lab_jt_win_new_data_count_i <= 8'd0;
+	            lab_jt_win_no_new_data_count_i <= 8'd0;
+	            lab_jt_win_same_index_count_i <= 8'd0;
+	            lab_jt_win_same_byte_count_i <= 8'd0;
+	            lab_jt_same_index_run_i <= 8'd0;
+	            lab_jt_same_byte_run_i <= 8'd0;
+	            lab_jt_max_same_index_run_i <= 8'd0;
+	            lab_jt_max_same_byte_run_i <= 8'd0;
+	            lab_jt_stream_seen_valid_i <= 1'b0;
+	            lab_jt_stream_overwrite_attempt_i <= 1'b0;
+	            lab_jt_stream_last_block_i <= 3'd0;
+	            lab_jt_stream_capture_active_i <= 1'b0;
+	            lab_jt_stream_capture_done_i <= 1'b0;
+	            lab_jt_stream_capture_count_i <= 5'd0;
+	            lab_jt_stream_last_capture_index_i <= 19'd0;
+	            lab_jt_stream_byte0_i <= 8'd0;
+	            lab_jt_stream_byte1_i <= 8'd0;
+	            lab_jt_stream_byte2_i <= 8'd0;
+	            lab_jt_stream_byte3_i <= 8'd0;
+	            lab_jt_stream_byte4_i <= 8'd0;
+	            lab_jt_stream_byte5_i <= 8'd0;
+	            lab_jt_stream_byte6_i <= 8'd0;
+	            lab_jt_stream_byte7_i <= 8'd0;
+	            lab_jt_stream_byte8_i <= 8'd0;
+	            lab_jt_stream_byte9_i <= 8'd0;
+	            lab_jt_stream_byte10_i <= 8'd0;
+	            lab_jt_stream_byte11_i <= 8'd0;
+		            lab_jt_stream_byte12_i <= 8'd0;
+		            lab_jt_stream_byte13_i <= 8'd0;
+		            lab_jt_stream_byte14_i <= 8'd0;
+		            lab_jt_stream_byte15_i <= 8'd0;
+		            lab_jt_stream_addr0_i <= 16'd0;
+		            lab_jt_stream_addr1_i <= 16'd0;
+		            lab_jt_stream_addr2_i <= 16'd0;
+		            lab_jt_stream_addr3_i <= 16'd0;
+		            lab_jt_stream_pi0_i <= 16'd0;
+		            lab_jt_stream_pi1_i <= 16'd0;
+		            lab_jt_stream_pi2_i <= 16'd0;
+	            lab_jt_stream_pi3_i <= 16'd0;
+	            lab_jt_stream_block2_sample_count_i <= 8'd0;
+	            lab_jt_stream_nonblock2_sample_count_i <= 8'd0;
+	            lab_jt_stream_nohold_sample_count_i <= 8'd0;
+	            lab_jt_global_fp_count_i <= 5'd0;
+	            lab_jt_global_fp0_i <= 16'd0;
+	            lab_jt_global_fp1_i <= 16'd0;
+	            lab_jt_global_fp2_i <= 16'd0;
+	            lab_jt_global_fp3_i <= 16'd0;
+	            lab_jt_global_fp4_i <= 16'd0;
+	            lab_jt_global_fp5_i <= 16'd0;
+	            lab_jt_global_fp6_i <= 16'd0;
+	            lab_jt_global_fp7_i <= 16'd0;
+	            lab_jt_global_fp8_i <= 16'd0;
+	            lab_jt_global_fp9_i <= 16'd0;
+	            lab_jt_global_fpa_i <= 16'd0;
+	            lab_jt_global_fpb_i <= 16'd0;
+	            lab_jt_global_fpc_i <= 16'd0;
+	            lab_jt_global_fpd_i <= 16'd0;
+	            lab_jt_global_fpe_i <= 16'd0;
+	            lab_jt_global_fpf_i <= 16'd0;
 `endif
             shadow_decode_i <= 16'd0;
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_TEST
@@ -6974,12 +7807,18 @@ module segapcm_sound_module #(
 		                lab_jt_last_non80_payload_index_i <= 19'd0;
 		                lab_jt_first_non80_rom_data_i <= 8'h80;
 		                lab_jt_last_non80_rom_data_i <= 8'h80;
-		                lab_jt_block2_hit_count_i <= 16'd0;
-		                lab_jt_first_block2_rom_addr_i <= 19'd0;
-		                lab_jt_first_block2_payload_index_i <= 19'd0;
-		                lab_jt_first_block2_rom_data_i <= 8'd0;
-		                lab_jt_last_payload_block_i <= 3'd0;
-		                lab_jt_last_payload_match_i <= 1'b0;
+			                lab_jt_block2_hit_count_i <= 16'd0;
+			                lab_jt_first_block2_rom_addr_i <= 19'd0;
+			                lab_jt_first_block2_payload_index_i <= 19'd0;
+			                lab_jt_first_block2_rom_data_i <= 8'd0;
+			                lab_jt_last_block2_payload_index_i <= 19'd0;
+			                lab_jt_last_block2_rom_data_i <= 8'd0;
+			                lab_jt_last_payload_block_i <= 3'd0;
+			                lab_jt_last_payload_match_i <= 1'b0;
+			                lab_jt_last_payload_return_index_i <= 19'd0;
+			                lab_jt_last_payload_return_block_i <= 3'd0;
+			                lab_jt_last_payload_return_data_i <= 8'd0;
+			                lab_jt_last_payload_return_valid_i <= 1'b0;
 		                lab_jt_last_non80_payload_block_i <= 3'd0;
 		                lab_jt_last_non80_payload_match_i <= 1'b0;
 		                lab_jt_first_output_l_i <= 16'sd0;
@@ -7001,7 +7840,35 @@ module segapcm_sound_module #(
 	                lab_jt_ch3_vol_r_i <= 8'd0;
 	                lab_jt_ch3_ctrl_raw_i <= 8'd0;
 		                lab_jt_ch3_ctrl_jt_i <= 8'd0;
-		                lab_jt_seen_cpu_write_i <= 1'b0;
+		                for (int unsigned i = 0; i < 8; i = i + 1) begin
+		                    lab_jt_shadow_cur_mid_i[i] <= 8'd0;
+		                    lab_jt_shadow_cur_high_i[i] <= 8'd0;
+			                    lab_jt_shadow_end_i[i] <= 8'd0;
+			                    lab_jt_shadow_delta_i[i] <= 8'd0;
+			                    lab_jt_shadow_vol_l_i[i] <= 8'd0;
+			                    lab_jt_shadow_vol_r_i[i] <= 8'd0;
+			                    lab_jt_shadow_max_vol_l_i[i] <= 8'd0;
+			                    lab_jt_shadow_max_vol_r_i[i] <= 8'd0;
+			                    lab_jt_shadow_ctrl_raw_i[i] <= 8'd0;
+			                    lab_jt_shadow_ctrl_jt_i[i] <= 8'd0;
+		                    lab_jt_req_last_block_i[i] <= 3'd0;
+		                    lab_jt_req_last_index_i[i] <= 16'd0;
+		                    lab_jt_req_last_data_i[i] <= 8'd0;
+		                    lab_jt_req_last_valid_i[i] <= 1'b0;
+		                end
+		                lab_jt_shadow_ctrl_write_mask_i <= 8'd0;
+		                lab_jt_shadow_cur_write_mask_i <= 8'd0;
+		                lab_jt_shadow_vol_write_mask_i <= 8'd0;
+		                lab_jt_last_req_source_i <= 16'd0;
+		                lab_jt_first_block0_index0_source_i <= 16'd0;
+		                lab_jt_seen_block0_index0_source_i <= 1'b0;
+		                lab_jt_block0_index0_req_channel_mask_i <= 16'd0;
+		                lab_jt_block2_req_channel_mask_i <= 16'd0;
+		                lab_jt_block0_index0_ch0_req_count_i <= 16'd0;
+		                lab_jt_block0_index0_ch3_req_count_i <= 16'd0;
+		                lab_jt_block0_index0_other_req_count_i <= 16'd0;
+		                lab_jt_current_req_ch_i <= 4'd0;
+			                lab_jt_seen_cpu_write_i <= 1'b0;
 		                lab_jt_seen_rom_cs_i <= 1'b0;
 		                lab_jt_seen_first_rom_i <= 1'b0;
 		                lab_jt_seen_first_ch3_rom_i <= 1'b0;
@@ -7021,14 +7888,123 @@ module segapcm_sound_module #(
 			                lab_jt_rom_data_hold_valid_d_i <= 1'b0;
 			                lab_jt_rom_data_latch_count_i <= 16'd0;
 			                lab_jt_rom_neutral_while_cs_count_i <= 16'd0;
-			                lab_jt_rom_repeat_count_i <= 16'd0;
+			                lab_jt_rom_neutral_no_match_count_i <= 16'd0;
+			                lab_jt_rom_neutral_range_count_i <= 16'd0;
+			                lab_jt_rom_neutral_latency_count_i <= 16'd0;
+				                lab_jt_rom_neutral_idle_count_i <= 16'd0;
+				                lab_jt_rom_neutral_sample_count_i <= 16'd0;
+				                lab_jt_rom_hold_default_suppress_count_i <= 16'd0;
+				                lab_jt_payload_return_valid_count_i <= 16'd0;
+				                lab_jt_hold_update_block0_count_i <= 16'd0;
+				                lab_jt_req_block0_count_i <= 16'd0;
+				                lab_jt_req_block1_count_i <= 16'd0;
+				                lab_jt_req_block2_count_i <= 16'd0;
+				                lab_jt_req_block_other_count_i <= 16'd0;
+				                lab_jt_hold_update_block2_count_i <= 16'd0;
+				                lab_jt_hold_update_nonblock2_count_i <= 16'd0;
+				                lab_jt_hold_update_index0_count_i <= 16'd0;
+			                lab_jt_request_count_i <= 16'd0;
+				                lab_jt_real_response_count_i <= 16'd0;
+				                lab_jt_stale_response_count_i <= 16'd0;
+				                lab_jt_response_without_request_count_i <= 16'd0;
+				                lab_jt_response_match_count_i <= 16'd0;
+				                lab_jt_response_reject_count_i <= 16'd0;
+				                lab_jt_response_starve_count_i <= 16'd0;
+				                lab_jt_block0_index0_real_count_i <= 16'd0;
+				                lab_jt_block0_index0_stale_count_i <= 16'd0;
+				                lab_jt_first_real_response_fp_i <= 16'd0;
+				                lab_jt_first_stale_response_fp_i <= 16'd0;
+				                lab_jt_seen_first_real_response_i <= 1'b0;
+				                lab_jt_seen_first_stale_response_i <= 1'b0;
+				                lab_jt_hold_update_play_count_i <= 16'd0;
+				                lab_jt_hold_update_idle_count_i <= 16'd0;
+				                lab_jt_rom_repeat_count_i <= 16'd0;
+			                lab_jt_rom_same_addr_count_i <= 16'd0;
 			                lab_jt_rom_hold_cycle_count_i <= 16'd0;
 			                lab_jt_sample_nonneutral_count_i <= 16'd0;
+			                lab_jt_sample_new_data_count_i <= 16'd0;
+			                lab_jt_sample_no_new_addr_count_i <= 16'd0;
+			                lab_jt_sample_no_new_data_count_i <= 16'd0;
 			                lab_jt_first_non80_pr_i <= 16'h8000;
 			                lab_jt_last_non80_pr_i <= 16'h8000;
 			                lab_jt_first_nonzero_mv_i <= 16'd0;
 			                lab_jt_last_nonzero_mv_i <= 16'd0;
 			                lab_jt_max_abs_mv_i <= 16'd0;
+	                lab_jt_last_payload_table_hit_i <= 1'b0;
+	                lab_jt_last_payload_index_in_range_i <= 1'b0;
+	                lab_jt_addr_changed_since_sample_i <= 1'b0;
+	                lab_jt_data_updated_since_sample_i <= 1'b0;
+		                lab_jt_data_changed_since_sample_i <= 1'b0;
+		                lab_jt_rom_data_hold_index_i <= 19'd0;
+		                lab_jt_rom_data_hold_block_i <= 3'd0;
+			                lab_jt_present_valid_i <= 1'b0;
+		                lab_jt_present_block_i <= 3'd0;
+		                lab_jt_present_index_i <= 19'd0;
+	                lab_jt_present_data_i <= 8'd0;
+	                lab_jt_sample_present_seen_i <= 1'b0;
+	                lab_jt_sample_last_index_i <= 19'd0;
+	                lab_jt_sample_last_data_i <= 8'd0;
+	                lab_jt_win_sample_count_i <= 8'd0;
+	                lab_jt_win_new_addr_count_i <= 8'd0;
+	                lab_jt_win_new_data_count_i <= 8'd0;
+	                lab_jt_win_no_new_data_count_i <= 8'd0;
+	                lab_jt_win_same_index_count_i <= 8'd0;
+	                lab_jt_win_same_byte_count_i <= 8'd0;
+	                lab_jt_same_index_run_i <= 8'd0;
+	                lab_jt_same_byte_run_i <= 8'd0;
+	                lab_jt_max_same_index_run_i <= 8'd0;
+	                lab_jt_max_same_byte_run_i <= 8'd0;
+	                lab_jt_stream_seen_valid_i <= 1'b0;
+	                lab_jt_stream_overwrite_attempt_i <= 1'b0;
+	                lab_jt_stream_last_block_i <= 3'd0;
+	                lab_jt_stream_capture_active_i <= 1'b0;
+	                lab_jt_stream_capture_done_i <= 1'b0;
+	                lab_jt_stream_capture_count_i <= 5'd0;
+	                lab_jt_stream_last_capture_index_i <= 19'd0;
+	                lab_jt_stream_byte0_i <= 8'd0;
+	                lab_jt_stream_byte1_i <= 8'd0;
+	                lab_jt_stream_byte2_i <= 8'd0;
+	                lab_jt_stream_byte3_i <= 8'd0;
+	                lab_jt_stream_byte4_i <= 8'd0;
+	                lab_jt_stream_byte5_i <= 8'd0;
+	                lab_jt_stream_byte6_i <= 8'd0;
+	                lab_jt_stream_byte7_i <= 8'd0;
+	                lab_jt_stream_byte8_i <= 8'd0;
+	                lab_jt_stream_byte9_i <= 8'd0;
+	                lab_jt_stream_byte10_i <= 8'd0;
+	                lab_jt_stream_byte11_i <= 8'd0;
+		                lab_jt_stream_byte12_i <= 8'd0;
+		                lab_jt_stream_byte13_i <= 8'd0;
+		                lab_jt_stream_byte14_i <= 8'd0;
+		                lab_jt_stream_byte15_i <= 8'd0;
+		                lab_jt_stream_addr0_i <= 16'd0;
+		                lab_jt_stream_addr1_i <= 16'd0;
+		                lab_jt_stream_addr2_i <= 16'd0;
+		                lab_jt_stream_addr3_i <= 16'd0;
+		                lab_jt_stream_pi0_i <= 16'd0;
+		                lab_jt_stream_pi1_i <= 16'd0;
+		                lab_jt_stream_pi2_i <= 16'd0;
+	                lab_jt_stream_pi3_i <= 16'd0;
+	                lab_jt_stream_block2_sample_count_i <= 8'd0;
+	                lab_jt_stream_nonblock2_sample_count_i <= 8'd0;
+	                lab_jt_stream_nohold_sample_count_i <= 8'd0;
+	                lab_jt_global_fp_count_i <= 5'd0;
+	                lab_jt_global_fp0_i <= 16'd0;
+	                lab_jt_global_fp1_i <= 16'd0;
+	                lab_jt_global_fp2_i <= 16'd0;
+	                lab_jt_global_fp3_i <= 16'd0;
+	                lab_jt_global_fp4_i <= 16'd0;
+	                lab_jt_global_fp5_i <= 16'd0;
+	                lab_jt_global_fp6_i <= 16'd0;
+	                lab_jt_global_fp7_i <= 16'd0;
+	                lab_jt_global_fp8_i <= 16'd0;
+	                lab_jt_global_fp9_i <= 16'd0;
+	                lab_jt_global_fpa_i <= 16'd0;
+	                lab_jt_global_fpb_i <= 16'd0;
+	                lab_jt_global_fpc_i <= 16'd0;
+	                lab_jt_global_fpd_i <= 16'd0;
+	                lab_jt_global_fpe_i <= 16'd0;
+	                lab_jt_global_fpf_i <= 16'd0;
 `endif
             end else if (segapcm_cmd_valid) begin
                 if (c0_capture_write_count_i != 16'hffff) begin
@@ -7128,6 +8104,79 @@ module segapcm_sound_module #(
 	                        lab_jt_other_write_count_i <=
 	                            lab_jt_other_write_count_i + 16'd1;
 	                    end
+	                    if (!lab_jt_write_ch[3]) begin
+	                        unique case (latched_cpu_addr)
+	                            8'h02, 8'h0a, 8'h12, 8'h1a,
+	                            8'h22, 8'h2a, 8'h32, 8'h3a: begin
+		                                lab_jt_shadow_vol_l_i[lab_jt_write_ch[2:0]] <=
+		                                    lab_jt_cpu_data;
+		                                if (lab_jt_cpu_data >
+		                                    lab_jt_shadow_max_vol_l_i[
+		                                        lab_jt_write_ch[2:0]
+		                                    ]) begin
+		                                    lab_jt_shadow_max_vol_l_i[
+		                                        lab_jt_write_ch[2:0]
+		                                    ] <= lab_jt_cpu_data;
+		                                end
+		                                lab_jt_shadow_vol_write_mask_i[
+		                                    lab_jt_write_ch[2:0]
+		                                ] <= 1'b1;
+		                            end
+	                            8'h03, 8'h0b, 8'h13, 8'h1b,
+	                            8'h23, 8'h2b, 8'h33, 8'h3b: begin
+		                                lab_jt_shadow_vol_r_i[lab_jt_write_ch[2:0]] <=
+		                                    lab_jt_cpu_data;
+		                                if (lab_jt_cpu_data >
+		                                    lab_jt_shadow_max_vol_r_i[
+		                                        lab_jt_write_ch[2:0]
+		                                    ]) begin
+		                                    lab_jt_shadow_max_vol_r_i[
+		                                        lab_jt_write_ch[2:0]
+		                                    ] <= lab_jt_cpu_data;
+		                                end
+		                                lab_jt_shadow_vol_write_mask_i[
+		                                    lab_jt_write_ch[2:0]
+		                                ] <= 1'b1;
+	                            end
+	                            8'h06, 8'h0e, 8'h16, 8'h1e,
+	                            8'h26, 8'h2e, 8'h36, 8'h3e: begin
+	                                lab_jt_shadow_end_i[lab_jt_write_ch[2:0]] <=
+	                                    lab_jt_cpu_data;
+	                            end
+	                            8'h07, 8'h0f, 8'h17, 8'h1f,
+	                            8'h27, 8'h2f, 8'h37, 8'h3f: begin
+	                                lab_jt_shadow_delta_i[lab_jt_write_ch[2:0]] <=
+	                                    lab_jt_cpu_data;
+	                            end
+	                            8'h84, 8'h8c, 8'h94, 8'h9c,
+	                            8'ha4, 8'hac, 8'hb4, 8'hbc: begin
+	                                lab_jt_shadow_cur_mid_i[lab_jt_write_ch[2:0]] <=
+	                                    lab_jt_cpu_data;
+	                                lab_jt_shadow_cur_write_mask_i[
+	                                    lab_jt_write_ch[2:0]
+	                                ] <= 1'b1;
+	                            end
+	                            8'h85, 8'h8d, 8'h95, 8'h9d,
+	                            8'ha5, 8'had, 8'hb5, 8'hbd: begin
+	                                lab_jt_shadow_cur_high_i[lab_jt_write_ch[2:0]] <=
+	                                    lab_jt_cpu_data;
+	                                lab_jt_shadow_cur_write_mask_i[
+	                                    lab_jt_write_ch[2:0]
+	                                ] <= 1'b1;
+	                            end
+	                            8'h86, 8'h8e, 8'h96, 8'h9e,
+	                            8'ha6, 8'hae, 8'hb6, 8'hbe: begin
+	                                lab_jt_shadow_ctrl_raw_i[lab_jt_write_ch[2:0]] <=
+	                                    latched_cpu_data;
+	                                lab_jt_shadow_ctrl_jt_i[lab_jt_write_ch[2:0]] <=
+	                                    lab_jt_cpu_data;
+	                                lab_jt_shadow_ctrl_write_mask_i[
+	                                    lab_jt_write_ch[2:0]
+	                                ] <= 1'b1;
+	                            end
+	                            default: begin end
+	                        endcase
+	                    end
 	                    if (lab_jt_write_ch == 4'd3) begin
 	                        unique case (latched_cpu_addr)
 	                            8'h1a: lab_jt_ch3_vol_l_i <= lab_jt_cpu_data;
@@ -7166,6 +8215,12 @@ module segapcm_sound_module #(
 	                    lab_jt_rom_neutral_while_cs_count_i <=
 	                        lab_jt_rom_neutral_while_cs_count_i + 16'd1;
 	                end
+	                if (!lab_jt_rom_cs &&
+	                    (lab_jt_rom_data_to_core == 8'h80) &&
+	                    (lab_jt_rom_neutral_idle_count_i != 16'hffff)) begin
+	                    lab_jt_rom_neutral_idle_count_i <=
+	                        lab_jt_rom_neutral_idle_count_i + 16'd1;
+	                end
 	            end
 `endif
             if (rom_request_event) begin
@@ -7177,7 +8232,32 @@ module segapcm_sound_module #(
 	                    lab_jt_last_payload_block_i <= lab_jt_payload_block_next;
 	                    lab_jt_last_payload_match_i <=
 	                        lab_jt_payload_match_valid_next;
-	                    if (!lab_jt_seen_first_rom_i) begin
+	                    lab_jt_last_payload_table_hit_i <=
+	                        lab_jt_payload_table_hit_next;
+	                    lab_jt_last_payload_index_in_range_i <=
+	                        lab_jt_payload_index_in_range_next;
+			                    lab_jt_last_req_source_i <=
+			                        lab_jt_req_source_pack_next;
+			                    lab_jt_current_req_ch_i <= lab_jt_req_src_ch;
+		                    lab_jt_current_req_payload_index_i <=
+		                        smoke_ddr_follow_read_index;
+		                    lab_jt_current_req_rom_addr_i <= lab_jt_rom_addr;
+		                    lab_jt_current_req_payload_block_i <=
+		                        lab_jt_payload_block_next;
+		                    lab_jt_current_req_payload_valid_i <=
+		                        lab_jt_payload_match_valid_next;
+		                    lab_jt_current_req_payload_in_range_i <=
+		                        lab_jt_payload_index_in_range_next;
+			                    if (lab_jt_req_src_ch_low8) begin
+			                        lab_jt_req_last_block_i[lab_jt_req_src_ch[2:0]] <=
+			                            lab_jt_payload_block_next;
+		                        lab_jt_req_last_index_i[lab_jt_req_src_ch[2:0]] <=
+		                            lab_jt_payload_read_index_next[15:0];
+		                        lab_jt_req_last_valid_i[lab_jt_req_src_ch[2:0]] <=
+		                            lab_jt_payload_match_valid_next &&
+		                            lab_jt_payload_index_in_range_next;
+		                    end
+		                    if (!lab_jt_seen_first_rom_i) begin
 	                        lab_jt_seen_first_rom_i <= 1'b1;
 	                        lab_jt_first_rom_addr_i <= lab_jt_rom_addr;
 	                    end
@@ -7191,6 +8271,11 @@ module segapcm_sound_module #(
 	                    end
 	                    if (lab_jt_payload_match_valid_next &&
 	                        (lab_jt_payload_block_next == 3'd2)) begin
+	                        if (lab_jt_req_src_ch_low8) begin
+	                            lab_jt_block2_req_channel_mask_i[
+	                                lab_jt_req_src_ch[2:0]
+	                            ] <= 1'b1;
+	                        end
 	                        if (lab_jt_block2_hit_count_i != 16'hffff) begin
 	                            lab_jt_block2_hit_count_i <=
 	                                lab_jt_block2_hit_count_i + 16'd1;
@@ -7202,17 +8287,105 @@ module segapcm_sound_module #(
 	                                lab_jt_payload_read_index_next;
 	                        end
 	                    end
+	                    if (lab_jt_req_src_block0_index0) begin
+	                        if (!lab_jt_seen_block0_index0_source_i) begin
+	                            lab_jt_seen_block0_index0_source_i <= 1'b1;
+	                            lab_jt_first_block0_index0_source_i <=
+	                                lab_jt_req_source_pack_next;
+	                        end
+	                        if (lab_jt_req_src_ch_low8) begin
+	                            lab_jt_block0_index0_req_channel_mask_i[
+	                                lab_jt_req_src_ch[2:0]
+	                            ] <= 1'b1;
+	                        end
+	                        if (lab_jt_req_src_ch == 4'd0) begin
+	                            if (lab_jt_block0_index0_ch0_req_count_i !=
+	                                16'hffff) begin
+	                                lab_jt_block0_index0_ch0_req_count_i <=
+	                                    lab_jt_block0_index0_ch0_req_count_i +
+	                                    16'd1;
+	                            end
+	                        end else if (lab_jt_req_src_ch == 4'd3) begin
+	                            if (lab_jt_block0_index0_ch3_req_count_i !=
+	                                16'hffff) begin
+	                                lab_jt_block0_index0_ch3_req_count_i <=
+	                                    lab_jt_block0_index0_ch3_req_count_i +
+	                                    16'd1;
+	                            end
+	                        end else if (lab_jt_block0_index0_other_req_count_i !=
+	                            16'hffff) begin
+	                            lab_jt_block0_index0_other_req_count_i <=
+	                                lab_jt_block0_index0_other_req_count_i +
+	                                16'd1;
+	                        end
+	                    end
 	                    if (lab_jt_rom_request_count_i != 16'hffff) begin
                         lab_jt_rom_request_count_i <=
                             lab_jt_rom_request_count_i + 16'd1;
                     end
-                    if ((lab_jt_rom_addr != lab_jt_last_rom_addr_i) &&
-                        (lab_jt_rom_addr_change_count_i != 16'hffff)) begin
-                        lab_jt_rom_addr_change_count_i <=
-                            lab_jt_rom_addr_change_count_i + 16'd1;
+                    if (!loaded_payload_clear &&
+                        lab_jt_request_seen_pulse &&
+                        (lab_jt_request_count_i != 16'hffff)) begin
+                        lab_jt_request_count_i <=
+                            lab_jt_request_count_i + 16'd1;
+                    end
+	                    if (!loaded_payload_clear &&
+	                        lab_jt_response_starve_pulse &&
+	                        (lab_jt_response_starve_count_i != 16'hffff)) begin
+	                        lab_jt_response_starve_count_i <=
+	                            lab_jt_response_starve_count_i + 16'd1;
+	                    end
+		                    if (lab_jt_ddr_read_request_fire) begin
+		                        lab_jt_ddr_req_payload_index_i <=
+		                            smoke_ddr_follow_read_index;
+		                        lab_jt_ddr_req_rom_addr_i <= lab_jt_rom_addr;
+		                        lab_jt_ddr_req_payload_block_i <=
+		                            lab_jt_payload_block_next;
+		                        lab_jt_ddr_req_payload_valid_i <=
+		                            lab_jt_payload_match_valid_next;
+		                        lab_jt_ddr_req_payload_in_range_i <=
+		                            lab_jt_payload_index_in_range_next;
+		                    end
+	                    if ((lab_jt_rom_addr != lab_jt_last_rom_addr_i) &&
+	                        (lab_jt_rom_addr_change_count_i != 16'hffff)) begin
+	                        lab_jt_rom_addr_change_count_i <=
+	                            lab_jt_rom_addr_change_count_i + 16'd1;
+                        lab_jt_addr_changed_since_sample_i <= 1'b1;
+                    end else if ((lab_jt_rom_addr == lab_jt_last_rom_addr_i) &&
+                        (lab_jt_rom_same_addr_count_i != 16'hffff)) begin
+                        lab_jt_rom_same_addr_count_i <=
+                            lab_jt_rom_same_addr_count_i + 16'd1;
                     end
                     if (lab_jt_payload_match_valid_next) begin
                         lab_jt_seen_payload_match_i <= 1'b1;
+                        unique case (lab_jt_payload_block_next)
+                            3'd0: begin
+                                if (lab_jt_req_block0_count_i != 16'hffff) begin
+                                    lab_jt_req_block0_count_i <=
+                                        lab_jt_req_block0_count_i + 16'd1;
+                                end
+                            end
+                            3'd1: begin
+                                if (lab_jt_req_block1_count_i != 16'hffff) begin
+                                    lab_jt_req_block1_count_i <=
+                                        lab_jt_req_block1_count_i + 16'd1;
+                                end
+                            end
+                            3'd2: begin
+                                if (lab_jt_req_block2_count_i != 16'hffff) begin
+                                    lab_jt_req_block2_count_i <=
+                                        lab_jt_req_block2_count_i + 16'd1;
+                                end
+                            end
+                            default: begin
+                                if (lab_jt_req_block_other_count_i !=
+                                    16'hffff) begin
+                                    lab_jt_req_block_other_count_i <=
+                                        lab_jt_req_block_other_count_i +
+                                        16'd1;
+                                end
+                            end
+                        endcase
                         if (lab_jt_payload_match_count_i != 16'hffff) begin
                             lab_jt_payload_match_count_i <=
                                 lab_jt_payload_match_count_i + 16'd1;
@@ -7381,18 +8554,128 @@ module segapcm_sound_module #(
 `ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
 	                if (smoke_c0_jt_backend) begin
 	                    lab_jt_seen_rom_ok_i <= 1'b1;
-	                    if ((core_rom_data == lab_jt_last_rom_data_i) &&
-	                        (lab_jt_rom_repeat_count_i != 16'hffff)) begin
-	                        lab_jt_rom_repeat_count_i <=
-	                            lab_jt_rom_repeat_count_i + 16'd1;
+	                    if ((core_rom_data == 8'h80) &&
+	                        !lab_jt_last_payload_table_hit_i &&
+	                        (lab_jt_rom_neutral_no_match_count_i != 16'hffff)) begin
+	                        lab_jt_rom_neutral_no_match_count_i <=
+	                            lab_jt_rom_neutral_no_match_count_i + 16'd1;
+	                    end else if ((core_rom_data == 8'h80) &&
+	                        lab_jt_last_payload_table_hit_i &&
+	                        !lab_jt_last_payload_index_in_range_i &&
+	                        (lab_jt_rom_neutral_range_count_i != 16'hffff)) begin
+	                        lab_jt_rom_neutral_range_count_i <=
+	                            lab_jt_rom_neutral_range_count_i + 16'd1;
+	                    end else if ((core_rom_data == 8'h80) &&
+	                        lab_jt_last_payload_index_in_range_i &&
+	                        !preload_rom_data_valid &&
+	                        (lab_jt_rom_neutral_latency_count_i != 16'hffff)) begin
+	                        lab_jt_rom_neutral_latency_count_i <=
+	                            lab_jt_rom_neutral_latency_count_i + 16'd1;
 	                    end
-	                    lab_jt_last_rom_data_i <= core_rom_data;
-	                    lab_jt_rom_data_hold_i <= core_rom_data;
-	                    lab_jt_rom_data_hold_valid_i <= 1'b1;
-                    if (lab_jt_rom_data_latch_count_i != 16'hffff) begin
-                        lab_jt_rom_data_latch_count_i <=
-                            lab_jt_rom_data_latch_count_i + 16'd1;
-                    end
+		                    if (preload_rom_data_valid) begin
+		                        lab_jt_data_updated_since_sample_i <= 1'b1;
+			                        if (lab_jt_return_packet_valid) begin
+			                            lab_jt_last_payload_return_index_i <=
+			                                lab_jt_last_payload_index_i;
+			                            lab_jt_last_payload_return_block_i <=
+			                                lab_jt_last_payload_block_i;
+			                            lab_jt_last_payload_return_data_i <=
+			                                selected_rom_data_before_fallback;
+			                            lab_jt_last_payload_return_valid_i <= 1'b1;
+			                            if (!lab_jt_current_req_ch_i[3]) begin
+			                                lab_jt_req_last_data_i[
+			                                    lab_jt_current_req_ch_i[2:0]
+			                                ] <= selected_rom_data_before_fallback;
+			                            end
+			                            if (lab_jt_last_payload_block_i == 3'd2) begin
+		                                lab_jt_last_block2_payload_index_i <=
+		                                    lab_jt_last_payload_index_i;
+		                                lab_jt_last_block2_rom_data_i <=
+		                                    selected_rom_data_before_fallback;
+		                            end
+		                            if (lab_jt_payload_return_valid_count_i !=
+		                                16'hffff) begin
+		                                lab_jt_payload_return_valid_count_i <=
+		                                    lab_jt_payload_return_valid_count_i + 16'd1;
+		                            end
+		                        end
+		                        if ((selected_rom_data_before_fallback ==
+		                             lab_jt_last_rom_data_i) &&
+		                            (lab_jt_rom_repeat_count_i != 16'hffff)) begin
+	                            lab_jt_rom_repeat_count_i <=
+	                                lab_jt_rom_repeat_count_i + 16'd1;
+	                        end
+	                        if ((selected_rom_data_before_fallback !=
+	                             lab_jt_last_rom_data_i) &&
+	                            (lab_jt_rom_changed_count_i != 16'hffff)) begin
+	                            lab_jt_rom_changed_count_i <=
+	                                lab_jt_rom_changed_count_i + 16'd1;
+	                            lab_jt_data_changed_since_sample_i <= 1'b1;
+	                        end
+	                        lab_jt_last_rom_data_i <=
+	                            selected_rom_data_before_fallback;
+			                        if (!lab_jt_ddr_bridge_active &&
+			                            lab_jt_return_hold_candidate) begin
+			                            lab_jt_rom_data_hold_i <=
+			                                selected_rom_data_before_fallback;
+			                            lab_jt_rom_data_hold_index_i <=
+		                                lab_jt_last_payload_index_i;
+		                            lab_jt_rom_data_hold_block_i <=
+		                                lab_jt_last_payload_block_i;
+		                            lab_jt_rom_data_hold_valid_i <= 1'b1;
+		                            if (lab_jt_last_payload_match_i &&
+		                                lab_jt_last_payload_index_in_range_i) begin
+		                                lab_jt_present_valid_i <= 1'b1;
+		                                lab_jt_present_block_i <=
+		                                    lab_jt_last_payload_block_i;
+		                                lab_jt_present_index_i <=
+		                                    lab_jt_last_payload_index_i;
+		                                lab_jt_present_data_i <=
+		                                    selected_rom_data_before_fallback;
+		                            end
+			                            if (lab_jt_rom_data_latch_count_i !=
+			                                16'hffff) begin
+			                                lab_jt_rom_data_latch_count_i <=
+			                                    lab_jt_rom_data_latch_count_i + 16'd1;
+			                            end
+			                            if (lab_jt_last_payload_block_i == 3'd0) begin
+			                                if (lab_jt_hold_update_block0_count_i !=
+			                                    16'hffff) begin
+			                                    lab_jt_hold_update_block0_count_i <=
+			                                        lab_jt_hold_update_block0_count_i +
+			                                        16'd1;
+			                                end
+			                            end else if (lab_jt_last_payload_block_i == 3'd2) begin
+			                                if (lab_jt_hold_update_block2_count_i !=
+			                                    16'hffff) begin
+			                                    lab_jt_hold_update_block2_count_i <=
+			                                        lab_jt_hold_update_block2_count_i +
+			                                        16'd1;
+			                                end
+			                            end else if (lab_jt_hold_update_nonblock2_count_i !=
+			                                16'hffff) begin
+			                                lab_jt_hold_update_nonblock2_count_i <=
+			                                    lab_jt_hold_update_nonblock2_count_i +
+			                                    16'd1;
+			                            end
+			                            if (lab_jt_last_payload_index_i == 19'd0) begin
+			                                if (lab_jt_hold_update_index0_count_i !=
+			                                    16'hffff) begin
+			                                    lab_jt_hold_update_index0_count_i <=
+			                                        lab_jt_hold_update_index0_count_i +
+			                                        16'd1;
+			                                end
+			                            end
+			                        end
+		                    end
+		                    if ((!preload_rom_data_valid ||
+		                         !lab_jt_return_hold_candidate) &&
+		                        lab_jt_rom_data_hold_valid_i &&
+		                        (lab_jt_rom_hold_default_suppress_count_i !=
+		                         16'hffff)) begin
+		                        lab_jt_rom_hold_default_suppress_count_i <=
+		                            lab_jt_rom_hold_default_suppress_count_i + 16'd1;
+	                    end
                     if (lab_jt_rom_ok_count_i != 16'hffff) begin
                         lab_jt_rom_ok_count_i <= lab_jt_rom_ok_count_i + 16'd1;
                     end
@@ -7401,7 +8684,8 @@ module segapcm_sound_module #(
                         lab_jt_rom_ok_while_cs_count_i <=
                             lab_jt_rom_ok_while_cs_count_i + 16'd1;
                     end
-	                    if (core_rom_data != 8'd0) begin
+	                    if (preload_rom_data_valid &&
+	                        (selected_rom_data_before_fallback != 8'd0)) begin
 	                        lab_jt_seen_rom_nonzero_i <= 1'b1;
 	                        if (lab_jt_rom_nonzero_count_i != 16'hffff) begin
 	                            lab_jt_rom_nonzero_count_i <=
@@ -7410,11 +8694,14 @@ module segapcm_sound_module #(
 	                    end
 	                    if (lab_jt_last_payload_match_i &&
 	                        (lab_jt_last_payload_block_i == 3'd2) &&
+	                        preload_rom_data_valid &&
 	                        !lab_jt_seen_first_block2_data_i) begin
 	                        lab_jt_seen_first_block2_data_i <= 1'b1;
-	                        lab_jt_first_block2_rom_data_i <= core_rom_data;
+	                        lab_jt_first_block2_rom_data_i <=
+	                            selected_rom_data_before_fallback;
 	                    end
-		                    if (core_rom_data != 8'h80) begin
+		                    if (preload_rom_data_valid &&
+	                        (selected_rom_data_before_fallback != 8'h80)) begin
 	                        lab_jt_seen_rom_non80_i <= 1'b1;
 	                        lab_jt_last_non80_rom_addr_i <= lab_jt_last_rom_addr_i;
 	                        lab_jt_last_non80_payload_index_i <=
@@ -7423,19 +8710,16 @@ module segapcm_sound_module #(
 	                            lab_jt_last_payload_block_i;
 	                        lab_jt_last_non80_payload_match_i <=
 	                            lab_jt_last_payload_match_i;
-	                        lab_jt_last_non80_rom_data_i <= core_rom_data;
+	                        lab_jt_last_non80_rom_data_i <=
+	                            selected_rom_data_before_fallback;
                         if (!lab_jt_seen_rom_non80_i) begin
-                            lab_jt_first_non80_rom_data_i <= core_rom_data;
+                            lab_jt_first_non80_rom_data_i <=
+                                selected_rom_data_before_fallback;
                         end
                         if (lab_jt_rom_non80_count_i != 16'hffff) begin
                             lab_jt_rom_non80_count_i <=
                                 lab_jt_rom_non80_count_i + 16'd1;
                         end
-                    end
-                    if ((core_rom_data != lab_jt_last_rom_data_i) &&
-                        (lab_jt_rom_changed_count_i != 16'hffff)) begin
-                        lab_jt_rom_changed_count_i <=
-                            lab_jt_rom_changed_count_i + 16'd1;
                     end
                 end else begin
 `endif
@@ -7475,11 +8759,331 @@ module segapcm_sound_module #(
 `ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
                 end
 `endif
-            end
-`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
-	            if (smoke_c0_jt_backend) begin
-	                lab_jt_last_output_l_i <= lab_jt_snd_left;
-	                lab_jt_last_output_r_i <= lab_jt_snd_right;
+	            end
+	`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+				            if (lab_jt_ddr_payload_return_event) begin
+					                if (lab_jt_ddr_payload_real_return_event) begin
+				                    lab_jt_last_payload_return_index_i <=
+				                        lab_jt_ddr_req_payload_index_i;
+				                    lab_jt_last_payload_return_block_i <=
+				                        lab_jt_ddr_req_payload_block_i;
+				                    lab_jt_last_payload_return_data_i <=
+				                        loaded_ddr_rd_data;
+				                    lab_jt_last_payload_return_valid_i <= 1'b1;
+				                    if (lab_jt_ddr_response_matches_current &&
+				                        !lab_jt_current_req_ch_i[3]) begin
+				                        lab_jt_req_last_data_i[
+				                            lab_jt_current_req_ch_i[2:0]
+				                        ] <= loaded_ddr_rd_data;
+				                    end
+				                    if (lab_jt_ddr_req_payload_block_i == 3'd2) begin
+				                        lab_jt_last_block2_payload_index_i <=
+				                            lab_jt_ddr_req_payload_index_i;
+				                        lab_jt_last_block2_rom_data_i <=
+				                            loaded_ddr_rd_data;
+				                    end
+				                    if (lab_jt_payload_return_valid_count_i !=
+				                        16'hffff) begin
+				                        lab_jt_payload_return_valid_count_i <=
+				                            lab_jt_payload_return_valid_count_i + 16'd1;
+				                    end
+				                    if (lab_jt_real_response_count_i !=
+				                        16'hffff) begin
+				                        lab_jt_real_response_count_i <=
+				                            lab_jt_real_response_count_i + 16'd1;
+				                    end
+				                    if (!lab_jt_seen_first_real_response_i) begin
+				                        lab_jt_seen_first_real_response_i <= 1'b1;
+				                        lab_jt_first_real_response_fp_i <=
+				                            lab_jt_ddr_payload_response_fp;
+				                    end
+				                    if ((lab_jt_ddr_req_payload_block_i == 3'd0) &&
+				                        (lab_jt_ddr_req_payload_index_i == 19'd0) &&
+				                        (lab_jt_block0_index0_real_count_i !=
+				                         16'hffff)) begin
+				                        lab_jt_block0_index0_real_count_i <=
+				                            lab_jt_block0_index0_real_count_i + 16'd1;
+				                    end
+				                    if (lab_jt_global_fp_count_i < 5'd16) begin
+				                        unique case (lab_jt_global_fp_count_i)
+				                            5'd0: lab_jt_global_fp0_i <= {
+				                                lab_jt_ddr_req_payload_block_i,
+				                                lab_jt_ddr_req_payload_index_i[4:0],
+				                                loaded_ddr_rd_data
+				                            };
+				                            5'd1: lab_jt_global_fp1_i <= {
+				                                lab_jt_ddr_req_payload_block_i,
+				                                lab_jt_ddr_req_payload_index_i[4:0],
+				                                loaded_ddr_rd_data
+				                            };
+				                            5'd2: lab_jt_global_fp2_i <= {
+				                                lab_jt_ddr_req_payload_block_i,
+				                                lab_jt_ddr_req_payload_index_i[4:0],
+				                                loaded_ddr_rd_data
+				                            };
+				                            5'd3: lab_jt_global_fp3_i <= {
+				                                lab_jt_ddr_req_payload_block_i,
+				                                lab_jt_ddr_req_payload_index_i[4:0],
+				                                loaded_ddr_rd_data
+				                            };
+				                            5'd4: lab_jt_global_fp4_i <= {
+				                                lab_jt_ddr_req_payload_block_i,
+				                                lab_jt_ddr_req_payload_index_i[4:0],
+				                                loaded_ddr_rd_data
+				                            };
+				                            5'd5: lab_jt_global_fp5_i <= {
+				                                lab_jt_ddr_req_payload_block_i,
+				                                lab_jt_ddr_req_payload_index_i[4:0],
+				                                loaded_ddr_rd_data
+				                            };
+				                            5'd6: lab_jt_global_fp6_i <= {
+				                                lab_jt_ddr_req_payload_block_i,
+				                                lab_jt_ddr_req_payload_index_i[4:0],
+				                                loaded_ddr_rd_data
+				                            };
+				                            5'd7: lab_jt_global_fp7_i <= {
+				                                lab_jt_ddr_req_payload_block_i,
+				                                lab_jt_ddr_req_payload_index_i[4:0],
+				                                loaded_ddr_rd_data
+				                            };
+				                            5'd8: lab_jt_global_fp8_i <= {
+				                                lab_jt_ddr_req_payload_block_i,
+				                                lab_jt_ddr_req_payload_index_i[4:0],
+				                                loaded_ddr_rd_data
+				                            };
+				                            5'd9: lab_jt_global_fp9_i <= {
+				                                lab_jt_ddr_req_payload_block_i,
+				                                lab_jt_ddr_req_payload_index_i[4:0],
+				                                loaded_ddr_rd_data
+				                            };
+				                            5'd10: lab_jt_global_fpa_i <= {
+				                                lab_jt_ddr_req_payload_block_i,
+				                                lab_jt_ddr_req_payload_index_i[4:0],
+				                                loaded_ddr_rd_data
+				                            };
+				                            5'd11: lab_jt_global_fpb_i <= {
+				                                lab_jt_ddr_req_payload_block_i,
+				                                lab_jt_ddr_req_payload_index_i[4:0],
+				                                loaded_ddr_rd_data
+				                            };
+				                            5'd12: lab_jt_global_fpc_i <= {
+				                                lab_jt_ddr_req_payload_block_i,
+				                                lab_jt_ddr_req_payload_index_i[4:0],
+				                                loaded_ddr_rd_data
+				                            };
+				                            5'd13: lab_jt_global_fpd_i <= {
+				                                lab_jt_ddr_req_payload_block_i,
+				                                lab_jt_ddr_req_payload_index_i[4:0],
+				                                loaded_ddr_rd_data
+				                            };
+				                            5'd14: lab_jt_global_fpe_i <= {
+				                                lab_jt_ddr_req_payload_block_i,
+				                                lab_jt_ddr_req_payload_index_i[4:0],
+				                                loaded_ddr_rd_data
+				                            };
+				                            5'd15: lab_jt_global_fpf_i <= {
+				                                lab_jt_ddr_req_payload_block_i,
+				                                lab_jt_ddr_req_payload_index_i[4:0],
+				                                loaded_ddr_rd_data
+				                            };
+				                            default: begin end
+				                        endcase
+				                        lab_jt_global_fp_count_i <=
+				                            lab_jt_global_fp_count_i + 5'd1;
+				                    end
+				                    if (lab_jt_ddr_response_matches_current) begin
+				                        if (lab_jt_response_match_count_i !=
+				                            16'hffff) begin
+				                            lab_jt_response_match_count_i <=
+				                                lab_jt_response_match_count_i +
+				                                16'd1;
+				                        end
+				                    end else if (lab_jt_response_reject_count_i !=
+				                        16'hffff) begin
+				                        lab_jt_response_reject_count_i <=
+				                            lab_jt_response_reject_count_i +
+				                            16'd1;
+				                    end
+				                    if (lab_jt_ddr_response_matches_current &&
+				                        (lab_jt_current_req_ch_i == LAB_JT_FOCUS_CH)) begin
+				                        lab_jt_stream_last_block_i <=
+				                            lab_jt_ddr_req_payload_block_i;
+				                        if (lab_jt_stream_capture_done_i) begin
+				                            lab_jt_stream_overwrite_attempt_i <=
+				                                1'b1;
+				                        end else begin
+				                            lab_jt_stream_capture_active_i <= 1'b1;
+				                            lab_jt_stream_seen_valid_i <= 1'b1;
+				                            lab_jt_stream_last_capture_index_i <=
+				                                lab_jt_ddr_req_payload_index_i;
+				                            unique case (lab_jt_stream_capture_count_i)
+				                                5'd0: lab_jt_stream_addr0_i <=
+				                                    lab_jt_ddr_req_rom_addr_i[15:0];
+				                                5'd1: lab_jt_stream_addr1_i <=
+				                                    lab_jt_ddr_req_rom_addr_i[15:0];
+				                                5'd2: lab_jt_stream_addr2_i <=
+				                                    lab_jt_ddr_req_rom_addr_i[15:0];
+				                                5'd3: lab_jt_stream_addr3_i <=
+				                                    lab_jt_ddr_req_rom_addr_i[15:0];
+				                                default: begin end
+				                            endcase
+				                            unique case (lab_jt_stream_capture_count_i)
+				                                5'd0:  lab_jt_stream_byte0_i <= loaded_ddr_rd_data;
+				                                5'd1:  lab_jt_stream_byte1_i <= loaded_ddr_rd_data;
+				                                5'd2:  lab_jt_stream_byte2_i <= loaded_ddr_rd_data;
+				                                5'd3:  lab_jt_stream_byte3_i <= loaded_ddr_rd_data;
+				                                5'd4:  lab_jt_stream_byte4_i <= loaded_ddr_rd_data;
+				                                5'd5:  lab_jt_stream_byte5_i <= loaded_ddr_rd_data;
+				                                5'd6:  lab_jt_stream_byte6_i <= loaded_ddr_rd_data;
+				                                5'd7:  lab_jt_stream_byte7_i <= loaded_ddr_rd_data;
+				                                5'd8:  lab_jt_stream_byte8_i <= loaded_ddr_rd_data;
+				                                5'd9:  lab_jt_stream_byte9_i <= loaded_ddr_rd_data;
+				                                5'd10: lab_jt_stream_byte10_i <= loaded_ddr_rd_data;
+				                                5'd11: lab_jt_stream_byte11_i <= loaded_ddr_rd_data;
+				                                5'd12: lab_jt_stream_byte12_i <= loaded_ddr_rd_data;
+				                                5'd13: lab_jt_stream_byte13_i <= loaded_ddr_rd_data;
+				                                5'd14: lab_jt_stream_byte14_i <= loaded_ddr_rd_data;
+				                                5'd15: lab_jt_stream_byte15_i <= loaded_ddr_rd_data;
+				                                default: begin end
+				                            endcase
+				                            unique case (lab_jt_stream_capture_count_i)
+				                                5'd0: lab_jt_stream_pi0_i <=
+				                                    lab_jt_ddr_req_payload_index_i[15:0];
+				                                5'd1: lab_jt_stream_pi1_i <=
+				                                    lab_jt_ddr_req_payload_index_i[15:0];
+				                                5'd2: lab_jt_stream_pi2_i <=
+				                                    lab_jt_ddr_req_payload_index_i[15:0];
+				                                5'd3: lab_jt_stream_pi3_i <=
+				                                    lab_jt_ddr_req_payload_index_i[15:0];
+				                                default: begin end
+				                            endcase
+				                            if (lab_jt_stream_capture_count_i == 5'd15) begin
+				                                lab_jt_stream_capture_count_i <= 5'd16;
+				                                lab_jt_stream_capture_done_i <= 1'b1;
+				                                lab_jt_stream_capture_active_i <=
+				                                    1'b0;
+				                            end else begin
+				                                lab_jt_stream_capture_count_i <=
+				                                    lab_jt_stream_capture_count_i +
+				                                    5'd1;
+				                            end
+				                        end
+				                    end
+				                    if (lab_jt_ddr_return_hold_candidate) begin
+				                        lab_jt_rom_data_hold_i <= loaded_ddr_rd_data;
+				                        lab_jt_rom_data_hold_index_i <=
+				                            lab_jt_ddr_req_payload_index_i;
+				                        lab_jt_rom_data_hold_block_i <=
+				                            lab_jt_ddr_req_payload_block_i;
+				                        lab_jt_rom_data_hold_valid_i <= 1'b1;
+				                        lab_jt_present_valid_i <= 1'b1;
+				                        lab_jt_present_block_i <=
+				                            lab_jt_ddr_req_payload_block_i;
+				                        lab_jt_present_index_i <=
+				                            lab_jt_ddr_req_payload_index_i;
+				                        lab_jt_present_data_i <= loaded_ddr_rd_data;
+				                        lab_jt_data_updated_since_sample_i <= 1'b1;
+				                        if (loaded_ddr_rd_data !=
+				                            lab_jt_last_rom_data_i) begin
+				                            lab_jt_data_changed_since_sample_i <= 1'b1;
+				                        end
+				                        lab_jt_last_rom_data_i <= loaded_ddr_rd_data;
+				                        if (lab_jt_rom_data_latch_count_i !=
+				                            16'hffff) begin
+				                            lab_jt_rom_data_latch_count_i <=
+				                                lab_jt_rom_data_latch_count_i + 16'd1;
+				                        end
+				                        if (lab_jt_stream_sample_valid) begin
+				                            if (lab_jt_hold_update_play_count_i !=
+				                                16'hffff) begin
+				                                lab_jt_hold_update_play_count_i <=
+				                                    lab_jt_hold_update_play_count_i +
+				                                    16'd1;
+				                            end
+				                        end else if (lab_jt_hold_update_idle_count_i !=
+				                            16'hffff) begin
+				                            lab_jt_hold_update_idle_count_i <=
+				                                lab_jt_hold_update_idle_count_i +
+				                                16'd1;
+				                        end
+				                        if (lab_jt_ddr_req_payload_block_i == 3'd0) begin
+				                            if (lab_jt_hold_update_block0_count_i !=
+				                                16'hffff) begin
+				                                lab_jt_hold_update_block0_count_i <=
+				                                    lab_jt_hold_update_block0_count_i +
+				                                    16'd1;
+				                            end
+				                        end else if (lab_jt_ddr_req_payload_block_i ==
+				                            3'd2) begin
+				                            if (lab_jt_hold_update_block2_count_i !=
+				                                16'hffff) begin
+				                                lab_jt_hold_update_block2_count_i <=
+				                                    lab_jt_hold_update_block2_count_i +
+				                                    16'd1;
+				                            end
+				                        end else if (lab_jt_hold_update_nonblock2_count_i !=
+				                            16'hffff) begin
+				                            lab_jt_hold_update_nonblock2_count_i <=
+				                                lab_jt_hold_update_nonblock2_count_i +
+				                                16'd1;
+				                        end
+				                        if (lab_jt_ddr_req_payload_index_i == 19'd0) begin
+				                            if (lab_jt_hold_update_index0_count_i !=
+				                                16'hffff) begin
+				                                lab_jt_hold_update_index0_count_i <=
+				                                    lab_jt_hold_update_index0_count_i +
+				                                    16'd1;
+				                            end
+				                        end
+				                    end else if (lab_jt_rom_data_hold_valid_i &&
+				                        (lab_jt_rom_hold_default_suppress_count_i !=
+				                         16'hffff)) begin
+				                        lab_jt_rom_hold_default_suppress_count_i <=
+				                            lab_jt_rom_hold_default_suppress_count_i +
+				                            16'd1;
+				                    end
+				                end else if (lab_jt_ddr_payload_stale_return_event) begin
+				                    if (lab_jt_stale_response_count_i !=
+				                        16'hffff) begin
+				                        lab_jt_stale_response_count_i <=
+				                            lab_jt_stale_response_count_i + 16'd1;
+				                    end
+				                    if (!lab_jt_ddr_req_pending_i &&
+				                        (lab_jt_response_without_request_count_i !=
+				                         16'hffff)) begin
+				                        lab_jt_response_without_request_count_i <=
+				                            lab_jt_response_without_request_count_i +
+				                            16'd1;
+				                    end
+				                    if (!lab_jt_seen_first_stale_response_i) begin
+				                        lab_jt_seen_first_stale_response_i <= 1'b1;
+				                        lab_jt_first_stale_response_fp_i <=
+				                            lab_jt_ddr_payload_response_fp;
+				                    end
+				                    if ((lab_jt_ddr_req_payload_block_i == 3'd0) &&
+				                        (lab_jt_ddr_req_payload_index_i == 19'd0) &&
+				                        (lab_jt_block0_index0_stale_count_i !=
+				                         16'hffff)) begin
+				                        lab_jt_block0_index0_stale_count_i <=
+				                            lab_jt_block0_index0_stale_count_i + 16'd1;
+				                    end
+				                    if (lab_jt_rom_data_hold_valid_i &&
+				                        (lab_jt_rom_hold_default_suppress_count_i !=
+				                         16'hffff)) begin
+				                        lab_jt_rom_hold_default_suppress_count_i <=
+				                            lab_jt_rom_hold_default_suppress_count_i +
+				                            16'd1;
+				                    end
+				                end else if (lab_jt_rom_data_hold_valid_i &&
+				                    (lab_jt_rom_hold_default_suppress_count_i !=
+				                     16'hffff)) begin
+				                    lab_jt_rom_hold_default_suppress_count_i <=
+				                        lab_jt_rom_hold_default_suppress_count_i + 16'd1;
+				                end
+			            end
+		            if (smoke_c0_jt_backend) begin
+		                lab_jt_last_output_l_i <= lab_jt_snd_left;
+		                lab_jt_last_output_r_i <= lab_jt_snd_right;
 	                if (lab_jt_dbg_pcm_raw_cv[15:8] != 8'h80) begin
 	                    if (!lab_jt_seen_first_non80_pr_i) begin
 	                        lab_jt_seen_first_non80_pr_i <= 1'b1;
@@ -7502,11 +9106,189 @@ module segapcm_sound_module #(
 	                    lab_jt_sample_strobe_count_i <=
 	                        lab_jt_sample_strobe_count_i + 16'd1;
 	                end
+	                if (lab_jt_sample) begin
+	                    if (lab_jt_win_sample_count_i == 8'hff) begin
+	                        lab_jt_win_sample_count_i <= 8'd0;
+	                        lab_jt_win_new_addr_count_i <= 8'd0;
+	                        lab_jt_win_new_data_count_i <= 8'd0;
+		                        lab_jt_win_no_new_data_count_i <= 8'd0;
+		                        lab_jt_win_same_index_count_i <= 8'd0;
+		                        lab_jt_win_same_byte_count_i <= 8'd0;
+		                        lab_jt_stream_block2_sample_count_i <= 8'd0;
+		                        lab_jt_stream_nonblock2_sample_count_i <= 8'd0;
+		                        lab_jt_stream_nohold_sample_count_i <= 8'd0;
+		                    end else begin
+		                        lab_jt_win_sample_count_i <=
+		                            lab_jt_win_sample_count_i + 8'd1;
+	                        if (lab_jt_addr_changed_since_sample_i &&
+	                            (lab_jt_win_new_addr_count_i != 8'hff)) begin
+	                            lab_jt_win_new_addr_count_i <=
+	                                lab_jt_win_new_addr_count_i + 8'd1;
+	                        end
+	                        if (lab_jt_data_updated_since_sample_i) begin
+	                            if (lab_jt_win_new_data_count_i != 8'hff) begin
+	                                lab_jt_win_new_data_count_i <=
+	                                    lab_jt_win_new_data_count_i + 8'd1;
+	                            end
+	                        end else if (lab_jt_win_no_new_data_count_i !=
+	                            8'hff) begin
+	                            lab_jt_win_no_new_data_count_i <=
+	                                lab_jt_win_no_new_data_count_i + 8'd1;
+	                        end
+	                        if (lab_jt_present_valid_i &&
+	                            lab_jt_sample_present_seen_i &&
+	                            (lab_jt_present_index_i ==
+	                             lab_jt_sample_last_index_i) &&
+	                            (lab_jt_win_same_index_count_i != 8'hff)) begin
+	                            lab_jt_win_same_index_count_i <=
+	                                lab_jt_win_same_index_count_i + 8'd1;
+	                        end
+	                        if (lab_jt_present_valid_i &&
+	                            lab_jt_sample_present_seen_i &&
+	                            (lab_jt_present_data_i ==
+	                             lab_jt_sample_last_data_i) &&
+	                            (lab_jt_win_same_byte_count_i != 8'hff)) begin
+		                            lab_jt_win_same_byte_count_i <=
+		                                lab_jt_win_same_byte_count_i + 8'd1;
+		                        end
+		                        if (lab_jt_rom_data_hold_valid_i) begin
+		                            if (lab_jt_rom_data_hold_block_i == 3'd2) begin
+		                                if (lab_jt_stream_block2_sample_count_i !=
+		                                    8'hff) begin
+		                                    lab_jt_stream_block2_sample_count_i <=
+		                                        lab_jt_stream_block2_sample_count_i +
+		                                        8'd1;
+		                                end
+		                            end else if (lab_jt_stream_nonblock2_sample_count_i !=
+		                                8'hff) begin
+		                                lab_jt_stream_nonblock2_sample_count_i <=
+		                                    lab_jt_stream_nonblock2_sample_count_i +
+		                                    8'd1;
+		                            end
+		                        end else if (lab_jt_stream_nohold_sample_count_i !=
+		                            8'hff) begin
+		                            lab_jt_stream_nohold_sample_count_i <=
+		                                lab_jt_stream_nohold_sample_count_i + 8'd1;
+		                        end
+		                    end
+	                    if (!lab_jt_addr_changed_since_sample_i &&
+	                        (lab_jt_sample_no_new_addr_count_i != 16'hffff)) begin
+	                        lab_jt_sample_no_new_addr_count_i <=
+	                            lab_jt_sample_no_new_addr_count_i + 16'd1;
+	                    end
+	                    if (lab_jt_data_updated_since_sample_i) begin
+	                        if (lab_jt_sample_new_data_count_i != 16'hffff) begin
+	                            lab_jt_sample_new_data_count_i <=
+	                                lab_jt_sample_new_data_count_i + 16'd1;
+	                        end
+	                    end else if (lab_jt_sample_no_new_data_count_i !=
+	                        16'hffff) begin
+	                        lab_jt_sample_no_new_data_count_i <=
+	                            lab_jt_sample_no_new_data_count_i + 16'd1;
+	                    end
+		                    if (lab_jt_stream_sample_valid &&
+		                        !smoke_c0_jt_backend) begin
+		                        lab_jt_stream_last_block_i <=
+		                            lab_jt_stream_sample_block;
+		                        if (lab_jt_stream_capture_done_i) begin
+		                            lab_jt_stream_overwrite_attempt_i <= 1'b1;
+		                        end else begin
+		                            lab_jt_stream_capture_active_i <= 1'b1;
+		                            lab_jt_stream_seen_valid_i <= 1'b1;
+		                            lab_jt_stream_last_capture_index_i <=
+		                                lab_jt_stream_sample_index_full;
+		                            unique case (lab_jt_stream_capture_count_i)
+		                                5'd0:  lab_jt_stream_byte0_i <= lab_jt_stream_sample_byte;
+		                                5'd1:  lab_jt_stream_byte1_i <= lab_jt_stream_sample_byte;
+		                                5'd2:  lab_jt_stream_byte2_i <= lab_jt_stream_sample_byte;
+		                                5'd3:  lab_jt_stream_byte3_i <= lab_jt_stream_sample_byte;
+		                                5'd4:  lab_jt_stream_byte4_i <= lab_jt_stream_sample_byte;
+		                                5'd5:  lab_jt_stream_byte5_i <= lab_jt_stream_sample_byte;
+		                                5'd6:  lab_jt_stream_byte6_i <= lab_jt_stream_sample_byte;
+		                                5'd7:  lab_jt_stream_byte7_i <= lab_jt_stream_sample_byte;
+		                                5'd8:  lab_jt_stream_byte8_i <= lab_jt_stream_sample_byte;
+		                                5'd9:  lab_jt_stream_byte9_i <= lab_jt_stream_sample_byte;
+		                                5'd10: lab_jt_stream_byte10_i <= lab_jt_stream_sample_byte;
+		                                5'd11: lab_jt_stream_byte11_i <= lab_jt_stream_sample_byte;
+		                                5'd12: lab_jt_stream_byte12_i <= lab_jt_stream_sample_byte;
+		                                5'd13: lab_jt_stream_byte13_i <= lab_jt_stream_sample_byte;
+		                                5'd14: lab_jt_stream_byte14_i <= lab_jt_stream_sample_byte;
+		                                5'd15: lab_jt_stream_byte15_i <= lab_jt_stream_sample_byte;
+		                                default: begin end
+		                            endcase
+		                            unique case (lab_jt_stream_capture_count_i)
+		                                5'd0: lab_jt_stream_pi0_i <= lab_jt_stream_sample_index_low;
+		                                5'd1: lab_jt_stream_pi1_i <= lab_jt_stream_sample_index_low;
+		                                5'd2: lab_jt_stream_pi2_i <= lab_jt_stream_sample_index_low;
+		                                5'd3: lab_jt_stream_pi3_i <= lab_jt_stream_sample_index_low;
+		                                default: begin end
+		                            endcase
+		                            if (lab_jt_stream_capture_count_i == 5'd15) begin
+		                                lab_jt_stream_capture_count_i <= 5'd16;
+		                                lab_jt_stream_capture_done_i <= 1'b1;
+		                                lab_jt_stream_capture_active_i <= 1'b0;
+		                            end else begin
+		                                lab_jt_stream_capture_count_i <=
+		                                    lab_jt_stream_capture_count_i + 5'd1;
+		                            end
+		                        end
+		                    end
+	                    lab_jt_addr_changed_since_sample_i <= 1'b0;
+	                    lab_jt_data_updated_since_sample_i <= 1'b0;
+	                    lab_jt_data_changed_since_sample_i <= 1'b0;
+	                    if (lab_jt_present_valid_i) begin
+	                        if (lab_jt_sample_present_seen_i &&
+	                            (lab_jt_present_index_i ==
+	                             lab_jt_sample_last_index_i)) begin
+	                            if (lab_jt_same_index_run_i != 8'hff) begin
+	                                lab_jt_same_index_run_i <=
+	                                    lab_jt_same_index_run_i + 8'd1;
+	                                if (lab_jt_same_index_run_i >=
+	                                    lab_jt_max_same_index_run_i) begin
+	                                    lab_jt_max_same_index_run_i <=
+	                                        lab_jt_same_index_run_i + 8'd1;
+	                                end
+	                            end
+	                        end else begin
+	                            lab_jt_same_index_run_i <= 8'd1;
+	                            if (lab_jt_max_same_index_run_i == 8'd0) begin
+	                                lab_jt_max_same_index_run_i <= 8'd1;
+	                            end
+	                        end
+	                        if (lab_jt_sample_present_seen_i &&
+	                            (lab_jt_present_data_i ==
+	                             lab_jt_sample_last_data_i)) begin
+	                            if (lab_jt_same_byte_run_i != 8'hff) begin
+	                                lab_jt_same_byte_run_i <=
+	                                    lab_jt_same_byte_run_i + 8'd1;
+	                                if (lab_jt_same_byte_run_i >=
+	                                    lab_jt_max_same_byte_run_i) begin
+	                                    lab_jt_max_same_byte_run_i <=
+	                                        lab_jt_same_byte_run_i + 8'd1;
+	                                end
+	                            end
+	                        end else begin
+	                            lab_jt_same_byte_run_i <= 8'd1;
+	                            if (lab_jt_max_same_byte_run_i == 8'd0) begin
+	                                lab_jt_max_same_byte_run_i <= 8'd1;
+	                            end
+	                        end
+	                        lab_jt_sample_present_seen_i <= 1'b1;
+	                        lab_jt_sample_last_index_i <= lab_jt_present_index_i;
+	                        lab_jt_sample_last_data_i <= lab_jt_present_data_i;
+	                    end
+	                end
 	                if (lab_jt_sample &&
 	                    (lab_jt_dbg_pcm_raw_cv[15:8] != 8'h80) &&
 	                    (lab_jt_sample_nonneutral_count_i != 16'hffff)) begin
 	                    lab_jt_sample_nonneutral_count_i <=
 	                        lab_jt_sample_nonneutral_count_i + 16'd1;
+	                end
+	                if (lab_jt_sample &&
+	                    (lab_jt_dbg_pcm_raw_cv[15:8] == 8'h80) &&
+	                    (lab_jt_rom_neutral_sample_count_i != 16'hffff)) begin
+	                    lab_jt_rom_neutral_sample_count_i <=
+	                        lab_jt_rom_neutral_sample_count_i + 16'd1;
 	                end
 		                if (((lab_jt_snd_left != 16'sd0) ||
 		                     (lab_jt_snd_right != 16'sd0)) &&
@@ -7975,13 +9757,13 @@ module segapcm_sound_module #(
                 smoke_ddr_follow_range_seen_i <= 1'b0;
                 smoke_ddr_follow_wrap_count_i <= 16'd0;
                 smoke_ddr_c0_pending_i <= 1'b0;
-                smoke_ddr_c0_return_valid_i <= 1'b0;
-                smoke_ddr_c0_return_in_range_i <= 1'b0;
-                smoke_ddr_c0_wait_count_i <= 16'd0;
-                smoke_ddr_c0_wait_timeout_seen_i <= 1'b0;
-                smoke_ddr_follow_accept_count_i <= 16'd0;
-                smoke_ddr_follow_top_request_count_i <= 16'd0;
-                smoke_ddr_follow_return_count_i <= 16'd0;
+	                smoke_ddr_c0_return_valid_i <= 1'b0;
+	                smoke_ddr_c0_return_in_range_i <= 1'b0;
+	                smoke_ddr_c0_wait_count_i <= 16'd0;
+	                smoke_ddr_c0_wait_timeout_seen_i <= 1'b0;
+		                smoke_ddr_follow_accept_count_i <= 16'd0;
+	                smoke_ddr_follow_top_request_count_i <= 16'd0;
+	                smoke_ddr_follow_return_count_i <= 16'd0;
                 smoke_ddr_follow_jt_seen_count_i <= 16'd0;
                 smoke_ddr_follow_mixer_count_i <= 16'd0;
                 smoke_ddr_follow_timeout_count_i <= 16'd0;
@@ -7989,12 +9771,12 @@ module segapcm_sound_module #(
                 loaded_ddr_rd_req <= 1'b0;
                 smoke_ddr_read_div_i <= 16'd0;
                 smoke_ddr_c0_pending_i <= 1'b0;
-                smoke_ddr_c0_return_valid_i <= 1'b0;
-                smoke_ddr_c0_return_in_range_i <= 1'b0;
-                smoke_ddr_c0_wait_count_i <= 16'd0;
-                smoke_ddr_c0_wait_timeout_seen_i <= 1'b0;
-                smoke_c0_probe_req_live_i <= 1'b0;
-                smoke_c0_probe_pending_i <= 1'b0;
+	                smoke_ddr_c0_return_valid_i <= 1'b0;
+	                smoke_ddr_c0_return_in_range_i <= 1'b0;
+	                smoke_ddr_c0_wait_count_i <= 16'd0;
+	                smoke_ddr_c0_wait_timeout_seen_i <= 1'b0;
+		                smoke_c0_probe_req_live_i <= 1'b0;
+	                smoke_c0_probe_pending_i <= 1'b0;
             end else if (smoke_ddr_follow_mode_d_i != smoke_ddr_follow_mode) begin
                 loaded_ddr_rd_req <= 1'b0;
                 smoke_ddr_read_div_i <= 16'd0;
@@ -8032,12 +9814,12 @@ module segapcm_sound_module #(
                 smoke_ddr_follow_range_seen_i <= 1'b0;
                 smoke_ddr_follow_wrap_count_i <= 16'd0;
                 smoke_ddr_c0_pending_i <= 1'b0;
-                smoke_ddr_c0_return_valid_i <= 1'b0;
-                smoke_ddr_c0_return_in_range_i <= 1'b0;
-                smoke_ddr_c0_wait_count_i <= 16'd0;
-                smoke_ddr_c0_wait_timeout_seen_i <= 1'b0;
-                smoke_c0_probe_req_live_i <= 1'b0;
-                smoke_c0_probe_pending_i <= 1'b0;
+	                smoke_ddr_c0_return_valid_i <= 1'b0;
+	                smoke_ddr_c0_return_in_range_i <= 1'b0;
+	                smoke_ddr_c0_wait_count_i <= 16'd0;
+	                smoke_ddr_c0_wait_timeout_seen_i <= 1'b0;
+		                smoke_c0_probe_req_live_i <= 1'b0;
+	                smoke_c0_probe_pending_i <= 1'b0;
                 smoke_ddr_follow_accept_count_i <= 16'd0;
                 smoke_ddr_follow_top_request_count_i <= 16'd0;
                 smoke_ddr_follow_return_count_i <= 16'd0;
@@ -8119,7 +9901,7 @@ module segapcm_sound_module #(
                 end else
 `endif
                 if (rom_request_event) begin
-                    if (smoke_ddr_c0drive_active &&
+	                    if (smoke_ddr_c0drive_active &&
                         (smoke_ddr_follow_top_request_count_i != 16'hffff)) begin
                         smoke_ddr_follow_top_request_count_i <=
                             smoke_ddr_follow_top_request_count_i + 16'd1;
@@ -8132,12 +9914,12 @@ module segapcm_sound_module #(
                             smoke_ddr_read_blocked_count_i <=
                                 smoke_ddr_read_blocked_count_i + 16'd1;
                         end
-                    end else if (smoke_ddr_follow_read_in_range_next) begin
-                        loaded_ddr_rd_req <= 1'b1;
-                        loaded_ddr_rd_addr <= smoke_ddr_follow_read_index;
-                        if (smoke_ddr_read_req_count_i != 16'hffff) begin
-                            smoke_ddr_read_req_count_i <=
-                                smoke_ddr_read_req_count_i + 16'd1;
+	                    end else if (smoke_ddr_follow_read_in_range_next) begin
+	                        loaded_ddr_rd_req <= 1'b1;
+	                        loaded_ddr_rd_addr <= smoke_ddr_follow_read_index;
+		                        if (smoke_ddr_read_req_count_i != 16'hffff) begin
+	                            smoke_ddr_read_req_count_i <=
+	                                smoke_ddr_read_req_count_i + 16'd1;
                         end
                         if (smoke_ddr_c0drive_active) begin
                             smoke_ddr_c0_pending_i <= 1'b1;
@@ -8362,13 +10144,13 @@ module segapcm_sound_module #(
                             smoke_ddr_read_valid_count_i + 16'd1;
                     end
                 end else if (smoke_ddr_c0drive_active) begin
-                    if (smoke_ddr_c0_pending_i &&
-                        !smoke_ddr_c0_return_valid_i) begin
-                        smoke_ddr_audio_byte_hold_i <= loaded_ddr_rd_data;
-                        smoke_ddr_audio_index_hold_i <=
-                            loaded_ddr_last_read_index_debug;
-                        smoke_ddr_audio_data_ok_i <= 1'b1;
-                        smoke_ddr_audio_valid_seen_i <= 1'b1;
+	                    if (smoke_ddr_c0_pending_i &&
+	                        !smoke_ddr_c0_return_valid_i) begin
+		                        smoke_ddr_audio_byte_hold_i <= loaded_ddr_rd_data;
+		                        smoke_ddr_audio_index_hold_i <=
+		                            loaded_ddr_last_read_index_debug;
+		                        smoke_ddr_audio_data_ok_i <= 1'b1;
+		                        smoke_ddr_audio_valid_seen_i <= 1'b1;
                         smoke_ddr_c0_pending_i <= 1'b0;
 `ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
                         smoke_ddr_c0_return_valid_i <= smoke_c0_jt_backend;
@@ -8736,38 +10518,50 @@ module segapcm_sound_module #(
 	        .dbg_38686_cur_07(),
         .dbg_38686_delta(),
         .dbg_ch3_evolution_flags(),
-        .dbg_ch3_delta(),
-        .dbg_ch1_first_high(),
-        .dbg_ch1_first_low(),
-        .dbg_ch1_first_raw_high(),
-        .dbg_ch1_first_raw_low(),
-        .dbg_ch3_first_high(),
-        .dbg_ch3_first_low(),
-        .dbg_ch3_first_raw_high(),
-        .dbg_ch3_first_raw_low(),
-        .dbg_ch3_r0_high(),
-        .dbg_ch3_r0_low(),
-        .dbg_ch3_r1_high(),
-        .dbg_ch3_r1_low(),
-        .dbg_ch3_r2_high(),
-        .dbg_ch3_r2_low(),
-        .dbg_update_state_channel(),
-        .dbg_update_before_23(),
-        .dbg_update_before_15(),
-        .dbg_update_before_07(),
-        .dbg_update_addend(),
-        .dbg_update_after_23(),
-        .dbg_update_after_15(),
-        .dbg_update_after_07(),
-        .dbg_ch3_load_after_23(),
-        .dbg_ch3_load_after_15(),
-        .dbg_ch3_load_after_07(),
-        .dbg_pcm_raw_cv(lab_jt_dbg_pcm_raw_cv),
-        .dbg_mul_data(lab_jt_dbg_mul_data),
-        .dbg_active_cfg(lab_jt_dbg_active_cfg),
-        .dbg_vol_lr(lab_jt_dbg_vol_lr),
-	        .dbg_update_reason(lab_jt_dbg_update_reason)
-	    );
+	        .dbg_ch3_delta(lab_jt_dbg_ch3_delta),
+	        .dbg_ch1_first_high(),
+	        .dbg_ch1_first_low(),
+	        .dbg_ch1_first_raw_high(),
+	        .dbg_ch1_first_raw_low(),
+	        .dbg_ch3_first_high(lab_jt_dbg_focus_status),
+	        .dbg_ch3_first_low(lab_jt_dbg_focus_req_count),
+	        .dbg_ch3_first_raw_high(lab_jt_dbg_focus_advance_count),
+	        .dbg_ch3_first_raw_low(lab_jt_dbg_focus_addr_advance_count),
+	        .dbg_ch3_r0_high(lab_jt_dbg_focus_same_addr_count),
+	        .dbg_ch3_r0_low(lab_jt_dbg_focus_end_count),
+	        .dbg_ch3_r1_high(lab_jt_dbg_focus_cfg_delta),
+	        .dbg_ch3_r1_low(lab_jt_dbg_focus_low_frac),
+	        .dbg_ch3_r2_high(),
+	        .dbg_ch3_r2_low(),
+	        .dbg_update_state_channel(lab_jt_dbg_update_state_channel),
+	        .dbg_update_before_23(lab_jt_dbg_update_before_23),
+	        .dbg_update_before_15(lab_jt_dbg_update_before_15),
+	        .dbg_update_before_07(lab_jt_dbg_update_before_07),
+	        .dbg_update_addend(lab_jt_dbg_update_addend),
+	        .dbg_update_after_23(lab_jt_dbg_update_after_23),
+	        .dbg_update_after_15(lab_jt_dbg_update_after_15),
+	        .dbg_update_after_07(lab_jt_dbg_update_after_07),
+        .dbg_ch3_load_after_23(lab_jt_dbg_ch3_load_after_23),
+        .dbg_ch3_load_after_15(lab_jt_dbg_ch3_load_after_15),
+        .dbg_ch3_load_after_07(lab_jt_dbg_ch3_load_after_07),
+	        .dbg_pcm_raw_cv(lab_jt_dbg_pcm_raw_cv),
+	        .dbg_mul_data(lab_jt_dbg_mul_data),
+	        .dbg_active_cfg(lab_jt_dbg_active_cfg),
+	        .dbg_vol_lr(lab_jt_dbg_vol_lr),
+		        .dbg_update_reason(lab_jt_dbg_update_reason),
+	        .dbg_contrib_mask(lab_jt_dbg_contrib_mask),
+	        .dbg_mul_nonzero_mask(lab_jt_dbg_mul_nonzero_mask),
+	        .dbg_last_contrib_info(lab_jt_dbg_last_contrib_info),
+	        .dbg_last_contrib_raw_cv(lab_jt_dbg_last_contrib_raw_cv),
+	        .dbg_last_contrib_mul(lab_jt_dbg_last_contrib_mul),
+	        .dbg_last_contrib_vol(lab_jt_dbg_last_contrib_vol),
+	        .dbg_ch6_contrib_count(lab_jt_dbg_ch6_contrib_count),
+	        .dbg_ch6_contrib_mul(lab_jt_dbg_ch6_contrib_mul),
+	        .dbg_ch6_contrib_raw_cv(lab_jt_dbg_ch6_contrib_raw_cv),
+	        .dbg_ch7_contrib_count(lab_jt_dbg_ch7_contrib_count),
+	        .dbg_ch7_contrib_mul(lab_jt_dbg_ch7_contrib_mul),
+	        .dbg_ch7_contrib_raw_cv(lab_jt_dbg_ch7_contrib_raw_cv)
+		    );
 
     assign cpu_din = smoke_c0_jt_backend ? lab_jt_cpu_din : 8'd0;
     assign core_rom_addr =
@@ -8887,115 +10681,126 @@ module segapcm_sound_module #(
         lab_c0_pi_in_range,
         lab_c0_actual_output_sample != 16'sd0
     };
-    assign core_dbg_ch3_delta =
-        smoke_c0_jt_backend ? lab_jt_error_status :
+	    assign core_dbg_ch3_delta =
+	        smoke_c0_jt_backend ? lab_jt_dbg_ch3_delta :
         lab_c0_multich_delta_mode ?
         lab16_wave_vol_i :
         lab_c0_legacy_ch3_block2_mode ?
         {15'd0, lab_c0_seq_output} :
         {5'd0, lab_c0_effective_delta};
-	    assign core_dbg_ch1_first_high =
-	        smoke_c0_jt_backend ? lab_jt_sample_strobe_count_i :
-	        lab_c0_multich_delta_mode ?
-	        lab16_wave_rawcv1_i : smoke_c0_pm3_audio_mask;
-	    assign core_dbg_ch1_first_low =
-	        smoke_c0_jt_backend ? {13'd0, lab_jt_max_rom_addr_i[18:16]} :
-	        lab_c0_multich_delta_mode ?
-	        lab16_wave_addr1_i : loaded_ddr_write_count_debug;
-	    assign core_dbg_ch1_first_raw_high =
-	        smoke_c0_jt_backend ? lab_jt_rom_ok_while_cs_count_i :
-	        lab_c0_multich_delta_mode ?
-	        lab16_wave_pi1_i : loaded_ddr_last_write_addr_debug;
-	    assign core_dbg_ch1_first_raw_low =
-	        smoke_c0_jt_backend ? lab_jt_rom_non80_count_i :
-	        lab_c0_multich_delta_mode ?
-	        lab16_wave_out1_i :
-	        {8'd0, loaded_ddr_last_write_data_debug};
-	    assign core_dbg_ch3_first_high =
-	        smoke_c0_jt_backend ? lab_jt_rom_request_count_i :
-	        lab_c0_multich_delta_mode ?
-	        lab16_wave_rawcv0_i : lab16_ch3_retrig_first0_i;
-	    assign core_dbg_ch3_first_low =
-	        smoke_c0_jt_backend ? lab_jt_block2_hit_count_i :
-	        lab_c0_multich_delta_mode ?
-	        lab16_wave_addr0_i : lab16_ch3_retrig_first1_i;
-	    assign core_dbg_ch3_first_raw_high =
-	        smoke_c0_jt_backend ? {13'd0, lab_jt_first_block2_rom_addr_i[18:16]} :
-	        lab_c0_multich_delta_mode ?
-	        lab16_wave_pi0_i :
-	        lab16_ch3_retrig_first2_i;
-	    assign core_dbg_ch3_first_raw_low =
-	        smoke_c0_jt_backend ? lab_jt_first_block2_rom_addr_i[15:0] :
-	        lab_c0_multich_delta_mode ?
-	        lab16_wave_out0_i : lab16_ch3_retrig_first3_i;
-		    assign core_dbg_ch3_r0_high =
-		        smoke_c0_jt_backend ? lab_jt_dbg_active_cfg :
-		        lab16_ch3_retrig_old_current_i;
-	    assign core_dbg_ch3_r0_low =
-	        smoke_c0_jt_backend ? lab_jt_cpu_write_count_i :
-	        lab16_ch3_no_read_mix_count_i;
-	    assign core_dbg_ch3_r1_high =
-	        smoke_c0_jt_backend ? lab_jt_error_status :
-	        lab16_ch3_broad_restart_count_i;
-	    assign core_dbg_ch3_r1_low =
-	        smoke_c0_jt_backend ? lab_jt_last_cpu_write_i :
-	        lab16_ch3_retrig_old_offset_i;
+				    assign core_dbg_ch1_first_high =
+					        smoke_c0_jt_backend ?
+					        lab_jt_dbg_contrib_mask :
+					        lab_c0_multich_delta_mode ?
+					        lab16_wave_rawcv1_i : smoke_c0_pm3_audio_mask;
+					    assign core_dbg_ch1_first_low =
+						        smoke_c0_jt_backend ?
+						        lab_jt_dbg_mul_nonzero_mask :
+					        lab_c0_multich_delta_mode ?
+					        lab16_wave_addr1_i : loaded_ddr_write_count_debug;
+					    assign core_dbg_ch1_first_raw_high =
+					        smoke_c0_jt_backend ? lab_jt_dbg_last_contrib_info :
+					        lab_c0_multich_delta_mode ?
+					        lab16_wave_pi1_i : loaded_ddr_last_write_addr_debug;
+					    assign core_dbg_ch1_first_raw_low =
+					        smoke_c0_jt_backend ? lab_jt_dbg_last_contrib_raw_cv :
+					        lab_c0_multich_delta_mode ?
+					        lab16_wave_out1_i :
+					        {8'd0, loaded_ddr_last_write_data_debug};
+			    assign core_dbg_ch3_first_high =
+			        smoke_c0_jt_backend ? lab_jt_dbg_focus_status :
+				        lab_c0_multich_delta_mode ?
+				        lab16_wave_rawcv0_i : lab16_ch3_retrig_first0_i;
+						    assign core_dbg_ch3_first_low =
+						        smoke_c0_jt_backend ? lab_jt_dbg_focus_req_count :
+					        lab_c0_multich_delta_mode ?
+					        lab16_wave_addr0_i : lab16_ch3_retrig_first1_i;
+							    assign core_dbg_ch3_first_raw_high =
+							        smoke_c0_jt_backend ?
+							        lab_jt_dbg_focus_advance_count :
+						        lab_c0_multich_delta_mode ?
+						        lab16_wave_pi0_i :
+						        lab16_ch3_retrig_first2_i;
+						    assign core_dbg_ch3_first_raw_low =
+						        smoke_c0_jt_backend ?
+						        lab_jt_dbg_focus_addr_advance_count :
+					        lab_c0_multich_delta_mode ?
+					        lab16_wave_out0_i : lab16_ch3_retrig_first3_i;
+							    assign core_dbg_ch3_r0_high =
+							        smoke_c0_jt_backend ?
+							        lab_jt_dbg_focus_same_addr_count :
+							        lab16_ch3_retrig_old_current_i;
+						    assign core_dbg_ch3_r0_low =
+						        smoke_c0_jt_backend ? lab_jt_dbg_focus_end_count :
+					        lab16_ch3_no_read_mix_count_i;
+						    assign core_dbg_ch3_r1_high =
+						        smoke_c0_jt_backend ? lab_jt_dbg_focus_cfg_delta :
+					        lab16_ch3_broad_restart_count_i;
+						    assign core_dbg_ch3_r1_low =
+						        smoke_c0_jt_backend ? lab_jt_dbg_focus_low_frac :
+					        lab16_ch3_retrig_old_offset_i;
 	    assign core_dbg_ch3_r2_high =
 	        smoke_c0_jt_backend ? {14'd0, lab_jt_rom_timing_mode} :
 	        lab16_ch3_retrig_old_phase_i;
-	    assign core_dbg_ch3_r2_low =
-	        smoke_c0_jt_backend ? lab_jt_rom_data_latch_count_i :
-	        lab16_ch3_retrig_flags_i;
-		    assign core_dbg_update_state_channel =
-		        smoke_c0_jt_backend ? lab_jt_first_block2_payload_index_i[15:0] :
-		        lab16_wave_pi3_i;
-		    assign core_dbg_update_before_23 =
-		        smoke_c0_jt_backend ? {8'hB2, lab_jt_first_block2_rom_data_i} :
-		        lab16_ch3_hold_mix_count_i;
-		    assign core_dbg_update_before_15 =
-		        smoke_c0_jt_backend ? lab_jt_ch3_current_debug : {
-		        11'd0,
-		        lab16_first_sample_count_i
-		    };
-		    assign core_dbg_update_before_07 =
-		        smoke_c0_jt_backend ? lab_jt_ch3_ctrl_debug : {
-		        11'd0,
-		        lab16_active_count
-		    };
-		    assign core_dbg_update_addend =
-		        smoke_c0_jt_backend ? lab_jt_ch3_end_delta_debug :
-		        lab_c0_multich_delta_mode ?
-		        lab16_wave_out3_i : lab16_ch3_retrig_write_i;
-	    assign core_dbg_update_after_23 =
-	        smoke_c0_jt_backend ? lab_jt_raw_output_nonzero_count_i :
-	        lab_c0_multich_delta_mode ?
-	        lab16_wave_rawcv2_i : lab16_ch3_worst_abs_i;
-	    assign core_dbg_update_after_15 =
-		        smoke_c0_jt_backend ? lab_jt_rom_changed_count_i :
-		        lab_c0_multich_delta_mode ?
-		        lab16_wave_addr2_i : lab16_ch3_worst_time_i;
-	    assign core_dbg_update_after_07 =
-		        smoke_c0_jt_backend ? lab_jt_rom_neutral_while_cs_count_i :
-		        lab_c0_multich_delta_mode ?
-		        lab16_wave_pi2_i : lab16_ch3_worst_rc_i;
-		    assign core_dbg_ch3_load_after_23 =
-			        smoke_c0_jt_backend ? lab_jt_sample_nonneutral_count_i :
-			        lab_c0_multich_delta_mode ?
-			        lab16_wave_out2_i : lab16_ch3_worst_pi_i;
-		    assign core_dbg_ch3_load_after_15 =
-			        smoke_c0_jt_backend ? lab_jt_rom_repeat_count_i :
-			        lab_c0_multich_delta_mode ?
-			        lab16_wave_rawcv3_i : lab16_ch3_worst_offset_i;
-		    assign core_dbg_ch3_load_after_07 =
-		        smoke_c0_jt_backend ?
-		        lab_jt_output_nonzero_count_i :
-		        lab_c0_multich_delta_mode ?
-		        lab16_wave_addr3_i : lab16_ch3_worst_current_i;
-		    assign core_dbg_update_reason =
-		        smoke_c0_jt_backend ? lab_jt_ch3_volume_debug :
-		        (lab_c0_multich_delta_mode ?
-		         lab16_runtime_pr_hold_i :
-		         lab16_ch3_retrig_first_l_i[15:0]);
+			    assign core_dbg_ch3_r2_low =
+			        smoke_c0_jt_backend ? lab_jt_mismatch_status :
+			        lab16_ch3_retrig_flags_i;
+						    assign core_dbg_update_state_channel =
+						        smoke_c0_jt_backend ?
+						        lab_jt_dbg_update_state_channel :
+						        lab16_wave_pi3_i;
+							    assign core_dbg_update_before_23 =
+								        smoke_c0_jt_backend ?
+								        lab_jt_dbg_update_before_23 :
+							        lab16_ch3_hold_mix_count_i;
+							    assign core_dbg_update_before_15 =
+							        smoke_c0_jt_backend ?
+							        lab_jt_dbg_update_before_15 : {
+							        11'd0,
+							        lab16_first_sample_count_i
+							    };
+					    assign core_dbg_update_before_07 =
+					        smoke_c0_jt_backend ? lab_jt_dbg_update_before_07 : {
+					        11'd0,
+					        lab16_active_count
+					    };
+						    assign core_dbg_update_addend =
+						        smoke_c0_jt_backend ? lab_jt_dbg_update_addend :
+						        lab_c0_multich_delta_mode ?
+						        lab16_wave_out3_i : lab16_ch3_retrig_write_i;
+					    assign core_dbg_update_after_23 =
+					        smoke_c0_jt_backend ? lab_jt_dbg_update_after_23 :
+					        lab_c0_multich_delta_mode ?
+					        lab16_wave_rawcv2_i : lab16_ch3_worst_abs_i;
+				    assign core_dbg_update_after_15 =
+						        smoke_c0_jt_backend ?
+						        lab_jt_dbg_update_after_15 :
+					        lab_c0_multich_delta_mode ?
+					        lab16_wave_addr2_i : lab16_ch3_worst_time_i;
+			    assign core_dbg_update_after_07 =
+					        smoke_c0_jt_backend ? lab_jt_dbg_update_after_07 :
+				        lab_c0_multich_delta_mode ?
+				        lab16_wave_pi2_i : lab16_ch3_worst_rc_i;
+			    assign core_dbg_ch3_load_after_23 =
+					        smoke_c0_jt_backend ?
+					        lab_jt_dbg_ch3_load_after_23 :
+				        lab_c0_multich_delta_mode ?
+				        lab16_wave_out2_i : lab16_ch3_worst_pi_i;
+				    assign core_dbg_ch3_load_after_15 =
+						        smoke_c0_jt_backend ?
+						        lab_jt_dbg_ch3_load_after_15 :
+					        lab_c0_multich_delta_mode ?
+					        lab16_wave_rawcv3_i : lab16_ch3_worst_offset_i;
+				    assign core_dbg_ch3_load_after_07 =
+				        smoke_c0_jt_backend ?
+				        lab_jt_dbg_ch3_load_after_07 :
+				        lab_c0_multich_delta_mode ?
+				        lab16_wave_addr3_i : lab16_ch3_worst_current_i;
+				    assign core_dbg_update_reason =
+				        smoke_c0_jt_backend ? lab_jt_dbg_update_reason :
+				        (lab_c0_multich_delta_mode ?
+				         lab16_runtime_pr_hold_i :
+				         lab16_ch3_retrig_first_l_i[15:0]);
 `else
     jtoutrun_pcm pcm_core (
         .rst       (reset),
@@ -9115,12 +10920,24 @@ module segapcm_sound_module #(
         .dbg_ch3_load_after_23 (core_dbg_ch3_load_after_23),
         .dbg_ch3_load_after_15 (core_dbg_ch3_load_after_15),
         .dbg_ch3_load_after_07 (core_dbg_ch3_load_after_07),
-        .dbg_pcm_raw_cv        (),
-        .dbg_mul_data          (),
-        .dbg_active_cfg        (),
-        .dbg_vol_lr            (),
-        .dbg_update_reason     (core_dbg_update_reason)
-    );
+	        .dbg_pcm_raw_cv        (),
+	        .dbg_mul_data          (),
+	        .dbg_active_cfg        (),
+	        .dbg_vol_lr            (),
+	        .dbg_update_reason     (core_dbg_update_reason),
+	        .dbg_contrib_mask      (),
+	        .dbg_mul_nonzero_mask  (),
+	        .dbg_last_contrib_info (),
+	        .dbg_last_contrib_raw_cv(),
+	        .dbg_last_contrib_mul  (),
+	        .dbg_last_contrib_vol  (),
+	        .dbg_ch6_contrib_count (),
+	        .dbg_ch6_contrib_mul   (),
+	        .dbg_ch6_contrib_raw_cv(),
+	        .dbg_ch7_contrib_count (),
+	        .dbg_ch7_contrib_mul   (),
+	        .dbg_ch7_contrib_raw_cv()
+	    );
 `endif
 
 endmodule

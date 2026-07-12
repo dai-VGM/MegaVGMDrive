@@ -651,7 +651,7 @@ module emu
         "O345,SegaPCM PM3 Mask,ch3,ch1+3,ch0-3,ch0-7,All;",
         "O6,SegaPCM Polarity,Invert,Normal;",
         "O78,SegaPCM Top Audio,Normal,PCM only,FM only;",
-        "O9A,SegaPCM PM3 Mix/JT ROM,Hold/Live,Fresh/Hold,Gate/Delay;",
+        "O9A,SegaPCM PM3 Mix/JT ROM,Hold/Live,Fresh/Hold,Gate/Delay,B2Only;",
         "OBD,SegaPCM PM3 Start,Strict,QualRst,QualRep,QualIdle,Broad,BackOnly,NoDup,Near;",
         "OE,SegaPCM Backend,PM3,JT;",
 `else
@@ -1255,7 +1255,7 @@ module emu
     //   [5:3] PM3 Mask: ch3, ch1+3, ch0-3, ch0-7, all
     //   [6]   Polarity: Invert, Normal
     //   [8:7] Top Audio: Normal, PCM only, FM only
-    //   [10:9] PM3 Mix / JT ROM timing: Hold/Live, Fresh/Hold, Gate/Delay
+    //   [10:9] PM3 Mix / JT ROM timing: Hold/Live, Fresh/Hold, Gate/Delay, B2Only
     //   [13:11] PM3 Start: Strict, QualRst, QualRep, QualIdle, Broad, BackOnly, NoDup, Near
     //   [14]  Backend: PM3 scaffold, JT SegaPCM
 `else
@@ -1334,10 +1334,11 @@ module emu
         (status[8:7] == 2'd1) ? 2'd3 :
         (status[8:7] == 2'd2) ? 2'd1 :
         2'd0;
-    wire [1:0] segapcm_c0_pm3_mix_mode =
-        (status[10:9] == 2'd1) ? 2'd1 :
-        (status[10:9] == 2'd2) ? 2'd2 :
-        2'd0;
+	    wire [1:0] segapcm_c0_pm3_mix_mode =
+	        (status[10:9] == 2'd1) ? 2'd1 :
+	        (status[10:9] == 2'd2) ? 2'd2 :
+	        (status[10:9] == 2'd3) ? 2'd3 :
+	        2'd0;
     wire [2:0] segapcm_c0_pm3_start_policy =
         (status[13:11] == 3'd1) ? 3'd1 :
         (status[13:11] == 3'd2) ? 3'd2 :
@@ -2306,6 +2307,74 @@ module emu
         end
     endfunction
 
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+    localparam logic [4:0] JTDBG_DB    = 5'd0;
+    localparam logic [4:0] JTDBG_RV    = 5'd1;
+    localparam logic [4:0] JTDBG_LK    = 5'd2;
+    localparam logic [4:0] JTDBG_RT    = 5'd3;
+    localparam logic [4:0] JTDBG_FC    = 5'd4;
+    localparam logic [4:0] JTDBG_CS    = 5'd5;
+    localparam logic [4:0] JTDBG_CE    = 5'd6;
+    localparam logic [4:0] JTDBG_CV    = 5'd7;
+    localparam logic [4:0] JTDBG_CD    = 5'd8;
+    localparam logic [4:0] JTDBG_BH    = 5'd9;
+    localparam logic [4:0] JTDBG_BL    = 5'd10;
+    localparam logic [4:0] JTDBG_DL    = 5'd11;
+    localparam logic [4:0] JTDBG_NH    = 5'd12;
+    localparam logic [4:0] JTDBG_NL    = 5'd13;
+    localparam logic [4:0] JTDBG_WH    = 5'd14;
+    localparam logic [4:0] JTDBG_WL    = 5'd15;
+    localparam logic [4:0] JTDBG_RH    = 5'd16;
+    localparam logic [4:0] JTDBG_RL    = 5'd17;
+    localparam logic [4:0] JTDBG_CW    = 5'd18;
+    localparam logic [4:0] JTDBG_CH    = 5'd19;
+    localparam logic [4:0] JTDBG_RO    = 5'd20;
+    localparam logic [4:0] JTDBG_IC    = 5'd21;
+    localparam logic [4:0] JTDBG_IA    = 5'd22;
+    localparam logic [4:0] JTDBG_IS    = 5'd23;
+    localparam logic [4:0] JTDBG_IE    = 5'd24;
+    localparam logic [4:0] JTDBG_RP    = 5'd25;
+    localparam logic [4:0] JTDBG_AP    = 5'd26;
+    localparam logic [4:0] JTDBG_BLANK = 5'd31;
+
+    function automatic [4:0] segapcm_jt_debug_row_id(
+        input logic [4:0] row
+    );
+        begin
+            unique case (row)
+                5'd0:  segapcm_jt_debug_row_id = JTDBG_DB;
+                5'd1:  segapcm_jt_debug_row_id = JTDBG_RV;
+                5'd2:  segapcm_jt_debug_row_id = JTDBG_LK;
+                5'd3:  segapcm_jt_debug_row_id = JTDBG_RT;
+                5'd4:  segapcm_jt_debug_row_id = JTDBG_FC;
+                5'd5:  segapcm_jt_debug_row_id = JTDBG_CS;
+                5'd6:  segapcm_jt_debug_row_id = JTDBG_CE;
+                5'd7:  segapcm_jt_debug_row_id = JTDBG_CV;
+                5'd8:  segapcm_jt_debug_row_id = JTDBG_CD;
+                5'd9:  segapcm_jt_debug_row_id = JTDBG_BH;
+                5'd10: segapcm_jt_debug_row_id = JTDBG_BL;
+                5'd11: segapcm_jt_debug_row_id = JTDBG_DL;
+                5'd12: segapcm_jt_debug_row_id = JTDBG_NH;
+                5'd13: segapcm_jt_debug_row_id = JTDBG_NL;
+                5'd14: segapcm_jt_debug_row_id = JTDBG_WH;
+                5'd15: segapcm_jt_debug_row_id = JTDBG_WL;
+                5'd16: segapcm_jt_debug_row_id = JTDBG_RH;
+                5'd17: segapcm_jt_debug_row_id = JTDBG_RL;
+                5'd18: segapcm_jt_debug_row_id = JTDBG_CW;
+                5'd19: segapcm_jt_debug_row_id = JTDBG_CH;
+                5'd20: segapcm_jt_debug_row_id = JTDBG_RO;
+                5'd21: segapcm_jt_debug_row_id = JTDBG_IC;
+                5'd22: segapcm_jt_debug_row_id = JTDBG_IA;
+                5'd23: segapcm_jt_debug_row_id = JTDBG_IS;
+                5'd24: segapcm_jt_debug_row_id = JTDBG_IE;
+                5'd25: segapcm_jt_debug_row_id = JTDBG_RP;
+                5'd26: segapcm_jt_debug_row_id = JTDBG_AP;
+                default: segapcm_jt_debug_row_id = JTDBG_BLANK;
+            endcase
+        end
+    endfunction
+`endif
+
     function automatic [7:0] segapcm_debug_label_char(
         input logic [4:0] row,
         input logic [1:0] col
@@ -2313,41 +2382,36 @@ module emu
         begin
 `ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
             if (segapcm_c0_jt_backend) begin
-                unique case (row)
-                    5'd0:  segapcm_debug_label_char = (col == 2'd0) ? "D" : (col == 2'd1) ? "B" : " ";
-                    5'd1:  segapcm_debug_label_char = (col == 2'd0) ? "R" : (col == 2'd1) ? "V" : " ";
-                    5'd2:  segapcm_debug_label_char = (col == 2'd0) ? "L" : (col == 2'd1) ? "K" : " ";
-                    5'd3:  segapcm_debug_label_char = (col == 2'd0) ? "J" : (col == 2'd1) ? "B" : " ";
-                    5'd4:  segapcm_debug_label_char = (col == 2'd0) ? "J" : (col == 2'd1) ? "W" : " ";
-                    5'd5:  segapcm_debug_label_char = (col == 2'd0) ? "J" : (col == 2'd1) ? "R" : " ";
-                    5'd6:  segapcm_debug_label_char = (col == 2'd0) ? "J" : (col == 2'd1) ? "E" : " ";
-                    5'd7:  segapcm_debug_label_char = (col == 2'd0) ? "J" : (col == 2'd1) ? "A" : " ";
-                    5'd8:  segapcm_debug_label_char = (col == 2'd0) ? "C" : (col == 2'd1) ? "S" : " ";
-                    5'd9:  segapcm_debug_label_char = (col == 2'd0) ? "C" : (col == 2'd1) ? "E" : " ";
-                    5'd10: segapcm_debug_label_char = (col == 2'd0) ? "E" : (col == 2'd1) ? "D" : " ";
-                    5'd11: segapcm_debug_label_char = (col == 2'd0) ? "V" : (col == 2'd1) ? "V" : " ";
-	                    5'd12: segapcm_debug_label_char = (col == 2'd0) ? "B" : (col == 2'd1) ? "2" : " ";
-	                    5'd13: segapcm_debug_label_char = (col == 2'd0) ? "2" : (col == 2'd1) ? "H" : " ";
-	                    5'd14: segapcm_debug_label_char = (col == 2'd0) ? "2" : (col == 2'd1) ? "L" : " ";
-	                    5'd15: segapcm_debug_label_char = (col == 2'd0) ? "B" : (col == 2'd1) ? "P" : " ";
-	                    5'd16: segapcm_debug_label_char = (col == 2'd0) ? "B" : (col == 2'd1) ? "D" : " ";
-	                    5'd17: segapcm_debug_label_char = (col == 2'd0) ? "P" : (col == 2'd1) ? "R" : " ";
-	                    5'd18: segapcm_debug_label_char = (col == 2'd0) ? "M" : (col == 2'd1) ? "V" : " ";
-	                    5'd19: segapcm_debug_label_char = (col == 2'd0) ? "A" : (col == 2'd1) ? "C" : " ";
-	                    5'd20: segapcm_debug_label_char = (col == 2'd0) ? "V" : (col == 2'd1) ? "G" : " ";
-	                    5'd21: segapcm_debug_label_char = (col == 2'd0) ? "T" : (col == 2'd1) ? "M" : " ";
-	                    5'd22: segapcm_debug_label_char = (col == 2'd0) ? "L" : (col == 2'd1) ? "C" : " ";
-	                    5'd23: segapcm_debug_label_char = (col == 2'd0) ? "J" : (col == 2'd1) ? "O" : " ";
-	                    5'd24: segapcm_debug_label_char = (col == 2'd0) ? "Y" : (col == 2'd1) ? "L" : " ";
-	                    5'd25: segapcm_debug_label_char = (col == 2'd0) ? "Y" : (col == 2'd1) ? "R" : " ";
-	                    5'd26: segapcm_debug_label_char = (col == 2'd0) ? "J" : (col == 2'd1) ? "M" : " ";
-	                    5'd27: segapcm_debug_label_char = (col == 2'd0) ? "R" : (col == 2'd1) ? "O" : " ";
-	                    5'd28: segapcm_debug_label_char = (col == 2'd0) ? "O" : (col == 2'd1) ? "S" : " ";
-                    5'd29: segapcm_debug_label_char = " ";
-                    5'd30: segapcm_debug_label_char = " ";
-                    5'd31: segapcm_debug_label_char = " ";
-	                    default: segapcm_debug_label_char = " ";
-	                endcase
+                unique case (segapcm_jt_debug_row_id(row))
+                    JTDBG_DB: segapcm_debug_label_char = (col == 2'd0) ? "D" : (col == 2'd1) ? "B" : " ";
+                    JTDBG_RV: segapcm_debug_label_char = (col == 2'd0) ? "R" : (col == 2'd1) ? "V" : " ";
+                    JTDBG_LK: segapcm_debug_label_char = (col == 2'd0) ? "L" : (col == 2'd1) ? "K" : " ";
+                    JTDBG_RT: segapcm_debug_label_char = (col == 2'd0) ? "R" : (col == 2'd1) ? "T" : " ";
+                    JTDBG_FC: segapcm_debug_label_char = (col == 2'd0) ? "F" : (col == 2'd1) ? "C" : " ";
+                    JTDBG_CS: segapcm_debug_label_char = (col == 2'd0) ? "C" : (col == 2'd1) ? "S" : " ";
+                    JTDBG_CE: segapcm_debug_label_char = (col == 2'd0) ? "C" : (col == 2'd1) ? "E" : " ";
+                    JTDBG_CV: segapcm_debug_label_char = (col == 2'd0) ? "C" : (col == 2'd1) ? "V" : " ";
+                    JTDBG_CD: segapcm_debug_label_char = (col == 2'd0) ? "C" : (col == 2'd1) ? "D" : " ";
+                    JTDBG_BH: segapcm_debug_label_char = (col == 2'd0) ? "B" : (col == 2'd1) ? "H" : " ";
+                    JTDBG_BL: segapcm_debug_label_char = (col == 2'd0) ? "B" : (col == 2'd1) ? "L" : " ";
+                    JTDBG_DL: segapcm_debug_label_char = (col == 2'd0) ? "D" : (col == 2'd1) ? "L" : " ";
+                    JTDBG_NH: segapcm_debug_label_char = (col == 2'd0) ? "N" : (col == 2'd1) ? "H" : " ";
+                    JTDBG_NL: segapcm_debug_label_char = (col == 2'd0) ? "N" : (col == 2'd1) ? "L" : " ";
+                    JTDBG_WH: segapcm_debug_label_char = (col == 2'd0) ? "W" : (col == 2'd1) ? "H" : " ";
+                    JTDBG_WL: segapcm_debug_label_char = (col == 2'd0) ? "W" : (col == 2'd1) ? "L" : " ";
+                    JTDBG_RH: segapcm_debug_label_char = (col == 2'd0) ? "R" : (col == 2'd1) ? "H" : " ";
+                    JTDBG_RL: segapcm_debug_label_char = (col == 2'd0) ? "R" : (col == 2'd1) ? "L" : " ";
+                    JTDBG_CW: segapcm_debug_label_char = (col == 2'd0) ? "C" : (col == 2'd1) ? "W" : " ";
+                    JTDBG_CH: segapcm_debug_label_char = (col == 2'd0) ? "C" : (col == 2'd1) ? "H" : " ";
+                    JTDBG_RO: segapcm_debug_label_char = (col == 2'd0) ? "R" : (col == 2'd1) ? "O" : " ";
+                    JTDBG_IC: segapcm_debug_label_char = (col == 2'd0) ? "I" : (col == 2'd1) ? "C" : " ";
+                    JTDBG_IA: segapcm_debug_label_char = (col == 2'd0) ? "I" : (col == 2'd1) ? "A" : " ";
+                    JTDBG_IS: segapcm_debug_label_char = (col == 2'd0) ? "I" : (col == 2'd1) ? "S" : " ";
+                    JTDBG_IE: segapcm_debug_label_char = (col == 2'd0) ? "I" : (col == 2'd1) ? "E" : " ";
+                    JTDBG_RP: segapcm_debug_label_char = (col == 2'd0) ? "R" : (col == 2'd1) ? "P" : " ";
+                    JTDBG_AP: segapcm_debug_label_char = (col == 2'd0) ? "A" : (col == 2'd1) ? "P" : " ";
+                    default: segapcm_debug_label_char = " ";
+                endcase
             end else begin
                 unique case (row)
                     5'd0:  segapcm_debug_label_char = (col == 2'd0) ? "D" : (col == 2'd1) ? "B" : " ";
@@ -2563,36 +2627,34 @@ module emu
             end else begin
 `ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
             if (segapcm_c0_jt_backend) begin
-	            unique case (row)
-	                5'd0:  segapcm_debug_label_char = (col == 2'd0) ? "D" : (col == 2'd1) ? "B" : " ";
-	                5'd1:  segapcm_debug_label_char = (col == 2'd0) ? "R" : (col == 2'd1) ? "V" : " ";
-	                5'd2:  segapcm_debug_label_char = (col == 2'd0) ? "L" : (col == 2'd1) ? "K" : " ";
-	                5'd3:  segapcm_debug_label_char = (col == 2'd0) ? "J" : (col == 2'd1) ? "B" : " ";
-	                5'd4:  segapcm_debug_label_char = (col == 2'd0) ? "J" : (col == 2'd1) ? "W" : " ";
-	                5'd5:  segapcm_debug_label_char = (col == 2'd0) ? "J" : (col == 2'd1) ? "R" : " ";
-	                5'd6:  segapcm_debug_label_char = (col == 2'd0) ? "J" : (col == 2'd1) ? "E" : " ";
-	                5'd7:  segapcm_debug_label_char = (col == 2'd0) ? "J" : (col == 2'd1) ? "A" : " ";
-	                5'd8:  segapcm_debug_label_char = (col == 2'd0) ? "C" : (col == 2'd1) ? "S" : " ";
-	                5'd9:  segapcm_debug_label_char = (col == 2'd0) ? "C" : (col == 2'd1) ? "E" : " ";
-	                5'd10: segapcm_debug_label_char = (col == 2'd0) ? "E" : (col == 2'd1) ? "D" : " ";
-	                5'd11: segapcm_debug_label_char = (col == 2'd0) ? "V" : (col == 2'd1) ? "V" : " ";
-	                5'd12: segapcm_debug_label_char = (col == 2'd0) ? "B" : (col == 2'd1) ? "2" : " ";
-	                5'd13: segapcm_debug_label_char = (col == 2'd0) ? "2" : (col == 2'd1) ? "H" : " ";
-	                5'd14: segapcm_debug_label_char = (col == 2'd0) ? "2" : (col == 2'd1) ? "L" : " ";
-	                5'd15: segapcm_debug_label_char = (col == 2'd0) ? "B" : (col == 2'd1) ? "P" : " ";
-	                5'd16: segapcm_debug_label_char = (col == 2'd0) ? "B" : (col == 2'd1) ? "D" : " ";
-	                5'd17: segapcm_debug_label_char = (col == 2'd0) ? "P" : (col == 2'd1) ? "R" : " ";
-	                5'd18: segapcm_debug_label_char = (col == 2'd0) ? "M" : (col == 2'd1) ? "V" : " ";
-	                5'd19: segapcm_debug_label_char = (col == 2'd0) ? "M" : (col == 2'd1) ? "P" : " ";
-	                5'd20: segapcm_debug_label_char = (col == 2'd0) ? "T" : (col == 2'd1) ? "M" : " ";
-	                5'd21: segapcm_debug_label_char = (col == 2'd0) ? "L" : (col == 2'd1) ? "C" : " ";
-	                5'd22: segapcm_debug_label_char = (col == 2'd0) ? "R" : (col == 2'd1) ? "O" : " ";
-	                5'd23: segapcm_debug_label_char = (col == 2'd0) ? "N" : (col == 2'd1) ? "8" : " ";
-	                5'd24: segapcm_debug_label_char = (col == 2'd0) ? "N" : (col == 2'd1) ? "D" : " ";
-	                5'd25: segapcm_debug_label_char = (col == 2'd0) ? "S" : (col == 2'd1) ? "N" : " ";
-	                5'd26: segapcm_debug_label_char = (col == 2'd0) ? "O" : (col == 2'd1) ? "S" : " ";
-	                5'd27: segapcm_debug_label_char = (col == 2'd0) ? "J" : (col == 2'd1) ? "O" : " ";
-	                5'd28: segapcm_debug_label_char = (col == 2'd0) ? "J" : (col == 2'd1) ? "M" : " ";
+	            unique case (segapcm_jt_debug_row_id(row))
+	                JTDBG_DB: segapcm_debug_label_char = (col == 2'd0) ? "D" : (col == 2'd1) ? "B" : " ";
+	                JTDBG_RV: segapcm_debug_label_char = (col == 2'd0) ? "R" : (col == 2'd1) ? "V" : " ";
+	                JTDBG_LK: segapcm_debug_label_char = (col == 2'd0) ? "L" : (col == 2'd1) ? "K" : " ";
+	                JTDBG_RT: segapcm_debug_label_char = (col == 2'd0) ? "R" : (col == 2'd1) ? "T" : " ";
+                JTDBG_FC: segapcm_debug_label_char = (col == 2'd0) ? "F" : (col == 2'd1) ? "C" : " ";
+                JTDBG_CS: segapcm_debug_label_char = (col == 2'd0) ? "C" : (col == 2'd1) ? "S" : " ";
+                JTDBG_CE: segapcm_debug_label_char = (col == 2'd0) ? "C" : (col == 2'd1) ? "E" : " ";
+                JTDBG_CV: segapcm_debug_label_char = (col == 2'd0) ? "C" : (col == 2'd1) ? "V" : " ";
+                JTDBG_CD: segapcm_debug_label_char = (col == 2'd0) ? "C" : (col == 2'd1) ? "D" : " ";
+                JTDBG_BH: segapcm_debug_label_char = (col == 2'd0) ? "B" : (col == 2'd1) ? "H" : " ";
+                JTDBG_BL: segapcm_debug_label_char = (col == 2'd0) ? "B" : (col == 2'd1) ? "L" : " ";
+                JTDBG_DL: segapcm_debug_label_char = (col == 2'd0) ? "D" : (col == 2'd1) ? "L" : " ";
+                JTDBG_NH: segapcm_debug_label_char = (col == 2'd0) ? "N" : (col == 2'd1) ? "H" : " ";
+                JTDBG_NL: segapcm_debug_label_char = (col == 2'd0) ? "N" : (col == 2'd1) ? "L" : " ";
+                JTDBG_WH: segapcm_debug_label_char = (col == 2'd0) ? "W" : (col == 2'd1) ? "H" : " ";
+                JTDBG_WL: segapcm_debug_label_char = (col == 2'd0) ? "W" : (col == 2'd1) ? "L" : " ";
+                JTDBG_RH: segapcm_debug_label_char = (col == 2'd0) ? "R" : (col == 2'd1) ? "H" : " ";
+                JTDBG_RL: segapcm_debug_label_char = (col == 2'd0) ? "R" : (col == 2'd1) ? "L" : " ";
+                JTDBG_CW: segapcm_debug_label_char = (col == 2'd0) ? "C" : (col == 2'd1) ? "W" : " ";
+                JTDBG_CH: segapcm_debug_label_char = (col == 2'd0) ? "C" : (col == 2'd1) ? "H" : " ";
+                JTDBG_RO: segapcm_debug_label_char = (col == 2'd0) ? "R" : (col == 2'd1) ? "O" : " ";
+                JTDBG_IC: segapcm_debug_label_char = (col == 2'd0) ? "I" : (col == 2'd1) ? "C" : " ";
+                JTDBG_IA: segapcm_debug_label_char = (col == 2'd0) ? "I" : (col == 2'd1) ? "A" : " ";
+                JTDBG_IS: segapcm_debug_label_char = (col == 2'd0) ? "I" : (col == 2'd1) ? "S" : " ";
+                JTDBG_IE: segapcm_debug_label_char = (col == 2'd0) ? "I" : (col == 2'd1) ? "E" : " ";
+                JTDBG_RP: segapcm_debug_label_char = (col == 2'd0) ? "R" : (col == 2'd1) ? "P" : " ";
+                JTDBG_AP: segapcm_debug_label_char = (col == 2'd0) ? "A" : (col == 2'd1) ? "P" : " ";
 	                default: segapcm_debug_label_char = " ";
 	            endcase
             end else begin
@@ -2904,40 +2966,35 @@ module emu
         begin
 `ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
             if (segapcm_c0_jt_backend) begin
-	            unique case (row)
-	                5'd0:  segapcm_debug_value = 16'hD6C0;
-	                5'd1:  segapcm_debug_value = 16'h0023;
-	                5'd2:  segapcm_debug_value = 16'h51C0;
-	                5'd3:  segapcm_debug_value = segapcm_core_status_debug;
-	                5'd4:  segapcm_debug_value = segapcm_core_ch3_r0_low;
-	                5'd5:  segapcm_debug_value = segapcm_core_ch3_first_high;
-	                5'd6:  segapcm_debug_value = segapcm_core_ch3_delta;
-                5'd7:  segapcm_debug_value = segapcm_core_shadow_decode_debug;
-                5'd8:  segapcm_debug_value = segapcm_core_update_before_15;
-                5'd9:  segapcm_debug_value = segapcm_core_update_before_07;
-                5'd10: segapcm_debug_value = segapcm_core_update_addend;
-                5'd11: segapcm_debug_value = segapcm_core_update_reason;
-	                5'd12: segapcm_debug_value = segapcm_core_ch3_first_low;
-	                5'd13: segapcm_debug_value = segapcm_core_ch3_first_raw_high;
-	                5'd14: segapcm_debug_value = segapcm_core_ch3_first_raw_low;
-	                5'd15: segapcm_debug_value = segapcm_core_update_state_channel;
-		                5'd16: segapcm_debug_value = segapcm_core_update_before_23;
-		                5'd17: segapcm_debug_value = segapcm_core_jt_smoke_vol_l;
-		                5'd18: segapcm_debug_value = segapcm_core_jt_smoke_vol_r;
-		                5'd19: segapcm_debug_value = segapcm_core_jt_smoke_sample_byte;
-		                5'd20: segapcm_debug_value = segapcm_core_ch3_r2_high;
-		                5'd21: segapcm_debug_value = segapcm_core_ch3_r2_low;
-		                5'd22: segapcm_debug_value = segapcm_core_ch1_first_raw_high;
-		                5'd23: segapcm_debug_value = segapcm_core_ch1_first_raw_low;
-		                5'd24: segapcm_debug_value = segapcm_core_update_after_07;
-		                5'd25: segapcm_debug_value = segapcm_core_ch3_load_after_23;
-		                5'd26: segapcm_debug_value = segapcm_core_ch1_first_high;
-		                5'd27: segapcm_debug_value = segapcm_core_update_after_23;
-		                5'd28: segapcm_debug_value = segapcm_core_ch3_load_after_07;
-                5'd29: segapcm_debug_value = 16'd0;
-                5'd30: segapcm_debug_value = 16'd0;
-                5'd31: segapcm_debug_value = 16'd0;
-	                default: segapcm_debug_value = 16'd0;
+	            unique case (segapcm_jt_debug_row_id(row))
+                JTDBG_DB: segapcm_debug_value = 16'hD6C0;
+                JTDBG_RV: segapcm_debug_value = 16'h0046;
+                JTDBG_LK: segapcm_debug_value = 16'h51C0;
+                JTDBG_RT: segapcm_debug_value = segapcm_core_ch3_r2_high;
+                JTDBG_FC: segapcm_debug_value = segapcm_core_ch3_first_high;
+                JTDBG_CS: segapcm_debug_value = segapcm_core_shadow_ch3_start_debug;
+                JTDBG_CE: segapcm_debug_value = segapcm_core_shadow_ch3_ctrl_debug;
+                JTDBG_CV: segapcm_debug_value = segapcm_core_shadow_ch3_l2_debug;
+                JTDBG_CD: segapcm_debug_value = segapcm_core_shadow_ch3_end_delta_debug;
+                JTDBG_BH: segapcm_debug_value = segapcm_core_update_before_23;
+                JTDBG_BL: segapcm_debug_value = segapcm_core_update_before_15;
+                JTDBG_DL: segapcm_debug_value = segapcm_core_update_addend;
+                JTDBG_NH: segapcm_debug_value = segapcm_core_update_after_23;
+                JTDBG_NL: segapcm_debug_value = segapcm_core_update_after_15;
+                JTDBG_WH: segapcm_debug_value = segapcm_core_update_before_07;
+                JTDBG_WL: segapcm_debug_value = segapcm_core_update_after_07;
+                JTDBG_RH: segapcm_debug_value = segapcm_core_ch3_load_after_23;
+                JTDBG_RL: segapcm_debug_value = segapcm_core_ch3_load_after_15;
+                JTDBG_CW: segapcm_debug_value = segapcm_core_update_reason;
+                JTDBG_CH: segapcm_debug_value = segapcm_core_ch3_load_after_07;
+                JTDBG_RO: segapcm_debug_value = segapcm_core_ch3_r1_low;
+                JTDBG_IC: segapcm_debug_value = segapcm_core_ch3_first_raw_high;
+                JTDBG_IA: segapcm_debug_value = segapcm_core_ch3_first_raw_low;
+                JTDBG_IS: segapcm_debug_value = segapcm_core_ch3_r0_high;
+                JTDBG_IE: segapcm_debug_value = segapcm_core_ch3_r0_low;
+                JTDBG_RP: segapcm_debug_value = segapcm_core_ch3_first_low;
+                JTDBG_AP: segapcm_debug_value = segapcm_core_ch3_first_raw_high;
+		                default: segapcm_debug_value = 16'd0;
 	            endcase
             end else begin
             unique case (row)

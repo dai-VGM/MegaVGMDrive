@@ -154,7 +154,19 @@ module jtoutrun_pcm #(parameter
     output      [15:0] dbg_mul_data,
     output      [15:0] dbg_active_cfg,
     output      [15:0] dbg_vol_lr,
-    output      [15:0] dbg_update_reason
+    output      [15:0] dbg_update_reason,
+    output      [15:0] dbg_contrib_mask,
+    output      [15:0] dbg_mul_nonzero_mask,
+    output      [15:0] dbg_last_contrib_info,
+    output      [15:0] dbg_last_contrib_raw_cv,
+    output      [15:0] dbg_last_contrib_mul,
+    output      [15:0] dbg_last_contrib_vol,
+    output      [15:0] dbg_ch6_contrib_count,
+    output      [15:0] dbg_ch6_contrib_mul,
+    output      [15:0] dbg_ch6_contrib_raw_cv,
+    output      [15:0] dbg_ch7_contrib_count,
+    output      [15:0] dbg_ch7_contrib_mul,
+    output      [15:0] dbg_ch7_contrib_raw_cv
 );
 
 wire        we = cpu_cs & ~cpu_rnw;
@@ -169,6 +181,10 @@ reg  [15:0] active;     // high for active channels, debug only
 reg  [ 7:0] cfg_en;
 reg  [ 7:0] delta, cfg_din;
 reg         cfg_we, was_enb;
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+reg  [23:0] wb_cur_addr_i;
+reg         wb_cur_valid_i;
+`endif
 
 reg  [ 2:0] dbg_last_bank;
 reg  [ 3:0] dbg_last_ch;
@@ -218,6 +234,40 @@ reg  [ 7:0] dbg_update_addend_i;
 reg  [ 7:0] dbg_update_reason_i;
 reg  [ 7:0] dbg_writer_bits_i;
 reg         dbg_update_exact_seen_i;
+reg  [15:0] dbg_contrib_mask_i;
+reg  [15:0] dbg_mul_nonzero_mask_i;
+reg  [15:0] dbg_last_contrib_info_i;
+reg  [15:0] dbg_last_contrib_raw_cv_i;
+reg  [15:0] dbg_last_contrib_mul_i;
+reg  [15:0] dbg_last_contrib_vol_i;
+reg  [15:0] dbg_ch6_contrib_count_i;
+reg  [15:0] dbg_ch6_contrib_mul_i;
+reg  [15:0] dbg_ch6_contrib_raw_cv_i;
+reg  [15:0] dbg_ch7_contrib_count_i;
+reg  [15:0] dbg_ch7_contrib_mul_i;
+reg  [15:0] dbg_ch7_contrib_raw_cv_i;
+reg  [15:0] dbg_focus_request_count_i;
+reg  [15:0] dbg_focus_advance_count_i;
+reg  [15:0] dbg_focus_addr_advance_count_i;
+reg  [15:0] dbg_focus_same_addr_count_i;
+reg  [15:0] dbg_focus_end_count_i;
+reg  [23:0] dbg_focus_before_i;
+reg  [23:0] dbg_focus_after_i;
+reg  [23:0] dbg_focus_writeback_i;
+reg  [15:0] dbg_focus_rom_addr_i;
+reg  [15:0] dbg_focus_w9_count_i;
+reg  [15:0] dbg_focus_w10_count_i;
+reg  [15:0] dbg_focus_w11_count_i;
+reg  [15:0] dbg_focus_midhi_block_count_i;
+reg  [ 7:0] dbg_focus_load_low_i;
+reg  [ 7:0] dbg_focus_load_mid_i;
+reg  [ 7:0] dbg_focus_load_high_i;
+reg  [ 7:0] dbg_focus_delta_i;
+reg  [ 7:0] dbg_focus_cfg_i;
+reg  [ 2:0] dbg_focus_bank_i;
+reg  [ 2:0] dbg_focus_write_bits_i;
+reg  [ 3:0] dbg_focus_st_i;
+reg         dbg_focus_was_enb_i;
 reg  [ 8:0] dbg_ch3_roll_d0_addr_i;
 reg  [ 7:0] dbg_ch3_roll_d0_value_i;
 reg  [ 8:0] dbg_ch3_roll_d1_addr_i;
@@ -626,32 +676,62 @@ assign dbg_ch1_first_high = dbg_last_cpu_port_i;
 assign dbg_ch1_first_low = dbg_last_int_port_i;
 assign dbg_ch1_first_raw_high = dbg_write_source_i;
 assign dbg_ch1_first_raw_low = {7'd0, dbg_target2_addr_i};
-assign dbg_ch3_first_high = {8'd0, dbg_target2_value_i};
-assign dbg_ch3_first_low = dbg_target2_info_i;
-assign dbg_ch3_first_raw_high = {7'd0, dbg_target3_addr_i};
-assign dbg_ch3_first_raw_low = {8'd0, dbg_target3_value_i};
-assign dbg_ch3_r0_high = dbg_target3_info_i;
-assign dbg_ch3_r0_low = dbg_38686_d0_value;
-assign dbg_ch3_r1_high = dbg_38686_d1_value;
-assign dbg_ch3_r1_low = dbg_38686_d2_value;
+assign dbg_ch3_first_high = {
+    4'hF,
+    4'd3,
+    dbg_focus_bank_i,
+    dbg_focus_st_i,
+    dbg_focus_cfg_i[0]
+};
+assign dbg_ch3_first_low = dbg_focus_request_count_i;
+assign dbg_ch3_first_raw_high = dbg_focus_advance_count_i;
+assign dbg_ch3_first_raw_low = dbg_focus_addr_advance_count_i;
+assign dbg_ch3_r0_high = dbg_focus_same_addr_count_i;
+assign dbg_ch3_r0_low = dbg_focus_end_count_i;
+assign dbg_ch3_r1_high = {dbg_focus_cfg_i, dbg_focus_delta_i};
+assign dbg_ch3_r1_low = dbg_focus_rom_addr_i;
 assign dbg_ch3_r2_high = dbg_38686_d2_value;
 assign dbg_ch3_r2_low = dbg_38686_d1_value;
-assign dbg_update_state_channel = {8'd0, dbg_update_state_i, dbg_update_channel_i};
-assign dbg_update_before_23 = {8'd0, dbg_update_before_i[23:16]};
-assign dbg_update_before_15 = {8'd0, dbg_update_before_i[15:8]};
-assign dbg_update_before_07 = {8'd0, dbg_update_before_i[7:0]};
-assign dbg_update_addend = {8'd0, dbg_update_addend_i};
-assign dbg_update_after_23 = {8'd0, dbg_prior_wb_cur_addr_i[7:0]};
-assign dbg_update_after_15 = {8'd0, dbg_fs_wb_addr_i[15:8]};
-assign dbg_update_after_07 = {8'd0, dbg_fs_wb_addr_i[7:0]};
-assign dbg_ch3_load_after_23 = {8'd0, dbg_ch3_load_after_i[23:16]};
-assign dbg_ch3_load_after_15 = {8'd0, dbg_ch3_load_after_i[15:8]};
-assign dbg_ch3_load_after_07 = {8'd0, dbg_ch3_load_after_i[7:0]};
+assign dbg_update_state_channel = {
+    4'hF,
+    dbg_focus_st_i,
+    4'd3,
+    dbg_focus_cfg_i[0],
+    (dbg_focus_advance_count_i != 16'd0),
+    (dbg_focus_addr_advance_count_i != 16'd0),
+    (dbg_focus_same_addr_count_i != 16'd0)
+};
+assign dbg_update_before_23 = dbg_focus_before_i[23:8];
+assign dbg_update_before_15 = dbg_focus_before_i[15:0];
+assign dbg_update_before_07 = dbg_focus_writeback_i[23:8];
+assign dbg_update_addend = {8'd0, dbg_focus_delta_i};
+assign dbg_update_after_23 = dbg_focus_after_i[23:8];
+assign dbg_update_after_15 = dbg_focus_after_i[15:0];
+assign dbg_update_after_07 = dbg_focus_writeback_i[15:0];
+assign dbg_ch3_load_after_23 = {dbg_focus_load_high_i,
+                                dbg_focus_load_mid_i};
+assign dbg_ch3_load_after_15 = {dbg_focus_load_mid_i,
+                                dbg_focus_load_low_i};
+assign dbg_ch3_load_after_07 = {dbg_focus_w11_count_i[7:0],
+                                dbg_focus_midhi_block_count_i[7:0]};
 assign dbg_pcm_raw_cv = {pcm_source_data, pcm_data};
 assign dbg_mul_data = mul_data;
 assign dbg_active_cfg = {active[7:0], cfg_en};
 assign dbg_vol_lr = {vol_left, vol_right};
-assign dbg_update_reason = {8'hee, dbg_writer_bits_i};
+assign dbg_update_reason = {dbg_focus_w9_count_i[7:0],
+                            dbg_focus_w10_count_i[7:0]};
+assign dbg_contrib_mask = dbg_contrib_mask_i;
+assign dbg_mul_nonzero_mask = dbg_mul_nonzero_mask_i;
+assign dbg_last_contrib_info = dbg_last_contrib_info_i;
+assign dbg_last_contrib_raw_cv = dbg_last_contrib_raw_cv_i;
+assign dbg_last_contrib_mul = dbg_last_contrib_mul_i;
+assign dbg_last_contrib_vol = dbg_last_contrib_vol_i;
+assign dbg_ch6_contrib_count = dbg_ch6_contrib_count_i;
+assign dbg_ch6_contrib_mul = dbg_ch6_contrib_mul_i;
+assign dbg_ch6_contrib_raw_cv = dbg_ch6_contrib_raw_cv_i;
+assign dbg_ch7_contrib_count = dbg_ch7_contrib_count_i;
+assign dbg_ch7_contrib_mul = dbg_ch7_contrib_mul_i;
+assign dbg_ch7_contrib_raw_cv = dbg_ch7_contrib_raw_cv_i;
 
 // only AW=8 is needed for the CPU. Using AW=9
 // to store the scratch value for lower
@@ -726,9 +806,15 @@ always @* begin
     vol_mux = st[0] ? vol_left : vol_right;
     case( st )
          8: begin cfg_we = 1;        cfg_din = cfg_en; end
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+         9: begin cfg_we = wb_cur_valid_i; cfg_din = wb_cur_addr_i[ 7: 0]; end
+        10: begin cfg_we = wb_cur_valid_i; cfg_din = wb_cur_addr_i[15: 8]; end
+        11: begin cfg_we = wb_cur_valid_i; cfg_din = wb_cur_addr_i[23:16]; end
+`else
          9: begin cfg_we = 1;        cfg_din = cur_addr[ 7: 0]; end
         10: begin cfg_we = !was_enb; cfg_din = cur_addr[15: 8]; end
         11: begin cfg_we = !was_enb; cfg_din = cur_addr[23:16]; end
+`endif
         default: begin cfg_we = 0; cfg_din = 0; end
     endcase
 end
@@ -763,6 +849,10 @@ always @(posedge clk) begin
         vol_left  <= 0;
         vol_right <= 0;
         was_enb   <= 0;
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+        wb_cur_addr_i <= 24'd0;
+        wb_cur_valid_i <= 1'b0;
+`endif
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_TEST
         smoke_follow_cur_seeded_i <= 1'b0;
@@ -856,6 +946,40 @@ always @(posedge clk) begin
         dbg_update_reason_i <= 0;
         dbg_writer_bits_i <= 0;
         dbg_update_exact_seen_i <= 1'b0;
+        dbg_contrib_mask_i <= 16'd0;
+        dbg_mul_nonzero_mask_i <= 16'd0;
+        dbg_last_contrib_info_i <= 16'd0;
+        dbg_last_contrib_raw_cv_i <= 16'd0;
+        dbg_last_contrib_mul_i <= 16'd0;
+        dbg_last_contrib_vol_i <= 16'd0;
+        dbg_ch6_contrib_count_i <= 16'd0;
+        dbg_ch6_contrib_mul_i <= 16'd0;
+        dbg_ch6_contrib_raw_cv_i <= 16'd0;
+        dbg_ch7_contrib_count_i <= 16'd0;
+        dbg_ch7_contrib_mul_i <= 16'd0;
+        dbg_ch7_contrib_raw_cv_i <= 16'd0;
+        dbg_focus_request_count_i <= 16'd0;
+        dbg_focus_advance_count_i <= 16'd0;
+        dbg_focus_addr_advance_count_i <= 16'd0;
+        dbg_focus_same_addr_count_i <= 16'd0;
+        dbg_focus_end_count_i <= 16'd0;
+        dbg_focus_before_i <= 24'd0;
+        dbg_focus_after_i <= 24'd0;
+        dbg_focus_writeback_i <= 24'd0;
+        dbg_focus_rom_addr_i <= 16'd0;
+        dbg_focus_w9_count_i <= 16'd0;
+        dbg_focus_w10_count_i <= 16'd0;
+        dbg_focus_w11_count_i <= 16'd0;
+        dbg_focus_midhi_block_count_i <= 16'd0;
+        dbg_focus_load_low_i <= 8'd0;
+        dbg_focus_load_mid_i <= 8'd0;
+        dbg_focus_load_high_i <= 8'd0;
+        dbg_focus_delta_i <= 8'd0;
+        dbg_focus_cfg_i <= 8'd0;
+        dbg_focus_bank_i <= 3'd0;
+        dbg_focus_write_bits_i <= 3'd0;
+        dbg_focus_st_i <= 4'd0;
+        dbg_focus_was_enb_i <= 1'b0;
         dbg_ch3_roll_d0_addr_i <= 0;
         dbg_ch3_roll_d0_value_i <= 0;
         dbg_ch3_roll_d1_addr_i <= 0;
@@ -1350,6 +1474,8 @@ always @(posedge clk) begin
                 dbg_seq_d0_addr <= cfg_ram_addr_d;
                 dbg_seq_d0_value <= cfg_data;
                 if( cur_ch == 4'd3 ) begin
+                    dbg_focus_load_low_i <= load_byte;
+                    dbg_focus_was_enb_i <= was_enb;
                     dbg_ch3_roll_d0_addr_i <= cfg_ram_addr;
                     dbg_ch3_roll_d0_value_i <= load_byte;
                     dbg_ch3_roll_seen_i[0] <= 1'b1;
@@ -1391,6 +1517,7 @@ always @(posedge clk) begin
                 dbg_seq_d1_addr <= cfg_ram_addr_d;
                 dbg_seq_d1_value <= cfg_data;
                 if( cur_ch == 4'd3 ) begin
+                    dbg_focus_load_mid_i <= load_byte;
                     dbg_ch3_roll_d1_addr_i <= cfg_ram_addr;
                     dbg_ch3_roll_d1_value_i <= load_byte;
                     dbg_ch3_roll_seen_i[1] <= 1'b1;
@@ -1442,6 +1569,7 @@ always @(posedge clk) begin
                 dbg_seq_d2_addr <= cfg_ram_addr_d;
                 dbg_seq_d2_value <= cfg_data;
                 if( cur_ch == 4'd3 ) begin
+                    dbg_focus_load_high_i <= load_byte;
                     dbg_ch3_roll_d2_addr_i <= cfg_ram_addr;
                     dbg_ch3_roll_d2_value_i <= load_byte;
                     dbg_ch3_roll_load_after_i <= next_cur_addr;
@@ -1584,6 +1712,17 @@ always @(posedge clk) begin
 `endif
             end
             7: begin
+                if( cur_ch == 4'd3 ) begin
+                    dbg_focus_cfg_i <= cfg_en;
+                    dbg_focus_delta_i <= delta;
+                    dbg_focus_st_i <= st;
+                    if( cur_addr[23:16] == (cfg_data + 8'b1) ) begin
+                        if( dbg_focus_end_count_i != 16'hffff ) begin
+                            dbg_focus_end_count_i <=
+                                dbg_focus_end_count_i + 16'd1;
+                        end
+                    end
+                end
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_TEST
                 if( cur_ch == SMOKE_CH && smoke_c0_end_hit_pulse ) begin : st_smoke_c0_loop_end
@@ -1714,10 +1853,10 @@ always @(posedge clk) begin
                             dbg_writer_bits_i <= dbg_writer_bits_i | 8'b0010_0000;
                         end
 	                    end
-                end else begin
+	                    end else begin
 `endif
 `endif
-                rom_cs   <= 1;
+	                rom_cs   <= 1;
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
                 rom_addr <= (cur_ch == SMOKE_CH && smoke_forced_play_enable) ?
                             { smoke_rom_bank, cur_addr[23:8] } :
@@ -1779,6 +1918,32 @@ always @(posedge clk) begin
                 begin : st_advance_addr
                     reg [23:0] next_cur_addr;
                     next_cur_addr = cur_addr + { 16'd0, delta };
+                    if( cur_ch == 4'd3 ) begin
+                        dbg_focus_before_i <= cur_addr;
+                        dbg_focus_after_i <= next_cur_addr;
+                        dbg_focus_delta_i <= delta;
+                        dbg_focus_cfg_i <= cfg_en;
+                        dbg_focus_bank_i <= bank;
+                        dbg_focus_rom_addr_i <= cur_addr[23:8];
+                        dbg_focus_st_i <= st;
+                        if( dbg_focus_request_count_i != 16'hffff ) begin
+                            dbg_focus_request_count_i <=
+                                dbg_focus_request_count_i + 16'd1;
+                        end
+                        if( dbg_focus_advance_count_i != 16'hffff ) begin
+                            dbg_focus_advance_count_i <=
+                                dbg_focus_advance_count_i + 16'd1;
+                        end
+                        if( next_cur_addr[23:8] != cur_addr[23:8] ) begin
+                            if( dbg_focus_addr_advance_count_i != 16'hffff ) begin
+                                dbg_focus_addr_advance_count_i <=
+                                    dbg_focus_addr_advance_count_i + 16'd1;
+                            end
+                        end else if( dbg_focus_same_addr_count_i != 16'hffff ) begin
+                            dbg_focus_same_addr_count_i <=
+                                dbg_focus_same_addr_count_i + 16'd1;
+                        end
+                    end
                     if( (cur_ch == 4'd3) && ({ bank, cur_addr[23:8] } == 19'h38686) ) begin
                         dbg_update_exact_seen_i <= 1'b1;
                         if( !dbg_prior_flags_i[7] ) begin
@@ -1844,10 +2009,14 @@ always @(posedge clk) begin
                         dbg_update_addend_i <= delta;
                         dbg_update_reason_i <= 8'b0010_0000; // advance
                         dbg_writer_bits_i <= dbg_writer_bits_i | 8'b0010_0000;
-                    end
-                    cur_addr <= next_cur_addr;
-`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
-`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_TEST
+	                    end
+	                    cur_addr <= next_cur_addr;
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+                        wb_cur_addr_i <= next_cur_addr;
+                        wb_cur_valid_i <= 1'b1;
+`endif
+	`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
+	`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_TEST
                     if( cur_ch == SMOKE_CH && smoke_ddr_follow_mode &&
                         smoke_ddr_follow_init_enable ) begin
                         smoke_follow_cur_addr_i <= next_cur_addr;
@@ -1863,52 +2032,133 @@ always @(posedge clk) begin
             end
 
             9: begin
-                if( cur_ch == 4'd3 && cfg_we ) begin
-                    dbg_ch3_w9_addr_i <= cfg_ram_addr;
-                    dbg_ch3_w9_value_i <= cfg_din;
-                    dbg_start_mirror_c0_i <= cfg_din;
-                    dbg_ch3_wb_cur_addr_i <= cur_addr;
-                    dbg_ch3_wb_seen_i[0] <= 1'b1;
-                    dbg_ch3_wb_after_event_i <= dbg_ch3_wb_after_event_i | dbg_update_exact_seen_i;
-                    if( dbg_fs_rom_seen_i && !dbg_fs_wb_seen_i[0] ) begin
-                        dbg_fs_w9_data_i <= cfg_din;
-                        dbg_fs_wb_addr_i <= cur_addr;
-                        dbg_fs_wb_seen_i[0] <= 1'b1;
+                if( cur_ch == 4'd3 ) begin
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+                    dbg_focus_writeback_i <= wb_cur_valid_i ?
+                        wb_cur_addr_i : cur_addr;
+`else
+                    dbg_focus_writeback_i <= cur_addr;
+`endif
+                    if( cfg_we ) begin
+                        if( dbg_focus_w9_count_i != 16'hffff ) begin
+                            dbg_focus_w9_count_i <= dbg_focus_w9_count_i + 16'd1;
+                        end
+                        dbg_focus_write_bits_i[0] <= 1'b1;
+                        dbg_ch3_w9_addr_i <= cfg_ram_addr;
+                        dbg_ch3_w9_value_i <= cfg_din;
+                        dbg_start_mirror_c0_i <= cfg_din;
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+                        dbg_ch3_wb_cur_addr_i <= wb_cur_addr_i;
+`else
+                        dbg_ch3_wb_cur_addr_i <= cur_addr;
+`endif
+                        dbg_ch3_wb_seen_i[0] <= 1'b1;
+                        dbg_ch3_wb_after_event_i <= dbg_ch3_wb_after_event_i | dbg_update_exact_seen_i;
+                        if( dbg_fs_rom_seen_i && !dbg_fs_wb_seen_i[0] ) begin
+                            dbg_fs_w9_data_i <= cfg_din;
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+                            dbg_fs_wb_addr_i <= wb_cur_addr_i;
+`else
+                            dbg_fs_wb_addr_i <= cur_addr;
+`endif
+                            dbg_fs_wb_seen_i[0] <= 1'b1;
+                        end
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+                        dbg_update_after_i <= wb_cur_addr_i;
+`else
+                        dbg_update_after_i <= cur_addr;
+`endif
                     end
-                    dbg_update_after_i <= cur_addr;
                 end
             end
             10: begin
-                if( cur_ch == 4'd3 && cfg_we ) begin
-                    dbg_ch3_wa_addr_i <= cfg_ram_addr;
-                    dbg_ch3_wa_value_i <= cfg_din;
-                    dbg_start_mirror_c1_i <= cfg_din;
-                    dbg_ch3_wb_cur_addr_i <= cur_addr;
-                    dbg_ch3_wb_seen_i[1] <= 1'b1;
-                    dbg_ch3_wb_after_event_i <= dbg_ch3_wb_after_event_i | dbg_update_exact_seen_i;
-                    if( dbg_fs_rom_seen_i && !dbg_fs_wb_seen_i[1] ) begin
-                        dbg_fs_wa_data_i <= cfg_din;
-                        dbg_fs_wb_addr_i <= cur_addr;
-                        dbg_fs_wb_seen_i[1] <= 1'b1;
+                if( cur_ch == 4'd3 ) begin
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+                    dbg_focus_writeback_i <= wb_cur_valid_i ?
+                        wb_cur_addr_i : cur_addr;
+`else
+                    dbg_focus_writeback_i <= cur_addr;
+`endif
+                    if( cfg_we ) begin
+                        if( dbg_focus_w10_count_i != 16'hffff ) begin
+                            dbg_focus_w10_count_i <= dbg_focus_w10_count_i + 16'd1;
+                        end
+                        dbg_focus_write_bits_i[1] <= 1'b1;
+                        dbg_ch3_wa_addr_i <= cfg_ram_addr;
+                        dbg_ch3_wa_value_i <= cfg_din;
+                        dbg_start_mirror_c1_i <= cfg_din;
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+                        dbg_ch3_wb_cur_addr_i <= wb_cur_addr_i;
+`else
+                        dbg_ch3_wb_cur_addr_i <= cur_addr;
+`endif
+                        dbg_ch3_wb_seen_i[1] <= 1'b1;
+                        dbg_ch3_wb_after_event_i <= dbg_ch3_wb_after_event_i | dbg_update_exact_seen_i;
+                        if( dbg_fs_rom_seen_i && !dbg_fs_wb_seen_i[1] ) begin
+                            dbg_fs_wa_data_i <= cfg_din;
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+                            dbg_fs_wb_addr_i <= wb_cur_addr_i;
+`else
+                            dbg_fs_wb_addr_i <= cur_addr;
+`endif
+                            dbg_fs_wb_seen_i[1] <= 1'b1;
+                        end
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+                        dbg_update_after_i <= wb_cur_addr_i;
+`else
+                        dbg_update_after_i <= cur_addr;
+`endif
+                    end else if( dbg_focus_midhi_block_count_i != 16'hffff ) begin
+                        dbg_focus_midhi_block_count_i <=
+                            dbg_focus_midhi_block_count_i + 16'd1;
                     end
-                    dbg_update_after_i <= cur_addr;
                 end
             end
             11: begin
-                if( cur_ch == 4'd3 && cfg_we ) begin
-                    dbg_ch3_wb_addr_i <= cfg_ram_addr;
-                    dbg_ch3_wb_value_i <= cfg_din;
-                    dbg_start_mirror_c2_i <= cfg_din;
-                    dbg_ch3_wb_cur_addr_i <= cur_addr;
-                    dbg_ch3_wb_seen_i[2] <= 1'b1;
-                    dbg_ch3_wb_after_event_i <= dbg_ch3_wb_after_event_i | dbg_update_exact_seen_i;
-                    if( dbg_fs_rom_seen_i && !dbg_fs_wb_seen_i[2] ) begin
-                        dbg_fs_wb_data_i <= cfg_din;
-                        dbg_fs_wb_addr_i <= cur_addr;
-                        dbg_fs_wb_seen_i[2] <= 1'b1;
+                if( cur_ch == 4'd3 ) begin
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+                    dbg_focus_writeback_i <= wb_cur_valid_i ?
+                        wb_cur_addr_i : cur_addr;
+`else
+                    dbg_focus_writeback_i <= cur_addr;
+`endif
+                    if( cfg_we ) begin
+                        if( dbg_focus_w11_count_i != 16'hffff ) begin
+                            dbg_focus_w11_count_i <= dbg_focus_w11_count_i + 16'd1;
+                        end
+                        dbg_focus_write_bits_i[2] <= 1'b1;
+                        dbg_ch3_wb_addr_i <= cfg_ram_addr;
+                        dbg_ch3_wb_value_i <= cfg_din;
+                        dbg_start_mirror_c2_i <= cfg_din;
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+                        dbg_ch3_wb_cur_addr_i <= wb_cur_addr_i;
+`else
+                        dbg_ch3_wb_cur_addr_i <= cur_addr;
+`endif
+                        dbg_ch3_wb_seen_i[2] <= 1'b1;
+                        dbg_ch3_wb_after_event_i <= dbg_ch3_wb_after_event_i | dbg_update_exact_seen_i;
+                        if( dbg_fs_rom_seen_i && !dbg_fs_wb_seen_i[2] ) begin
+                            dbg_fs_wb_data_i <= cfg_din;
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+                            dbg_fs_wb_addr_i <= wb_cur_addr_i;
+`else
+                            dbg_fs_wb_addr_i <= cur_addr;
+`endif
+                            dbg_fs_wb_seen_i[2] <= 1'b1;
+                        end
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+                        dbg_update_after_i <= wb_cur_addr_i;
+`else
+                        dbg_update_after_i <= cur_addr;
+`endif
+                    end else if( dbg_focus_midhi_block_count_i != 16'hffff ) begin
+                        dbg_focus_midhi_block_count_i <=
+                            dbg_focus_midhi_block_count_i + 16'd1;
                     end
-                    dbg_update_after_i <= cur_addr;
                 end
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+                wb_cur_valid_i <= 1'b0;
+`endif
             end
             12: begin
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
@@ -1959,6 +2209,43 @@ always @(posedge clk) begin
             15: begin
                 active[cur_ch] <= ~was_enb;
                 cur_ch <= cur_ch + 1'd1;
+                if( !cfg_en[0] ) begin
+                    if( (clipDAC(mul_data) != {WD{1'b0}}) ||
+                        (buf_r != {WD{1'b0}}) ) begin
+                        dbg_contrib_mask_i[cur_ch] <= 1'b1;
+                        dbg_last_contrib_info_i <= {
+                            4'hc,
+                            cur_ch,
+                            st,
+                            1'b1,
+                            1'b1,
+                            ((vol_left != 8'sd0) || (vol_right != 8'sd0)),
+                            (pcm_source_data != 8'h80)
+                        };
+                        dbg_last_contrib_raw_cv_i <= {pcm_source_data, pcm_data};
+                        dbg_last_contrib_mul_i <= mul_data;
+                        dbg_last_contrib_vol_i <= {vol_left, vol_right};
+                        if( cur_ch == 4'd6 ) begin
+                            if( dbg_ch6_contrib_count_i != 16'hffff ) begin
+                                dbg_ch6_contrib_count_i <=
+                                    dbg_ch6_contrib_count_i + 16'd1;
+                            end
+                            dbg_ch6_contrib_mul_i <= mul_data;
+                            dbg_ch6_contrib_raw_cv_i <= {pcm_source_data, pcm_data};
+                        end
+                        if( cur_ch == 4'd7 ) begin
+                            if( dbg_ch7_contrib_count_i != 16'hffff ) begin
+                                dbg_ch7_contrib_count_i <=
+                                    dbg_ch7_contrib_count_i + 16'd1;
+                            end
+                            dbg_ch7_contrib_mul_i <= mul_data;
+                            dbg_ch7_contrib_raw_cv_i <= {pcm_source_data, pcm_data};
+                        end
+                    end
+                    if( (mul_data != 16'sd0) || (buf_r != {WD{1'b0}}) ) begin
+                        dbg_mul_nonzero_mask_i[cur_ch] <= 1'b1;
+                    end
+                end
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
                 if( !cfg_en[0] && cur_ch == SMOKE_CH &&
                     smoke_forced_play_enable ) begin
