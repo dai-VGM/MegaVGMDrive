@@ -166,7 +166,29 @@ module jtoutrun_pcm #(parameter
     output      [15:0] dbg_ch6_contrib_raw_cv,
     output      [15:0] dbg_ch7_contrib_count,
     output      [15:0] dbg_ch7_contrib_mul,
-    output      [15:0] dbg_ch7_contrib_raw_cv
+    output      [15:0] dbg_ch7_contrib_raw_cv,
+    output             dbg_rv60_state8_accept_strobe,
+    output      [ 2:0] dbg_rv60_state8_accept_slot,
+    output      [15:0] dbg_rv60_state8_accept_txn,
+    output      [15:0] dbg_rv62_live_state_channel,
+    output      [ 7:0] dbg_rv62_live_rom_data,
+    output      [ 7:0] dbg_rv62_live_source_data,
+    output             dbg_rv62_state14_consume_strobe,
+    output      [15:0] dbg_rv62_capture_condition_flags,
+    output             dbg_rv63_normal_state8_request_strobe,
+    output             dbg_rv63_normal_state14_consume_strobe,
+    output      [23:0] dbg_rv65_normal_current_before,
+    output      [23:0] dbg_rv65_normal_current_after,
+    output      [ 7:0] dbg_rv65_normal_delta,
+    output      [18:0] dbg_rv65_normal_expected_rom_addr,
+    output      [15:0] dbg_rv68_loop_addr,
+    output      [ 7:0] dbg_rv68_end_addr,
+    output      [ 7:0] dbg_rv68_state7_flags,
+    output             dbg_rv69_internal_write_enable,
+    output      [ 8:0] dbg_rv69_internal_write_addr,
+    output      [ 7:0] dbg_rv69_internal_write_data,
+    output      [ 8:0] dbg_rv69_ram_read_addr,
+    output      [ 7:0] dbg_rv69_ram_read_data
 );
 
 wire        we = cpu_cs & ~cpu_rnw;
@@ -176,14 +198,44 @@ wire [ 2:0] bank;
 wire [ 7:0] cfg_data;
 reg  [ 3:0] cur_ch;
 reg  [ 4:0] cfg_addr;
-wire [ 8:0] cfg_ram_addr = { cfg_addr[4:3], cur_ch, cfg_addr[2:0] };
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+// Port 1 is synchronous. During state 15, prefetch control for the channel
+// which state 0 will process after cur_ch advances.
+wire [ 3:0] cfg_ram_ch = (st == 4'd15) ? (cur_ch + 4'd1) : cur_ch;
+`else
+wire [ 3:0] cfg_ram_ch = cur_ch;
+`endif
+wire [ 8:0] cfg_ram_addr = { cfg_addr[4:3], cfg_ram_ch, cfg_addr[2:0] };
 reg  [15:0] active;     // high for active channels, debug only
 reg  [ 7:0] cfg_en;
 reg  [ 7:0] delta, cfg_din;
 reg         cfg_we, was_enb;
 `ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
 reg  [23:0] wb_cur_addr_i;
+reg  [ 3:0] wb_cur_ch_i;
 reg         wb_cur_valid_i;
+reg  [ 2:0] wb_cur_write_seen_i;
+wire        wb_cur_selected = wb_cur_valid_i && (cur_ch == wb_cur_ch_i);
+reg  [15:0] dbg_wb_pending_set_count_i;
+reg  [15:0] dbg_wb_pending_match_count_i;
+reg  [15:0] dbg_wb_pending_miss_count_i;
+reg  [15:0] dbg_wb_live_select_count_i;
+reg  [15:0] dbg_wb_pending_select_count_i;
+reg  [15:0] dbg_wb_later_zero_count_i;
+reg  [23:0] dbg_wb_ch3_pending_addr_i;
+reg  [ 8:0] dbg_wb_s0_read_addr_i;
+reg  [ 8:0] dbg_wb_low_read_addr_i;
+reg  [ 7:0] dbg_wb_low_read_data_i;
+reg         dbg_wb_low_read_ram_i;
+reg  [15:0] dbg_wb_w9_i;
+reg  [15:0] dbg_wb_w10_i;
+reg  [15:0] dbg_wb_w11_i;
+reg  [ 8:0] dbg_wb_a9_i;
+reg  [ 8:0] dbg_wb_a10_i;
+reg  [ 8:0] dbg_wb_a11_i;
+reg  [15:0] dbg_wb_later_zero_info_i;
+reg  [ 3:0] dbg_wb_commit_ch_i;
+reg         dbg_wb_commit_seen_i;
 `endif
 
 reg  [ 2:0] dbg_last_bank;
@@ -268,6 +320,100 @@ reg  [ 2:0] dbg_focus_bank_i;
 reg  [ 2:0] dbg_focus_write_bits_i;
 reg  [ 3:0] dbg_focus_st_i;
 reg         dbg_focus_was_enb_i;
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+reg  [15:0] dbg_focus_seq_addr0_i;
+reg  [15:0] dbg_focus_seq_addr1_i;
+reg  [15:0] dbg_focus_seq_addr2_i;
+reg  [15:0] dbg_focus_seq_addr3_i;
+reg  [15:0] dbg_focus_seq_addr4_i;
+reg  [15:0] dbg_focus_seq_addr5_i;
+reg  [15:0] dbg_focus_seq_addr6_i;
+reg  [15:0] dbg_focus_seq_addr7_i;
+reg  [ 7:0] dbg_focus_seq_data0_i;
+reg  [ 7:0] dbg_focus_seq_data1_i;
+reg  [ 7:0] dbg_focus_seq_data2_i;
+reg  [ 7:0] dbg_focus_seq_data3_i;
+reg  [ 7:0] dbg_focus_seq_data4_i;
+reg  [ 7:0] dbg_focus_seq_data5_i;
+reg  [ 7:0] dbg_focus_seq_data6_i;
+reg  [ 7:0] dbg_focus_seq_data7_i;
+reg  [ 7:0] dbg_rv60_sample_reg0_i;
+reg  [ 7:0] dbg_rv60_sample_reg1_i;
+reg  [ 7:0] dbg_rv60_sample_reg2_i;
+reg  [ 7:0] dbg_rv60_sample_reg3_i;
+reg  [ 7:0] dbg_rv60_sample_reg4_i;
+reg  [ 7:0] dbg_rv60_sample_reg5_i;
+reg  [ 7:0] dbg_rv60_sample_reg6_i;
+reg  [ 7:0] dbg_rv60_sample_reg7_i;
+reg  [ 7:0] dbg_rv60_source0_i;
+reg  [ 7:0] dbg_rv60_source1_i;
+reg  [ 7:0] dbg_rv60_source2_i;
+reg  [ 7:0] dbg_rv60_source3_i;
+reg  [ 7:0] dbg_rv60_source4_i;
+reg  [ 7:0] dbg_rv60_source5_i;
+reg  [ 7:0] dbg_rv60_source6_i;
+reg  [ 7:0] dbg_rv60_source7_i;
+reg  [15:0] dbg_rv60_next_txn_id_i;
+reg  [15:0] dbg_rv60_pending_txn_id_i;
+reg  [ 2:0] dbg_rv60_pending_slot_i;
+reg         dbg_rv60_pending_valid_i;
+reg  [15:0] dbg_rv60_state8_accept_count_i;
+reg  [15:0] dbg_rv60_smoke_write_count_i;
+reg  [15:0] dbg_rv60_state14_consume_count_i;
+reg  [15:0] dbg_rv60_state8_tag_i;
+reg  [15:0] dbg_rv60_smoke_write_tag_i;
+reg  [15:0] dbg_rv60_state14_tag_i;
+reg  [ 7:0] dbg_focus_seq_low0_i;
+reg  [ 7:0] dbg_focus_seq_low1_i;
+reg  [ 7:0] dbg_focus_seq_low2_i;
+reg  [ 7:0] dbg_focus_seq_low3_i;
+reg  [ 7:0] dbg_focus_seq_low4_i;
+reg  [ 7:0] dbg_focus_seq_low5_i;
+reg  [ 7:0] dbg_focus_seq_low6_i;
+reg  [ 7:0] dbg_focus_seq_low7_i;
+reg  [15:0] dbg_focus_seq_rom0_i;
+reg  [15:0] dbg_focus_seq_rom1_i;
+reg  [15:0] dbg_focus_seq_rom2_i;
+reg  [15:0] dbg_focus_seq_rom3_i;
+reg  [15:0] dbg_focus_seq_rom4_i;
+reg  [15:0] dbg_focus_seq_rom5_i;
+reg  [15:0] dbg_focus_seq_rom6_i;
+reg  [15:0] dbg_focus_seq_rom7_i;
+reg  [ 7:0] dbg_focus_seq_rom_valid_i;
+reg  [ 3:0] dbg_focus_seq_count_i;
+reg  [ 2:0] dbg_focus_seq_pending_slot_i;
+reg         dbg_focus_seq_return_pending_i;
+reg  [ 7:0] dbg_focus_seq_addr_valid_i;
+reg  [ 7:0] dbg_focus_seq_data_valid_i;
+reg  [ 3:0] dbg_focus_seq_arm_flags_i;
+reg         dbg_focus_seq_trigger_seen_i;
+reg         dbg_focus_seq_armed_i;
+reg  [15:0] dbg_focus_live_addr_i;
+reg  [ 7:0] dbg_focus_live_data_i;
+reg  [ 7:0] dbg_focus_live_low_i;
+reg         dbg_focus_live_return_pending_i;
+reg  [15:0] dbg_focus_source_addr_i;
+reg  [ 7:0] dbg_focus_source_data_i;
+reg  [ 7:0] dbg_focus_source_low_i;
+reg         dbg_focus_end_match_d_i;
+reg         dbg_focus_gate_d_i;
+reg  [15:0] dbg_focus_contrib_count_i;
+reg  [15:0] dbg_focus_ctrl_write_count_i;
+reg  [15:0] dbg_focus_gate_count_i;
+reg  [15:0] dbg_focus_active_to_inactive_count_i;
+reg  [15:0] dbg_focus_inactive_to_active_count_i;
+reg  [15:0] dbg_focus_active_status_i;
+reg  [15:0] dbg_focus_vol_lr_i;
+reg  [ 7:0] dbg_focus_last_ctrl_i;
+reg  [ 7:0] dbg_focus_last_cfg_i;
+reg  [ 7:0] dbg_focus_gate_reason_i;
+reg  [ 7:0] dbg_rv68_end_addr_i;
+reg  [ 7:0] dbg_rv68_state7_flags_i;
+reg  [ 8:0] dbg_rv69_ram_read_addr_i;
+reg  [15:0] c0_scratch_valid_i;
+reg         c0_ctrl_write_pending_i;
+reg         c0_vol_right_read_pending_i;
+`endif
 reg  [ 8:0] dbg_ch3_roll_d0_addr_i;
 reg  [ 7:0] dbg_ch3_roll_d0_value_i;
 reg  [ 8:0] dbg_ch3_roll_d1_addr_i;
@@ -613,6 +759,134 @@ wire [7:0] pcm_source_data =
 `endif
     rom_data;
 
+// RV0062 live probes are observation-only. Unlike the older transaction
+// captures, these wires do not depend on an accept/consume event.
+assign dbg_rv62_live_state_channel = {8'd0, st, cur_ch};
+assign dbg_rv62_live_rom_data = rom_data;
+assign dbg_rv62_live_source_data = pcm_source_data;
+
+// RV0063 anchors the ordinary (non forced-smoke) ROM transaction. The normal
+// state-8 branch only issues rom_cs/rom_addr; it does not latch rom_data or
+// inspect rom_ok. Response and byte-register events are therefore paired in
+// the wrapper without changing this playback state machine.
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_TEST
+wire dbg_rv63_normal_mode = !smoke_c0_current_seed_active;
+`else
+wire dbg_rv63_normal_mode = 1'b1;
+`endif
+`else
+wire dbg_rv63_normal_mode = 1'b1;
+`endif
+assign dbg_rv63_normal_state8_request_strobe =
+    cen && (st == 4'd8) && (cur_ch == 4'd3) && !cfg_en[0] &&
+    dbg_rv63_normal_mode;
+assign dbg_rv63_normal_state14_consume_strobe =
+    cen && (st == 4'd14) && (cur_ch == 4'd3) &&
+    dbg_rv63_normal_mode;
+assign dbg_rv65_normal_current_before = cur_addr;
+assign dbg_rv65_normal_current_after =
+    cur_addr + {16'd0, delta};
+assign dbg_rv65_normal_delta = delta;
+assign dbg_rv68_loop_addr = loop_addr;
+assign dbg_rv68_end_addr = dbg_rv68_end_addr_i;
+assign dbg_rv68_state7_flags = dbg_rv68_state7_flags_i;
+// RV0069 observes the real internal RAM port and its registered read address.
+// These signals do not feed the RAM or the PCM state machine.
+assign dbg_rv69_internal_write_enable = cfg_we;
+assign dbg_rv69_internal_write_addr = cfg_ram_addr;
+assign dbg_rv69_internal_write_data = cfg_din;
+assign dbg_rv69_ram_read_addr = dbg_rv69_ram_read_addr_i;
+assign dbg_rv69_ram_read_data = cfg_data;
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
+assign dbg_rv65_normal_expected_rom_addr =
+    (cur_ch == SMOKE_CH && smoke_forced_play_enable) ?
+    {smoke_rom_bank, cur_addr[23:8]} :
+    {bank, cur_addr[23:8]};
+`else
+assign dbg_rv65_normal_expected_rom_addr = {bank, cur_addr[23:8]};
+`endif
+`else
+assign dbg_rv63_normal_state8_request_strobe = 1'b0;
+assign dbg_rv63_normal_state14_consume_strobe = 1'b0;
+assign dbg_rv65_normal_current_before = 24'd0;
+assign dbg_rv65_normal_current_after = 24'd0;
+assign dbg_rv65_normal_delta = 8'd0;
+assign dbg_rv65_normal_expected_rom_addr = 19'd0;
+assign dbg_rv68_loop_addr = 16'd0;
+assign dbg_rv68_end_addr = 8'd0;
+assign dbg_rv68_state7_flags = 8'd0;
+assign dbg_rv69_internal_write_enable = 1'b0;
+assign dbg_rv69_internal_write_addr = 9'd0;
+assign dbg_rv69_internal_write_data = 8'd0;
+assign dbg_rv69_ram_read_addr = 9'd0;
+assign dbg_rv69_ram_read_data = 8'd0;
+`endif
+
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+// RV0060 transaction anchor: this is exactly the forced-C0 state-8 branch
+// that accepts rom_data and writes smoke_sample_byte_i. These outputs are
+// observation-only and are not consumed by the playback path.
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_TEST
+assign dbg_rv60_state8_accept_strobe = cen && (st == 4'd8) &&
+    (cur_ch == SMOKE_CH) && !cfg_en[0] && smoke_c0_current_seed_active &&
+    smoke_rom_wait_i && rom_ok;
+assign dbg_rv60_state8_accept_slot = dbg_rv60_next_txn_id_i[2:0];
+assign dbg_rv60_state8_accept_txn = dbg_rv60_next_txn_id_i;
+`else
+assign dbg_rv60_state8_accept_strobe = 1'b0;
+assign dbg_rv60_state8_accept_slot = 3'd0;
+assign dbg_rv60_state8_accept_txn = 16'd0;
+`endif
+`else
+assign dbg_rv60_state8_accept_strobe = 1'b0;
+assign dbg_rv60_state8_accept_slot = 3'd0;
+assign dbg_rv60_state8_accept_txn = 16'd0;
+`endif
+`else
+assign dbg_rv60_state8_accept_strobe = 1'b0;
+assign dbg_rv60_state8_accept_slot = 3'd0;
+assign dbg_rv60_state8_accept_txn = 16'd0;
+`endif
+
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_TEST
+assign dbg_rv62_state14_consume_strobe = cen && (st == 4'd14) &&
+    (cur_ch == SMOKE_CH) && dbg_rv60_pending_valid_i;
+assign dbg_rv62_capture_condition_flags = {
+    cen,
+    (st == 4'd8),
+    (cur_ch == SMOKE_CH),
+    !cfg_en[0],
+    smoke_c0_current_seed_active,
+    smoke_rom_wait_i,
+    rom_ok,
+    dbg_rv60_state8_accept_strobe,
+    (st == 4'd14),
+    dbg_rv60_pending_valid_i,
+    dbg_rv62_state14_consume_strobe,
+    smoke_c0_sample_pending_i,
+    smoke_ddr_follow_mode,
+    smoke_ddr_follow_init_enable,
+    rom_cs,
+    1'b1
+};
+`else
+assign dbg_rv62_state14_consume_strobe = 1'b0;
+assign dbg_rv62_capture_condition_flags = 16'd0;
+`endif
+`else
+assign dbg_rv62_state14_consume_strobe = 1'b0;
+assign dbg_rv62_capture_condition_flags = 16'd0;
+`endif
+`else
+assign dbg_rv62_state14_consume_strobe = 1'b0;
+assign dbg_rv62_capture_condition_flags = 16'd0;
+`endif
+
 always @* begin
     pcm_centered9 = $signed({1'b0, pcm_source_data}) - 9'sd128;
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_TEST
@@ -676,6 +950,41 @@ assign dbg_ch1_first_high = dbg_last_cpu_port_i;
 assign dbg_ch1_first_low = dbg_last_int_port_i;
 assign dbg_ch1_first_raw_high = dbg_write_source_i;
 assign dbg_ch1_first_raw_low = {7'd0, dbg_target2_addr_i};
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+// RV0060: all five stages use the transaction slot allocated by the exact
+// state-8 accepted-byte event. P is the JT input port at accept, R is the
+// registered smoke byte at state 14, and J is the selected PCM source there.
+assign dbg_ch3_first_high = {dbg_focus_seq_data0_i, dbg_focus_seq_data1_i};
+assign dbg_ch3_first_low = {dbg_focus_seq_data2_i, dbg_focus_seq_data3_i};
+assign dbg_ch3_first_raw_high = {dbg_focus_seq_data4_i,
+                                 dbg_focus_seq_data5_i};
+assign dbg_ch3_first_raw_low = {dbg_focus_seq_data6_i,
+                                dbg_focus_seq_data7_i};
+assign dbg_ch3_r0_high = {dbg_rv60_sample_reg0_i, dbg_rv60_sample_reg1_i};
+assign dbg_ch3_r0_low = {dbg_rv60_sample_reg2_i, dbg_rv60_sample_reg3_i};
+assign dbg_ch3_r1_high = {dbg_rv60_sample_reg4_i, dbg_rv60_sample_reg5_i};
+assign dbg_ch3_r1_low = {dbg_rv60_sample_reg6_i, dbg_rv60_sample_reg7_i};
+assign dbg_ch3_r2_high = {dbg_rv60_source0_i, dbg_rv60_source1_i};
+assign dbg_ch3_r2_low = {dbg_rv60_source2_i, dbg_rv60_source3_i};
+assign dbg_update_state_channel = {dbg_rv60_source4_i,
+                                   dbg_rv60_source5_i};
+assign dbg_update_before_23 = {dbg_rv60_source6_i, dbg_rv60_source7_i};
+assign dbg_update_before_15 = dbg_rv60_state8_accept_count_i;
+assign dbg_update_before_07 = dbg_rv60_smoke_write_count_i;
+assign dbg_update_addend = dbg_rv60_state14_consume_count_i;
+assign dbg_update_after_23 = dbg_rv60_state8_tag_i;
+assign dbg_update_after_15 = dbg_rv60_smoke_write_tag_i;
+assign dbg_update_after_07 = dbg_rv60_state14_tag_i;
+assign dbg_ch3_load_after_23 = dbg_focus_addr_advance_count_i;
+assign dbg_ch3_load_after_15 = dbg_focus_contrib_count_i;
+assign dbg_ch3_load_after_07 = dbg_focus_active_status_i;
+assign dbg_update_reason = {dbg_focus_gate_count_i[7:0],
+                            dbg_focus_gate_reason_i};
+assign dbg_pcm_raw_cv = {pcm_source_data, pcm_data};
+assign dbg_mul_data = mul_data;
+assign dbg_active_cfg = {active[7:0], cfg_en};
+assign dbg_vol_lr = {vol_left, vol_right};
+`else
 assign dbg_ch3_first_high = {
     4'hF,
     4'd3,
@@ -720,10 +1029,19 @@ assign dbg_active_cfg = {active[7:0], cfg_en};
 assign dbg_vol_lr = {vol_left, vol_right};
 assign dbg_update_reason = {dbg_focus_w9_count_i[7:0],
                             dbg_focus_w10_count_i[7:0]};
+`endif
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+assign dbg_contrib_mask = dbg_focus_contrib_count_i;
+assign dbg_mul_nonzero_mask = dbg_focus_active_status_i;
+assign dbg_last_contrib_info = {dbg_focus_gate_count_i[7:0],
+                                dbg_focus_gate_reason_i};
+assign dbg_last_contrib_raw_cv = dbg_focus_ctrl_write_count_i;
+`else
 assign dbg_contrib_mask = dbg_contrib_mask_i;
 assign dbg_mul_nonzero_mask = dbg_mul_nonzero_mask_i;
 assign dbg_last_contrib_info = dbg_last_contrib_info_i;
 assign dbg_last_contrib_raw_cv = dbg_last_contrib_raw_cv_i;
+`endif
 assign dbg_last_contrib_mul = dbg_last_contrib_mul_i;
 assign dbg_last_contrib_vol = dbg_last_contrib_vol_i;
 assign dbg_ch6_contrib_count = dbg_ch6_contrib_count_i;
@@ -740,15 +1058,28 @@ assign dbg_ch7_contrib_raw_cv = dbg_ch7_contrib_raw_cv_i;
 // access too.
 // That register may actually be visible by
 // the CPU, using cfg_addr=4'o17 for AW=8 seems to work fine too
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+// The C0 schedule presents each address one enabled state before use.  Gate
+// port 1 with cen so a disabled system-clock cycle cannot advance registered q
+// a second time and replace the prefetched byte before the state consumes it.
+jtframe_dual_ram_cen #(.AW(9),.SIMHEXFILE(SIMHEXFILE)) u_ram(
+`else
 jtframe_dual_ram #(.AW(9),.SIMHEXFILE(SIMHEXFILE)) u_ram(
+`endif
     // Port 0: CPU
     .clk0   ( clk       ),
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+    .cen0   ( 1'b1      ),
+`endif
     .data0  ( cpu_dout  ),
     .addr0  ({1'b0,cpu_addr}),
     .we0    ( we        ),
     .q0     ( cpu_din   ),
     // Port 1
     .clk1   ( clk       ),
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+    .cen1   ( cen       ),
+`endif
     .data1  ( cfg_din   ),
     .addr1  ( cfg_ram_addr ),
     .we1    ( cfg_we    ),
@@ -785,8 +1116,29 @@ function signed [WD-1:0] smoke_c0_low_gain_sample(
 endfunction
 
 always @* begin
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+    // C0/JT synchronous-RAM schedule. Each state presents the address whose
+    // registered q value will be consumed by the following state. State 15
+    // uses cfg_ram_ch above to prefetch the next channel's control byte.
     case( st )
-         0: cfg_addr = 5'o16; // enable
+         0: cfg_addr = c0_scratch_valid_i[cur_ch] ? 5'o20 : 5'o00;
+         1: cfg_addr = 5'o14; // current 15-8 for state 2
+         2: cfg_addr = 5'o15; // current 23-16 for state 3
+         3: cfg_addr = 5'o07; // delta for state 4
+         4: cfg_addr = 5'o04; // loop 15-8 for state 5
+         5: cfg_addr = 5'o05; // loop 23-16 for state 6
+         6: cfg_addr = 5'o06; // end for state 7
+         7: cfg_addr = 5'o02; // volume left, latched in state 8
+         8: cfg_addr = c0_ctrl_write_pending_i ? 5'o16 : 5'o03;
+         9: cfg_addr = 5'o20; // current fraction scratch write
+        10: cfg_addr = 5'o14; // current 15-8 write
+        11: cfg_addr = 5'o15; // current 23-16 write
+        15: cfg_addr = 5'o16; // next-channel control for state 0
+        default: cfg_addr = 5'o00;
+    endcase
+`else
+    case( st )
+         0: cfg_addr = 5'o16;
          1: cfg_addr = 5'o20; // addr 7-0
          2: cfg_addr = 5'o14; // addr 15-8
          3: cfg_addr = 5'o15; // addr 23-16
@@ -802,15 +1154,33 @@ always @* begin
         13: cfg_addr = 5'o03; // vol. right
         default: cfg_addr = 0;
     endcase
+`endif
 
     vol_mux = st[0] ? vol_left : vol_right;
     case( st )
-         8: begin cfg_we = 1;        cfg_din = cfg_en; end
 `ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
-         9: begin cfg_we = wb_cur_valid_i; cfg_din = wb_cur_addr_i[ 7: 0]; end
-        10: begin cfg_we = wb_cur_valid_i; cfg_din = wb_cur_addr_i[15: 8]; end
-        11: begin cfg_we = wb_cur_valid_i; cfg_din = wb_cur_addr_i[23:16]; end
+         8: begin
+             // Only persist an internally generated end/no-loop disable.
+             cfg_we = cen && c0_ctrl_write_pending_i;
+             cfg_din = cfg_en;
+         end
+         9: begin
+             cfg_we = cen && (wb_cur_selected || !was_enb);
+             cfg_din = wb_cur_selected ?
+                 wb_cur_addr_i[7:0] : cur_addr[7:0];
+         end
+        10: begin
+             cfg_we = cen && (wb_cur_selected || !was_enb);
+             cfg_din = wb_cur_selected ?
+                 wb_cur_addr_i[15:8] : cur_addr[15:8];
+         end
+        11: begin
+             cfg_we = cen && (wb_cur_selected || !was_enb);
+             cfg_din = wb_cur_selected ?
+                 wb_cur_addr_i[23:16] : cur_addr[23:16];
+         end
 `else
+         8: begin cfg_we = 1;        cfg_din = cfg_en; end
          9: begin cfg_we = 1;        cfg_din = cur_addr[ 7: 0]; end
         10: begin cfg_we = !was_enb; cfg_din = cur_addr[15: 8]; end
         11: begin cfg_we = !was_enb; cfg_din = cur_addr[23:16]; end
@@ -851,7 +1221,29 @@ always @(posedge clk) begin
         was_enb   <= 0;
 `ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
         wb_cur_addr_i <= 24'd0;
+        wb_cur_ch_i <= 4'd0;
         wb_cur_valid_i <= 1'b0;
+        wb_cur_write_seen_i <= 3'd0;
+        dbg_wb_pending_set_count_i <= 16'd0;
+        dbg_wb_pending_match_count_i <= 16'd0;
+        dbg_wb_pending_miss_count_i <= 16'd0;
+        dbg_wb_live_select_count_i <= 16'd0;
+        dbg_wb_pending_select_count_i <= 16'd0;
+        dbg_wb_later_zero_count_i <= 16'd0;
+        dbg_wb_ch3_pending_addr_i <= 24'd0;
+        dbg_wb_s0_read_addr_i <= 9'd0;
+        dbg_wb_low_read_addr_i <= 9'd0;
+        dbg_wb_low_read_data_i <= 8'd0;
+        dbg_wb_low_read_ram_i <= 1'b0;
+        dbg_wb_w9_i <= 16'd0;
+        dbg_wb_w10_i <= 16'd0;
+        dbg_wb_w11_i <= 16'd0;
+        dbg_wb_a9_i <= 9'd0;
+        dbg_wb_a10_i <= 9'd0;
+        dbg_wb_a11_i <= 9'd0;
+        dbg_wb_later_zero_info_i <= 16'd0;
+        dbg_wb_commit_ch_i <= 4'd0;
+        dbg_wb_commit_seen_i <= 1'b0;
 `endif
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_TEST
@@ -980,6 +1372,100 @@ always @(posedge clk) begin
         dbg_focus_write_bits_i <= 3'd0;
         dbg_focus_st_i <= 4'd0;
         dbg_focus_was_enb_i <= 1'b0;
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+        dbg_focus_seq_addr0_i <= 16'd0;
+        dbg_focus_seq_addr1_i <= 16'd0;
+        dbg_focus_seq_addr2_i <= 16'd0;
+        dbg_focus_seq_addr3_i <= 16'd0;
+        dbg_focus_seq_addr4_i <= 16'd0;
+        dbg_focus_seq_addr5_i <= 16'd0;
+        dbg_focus_seq_addr6_i <= 16'd0;
+        dbg_focus_seq_addr7_i <= 16'd0;
+        dbg_focus_seq_data0_i <= 8'd0;
+        dbg_focus_seq_data1_i <= 8'd0;
+        dbg_focus_seq_data2_i <= 8'd0;
+        dbg_focus_seq_data3_i <= 8'd0;
+        dbg_focus_seq_data4_i <= 8'd0;
+        dbg_focus_seq_data5_i <= 8'd0;
+        dbg_focus_seq_data6_i <= 8'd0;
+        dbg_focus_seq_data7_i <= 8'd0;
+        dbg_rv60_sample_reg0_i <= 8'd0;
+        dbg_rv60_sample_reg1_i <= 8'd0;
+        dbg_rv60_sample_reg2_i <= 8'd0;
+        dbg_rv60_sample_reg3_i <= 8'd0;
+        dbg_rv60_sample_reg4_i <= 8'd0;
+        dbg_rv60_sample_reg5_i <= 8'd0;
+        dbg_rv60_sample_reg6_i <= 8'd0;
+        dbg_rv60_sample_reg7_i <= 8'd0;
+        dbg_rv60_source0_i <= 8'd0;
+        dbg_rv60_source1_i <= 8'd0;
+        dbg_rv60_source2_i <= 8'd0;
+        dbg_rv60_source3_i <= 8'd0;
+        dbg_rv60_source4_i <= 8'd0;
+        dbg_rv60_source5_i <= 8'd0;
+        dbg_rv60_source6_i <= 8'd0;
+        dbg_rv60_source7_i <= 8'd0;
+        dbg_rv60_next_txn_id_i <= 16'd0;
+        dbg_rv60_pending_txn_id_i <= 16'd0;
+        dbg_rv60_pending_slot_i <= 3'd0;
+        dbg_rv60_pending_valid_i <= 1'b0;
+        dbg_rv60_state8_accept_count_i <= 16'd0;
+        dbg_rv60_smoke_write_count_i <= 16'd0;
+        dbg_rv60_state14_consume_count_i <= 16'd0;
+        dbg_rv60_state8_tag_i <= 16'd0;
+        dbg_rv60_smoke_write_tag_i <= 16'd0;
+        dbg_rv60_state14_tag_i <= 16'd0;
+        dbg_focus_seq_low0_i <= 8'd0;
+        dbg_focus_seq_low1_i <= 8'd0;
+        dbg_focus_seq_low2_i <= 8'd0;
+        dbg_focus_seq_low3_i <= 8'd0;
+        dbg_focus_seq_low4_i <= 8'd0;
+        dbg_focus_seq_low5_i <= 8'd0;
+        dbg_focus_seq_low6_i <= 8'd0;
+        dbg_focus_seq_low7_i <= 8'd0;
+        dbg_focus_seq_rom0_i <= 16'd0;
+        dbg_focus_seq_rom1_i <= 16'd0;
+        dbg_focus_seq_rom2_i <= 16'd0;
+        dbg_focus_seq_rom3_i <= 16'd0;
+        dbg_focus_seq_rom4_i <= 16'd0;
+        dbg_focus_seq_rom5_i <= 16'd0;
+        dbg_focus_seq_rom6_i <= 16'd0;
+        dbg_focus_seq_rom7_i <= 16'd0;
+        dbg_focus_seq_rom_valid_i <= 8'd0;
+        dbg_focus_seq_count_i <= 4'd0;
+        dbg_focus_seq_pending_slot_i <= 3'd0;
+        dbg_focus_seq_return_pending_i <= 1'b0;
+        dbg_focus_seq_addr_valid_i <= 8'd0;
+        dbg_focus_seq_data_valid_i <= 8'd0;
+        dbg_focus_seq_arm_flags_i <= 4'd0;
+        dbg_focus_seq_trigger_seen_i <= 1'b0;
+        dbg_focus_seq_armed_i <= 1'b0;
+        dbg_focus_live_addr_i <= 16'd0;
+        dbg_focus_live_data_i <= 8'd0;
+        dbg_focus_live_low_i <= 8'd0;
+        dbg_focus_live_return_pending_i <= 1'b0;
+        dbg_focus_source_addr_i <= 16'd0;
+        dbg_focus_source_data_i <= 8'd0;
+        dbg_focus_source_low_i <= 8'd0;
+        dbg_focus_end_match_d_i <= 1'b0;
+        dbg_focus_gate_d_i <= 1'b0;
+        dbg_focus_contrib_count_i <= 16'd0;
+        dbg_focus_ctrl_write_count_i <= 16'd0;
+        dbg_focus_gate_count_i <= 16'd0;
+        dbg_focus_active_to_inactive_count_i <= 16'd0;
+        dbg_focus_inactive_to_active_count_i <= 16'd0;
+        dbg_focus_active_status_i <= 16'd0;
+        dbg_focus_vol_lr_i <= 16'd0;
+        dbg_focus_last_ctrl_i <= 8'd0;
+        dbg_focus_last_cfg_i <= 8'd0;
+        dbg_focus_gate_reason_i <= 8'd0;
+        dbg_rv68_end_addr_i <= 8'd0;
+        dbg_rv68_state7_flags_i <= 8'd0;
+        dbg_rv69_ram_read_addr_i <= 9'd0;
+        c0_scratch_valid_i <= 16'd0;
+        c0_ctrl_write_pending_i <= 1'b0;
+        c0_vol_right_read_pending_i <= 1'b0;
+`endif
         dbg_ch3_roll_d0_addr_i <= 0;
         dbg_ch3_roll_d0_value_i <= 0;
         dbg_ch3_roll_d1_addr_i <= 0;
@@ -1067,6 +1553,13 @@ always @(posedge clk) begin
         dbg_start_flags_i <= 0;
         dbg_start_init_ch3_pending_i <= 1'b0;
     end else begin
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+        // Pair the synchronous port-1 RAM output with the address which
+        // produced it.  Capturing this register is observation-only.
+        if( cen ) begin
+            dbg_rv69_ram_read_addr_i <= cfg_ram_addr;
+        end
+`endif
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_TEST
         if( !smoke_ddr_follow_mode || !smoke_ddr_follow_init_enable ) begin
@@ -1257,6 +1750,33 @@ always @(posedge clk) begin
 `endif
 `endif
         if( we ) begin
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+            // CPU current-low writes start a new externally supplied current.
+            // The hidden fraction scratch must not override that byte until
+            // state 9 has written a newly advanced fraction for this channel.
+            if( !cpu_addr[7] && cpu_addr[2:0] == 3'd0 ) begin
+                c0_scratch_valid_i[cpu_addr[6:3]] <= 1'b0;
+            end
+            // Count accepted CPU-side ch3 control writes and retain the last
+            // value so repeated enable/disable traffic is visible.
+            if( cen && cpu_addr == 8'h9e ) begin
+                if( dbg_focus_ctrl_write_count_i != 16'hffff ) begin
+                    dbg_focus_ctrl_write_count_i <=
+                        dbg_focus_ctrl_write_count_i + 16'd1;
+                end
+                dbg_focus_last_ctrl_i <= cpu_dout;
+                if( !cpu_dout[0] && !dbg_focus_seq_trigger_seen_i ) begin
+                    dbg_focus_seq_trigger_seen_i <= 1'b1;
+                    dbg_focus_seq_armed_i <= 1'b1;
+                    dbg_focus_seq_count_i <= 4'd0;
+                    dbg_focus_seq_return_pending_i <= 1'b0;
+                    dbg_focus_seq_addr_valid_i <= 8'd0;
+                    dbg_focus_seq_data_valid_i <= 8'd0;
+                    dbg_focus_seq_rom_valid_i <= 8'd0;
+                    dbg_focus_seq_arm_flags_i[0] <= 1'b1;
+                end
+            end
+`endif
 `ifdef MEGAVGMDRIVE_SEGAPCM_START_INIT_TEST
             if( cpu_addr == 8'h9e && !cpu_dout[0] ) begin
                 dbg_start_init_ch3_pending_i <= 1'b1;
@@ -1377,6 +1897,34 @@ always @(posedge clk) begin
 `else
         st <= st + 1'd1;
 `endif
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+        // cfg_data is the registered RAM output from the address presented by
+        // the preceding state. Capture volume-left in state 8 and volume-right
+        // in state 9; states 12/13 only perform the multiply pipeline.
+        if( st == 4'd8 ) begin
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
+            if( !smoke_forced_play_enable ) begin
+                vol_left <= {1'b0, cfg_data[6:0]};
+            end
+`else
+            vol_left <= {1'b0, cfg_data[6:0]};
+`endif
+            c0_vol_right_read_pending_i <= !c0_ctrl_write_pending_i;
+            if( c0_ctrl_write_pending_i ) begin
+                c0_ctrl_write_pending_i <= 1'b0;
+            end
+        end
+        if( st == 4'd9 && c0_vol_right_read_pending_i ) begin
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
+            if( !smoke_forced_play_enable ) begin
+                vol_right <= {1'b0, cfg_data[6:0]};
+            end
+`else
+            vol_right <= {1'b0, cfg_data[6:0]};
+`endif
+            c0_vol_right_read_pending_i <= 1'b0;
+        end
+`endif
         if( !dbg_target_flags_i[7] && cfg_we ) begin
             case( cfg_ram_addr )
                 9'h118: begin
@@ -1414,6 +1962,11 @@ always @(posedge clk) begin
         end
         case( st )
             0: begin
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+                if( cur_ch == 4'd3 ) begin
+                    dbg_wb_s0_read_addr_i <= cfg_ram_addr;
+                end
+`endif
                 dbg_seq_en_addr <= cfg_ram_addr_d;
                 dbg_seq_en_value <= cfg_data;
 `ifdef MEGAVGMDRIVE_SEGAPCM_START_INIT_TEST
@@ -1465,6 +2018,12 @@ always @(posedge clk) begin
 `endif
                         8'd0;
                 end
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+                // State 0 prefetched the same scratch byte written in state 9.
+                if( cur_ch == 4'd3 ) begin
+                    load_byte = cfg_data;
+                end
+`endif
 `elsif MEGAVGMDRIVE_SEGAPCM_START_INIT_TEST
                 if( cur_ch == 4'd3 ) begin
                     load_byte = 8'h00;
@@ -1474,6 +2033,15 @@ always @(posedge clk) begin
                 dbg_seq_d0_addr <= cfg_ram_addr_d;
                 dbg_seq_d0_value <= cfg_data;
                 if( cur_ch == 4'd3 ) begin
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+                    dbg_wb_low_read_addr_i <= cfg_ram_addr_d;
+                    dbg_wb_low_read_data_i <= load_byte;
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
+                    dbg_wb_low_read_ram_i <= (cur_ch == 4'd3);
+`else
+                    dbg_wb_low_read_ram_i <= !was_enb;
+`endif
+`endif
                     dbg_focus_load_low_i <= load_byte;
                     dbg_focus_was_enb_i <= was_enb;
                     dbg_ch3_roll_d0_addr_i <= cfg_ram_addr;
@@ -1716,12 +2284,40 @@ always @(posedge clk) begin
                     dbg_focus_cfg_i <= cfg_en;
                     dbg_focus_delta_i <= delta;
                     dbg_focus_st_i <= st;
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+                    // RV0068 snapshots the exact normal state-7 end decision
+                    // that immediately precedes the focused state-8 request.
+                    // Bits: valid, enabled-in, loop-mode, stop-mode, end-hit,
+                    // loop-action, stop-action, normal end+1 compare mode.
+                    dbg_rv68_end_addr_i <= cfg_data;
+                    dbg_rv68_state7_flags_i <= {
+                        1'b1,
+                        !cfg_en[0],
+                        !cfg_en[1],
+                        cfg_en[1],
+                        (cur_addr[23:16] == (cfg_data + 8'b1)),
+                        ((cur_addr[23:16] == (cfg_data + 8'b1)) &&
+                         !cfg_en[1]),
+                        ((cur_addr[23:16] == (cfg_data + 8'b1)) &&
+                         cfg_en[1]),
+                        1'b1
+                    };
+                    if( cur_addr[23:16] == (cfg_data + 8'b1) &&
+                        !dbg_focus_end_match_d_i &&
+                        dbg_focus_end_count_i != 16'hffff ) begin
+                        dbg_focus_end_count_i <=
+                            dbg_focus_end_count_i + 16'd1;
+                    end
+                    dbg_focus_end_match_d_i <=
+                        (cur_addr[23:16] == (cfg_data + 8'b1));
+`else
                     if( cur_addr[23:16] == (cfg_data + 8'b1) ) begin
                         if( dbg_focus_end_count_i != 16'hffff ) begin
                             dbg_focus_end_count_i <=
                                 dbg_focus_end_count_i + 16'd1;
                         end
                     end
+`endif
                 end
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_TEST
@@ -1772,6 +2368,11 @@ always @(posedge clk) begin
                     end
                     cfg_en[0]     <= 1; // no loop
                     cur_addr[7:0] <= 0;
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+                    // Persist only the genuine end/no-loop disable. The
+                    // following state-8 write is a single cen-qualified pulse.
+                    c0_ctrl_write_pending_i <= 1'b1;
+`endif
                 end else begin : st_loop_reload
                     reg [23:0] next_cur_addr;
                     next_cur_addr = {loop_addr,8'd0};
@@ -1834,12 +2435,55 @@ always @(posedge clk) begin
                         dbg_last_cur_addr <= smoke_c0_play_addr;
                     end else begin
                         rom_cs <= 0;
-                        if( smoke_rom_wait_i && rom_ok ) begin
-                            smoke_rom_wait_i <= 1'b0;
-                            smoke_sample_byte_i <= rom_data;
-                            smoke_c0_byte_accept_i <= 1'b1;
-                            smoke_c0_sample_pending_i <= 1'b1;
-                            dbg_last_bank <= smoke_rom_bank;
+	                        if( smoke_rom_wait_i && rom_ok ) begin
+	                            smoke_rom_wait_i <= 1'b0;
+	                            smoke_sample_byte_i <= rom_data;
+	                            smoke_c0_byte_accept_i <= 1'b1;
+	                            smoke_c0_sample_pending_i <= 1'b1;
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+                                // RV0060 transaction allocation is anchored to
+                                // the exact accepted-byte/smoke-register write.
+                                dbg_rv60_pending_txn_id_i <=
+                                    dbg_rv60_next_txn_id_i;
+                                dbg_rv60_pending_slot_i <=
+                                    dbg_rv60_next_txn_id_i[2:0];
+                                dbg_rv60_pending_valid_i <= 1'b1;
+                                if( dbg_rv60_state8_accept_count_i !=
+                                    16'hffff ) begin
+                                    dbg_rv60_state8_accept_count_i <=
+                                        dbg_rv60_state8_accept_count_i + 16'd1;
+                                end
+                                if( dbg_rv60_smoke_write_count_i !=
+                                    16'hffff ) begin
+                                    dbg_rv60_smoke_write_count_i <=
+                                        dbg_rv60_smoke_write_count_i + 16'd1;
+                                end
+                                dbg_rv60_state8_tag_i <= {
+                                    4'd8, cur_ch,
+                                    dbg_rv60_next_txn_id_i[7:0]
+                                };
+                                dbg_rv60_smoke_write_tag_i <= {
+                                    4'd8, cur_ch,
+                                    dbg_rv60_next_txn_id_i[7:0]
+                                };
+                                if( dbg_rv60_next_txn_id_i < 16'd8 ) begin
+                                    case( dbg_rv60_next_txn_id_i[2:0] )
+                                        3'd0: dbg_focus_seq_data0_i <= rom_data;
+                                        3'd1: dbg_focus_seq_data1_i <= rom_data;
+                                        3'd2: dbg_focus_seq_data2_i <= rom_data;
+                                        3'd3: dbg_focus_seq_data3_i <= rom_data;
+                                        3'd4: dbg_focus_seq_data4_i <= rom_data;
+                                        3'd5: dbg_focus_seq_data5_i <= rom_data;
+                                        3'd6: dbg_focus_seq_data6_i <= rom_data;
+                                        3'd7: dbg_focus_seq_data7_i <= rom_data;
+                                    endcase
+                                end
+                                if( dbg_rv60_next_txn_id_i != 16'hffff ) begin
+                                    dbg_rv60_next_txn_id_i <=
+                                        dbg_rv60_next_txn_id_i + 16'd1;
+                                end
+`endif
+	                            dbg_last_bank <= smoke_rom_bank;
                             dbg_last_ch <= cur_ch;
                             dbg_last_st <= st;
                             dbg_last_cur_addr <= smoke_c0_request_addr24_i;
@@ -1919,6 +2563,69 @@ always @(posedge clk) begin
                     reg [23:0] next_cur_addr;
                     next_cur_addr = cur_addr + { 16'd0, delta };
                     if( cur_ch == 4'd3 ) begin
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+                        // Arm from the exact focused request path that also
+                        // updates IA below. Explicit slots avoid synthesis
+                        // ambiguity around debug-only unpacked arrays.
+                        dbg_focus_live_addr_i <= cur_addr[23:8];
+                        dbg_focus_live_low_i <= cur_addr[7:0];
+                        dbg_focus_live_return_pending_i <= 1'b1;
+                        if( dbg_focus_seq_armed_i &&
+                            dbg_focus_seq_count_i < 4'd8 &&
+                            !dbg_focus_seq_return_pending_i ) begin
+                            case( dbg_focus_seq_count_i )
+                                4'd0: begin
+                                    dbg_focus_seq_addr0_i <= cur_addr[23:8];
+                                    dbg_focus_seq_low0_i <= cur_addr[7:0];
+                                    dbg_focus_seq_addr_valid_i[0] <= 1'b1;
+                                end
+                                4'd1: begin
+                                    dbg_focus_seq_addr1_i <= cur_addr[23:8];
+                                    dbg_focus_seq_low1_i <= cur_addr[7:0];
+                                    dbg_focus_seq_addr_valid_i[1] <= 1'b1;
+                                end
+                                4'd2: begin
+                                    dbg_focus_seq_addr2_i <= cur_addr[23:8];
+                                    dbg_focus_seq_low2_i <= cur_addr[7:0];
+                                    dbg_focus_seq_addr_valid_i[2] <= 1'b1;
+                                end
+                                4'd3: begin
+                                    dbg_focus_seq_addr3_i <= cur_addr[23:8];
+                                    dbg_focus_seq_low3_i <= cur_addr[7:0];
+                                    dbg_focus_seq_addr_valid_i[3] <= 1'b1;
+                                end
+                                4'd4: begin
+                                    dbg_focus_seq_addr4_i <= cur_addr[23:8];
+                                    dbg_focus_seq_low4_i <= cur_addr[7:0];
+                                    dbg_focus_seq_addr_valid_i[4] <= 1'b1;
+                                end
+                                4'd5: begin
+                                    dbg_focus_seq_addr5_i <= cur_addr[23:8];
+                                    dbg_focus_seq_low5_i <= cur_addr[7:0];
+                                    dbg_focus_seq_addr_valid_i[5] <= 1'b1;
+                                end
+                                4'd6: begin
+                                    dbg_focus_seq_addr6_i <= cur_addr[23:8];
+                                    dbg_focus_seq_low6_i <= cur_addr[7:0];
+                                    dbg_focus_seq_addr_valid_i[6] <= 1'b1;
+                                end
+                                4'd7: begin
+                                    dbg_focus_seq_addr7_i <= cur_addr[23:8];
+                                    dbg_focus_seq_low7_i <= cur_addr[7:0];
+                                    dbg_focus_seq_addr_valid_i[7] <= 1'b1;
+                                end
+                                default: begin end
+                            endcase
+                            dbg_focus_seq_pending_slot_i <=
+                                dbg_focus_seq_count_i[2:0];
+                            dbg_focus_seq_return_pending_i <= 1'b1;
+                            dbg_focus_seq_count_i <=
+                                dbg_focus_seq_count_i + 4'd1;
+                            dbg_focus_seq_arm_flags_i[1] <= 1'b1;
+                            dbg_focus_source_addr_i <= cur_addr[23:8];
+                            dbg_focus_source_low_i <= cur_addr[7:0];
+                        end
+`endif
                         dbg_focus_before_i <= cur_addr;
                         dbg_focus_after_i <= next_cur_addr;
                         dbg_focus_delta_i <= delta;
@@ -2012,8 +2719,21 @@ always @(posedge clk) begin
 	                    end
 	                    cur_addr <= next_cur_addr;
 `ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+                        // The normal JT path computes the value in state 8.
+                        // Hold it, with its channel owner, across all three
+                        // byte-lane writes in states 9/10/11.
                         wb_cur_addr_i <= next_cur_addr;
+                        wb_cur_ch_i <= cur_ch;
                         wb_cur_valid_i <= 1'b1;
+                        wb_cur_write_seen_i <= 3'd0;
+                        if( (cur_ch == 4'd3) &&
+                            (dbg_wb_pending_set_count_i != 16'hffff) ) begin
+                            dbg_wb_pending_set_count_i <=
+                                dbg_wb_pending_set_count_i + 16'd1;
+                            dbg_wb_ch3_pending_addr_i <= next_cur_addr;
+                        end else if( cur_ch == 4'd3 ) begin
+                            dbg_wb_ch3_pending_addr_i <= next_cur_addr;
+                        end
 `endif
 	`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
 	`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_TEST
@@ -2032,9 +2752,89 @@ always @(posedge clk) begin
             end
 
             9: begin
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+                if( cfg_we &&
+                    !(we && !cpu_addr[7] && cpu_addr[2:0] == 3'd0 &&
+                      cpu_addr[6:3] == cur_ch) ) begin
+                    c0_scratch_valid_i[cur_ch] <= 1'b1;
+                end
+                // rom_addr was registered in state 8 and is now the actual
+                // address visible at the JT-to-ROM bridge for this request.
+                if( cur_ch == 4'd3 && dbg_focus_seq_return_pending_i ) begin
+                    case( dbg_focus_seq_pending_slot_i )
+                        3'd0: begin
+                            dbg_focus_seq_rom0_i <= rom_addr[15:0];
+                            dbg_focus_seq_rom_valid_i[0] <= 1'b1;
+                        end
+                        3'd1: begin
+                            dbg_focus_seq_rom1_i <= rom_addr[15:0];
+                            dbg_focus_seq_rom_valid_i[1] <= 1'b1;
+                        end
+                        3'd2: begin
+                            dbg_focus_seq_rom2_i <= rom_addr[15:0];
+                            dbg_focus_seq_rom_valid_i[2] <= 1'b1;
+                        end
+                        3'd3: begin
+                            dbg_focus_seq_rom3_i <= rom_addr[15:0];
+                            dbg_focus_seq_rom_valid_i[3] <= 1'b1;
+                        end
+                        3'd4: begin
+                            dbg_focus_seq_rom4_i <= rom_addr[15:0];
+                            dbg_focus_seq_rom_valid_i[4] <= 1'b1;
+                        end
+                        3'd5: begin
+                            dbg_focus_seq_rom5_i <= rom_addr[15:0];
+                            dbg_focus_seq_rom_valid_i[5] <= 1'b1;
+                        end
+                        3'd6: begin
+                            dbg_focus_seq_rom6_i <= rom_addr[15:0];
+                            dbg_focus_seq_rom_valid_i[6] <= 1'b1;
+                        end
+                        3'd7: begin
+                            dbg_focus_seq_rom7_i <= rom_addr[15:0];
+                            dbg_focus_seq_rom_valid_i[7] <= 1'b1;
+                        end
+                    endcase
+                end
+                if( cfg_we && (cur_ch == 4'd3) ) begin
+                    dbg_wb_w9_i <= {wb_cur_selected, 3'd0, cur_ch, cfg_din};
+                    dbg_wb_a9_i <= cfg_ram_addr;
+                end
+                if( wb_cur_selected ) begin
+                    wb_cur_write_seen_i[0] <= 1'b1;
+                end
+                if( wb_cur_selected && (cur_ch == 4'd3) ) begin
+                    if( dbg_wb_pending_match_count_i != 16'hffff ) begin
+                        dbg_wb_pending_match_count_i <=
+                            dbg_wb_pending_match_count_i + 16'd1;
+                    end
+                    if( dbg_wb_pending_select_count_i != 16'hffff ) begin
+                        dbg_wb_pending_select_count_i <=
+                            dbg_wb_pending_select_count_i + 16'd1;
+                    end
+                end else if( cur_ch == 4'd3 ) begin
+                    if( dbg_wb_live_select_count_i != 16'hffff ) begin
+                        dbg_wb_live_select_count_i <=
+                            dbg_wb_live_select_count_i + 16'd1;
+                    end
+                    if( wb_cur_valid_i &&
+                        dbg_wb_pending_miss_count_i != 16'hffff ) begin
+                        dbg_wb_pending_miss_count_i <=
+                            dbg_wb_pending_miss_count_i + 16'd1;
+                    end
+                end
+                if( cfg_we && !wb_cur_selected && dbg_wb_commit_seen_i &&
+                    (cur_ch == dbg_wb_commit_ch_i) && (cfg_din == 8'd0) ) begin
+                    if( dbg_wb_later_zero_count_i != 16'hffff ) begin
+                        dbg_wb_later_zero_count_i <=
+                            dbg_wb_later_zero_count_i + 16'd1;
+                    end
+                    dbg_wb_later_zero_info_i <= {st, cur_ch, cfg_din};
+                end
+`endif
                 if( cur_ch == 4'd3 ) begin
 `ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
-                    dbg_focus_writeback_i <= wb_cur_valid_i ?
+                    dbg_focus_writeback_i <= wb_cur_selected ?
                         wb_cur_addr_i : cur_addr;
 `else
                     dbg_focus_writeback_i <= cur_addr;
@@ -2048,7 +2848,7 @@ always @(posedge clk) begin
                         dbg_ch3_w9_value_i <= cfg_din;
                         dbg_start_mirror_c0_i <= cfg_din;
 `ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
-                        dbg_ch3_wb_cur_addr_i <= wb_cur_addr_i;
+                        dbg_ch3_wb_cur_addr_i <= wb_cur_selected ? wb_cur_addr_i : cur_addr;
 `else
                         dbg_ch3_wb_cur_addr_i <= cur_addr;
 `endif
@@ -2057,14 +2857,14 @@ always @(posedge clk) begin
                         if( dbg_fs_rom_seen_i && !dbg_fs_wb_seen_i[0] ) begin
                             dbg_fs_w9_data_i <= cfg_din;
 `ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
-                            dbg_fs_wb_addr_i <= wb_cur_addr_i;
+                            dbg_fs_wb_addr_i <= wb_cur_selected ? wb_cur_addr_i : cur_addr;
 `else
                             dbg_fs_wb_addr_i <= cur_addr;
 `endif
                             dbg_fs_wb_seen_i[0] <= 1'b1;
                         end
 `ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
-                        dbg_update_after_i <= wb_cur_addr_i;
+                        dbg_update_after_i <= wb_cur_selected ? wb_cur_addr_i : cur_addr;
 `else
                         dbg_update_after_i <= cur_addr;
 `endif
@@ -2072,9 +2872,26 @@ always @(posedge clk) begin
                 end
             end
             10: begin
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+                if( cfg_we && (cur_ch == 4'd3) ) begin
+                    dbg_wb_w10_i <= {wb_cur_selected, 3'd0, cur_ch, cfg_din};
+                    dbg_wb_a10_i <= cfg_ram_addr;
+                end
+                if( wb_cur_selected && wb_cur_write_seen_i[0] ) begin
+                    wb_cur_write_seen_i[1] <= 1'b1;
+                end
+                if( cfg_we && !wb_cur_selected && dbg_wb_commit_seen_i &&
+                    (cur_ch == dbg_wb_commit_ch_i) && (cfg_din == 8'd0) ) begin
+                    if( dbg_wb_later_zero_count_i != 16'hffff ) begin
+                        dbg_wb_later_zero_count_i <=
+                            dbg_wb_later_zero_count_i + 16'd1;
+                    end
+                    dbg_wb_later_zero_info_i <= {st, cur_ch, cfg_din};
+                end
+`endif
                 if( cur_ch == 4'd3 ) begin
 `ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
-                    dbg_focus_writeback_i <= wb_cur_valid_i ?
+                    dbg_focus_writeback_i <= wb_cur_selected ?
                         wb_cur_addr_i : cur_addr;
 `else
                     dbg_focus_writeback_i <= cur_addr;
@@ -2088,7 +2905,7 @@ always @(posedge clk) begin
                         dbg_ch3_wa_value_i <= cfg_din;
                         dbg_start_mirror_c1_i <= cfg_din;
 `ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
-                        dbg_ch3_wb_cur_addr_i <= wb_cur_addr_i;
+                        dbg_ch3_wb_cur_addr_i <= wb_cur_selected ? wb_cur_addr_i : cur_addr;
 `else
                         dbg_ch3_wb_cur_addr_i <= cur_addr;
 `endif
@@ -2097,14 +2914,14 @@ always @(posedge clk) begin
                         if( dbg_fs_rom_seen_i && !dbg_fs_wb_seen_i[1] ) begin
                             dbg_fs_wa_data_i <= cfg_din;
 `ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
-                            dbg_fs_wb_addr_i <= wb_cur_addr_i;
+                            dbg_fs_wb_addr_i <= wb_cur_selected ? wb_cur_addr_i : cur_addr;
 `else
                             dbg_fs_wb_addr_i <= cur_addr;
 `endif
                             dbg_fs_wb_seen_i[1] <= 1'b1;
                         end
 `ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
-                        dbg_update_after_i <= wb_cur_addr_i;
+                        dbg_update_after_i <= wb_cur_selected ? wb_cur_addr_i : cur_addr;
 `else
                         dbg_update_after_i <= cur_addr;
 `endif
@@ -2115,9 +2932,29 @@ always @(posedge clk) begin
                 end
             end
             11: begin
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+                if( cfg_we && (cur_ch == 4'd3) ) begin
+                    dbg_wb_w11_i <= {wb_cur_selected, 3'd0, cur_ch, cfg_din};
+                    dbg_wb_a11_i <= cfg_ram_addr;
+                end
+                if( cfg_we && !wb_cur_selected && dbg_wb_commit_seen_i &&
+                    (cur_ch == dbg_wb_commit_ch_i) && (cfg_din == 8'd0) ) begin
+                    if( dbg_wb_later_zero_count_i != 16'hffff ) begin
+                        dbg_wb_later_zero_count_i <=
+                            dbg_wb_later_zero_count_i + 16'd1;
+                    end
+                    dbg_wb_later_zero_info_i <= {st, cur_ch, cfg_din};
+                end
+                if( cfg_we && wb_cur_selected &&
+                    (wb_cur_write_seen_i[1:0] == 2'b11) ) begin
+                    wb_cur_write_seen_i[2] <= 1'b1;
+                    dbg_wb_commit_ch_i <= cur_ch;
+                    dbg_wb_commit_seen_i <= 1'b1;
+                end
+`endif
                 if( cur_ch == 4'd3 ) begin
 `ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
-                    dbg_focus_writeback_i <= wb_cur_valid_i ?
+                    dbg_focus_writeback_i <= wb_cur_selected ?
                         wb_cur_addr_i : cur_addr;
 `else
                     dbg_focus_writeback_i <= cur_addr;
@@ -2131,7 +2968,7 @@ always @(posedge clk) begin
                         dbg_ch3_wb_value_i <= cfg_din;
                         dbg_start_mirror_c2_i <= cfg_din;
 `ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
-                        dbg_ch3_wb_cur_addr_i <= wb_cur_addr_i;
+                        dbg_ch3_wb_cur_addr_i <= wb_cur_selected ? wb_cur_addr_i : cur_addr;
 `else
                         dbg_ch3_wb_cur_addr_i <= cur_addr;
 `endif
@@ -2140,14 +2977,14 @@ always @(posedge clk) begin
                         if( dbg_fs_rom_seen_i && !dbg_fs_wb_seen_i[2] ) begin
                             dbg_fs_wb_data_i <= cfg_din;
 `ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
-                            dbg_fs_wb_addr_i <= wb_cur_addr_i;
+                            dbg_fs_wb_addr_i <= wb_cur_selected ? wb_cur_addr_i : cur_addr;
 `else
                             dbg_fs_wb_addr_i <= cur_addr;
 `endif
                             dbg_fs_wb_seen_i[2] <= 1'b1;
                         end
 `ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
-                        dbg_update_after_i <= wb_cur_addr_i;
+                        dbg_update_after_i <= wb_cur_selected ? wb_cur_addr_i : cur_addr;
 `else
                         dbg_update_after_i <= cur_addr;
 `endif
@@ -2157,7 +2994,10 @@ always @(posedge clk) begin
                     end
                 end
 `ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
-                wb_cur_valid_i <= 1'b0;
+                if( wb_cur_selected &&
+                    (wb_cur_write_seen_i[1:0] == 2'b11) ) begin
+                    wb_cur_valid_i <= 1'b0;
+                end
 `endif
             end
             12: begin
@@ -2165,16 +3005,21 @@ always @(posedge clk) begin
                 if( smoke_forced_play_enable ) begin
                     vol_left <=
                         (cur_ch == SMOKE_CH) ? {1'b0, smoke_vol_l} : 8'sd0;
-                end else begin
+                end
+`ifndef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+                else begin
                     vol_left <= {1'b0, cfg_data[6:0]};
                 end
+`endif
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_TEST
                 if( cur_ch == SMOKE_CH && smoke_forced_play_enable ) begin
                     smoke_jt_vol_l_i <= {1'b0, smoke_vol_l};
                 end
 `endif
 `else
+`ifndef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
                 vol_left <= {1'b0, cfg_data[6:0]};
+`endif
 `endif
             end
             13: begin
@@ -2182,21 +3027,79 @@ always @(posedge clk) begin
                 if( smoke_forced_play_enable ) begin
                     vol_right <=
                         (cur_ch == SMOKE_CH) ? {1'b0, smoke_vol_r} : 8'sd0;
-                end else begin
+                end
+`ifndef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+                else begin
                     vol_right <= {1'b0, cfg_data[6:0]};
                 end
+`endif
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_TEST
                 if( cur_ch == SMOKE_CH && smoke_forced_play_enable ) begin
                     smoke_jt_vol_r_i <= {1'b0, smoke_vol_r};
                 end
 `endif
 `else
+`ifndef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
                 vol_right <= {1'b0, cfg_data[6:0]};
+`endif
 `endif
             end
             14: begin
                 rom_cs  <= 0; // ROM data must be good by now
                 buf_r   <= clipDAC(mul_data);
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+                if( cur_ch == 4'd3 && dbg_focus_live_return_pending_i ) begin
+                    dbg_focus_live_data_i <= rom_data;
+                    dbg_focus_live_return_pending_i <= 1'b0;
+                end
+                if( cur_ch == SMOKE_CH && dbg_rv60_pending_valid_i ) begin
+                    if( dbg_rv60_pending_txn_id_i < 16'd8 ) begin
+                    case( dbg_rv60_pending_slot_i )
+                        3'd0: begin
+                            dbg_rv60_sample_reg0_i <= smoke_sample_byte_i;
+                            dbg_rv60_source0_i <= pcm_source_data;
+                        end
+                        3'd1: begin
+                            dbg_rv60_sample_reg1_i <= smoke_sample_byte_i;
+                            dbg_rv60_source1_i <= pcm_source_data;
+                        end
+                        3'd2: begin
+                            dbg_rv60_sample_reg2_i <= smoke_sample_byte_i;
+                            dbg_rv60_source2_i <= pcm_source_data;
+                        end
+                        3'd3: begin
+                            dbg_rv60_sample_reg3_i <= smoke_sample_byte_i;
+                            dbg_rv60_source3_i <= pcm_source_data;
+                        end
+                        3'd4: begin
+                            dbg_rv60_sample_reg4_i <= smoke_sample_byte_i;
+                            dbg_rv60_source4_i <= pcm_source_data;
+                        end
+                        3'd5: begin
+                            dbg_rv60_sample_reg5_i <= smoke_sample_byte_i;
+                            dbg_rv60_source5_i <= pcm_source_data;
+                        end
+                        3'd6: begin
+                            dbg_rv60_sample_reg6_i <= smoke_sample_byte_i;
+                            dbg_rv60_source6_i <= pcm_source_data;
+                        end
+                        3'd7: begin
+                            dbg_rv60_sample_reg7_i <= smoke_sample_byte_i;
+                            dbg_rv60_source7_i <= pcm_source_data;
+                        end
+                    endcase
+                    end
+                    if( dbg_rv60_state14_consume_count_i != 16'hffff ) begin
+                        dbg_rv60_state14_consume_count_i <=
+                            dbg_rv60_state14_consume_count_i + 16'd1;
+                    end
+                    dbg_rv60_state14_tag_i <= {
+                        4'd14, cur_ch,
+                        dbg_rv60_pending_txn_id_i[7:0]
+                    };
+                    dbg_rv60_pending_valid_i <= 1'b0;
+                end
+`endif
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_TEST
                 if( cur_ch == SMOKE_CH && smoke_forced_play_enable &&
@@ -2207,6 +3110,65 @@ always @(posedge clk) begin
 `endif
             end
             15: begin
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+                if( cur_ch == 4'd3 ) begin : st_dbg_focus_continuity
+                    reg gate_now;
+                    reg contributes_now;
+                    gate_now = cfg_en[0] ||
+                               ((vol_left == 8'sd0) &&
+                                (vol_right == 8'sd0));
+                    contributes_now = !cfg_en[0] &&
+                        ((clipDAC(mul_data) != {WD{1'b0}}) ||
+                         (buf_r != {WD{1'b0}}));
+                    if( contributes_now &&
+                        dbg_focus_contrib_count_i != 16'hffff ) begin
+                        dbg_focus_contrib_count_i <=
+                            dbg_focus_contrib_count_i + 16'd1;
+                    end
+                    if( gate_now && !dbg_focus_gate_d_i &&
+                        dbg_focus_gate_count_i != 16'hffff ) begin
+                        dbg_focus_gate_count_i <=
+                            dbg_focus_gate_count_i + 16'd1;
+                    end
+                    if( active[3] && was_enb &&
+                        dbg_focus_active_to_inactive_count_i !=
+                        16'hffff ) begin
+                        dbg_focus_active_to_inactive_count_i <=
+                            dbg_focus_active_to_inactive_count_i + 16'd1;
+                    end
+                    if( !active[3] && !was_enb &&
+                        dbg_focus_inactive_to_active_count_i !=
+                        16'hffff ) begin
+                        dbg_focus_inactive_to_active_count_i <=
+                            dbg_focus_inactive_to_active_count_i + 16'd1;
+                    end
+                    dbg_focus_gate_d_i <= gate_now;
+                    dbg_focus_gate_reason_i <= {
+                        gate_now,
+                        cfg_en[0],
+                        ((vol_left == 8'sd0) && (vol_right == 8'sd0)),
+                        was_enb,
+                        active[3],
+                        !cfg_en[0],
+                        (pcm_source_data == 8'h80),
+                        !contributes_now
+                    };
+                    dbg_focus_active_status_i <= {
+                        4'hc,
+                        active[3],
+                        ~was_enb,
+                        !cfg_en[0],
+                        ((vol_left != 8'sd0) || (vol_right != 8'sd0)),
+                        (pcm_source_data != 8'h80),
+                        (mul_data != 16'sd0),
+                        (buf_r != {WD{1'b0}}),
+                        contributes_now,
+                        cfg_en[3:0]
+                    };
+                    dbg_focus_vol_lr_i <= {vol_left, vol_right};
+                    dbg_focus_last_cfg_i <= cfg_en;
+                end
+`endif
                 active[cur_ch] <= ~was_enb;
                 cur_ch <= cur_ch + 1'd1;
                 if( !cfg_en[0] ) begin
@@ -2288,6 +3250,23 @@ always @(posedge clk) begin
                                         smoke_c0_advance_count_i + 16'd1;
                                 end
                                 cur_addr <= next_cur_addr;
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+                                // The C0 tick advances in state 15, after this
+                                // channel's writeback slots. Hold both value and
+                                // owner until the same channel next reaches 9-11.
+                                wb_cur_addr_i <= next_cur_addr;
+                                wb_cur_ch_i <= cur_ch;
+                                wb_cur_valid_i <= 1'b1;
+                                wb_cur_write_seen_i <= 3'd0;
+                                if( (cur_ch == 4'd3) &&
+                                    (dbg_wb_pending_set_count_i != 16'hffff) ) begin
+                                    dbg_wb_pending_set_count_i <=
+                                        dbg_wb_pending_set_count_i + 16'd1;
+                                    dbg_wb_ch3_pending_addr_i <= next_cur_addr;
+                                end else if( cur_ch == 4'd3 ) begin
+                                    dbg_wb_ch3_pending_addr_i <= next_cur_addr;
+                                end
+`endif
                                 smoke_follow_cur_addr_i <= next_cur_addr;
                                 smoke_c0_playback_addr_i <= next_cur_addr;
                                 smoke_playback_addr_i <= smoke_c0_request_addr24_i[23:8];

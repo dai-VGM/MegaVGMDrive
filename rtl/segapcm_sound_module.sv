@@ -199,6 +199,12 @@ module segapcm_sound_module #(
     output logic        [15:0] update_after_15_debug,
     output logic        [15:0] update_after_07_debug,
     output logic        [15:0] update_reason_debug,
+    // RV0060/RV0062: 26 JT-owned 16-bit rows, packed S0 through T4.
+    // This bypasses the legacy PM3/JT-shared debug outputs above.
+    output logic       [415:0] jt_rv60_debug_bus,
+    // RV0061 boundary probe. Word 0 originates inside this module; word 1 is
+    // generated at this output boundary. Both are constant and debug-only.
+    output logic        [31:0] rv61_signature_bus,
     output logic        [15:0] cpu_write_count_debug,
     output logic        [15:0] cpu_cen_write_count_debug,
     output logic        [15:0] cpu_addr_debug,
@@ -263,6 +269,29 @@ module segapcm_sound_module #(
     wire signed [15:0] lab_jt_snd_left;
     wire signed [15:0] lab_jt_snd_right;
     wire lab_jt_sample;
+    wire lab_jt_rv60_state8_accept_strobe;
+    wire [2:0] lab_jt_rv60_state8_accept_slot;
+    wire [15:0] lab_jt_rv60_state8_accept_txn;
+    wire [15:0] lab_jt_rv62_live_state_channel;
+    wire [7:0] lab_jt_rv62_live_rom_data;
+    wire [7:0] lab_jt_rv62_live_source_data;
+	    wire lab_jt_rv62_state14_consume_strobe;
+	    wire [15:0] lab_jt_rv62_capture_condition_flags;
+	    wire [15:0] lab_jt_rv62_live_smoke_word;
+	    wire lab_jt_rv63_normal_state8_request_strobe;
+	    wire lab_jt_rv63_normal_state14_consume_strobe;
+	    wire [23:0] lab_jt_rv65_normal_current_before;
+	    wire [23:0] lab_jt_rv65_normal_current_after;
+	    wire [7:0] lab_jt_rv65_normal_delta;
+	    wire [18:0] lab_jt_rv65_normal_expected_rom_addr;
+	    wire [15:0] lab_jt_rv68_loop_addr;
+	    wire [7:0] lab_jt_rv68_end_addr;
+	    wire [7:0] lab_jt_rv68_state7_flags;
+	    wire lab_jt_rv69_internal_write_enable;
+	    wire [8:0] lab_jt_rv69_internal_write_addr;
+	    wire [7:0] lab_jt_rv69_internal_write_data;
+	    wire [8:0] lab_jt_rv69_ram_read_addr;
+	    wire [7:0] lab_jt_rv69_ram_read_data;
     wire lab_jt_ctrl_write;
     wire [7:0] lab_jt_cpu_data;
     logic [15:0] lab_jt_cpu_write_count_i;
@@ -321,6 +350,8 @@ module segapcm_sound_module #(
 	    wire [15:0] lab_jt_dbg_focus_end_count;
 	    wire [15:0] lab_jt_dbg_focus_cfg_delta;
 	    wire [15:0] lab_jt_dbg_focus_low_frac;
+	    wire [15:0] lab_jt_dbg_pending_set_count;
+	    wire [15:0] lab_jt_dbg_state9_addr;
 	    wire [15:0] lab_jt_dbg_update_state_channel;
 	    wire [15:0] lab_jt_dbg_update_before_23;
 	    wire [15:0] lab_jt_dbg_update_before_15;
@@ -408,6 +439,267 @@ module segapcm_sound_module #(
 	    logic [2:0] lab_jt_current_req_payload_block_i;
 	    logic lab_jt_current_req_payload_valid_i;
 	    logic lab_jt_current_req_payload_in_range_i;
+	    // RV0058 reuses the focused ch3 ROM-return capture from RV0057 and
+	    // adds hold/selector observations. Each array holds
+	    // the first eight real DDR-backed requests or consumes, while the
+	    // counters continue running to expose behavior after capture fills.
+	    logic [7:0] lab_jt_rv57_rom_addr_i [0:7];
+	    logic [2:0] lab_jt_rv57_block_i [0:7];
+	    logic [7:0] lab_jt_rv57_payload_index_i [0:7];
+	    logic [7:0] lab_jt_rv57_ram_addr_i [0:7];
+	    logic [7:0] lab_jt_rv57_ram_data_i [0:7];
+	    logic [7:0] lab_jt_rv57_hold_after_i [0:7];
+	    logic [7:0] lab_jt_rv57_selected_after_i [0:7];
+	    logic [7:0] lab_jt_rv60_selected_data_i [0:7];
+	    logic [7:0] lab_jt_rv60_instance_data_i [0:7];
+	    logic [15:0] lab_jt_rv62_selected_capture_count_i;
+	    logic [15:0] lab_jt_rv62_instance_capture_count_i;
+	    logic [7:0] lab_jt_rv62_last_selected_i;
+	    logic [7:0] lab_jt_rv62_last_instance_i;
+	    logic [15:0] lab_jt_rv62_selected_tag_i;
+	    logic [15:0] lab_jt_rv62_instance_tag_i;
+	    logic [15:0] lab_jt_rv62_clear_cycle_count_i;
+	    logic [15:0] lab_jt_rv62_clear_edge_count_i;
+	    logic [15:0] lab_jt_rv62_clear_after_capture_count_i;
+	    logic lab_jt_rv62_clear_d_i;
+	    logic [18:0] lab_jt_rv62_prev_live_addr_i;
+	    logic lab_jt_rv62_prev_live_addr_valid_i;
+	    logic [15:0] lab_jt_rv62_live_addr_change_count_i;
+	    logic [2:0] lab_jt_rv63_next_tag_i;
+	    logic [2:0] lab_jt_rv63_pending_tag_i;
+	    logic lab_jt_rv63_pending_i;
+	    logic lab_jt_rv63_response_seen_i;
+	    logic [15:0] lab_jt_rv63_request_count_i;
+	    logic [15:0] lab_jt_rv63_response_count_i;
+	    logic [15:0] lab_jt_rv63_byte_write_count_i;
+	    logic [15:0] lab_jt_rv63_consume_count_i;
+	    logic [18:0] lab_jt_rv63_request_addr_i;
+	    logic [7:0] lab_jt_rv63_response_port_i;
+	    logic [7:0] lab_jt_rv63_response_byte_i;
+	    logic [7:0] lab_jt_rv63_accepted_byte_i;
+	    logic [7:0] lab_jt_rv63_consumed_byte_i;
+	    logic [15:0] lab_jt_rv63_consumed_mul_i;
+	    logic [15:0] lab_jt_rv63_request_tag_i;
+	    logic [15:0] lab_jt_rv63_response_tag_i;
+	    logic [15:0] lab_jt_rv63_consume_tag_i;
+	    logic [15:0] lab_jt_rv63_match_count_i;
+	    logic [15:0] lab_jt_rv63_mismatch_count_i;
+	    logic [7:0] lab_jt_rv63_accept_data_i [0:7];
+	    logic [7:0] lab_jt_rv63_consume_data_i [0:7];
+	    logic [3:0] lab_jt_rv63_accept_capture_count_i;
+	    logic [3:0] lab_jt_rv63_consume_capture_count_i;
+	    logic [7:0] lab_jt_rv63_accept_valid_i;
+	    logic [7:0] lab_jt_rv63_consume_valid_i;
+	    logic [7:0] lab_jt_rv63_response_state_channel_i;
+	    logic lab_jt_rv63_response_rom_cs_i;
+	    logic lab_jt_rv63_response_rom_ok_i;
+	    logic lab_jt_rv63_request_seen_i;
+	    logic lab_jt_rv63_wrapper_request_seen_i;
+	    logic lab_jt_rv63_response_seen_ever_i;
+	    logic lab_jt_rv63_byte_write_seen_i;
+	    logic lab_jt_rv63_consume_seen_i;
+	    logic lab_jt_rv63_last_match_i;
+	    logic lab_jt_rv63_consume_without_response_i;
+	    logic [15:0] lab_jt_rv64_cycle_i;
+	    logic [15:0] lab_jt_rv64_cen_cycle_i;
+	    logic [7:0] lab_jt_rv64_next_tag_i;
+	    logic [7:0] lab_jt_rv64_target_tag_i;
+	    logic lab_jt_rv64_active_i;
+	    logic lab_jt_rv64_done_i;
+	    logic lab_jt_rv64_response_seen_i;
+	    logic lab_jt_rv64_after_pending_i;
+	    logic lab_jt_rv64_after_seen_i;
+	    logic lab_jt_rv64_addr_seen_i;
+	    logic lab_jt_rv64_request_seen_i;
+	    logic lab_jt_rv64_consume_seen_i;
+	    logic lab_jt_rv64_match_i;
+	    logic lab_jt_rv64_consume_without_response_i;
+	    logic [15:0] lab_jt_rv64_request_cycle_i;
+	    logic [15:0] lab_jt_rv64_request_cen_cycle_i;
+	    logic [15:0] lab_jt_rv64_response_cycle_i;
+	    logic [15:0] lab_jt_rv64_response_cen_cycle_i;
+	    logic [15:0] lab_jt_rv64_after_cycle_i;
+	    logic [15:0] lab_jt_rv64_consume_cycle_i;
+	    logic [15:0] lab_jt_rv64_consume_cen_cycle_i;
+	    logic [18:0] lab_jt_rv64_request_addr_i;
+	    logic [15:0] lab_jt_rv64_request_tag_i;
+	    logic [15:0] lab_jt_rv64_response_tag_i;
+	    logic [15:0] lab_jt_rv64_consume_tag_i;
+	    logic [7:0] lab_jt_rv64_response_state_channel_i;
+	    logic [7:0] lab_jt_rv64_consume_state_channel_i;
+	    logic [7:0] lab_jt_rv64_previous_hold_i;
+	    logic [7:0] lab_jt_rv64_incoming_byte_i;
+	    logic [7:0] lab_jt_rv64_hold_before_i;
+	    logic [7:0] lab_jt_rv64_port_before_i;
+	    logic [7:0] lab_jt_rv64_source_before_i;
+	    logic [7:0] lab_jt_rv64_hold_after_i;
+	    logic [7:0] lab_jt_rv64_port_after_i;
+	    logic [7:0] lab_jt_rv64_source_after_i;
+	    logic [7:0] lab_jt_rv64_hold_consume_i;
+	    logic [7:0] lab_jt_rv64_port_consume_i;
+	    logic [7:0] lab_jt_rv64_source_consume_i;
+	    logic [15:0] lab_jt_rv64_mul_consume_i;
+	    logic lab_jt_rv64_response_rom_cs_i;
+	    logic lab_jt_rv64_response_rom_ok_i;
+	    logic [7:0] lab_jt_rv65_next_tag_i;
+	    logic [7:0] lab_jt_rv65_pending_tag_i;
+	    logic [3:0] lab_jt_rv65_complete_count_i;
+	    logic lab_jt_rv65_active_i;
+	    logic lab_jt_rv65_addr_seen_i;
+	    logic lab_jt_rv65_response_seen_i;
+	    logic lab_jt_rv65_capture_started_i;
+	    logic lab_jt_rv65_frozen_i;
+	    logic [23:0] lab_jt_rv65_pending_before_i;
+	    logic [23:0] lab_jt_rv65_pending_after_i;
+	    logic [7:0] lab_jt_rv65_pending_delta_i;
+	    logic [18:0] lab_jt_rv65_pending_expected_rom_i;
+	    logic [18:0] lab_jt_rv65_pending_request_rom_i;
+	    logic [7:0] lab_jt_rv65_pending_accepted_i;
+	    logic [15:0] lab_jt_rv65_pending_request_tag_i;
+	    logic [15:0] lab_jt_rv65_pending_response_tag_i;
+	    logic [23:0] lab_jt_rv65_before_i [0:7];
+	    (* preserve *) logic [23:0] lab_jt_rv65_after_i [0:7];
+	    logic [7:0] lab_jt_rv65_delta_i [0:7];
+	    (* preserve *) logic [18:0] lab_jt_rv65_rom_addr_i [0:7];
+	    logic [7:0] lab_jt_rv65_accepted_i [0:7];
+	    logic [7:0] lab_jt_rv65_consumed_i [0:7];
+	    (* preserve *) logic [15:0] lab_jt_rv65_request_tag_i [0:7];
+	    (* preserve *) logic [15:0] lab_jt_rv65_response_tag_i [0:7];
+	    (* preserve *) logic [15:0] lab_jt_rv65_consume_tag_i [0:7];
+	    logic [23:0] lab_jt_rv65_previous_after_i;
+	    logic lab_jt_rv65_previous_after_valid_i;
+	    logic [7:0] lab_jt_rv65_valid_mask_i;
+	    logic [7:0] lab_jt_rv65_step_match_mask_i;
+	    logic [7:0] lab_jt_rv65_addr_match_mask_i;
+	    logic [7:0] lab_jt_rv65_byte_match_mask_i;
+	    logic [3:0] lab_jt_rv65_step_match_count_i;
+	    logic [3:0] lab_jt_rv65_step_mismatch_count_i;
+	    logic [3:0] lab_jt_rv65_addr_match_count_i;
+	    logic [3:0] lab_jt_rv65_addr_mismatch_count_i;
+	    logic [3:0] lab_jt_rv65_byte_match_count_i;
+	    logic [3:0] lab_jt_rv65_byte_mismatch_count_i;
+	    logic [15:0] lab_jt_rv65_capture_start_count_i;
+	    logic [15:0] lab_jt_rv65_restart_count_i;
+	    logic [15:0] lab_jt_rv65_unmatched_state14_count_i;
+	    logic [15:0] lab_jt_rv65_tag_mismatch_count_i;
+	    logic [15:0] lab_jt_rv65_pending_overwrite_count_i;
+	    logic [15:0] lab_jt_rv65_completed_entry_count_i;
+	    logic [15:0] lab_jt_rv65_last_restart_info_i;
+	    logic [3:0] lab_jt_rv67_capture_count_i;
+	    logic lab_jt_rv67_started_i;
+	    logic lab_jt_rv67_frozen_i;
+	    logic lab_jt_rv67_rom_pending_i;
+	    logic [2:0] lab_jt_rv67_rom_pending_slot_i;
+	    logic lab_jt_rv67_external_write_since_state8_i;
+	    logic [23:0] lab_jt_rv67_before_i [0:7];
+	    (* preserve *) logic [23:0] lab_jt_rv67_next_i [0:7];
+	    logic [7:0] lab_jt_rv67_delta_i [0:7];
+	    (* preserve *) logic [18:0] lab_jt_rv67_expected_rom_i [0:7];
+	    (* preserve *) logic [18:0] lab_jt_rv67_actual_rom_i [0:7];
+	    (* preserve *) logic [7:0] lab_jt_rv67_state_channel_i [0:7];
+	    (* preserve *) logic [7:0] lab_jt_rv67_cfg_i [0:7];
+	    (* preserve *) logic [7:0] lab_jt_rv67_active_i [0:7];
+	    logic [7:0] lab_jt_rv67_rom_valid_mask_i;
+	    logic [7:0] lab_jt_rv67_equation_match_mask_i;
+	    logic [7:0] lab_jt_rv67_continuity_match_mask_i;
+	    logic [7:0] lab_jt_rv67_external_write_mask_i;
+	    logic [7:0] lab_jt_rv67_state_cfg_good_mask_i;
+	    logic [3:0] lab_jt_rv67_equation_match_count_i;
+	    logic [3:0] lab_jt_rv67_equation_mismatch_count_i;
+	    logic [3:0] lab_jt_rv67_continuity_match_count_i;
+	    logic [3:0] lab_jt_rv67_continuity_mismatch_count_i;
+	    logic lab_jt_rv68_armed_i;
+	    logic lab_jt_rv68_ctrl_seen_i;
+	    logic lab_jt_rv68_state8_seen_i;
+	    logic lab_jt_rv68_rom_seen_i;
+	    logic lab_jt_rv68_frozen_i;
+	    logic [15:0] lab_jt_rv68_last_cfg_write_live_i;
+	    logic [15:0] lab_jt_rv68_last_cfg_write_i;
+	    logic [15:0] lab_jt_rv68_c0_write_i;
+	    logic [15:0] lab_jt_rv68_jt_write_i;
+	    logic [15:0] lab_jt_rv68_prior_ctrl_i;
+	    logic [23:0] lab_jt_rv68_c0_current_i;
+	    logic [15:0] lab_jt_rv68_c0_loop_i;
+	    logic [7:0] lab_jt_rv68_c0_end_i;
+	    logic [7:0] lab_jt_rv68_c0_delta_i;
+	    logic [7:0] lab_jt_rv68_c0_vol_l_i;
+	    logic [7:0] lab_jt_rv68_c0_vol_r_i;
+	    logic [7:0] lab_jt_rv68_c0_ctrl_i;
+	    logic [23:0] lab_jt_rv68_wrapper_current_i;
+	    logic [15:0] lab_jt_rv68_wrapper_loop_i;
+	    logic [7:0] lab_jt_rv68_wrapper_end_i;
+	    logic [7:0] lab_jt_rv68_wrapper_delta_i;
+	    logic [7:0] lab_jt_rv68_wrapper_vol_l_i;
+	    logic [7:0] lab_jt_rv68_wrapper_vol_r_i;
+	    logic [7:0] lab_jt_rv68_wrapper_ctrl_i;
+	    logic [23:0] lab_jt_rv68_jt_current_i;
+	    logic [15:0] lab_jt_rv68_jt_loop_i;
+	    logic [7:0] lab_jt_rv68_jt_end_i;
+	    logic [7:0] lab_jt_rv68_jt_delta_i;
+	    logic [7:0] lab_jt_rv68_jt_vol_l_i;
+	    logic [7:0] lab_jt_rv68_jt_vol_r_i;
+	    logic [7:0] lab_jt_rv68_jt_ctrl_i;
+	    logic [18:0] lab_jt_rv68_expected_rom_i;
+	    logic [18:0] lab_jt_rv68_actual_rom_i;
+	    logic [7:0] lab_jt_rv68_state7_flags_i;
+	    logic [7:0] lab_jt_rv68_state_channel_i;
+	    logic [15:0] lab_jt_rv68_match_mask_i;
+	    logic [7:0] lab_jt_rv68_writes_after_trigger_i;
+	    logic [7:0] lab_jt_rv68_start_ordinal_i;
+	    (* preserve *) logic [15:0] lab_jt_rv69_write_i [0:9];
+	    (* preserve *) logic [7:0] lab_jt_rv69_expected_i [0:9];
+	    (* preserve *) logic [7:0] lab_jt_rv69_readback_i [0:9];
+	    (* preserve *) logic [7:0] lab_jt_rv69_used_i [0:9];
+	    logic [9:0] lab_jt_rv69_accepted_mask_i;
+	    logic [9:0] lab_jt_rv69_read_valid_mask_i;
+	    logic [9:0] lab_jt_rv69_overwrite_mask_i;
+	    logic [9:0] lab_jt_rv69_same_cycle_mask_i;
+	    logic [9:0] lab_jt_rv69_ram_match_mask_i;
+	    logic [7:0] lab_jt_rv69_raw_ctrl_i;
+	    logic [7:0] lab_jt_rv69_translated_ctrl_i;
+	    logic [15:0] lab_jt_rv69_last_internal_write_i;
+	    logic [7:0] lab_jt_rv69_last_state_channel_i;
+	    logic lab_jt_rv69_start_seen_i;
+	    logic lab_jt_rv69_readback_armed_i;
+	    logic lab_jt_rv69_state8_seen_i;
+	    logic lab_jt_rv69_frozen_i;
+	    logic lab_jt_rv69_low_read_pending_i;
+	    logic [1:0] lab_jt_rv69_low_read_age_i;
+	    logic [18:0] lab_jt_rv70_expected_rom_i;
+	    logic [18:0] lab_jt_rv70_actual_rom_i;
+	    logic lab_jt_rv70_rom_seen_i;
+	    logic [15:0] lab_jt_rv70_ctrl_overwrite_count_i;
+	    logic [3:0] lab_jt_rv57_event_flags_i [0:7];
+	    logic [7:0] lab_jt_rv57_response_valid_i;
+	    logic [3:0] lab_jt_rv57_request_count_i;
+	    logic [2:0] lab_jt_rv57_pending_slot_i;
+	    logic lab_jt_rv57_pending_valid_i;
+	    logic [3:0] lab_jt_rv57_pending_cen_age_i;
+	    logic [2:0] lab_jt_rv57_after_slot_i;
+	    logic lab_jt_rv57_after_pending_i;
+	    logic [15:0] lab_jt_rv57_last_request_tag_i;
+	    logic [15:0] lab_jt_rv57_last_response_tag_i;
+	    logic [7:0] lab_jt_rv57_last_hold_before_i;
+	    logic [7:0] lab_jt_rv57_last_hold_after_i;
+	    logic [7:0] lab_jt_rv57_last_selected_before_i;
+	    logic [7:0] lab_jt_rv57_last_selected_after_i;
+	    logic [15:0] lab_jt_rv57_response_count_i;
+	    logic [15:0] lab_jt_rv57_hold_write_count_i;
+	    logic [15:0] lab_jt_rv57_late_response_count_i;
+	    logic [15:0] lab_jt_rv57_hold_zero_count_i;
+	    logic [15:0] lab_jt_rv57_addr_change_repeat_count_i;
+	    logic [15:0] lab_jt_rv57_index_change_repeat_count_i;
+	    logic [15:0] lab_jt_rv57_ram_change_count_i;
+	    logic [15:0] lab_jt_rv57_hold_change_count_i;
+	    logic [15:0] lab_jt_rv57_selected_change_count_i;
+	    logic [18:0] lab_jt_rv57_prev_consume_addr_i;
+	    logic [18:0] lab_jt_rv57_prev_consume_index_i;
+	    logic [7:0] lab_jt_rv57_prev_ram_data_i;
+	    logic [7:0] lab_jt_rv57_prev_hold_after_i;
+	    logic [7:0] lab_jt_rv57_prev_selected_after_i;
+	    logic lab_jt_rv57_prev_consume_valid_i;
+	    logic lab_jt_rv57_prev_ram_valid_i;
+	    logic lab_jt_rv57_prev_after_valid_i;
 	    logic [15:0] lab_jt_request_count_i;
 	    logic [15:0] lab_jt_real_response_count_i;
 	    logic [15:0] lab_jt_stale_response_count_i;
@@ -2243,7 +2535,1970 @@ module segapcm_sound_module #(
 	          (smoke_ddr_c0_pending_i ||
 	           smoke_ddr_c0_return_valid_i)) &&
 	        smoke_ddr_follow_read_in_range_next;
-    logic [2:0] lab_c0_fixed_index_i;
+
+	    wire [15:0] lab_jt_rv57_d0 =
+	        {lab_jt_rv57_ram_data_i[0], lab_jt_rv57_ram_data_i[1]};
+	    wire [15:0] lab_jt_rv57_d1 =
+	        {lab_jt_rv57_ram_data_i[2], lab_jt_rv57_ram_data_i[3]};
+	    wire [15:0] lab_jt_rv57_d2 =
+	        {lab_jt_rv57_ram_data_i[4], lab_jt_rv57_ram_data_i[5]};
+	    wire [15:0] lab_jt_rv57_d3 =
+	        {lab_jt_rv57_ram_data_i[6], lab_jt_rv57_ram_data_i[7]};
+	    wire [15:0] lab_jt_rv57_h0 =
+	        {lab_jt_rv57_hold_after_i[0], lab_jt_rv57_hold_after_i[1]};
+	    wire [15:0] lab_jt_rv57_h1 =
+	        {lab_jt_rv57_hold_after_i[2], lab_jt_rv57_hold_after_i[3]};
+	    wire [15:0] lab_jt_rv57_h2 =
+	        {lab_jt_rv57_hold_after_i[4], lab_jt_rv57_hold_after_i[5]};
+	    wire [15:0] lab_jt_rv57_h3 =
+	        {lab_jt_rv57_hold_after_i[6], lab_jt_rv57_hold_after_i[7]};
+	    wire [15:0] lab_jt_rv60_s0 =
+	        {lab_jt_rv60_selected_data_i[0], lab_jt_rv60_selected_data_i[1]};
+	    wire [15:0] lab_jt_rv60_s1 =
+	        {lab_jt_rv60_selected_data_i[2], lab_jt_rv60_selected_data_i[3]};
+	    wire [15:0] lab_jt_rv60_s2 =
+	        {lab_jt_rv60_selected_data_i[4], lab_jt_rv60_selected_data_i[5]};
+	    wire [15:0] lab_jt_rv60_s3 =
+	        {lab_jt_rv60_selected_data_i[6], lab_jt_rv60_selected_data_i[7]};
+	    wire [15:0] lab_jt_rv60_i0 =
+	        {lab_jt_rv60_instance_data_i[0], lab_jt_rv60_instance_data_i[1]};
+	    wire [15:0] lab_jt_rv60_i1 =
+	        {lab_jt_rv60_instance_data_i[2], lab_jt_rv60_instance_data_i[3]};
+	    wire [15:0] lab_jt_rv60_i2 =
+	        {lab_jt_rv60_instance_data_i[4], lab_jt_rv60_instance_data_i[5]};
+	    wire [15:0] lab_jt_rv60_i3 =
+	        {lab_jt_rv60_instance_data_i[6], lab_jt_rv60_instance_data_i[7]};
+	    wire [15:0] lab_jt_rv60_p0 = lab_jt_dbg_focus_status;
+	    wire [15:0] lab_jt_rv60_p1 = lab_jt_dbg_focus_req_count;
+	    wire [15:0] lab_jt_rv60_p2 = lab_jt_dbg_focus_advance_count;
+	    wire [15:0] lab_jt_rv60_p3 = lab_jt_dbg_focus_addr_advance_count;
+	    wire [15:0] lab_jt_rv60_r0 = lab_jt_dbg_focus_same_addr_count;
+	    wire [15:0] lab_jt_rv60_r1 = lab_jt_dbg_focus_end_count;
+	    wire [15:0] lab_jt_rv60_r2 = lab_jt_dbg_focus_cfg_delta;
+	    wire [15:0] lab_jt_rv60_r3 = lab_jt_dbg_focus_low_frac;
+	    wire [15:0] lab_jt_rv60_j0 = lab_jt_dbg_pending_set_count;
+	    wire [15:0] lab_jt_rv60_j1 = lab_jt_dbg_state9_addr;
+	    wire [15:0] lab_jt_rv60_j2 = lab_jt_dbg_update_state_channel;
+	    wire [15:0] lab_jt_rv60_j3 = lab_jt_dbg_update_before_23;
+	    wire [15:0] lab_jt_rv60_accept_count = lab_jt_dbg_update_before_15;
+	    wire [15:0] lab_jt_rv60_write_count = lab_jt_dbg_update_before_07;
+	    wire [15:0] lab_jt_rv60_consume_count = lab_jt_dbg_update_addend;
+	    wire [15:0] lab_jt_rv60_accept_tag = lab_jt_dbg_update_after_23;
+	    wire [15:0] lab_jt_rv60_write_tag = lab_jt_dbg_update_after_15;
+	    wire [15:0] lab_jt_rv60_consume_tag = lab_jt_dbg_update_after_07;
+	    // RV0062 source words. The high byte of LD/ID/SB/PS is live; the low
+	    // byte is the corresponding first captured transaction byte.
+	    wire [15:0] lab_jt_rv62_live_selected_capture = {
+	        lab_jt_rom_data_to_core, lab_jt_rv60_selected_data_i[0]
+	    };
+	    wire [15:0] lab_jt_rv62_live_instance_capture = {
+	        lab_jt_rv62_live_rom_data, lab_jt_rv60_instance_data_i[0]
+	    };
+	    wire [15:0] lab_jt_rv62_live_smoke_capture = {
+	        lab_jt_rv62_live_smoke_word[7:0],
+	        lab_jt_dbg_focus_same_addr_count[15:8]
+	    };
+	    wire [15:0] lab_jt_rv62_live_source_capture = {
+	        lab_jt_rv62_live_source_data,
+	        lab_jt_dbg_pending_set_count[15:8]
+	    };
+	    wire [15:0] lab_jt_rv62_clear_status = {
+	        8'h62,
+	        reset,
+	        loaded_payload_clear,
+	        lab_jt_rv62_clear_d_i,
+	        smoke_c0_jt_backend,
+	        lab_jt_rv60_state8_accept_strobe,
+	        lab_jt_rv62_state14_consume_strobe,
+	        lab_jt_rom_cs,
+	        lab_jt_rom_ok_to_core
+	    };
+	    wire [15:0] lab_jt_rv62_pack_probe = {
+	        lab_jt_rv62_last_selected_i, lab_jt_rv62_last_instance_i
+	    };
+	    // RV0063 observes only the ordinary JT ROM path. A state-8 request owns
+	    // a rolling tag until the matching DDR hold write and state-14 consume.
+	    wire lab_jt_rv63_response_event =
+	        smoke_c0_jt_backend && lab_jt_rv63_pending_i &&
+	        !lab_jt_rv63_response_seen_i &&
+	        lab_jt_ddr_payload_real_return_event &&
+	        lab_jt_ddr_return_hold_candidate &&
+	        (lab_jt_current_req_ch_i == 4'd3);
+	    wire [15:0] lab_jt_rv63_response_condition = {
+	        lab_jt_rv63_response_state_channel_i,
+	        2'd0,
+	        lab_jt_rom_timing_mode,
+	        lab_jt_rv63_response_rom_cs_i,
+	        lab_jt_rv63_response_rom_ok_i,
+	        lab_jt_rv63_response_seen_i,
+	        lab_jt_rv63_pending_i
+	    };
+	    wire [15:0] lab_jt_rv63_response_pair = {
+	        lab_jt_rv63_response_port_i, lab_jt_rv63_response_byte_i
+	    };
+	    wire [15:0] lab_jt_rv63_hold_register_pair = {
+	        lab_jt_rom_data_hold_i, lab_jt_rv63_accepted_byte_i
+	    };
+	    wire [15:0] lab_jt_rv63_accept_consume_pair = {
+	        lab_jt_rv63_accepted_byte_i, lab_jt_rv63_consumed_byte_i
+	    };
+	    wire [15:0] lab_jt_rv63_match_pair = {
+	        lab_jt_rv63_match_count_i[7:0],
+	        lab_jt_rv63_mismatch_count_i[7:0]
+	    };
+	    wire [15:0] lab_jt_rv63_flags = {
+	        1'b1,
+	        smoke_c0_jt_backend,
+	        lab_jt_rom_timing_mode,
+	        lab_jt_rv63_consume_seen_i,
+	        lab_jt_rv63_byte_write_seen_i,
+	        lab_jt_rv63_response_seen_ever_i,
+	        lab_jt_rv63_wrapper_request_seen_i,
+	        lab_jt_rv63_request_seen_i,
+	        lab_jt_rv63_last_match_i,
+	        lab_jt_rv63_consume_without_response_i,
+	        lab_jt_rv63_response_rom_cs_i,
+	        lab_jt_rv63_response_rom_ok_i,
+	        lab_jt_rv63_response_seen_i,
+	        lab_jt_rv63_pending_i,
+	        (lab_jt_rv63_accept_valid_i == lab_jt_rv63_consume_valid_i)
+	    };
+	    wire [15:0] lab_jt_rv63_a0 =
+	        {lab_jt_rv63_accept_data_i[0], lab_jt_rv63_accept_data_i[1]};
+	    wire [15:0] lab_jt_rv63_a1 =
+	        {lab_jt_rv63_accept_data_i[2], lab_jt_rv63_accept_data_i[3]};
+	    wire [15:0] lab_jt_rv63_a2 =
+	        {lab_jt_rv63_accept_data_i[4], lab_jt_rv63_accept_data_i[5]};
+	    wire [15:0] lab_jt_rv63_a3 =
+	        {lab_jt_rv63_accept_data_i[6], lab_jt_rv63_accept_data_i[7]};
+	    wire [15:0] lab_jt_rv63_c0 =
+	        {lab_jt_rv63_consume_data_i[0], lab_jt_rv63_consume_data_i[1]};
+	    wire [15:0] lab_jt_rv63_c1 =
+	        {lab_jt_rv63_consume_data_i[2], lab_jt_rv63_consume_data_i[3]};
+	    wire [15:0] lab_jt_rv63_c2 =
+	        {lab_jt_rv63_consume_data_i[4], lab_jt_rv63_consume_data_i[5]};
+	    wire [15:0] lab_jt_rv63_c3 =
+	        {lab_jt_rv63_consume_data_i[6], lab_jt_rv63_consume_data_i[7]};
+	    wire [15:0] lab_jt_rv63_live_pair = {
+	        lab_jt_rv62_live_rom_data, lab_jt_rv62_live_source_data
+	    };
+	    wire [15:0] lab_jt_rv63_pack_probe =
+	        lab_jt_rv63_accept_consume_pair;
+	    // RV0064 freezes one ordinary ch3 transaction.  The response event is
+	    // the exact existing matched-DDR/hold-write qualification; all values
+	    // below are observation-only and never feed the ROM or playback path.
+	    wire lab_jt_rv64_response_event =
+	        smoke_c0_jt_backend && lab_jt_rv64_active_i &&
+	        lab_jt_rv64_addr_seen_i &&
+	        !lab_jt_rv64_response_seen_i &&
+	        lab_jt_ddr_payload_real_return_event &&
+	        lab_jt_ddr_return_hold_candidate &&
+	        (lab_jt_current_req_ch_i == 4'd3);
+	    wire [15:0] lab_jt_rv64_request_response_cycle_distance =
+	        lab_jt_rv64_response_cycle_i - lab_jt_rv64_request_cycle_i;
+	    wire [15:0] lab_jt_rv64_request_response_cen_distance =
+	        lab_jt_rv64_response_cen_cycle_i -
+	        lab_jt_rv64_request_cen_cycle_i;
+	    wire [15:0] lab_jt_rv64_response_consume_cycle_distance =
+	        lab_jt_rv64_consume_cycle_i - lab_jt_rv64_response_cycle_i;
+	    wire [15:0] lab_jt_rv64_response_consume_cen_distance =
+	        lab_jt_rv64_consume_cen_cycle_i -
+	        lab_jt_rv64_response_cen_cycle_i;
+	    wire [15:0] lab_jt_rv64_status = {
+	        4'h6,
+	        lab_jt_rom_timing_mode,
+	        lab_jt_rv64_done_i,
+	        lab_jt_rv64_active_i,
+	        lab_jt_rv64_request_seen_i,
+	        lab_jt_rv64_addr_seen_i,
+	        lab_jt_rv64_response_seen_i,
+	        lab_jt_rv64_after_seen_i,
+	        lab_jt_rv64_consume_seen_i,
+	        lab_jt_rv64_match_i,
+	        lab_jt_rv64_consume_without_response_i,
+	        lab_jt_rv64_after_pending_i
+	    };
+	    wire [15:0] lab_jt_rv64_previous_hold_pair = {
+	        lab_jt_rv64_previous_hold_i, lab_jt_rv64_hold_before_i
+	    };
+	    wire [15:0] lab_jt_rv64_incoming_pair = {
+	        lab_jt_rv64_incoming_byte_i, lab_jt_rv64_incoming_byte_i
+	    };
+	    wire [15:0] lab_jt_rv64_hold_before_pair = {
+	        lab_jt_rv64_hold_before_i, lab_jt_rv64_incoming_byte_i
+	    };
+	    wire [15:0] lab_jt_rv64_port_before_pair = {
+	        lab_jt_rv64_port_before_i, lab_jt_rv64_source_before_i
+	    };
+	    wire [15:0] lab_jt_rv64_hold_after_pair = {
+	        lab_jt_rv64_hold_after_i, lab_jt_rv64_incoming_byte_i
+	    };
+	    wire [15:0] lab_jt_rv64_port_after_pair = {
+	        lab_jt_rv64_port_after_i, lab_jt_rv64_source_after_i
+	    };
+	    wire [15:0] lab_jt_rv64_hold_consume_pair = {
+	        lab_jt_rv64_hold_consume_i, lab_jt_rv64_port_consume_i
+	    };
+	    wire [15:0] lab_jt_rv64_consume_source_pair = {
+	        lab_jt_rv64_incoming_byte_i, lab_jt_rv64_source_consume_i
+	    };
+	    wire [15:0] lab_jt_rv64_previous_consume_pair = {
+	        lab_jt_rv64_previous_hold_i, lab_jt_rv64_source_consume_i
+	    };
+	    wire [15:0] lab_jt_rv64_request_response_distance = {
+	        lab_jt_rv64_request_response_cycle_distance[7:0],
+	        lab_jt_rv64_request_response_cen_distance[7:0]
+	    };
+	    wire [15:0] lab_jt_rv64_response_consume_distance = {
+	        lab_jt_rv64_response_consume_cycle_distance[7:0],
+	        lab_jt_rv64_response_consume_cen_distance[7:0]
+	    };
+	    wire [15:0] lab_jt_rv64_state_pair = {
+	        lab_jt_rv64_response_state_channel_i,
+	        lab_jt_rv64_consume_state_channel_i
+	    };
+	    wire [15:0] lab_jt_rv64_equality_flags = {
+	        8'h64,
+	        (lab_jt_rv64_incoming_byte_i == lab_jt_rv64_hold_after_i),
+	        (lab_jt_rv64_incoming_byte_i == lab_jt_rv64_port_after_i),
+	        (lab_jt_rv64_incoming_byte_i == lab_jt_rv64_source_after_i),
+	        (lab_jt_rv64_incoming_byte_i == lab_jt_rv64_source_consume_i),
+	        (lab_jt_rv64_hold_before_i == lab_jt_rv64_port_before_i),
+	        (lab_jt_rv64_hold_after_i == lab_jt_rv64_port_after_i),
+	        (lab_jt_rv64_hold_consume_i == lab_jt_rv64_port_consume_i),
+	        (lab_jt_rv64_port_consume_i == lab_jt_rv64_source_consume_i)
+	    };
+	    wire [15:0] lab_jt_rv64_live_pair = {
+	        lab_jt_rv62_live_rom_data, lab_jt_rv62_live_source_data
+	    };
+	    wire [15:0] lab_jt_rv64_cycle_nibbles = {
+	        lab_jt_rv64_request_cycle_i[3:0],
+	        lab_jt_rv64_response_cycle_i[3:0],
+	        lab_jt_rv64_after_cycle_i[3:0],
+	        lab_jt_rv64_consume_cycle_i[3:0]
+	    };
+	    wire [15:0] lab_jt_rv64_response_flags = {
+	        8'h64,
+	        1'b1,
+	        smoke_c0_jt_backend,
+	        lab_jt_rv64_response_rom_cs_i,
+	        lab_jt_rv64_response_rom_ok_i,
+	        lab_jt_rv64_request_seen_i,
+	        lab_jt_rv64_response_seen_i,
+	        lab_jt_rv64_after_seen_i,
+	        lab_jt_rv64_consume_seen_i
+	    };
+	    // RV0066 uses the normal ch3 response qualification proven by RV0064
+	    // and adds explicit response ownership checks for the capture only.
+	    wire lab_jt_rv65_response_candidate =
+	        smoke_c0_jt_backend && lab_jt_rv65_active_i &&
+	        lab_jt_rv65_addr_seen_i &&
+	        !lab_jt_rv65_response_seen_i &&
+	        lab_jt_ddr_payload_real_return_event;
+	    wire lab_jt_rv65_response_tag_match =
+	        lab_jt_ddr_return_hold_candidate &&
+	        (lab_jt_current_req_ch_i == 4'd3) &&
+	        (lab_jt_ddr_req_rom_addr_i ==
+	         lab_jt_rv65_pending_request_rom_i);
+	    wire lab_jt_rv65_response_event =
+	        lab_jt_rv65_response_candidate &&
+	        lab_jt_rv65_response_tag_match;
+	    wire lab_jt_rv65_tag_mismatch_event =
+	        lab_jt_rv65_response_candidate &&
+	        !lab_jt_rv65_response_tag_match;
+	    wire [7:0] lab_jt_rv65_commit_accepted =
+	        lab_jt_rv65_response_seen_i ?
+	        lab_jt_rv65_pending_accepted_i : loaded_ddr_rd_data;
+	    wire [15:0] lab_jt_rv65_b0 = lab_jt_rv65_before_i[0][15:0];
+	    wire [15:0] lab_jt_rv65_b1 = lab_jt_rv65_before_i[1][15:0];
+	    wire [15:0] lab_jt_rv65_b2 = lab_jt_rv65_before_i[2][15:0];
+	    wire [15:0] lab_jt_rv65_b3 = lab_jt_rv65_before_i[3][15:0];
+	    wire [15:0] lab_jt_rv65_b4 = lab_jt_rv65_before_i[4][15:0];
+	    wire [15:0] lab_jt_rv65_b5 = lab_jt_rv65_before_i[5][15:0];
+	    wire [15:0] lab_jt_rv65_b6 = lab_jt_rv65_before_i[6][15:0];
+	    wire [15:0] lab_jt_rv65_b7 = lab_jt_rv65_before_i[7][15:0];
+	    wire [15:0] lab_jt_rv65_h0 =
+	        {lab_jt_rv65_before_i[0][23:16], lab_jt_rv65_delta_i[0]};
+	    wire [15:0] lab_jt_rv65_h1 =
+	        {lab_jt_rv65_before_i[1][23:16], lab_jt_rv65_delta_i[1]};
+	    wire [15:0] lab_jt_rv65_h2 =
+	        {lab_jt_rv65_before_i[2][23:16], lab_jt_rv65_delta_i[2]};
+	    wire [15:0] lab_jt_rv65_h3 =
+	        {lab_jt_rv65_before_i[3][23:16], lab_jt_rv65_delta_i[3]};
+	    wire [15:0] lab_jt_rv65_h4 =
+	        {lab_jt_rv65_before_i[4][23:16], lab_jt_rv65_delta_i[4]};
+	    wire [15:0] lab_jt_rv65_h5 =
+	        {lab_jt_rv65_before_i[5][23:16], lab_jt_rv65_delta_i[5]};
+	    wire [15:0] lab_jt_rv65_h6 =
+	        {lab_jt_rv65_before_i[6][23:16], lab_jt_rv65_delta_i[6]};
+	    wire [15:0] lab_jt_rv65_h7 =
+	        {lab_jt_rv65_before_i[7][23:16], lab_jt_rv65_delta_i[7]};
+	    wire [15:0] lab_jt_rv65_d0 =
+	        {lab_jt_rv65_accepted_i[0], lab_jt_rv65_consumed_i[0]};
+	    wire [15:0] lab_jt_rv65_d1 =
+	        {lab_jt_rv65_accepted_i[1], lab_jt_rv65_consumed_i[1]};
+	    wire [15:0] lab_jt_rv65_d2 =
+	        {lab_jt_rv65_accepted_i[2], lab_jt_rv65_consumed_i[2]};
+	    wire [15:0] lab_jt_rv65_d3 =
+	        {lab_jt_rv65_accepted_i[3], lab_jt_rv65_consumed_i[3]};
+	    wire [15:0] lab_jt_rv65_d4 =
+	        {lab_jt_rv65_accepted_i[4], lab_jt_rv65_consumed_i[4]};
+	    wire [15:0] lab_jt_rv65_d5 =
+	        {lab_jt_rv65_accepted_i[5], lab_jt_rv65_consumed_i[5]};
+	    wire [15:0] lab_jt_rv65_d6 =
+	        {lab_jt_rv65_accepted_i[6], lab_jt_rv65_consumed_i[6]};
+	    wire [15:0] lab_jt_rv65_d7 =
+	        {lab_jt_rv65_accepted_i[7], lab_jt_rv65_consumed_i[7]};
+	    wire [15:0] lab_jt_rv65_step_addr_summary = {
+	        lab_jt_rv65_step_match_count_i,
+	        lab_jt_rv65_step_mismatch_count_i,
+	        lab_jt_rv65_addr_match_count_i,
+	        lab_jt_rv65_addr_mismatch_count_i
+	    };
+	    wire [15:0] lab_jt_rv65_byte_tag_summary = {
+	        lab_jt_rv65_byte_match_count_i,
+	        lab_jt_rv65_byte_mismatch_count_i,
+	        lab_jt_rv65_complete_count_i,
+	        lab_jt_rv65_pending_tag_i[3:0]
+	    };
+	    wire [15:0] lab_jt_rv65_filled_status = {
+	        lab_jt_rv65_valid_mask_i,
+	        lab_jt_rv65_complete_count_i,
+	        lab_jt_rv65_frozen_i,
+	        lab_jt_rv65_active_i,
+	        lab_jt_rv65_addr_seen_i,
+	        lab_jt_rv65_response_seen_i
+	    };
+	    // RV0067 observes only consecutive normal ch3 state-8 advances.  CPU
+	    // writes to any of ch3's three current bytes are tracked separately from
+	    // the expected internal state-9/10/11 playback writeback.
+	    wire lab_jt_rv67_external_current_write =
+	        smoke_c0_jt_backend && core_cpu_cs &&
+	        (lab_jt_write_ch == 4'd3) &&
+	        ((lab_jt_write_low && (lab_jt_write_off == 3'd0)) ||
+	         lab_jt_write_cur);
+	    wire [15:0] lab_jt_rv67_b0 = lab_jt_rv67_before_i[0][15:0];
+	    wire [15:0] lab_jt_rv67_b1 = lab_jt_rv67_before_i[1][15:0];
+	    wire [15:0] lab_jt_rv67_b2 = lab_jt_rv67_before_i[2][15:0];
+	    wire [15:0] lab_jt_rv67_b3 = lab_jt_rv67_before_i[3][15:0];
+	    wire [15:0] lab_jt_rv67_b4 = lab_jt_rv67_before_i[4][15:0];
+	    wire [15:0] lab_jt_rv67_b5 = lab_jt_rv67_before_i[5][15:0];
+	    wire [15:0] lab_jt_rv67_b6 = lab_jt_rv67_before_i[6][15:0];
+	    wire [15:0] lab_jt_rv67_b7 = lab_jt_rv67_before_i[7][15:0];
+	    wire [15:0] lab_jt_rv67_h0 =
+	        {lab_jt_rv67_before_i[0][23:16], lab_jt_rv67_delta_i[0]};
+	    wire [15:0] lab_jt_rv67_h1 =
+	        {lab_jt_rv67_before_i[1][23:16], lab_jt_rv67_delta_i[1]};
+	    wire [15:0] lab_jt_rv67_h2 =
+	        {lab_jt_rv67_before_i[2][23:16], lab_jt_rv67_delta_i[2]};
+	    wire [15:0] lab_jt_rv67_h3 =
+	        {lab_jt_rv67_before_i[3][23:16], lab_jt_rv67_delta_i[3]};
+	    wire [15:0] lab_jt_rv67_h4 =
+	        {lab_jt_rv67_before_i[4][23:16], lab_jt_rv67_delta_i[4]};
+	    wire [15:0] lab_jt_rv67_h5 =
+	        {lab_jt_rv67_before_i[5][23:16], lab_jt_rv67_delta_i[5]};
+	    wire [15:0] lab_jt_rv67_h6 =
+	        {lab_jt_rv67_before_i[6][23:16], lab_jt_rv67_delta_i[6]};
+	    wire [15:0] lab_jt_rv67_h7 =
+	        {lab_jt_rv67_before_i[7][23:16], lab_jt_rv67_delta_i[7]};
+	    wire [15:0] lab_jt_rv67_r0 = lab_jt_rv67_actual_rom_i[0][15:0];
+	    wire [15:0] lab_jt_rv67_r1 = lab_jt_rv67_actual_rom_i[1][15:0];
+	    wire [15:0] lab_jt_rv67_r2 = lab_jt_rv67_actual_rom_i[2][15:0];
+	    wire [15:0] lab_jt_rv67_r3 = lab_jt_rv67_actual_rom_i[3][15:0];
+	    wire [15:0] lab_jt_rv67_r4 = lab_jt_rv67_actual_rom_i[4][15:0];
+	    wire [15:0] lab_jt_rv67_r5 = lab_jt_rv67_actual_rom_i[5][15:0];
+	    wire [15:0] lab_jt_rv67_r6 = lab_jt_rv67_actual_rom_i[6][15:0];
+	    wire [15:0] lab_jt_rv67_r7 = lab_jt_rv67_actual_rom_i[7][15:0];
+	    // MC nibbles: equation match, equation mismatch, continuity match,
+	    // continuity mismatch. Continuity has seven comparisons (slots 1..7).
+	    wire [15:0] lab_jt_rv67_match_counts = {
+	        lab_jt_rv67_equation_match_count_i,
+	        lab_jt_rv67_equation_mismatch_count_i,
+	        lab_jt_rv67_continuity_match_count_i,
+	        lab_jt_rv67_continuity_mismatch_count_i
+	    };
+	    // FW[15:8]: external C0 current-byte write seen between state-8 slots.
+	    // FW[7:0]: each slot was state 8/ch3, cfg enabled, and active.
+	    wire [15:0] lab_jt_rv67_write_enable_flags = {
+	        lab_jt_rv67_external_write_mask_i,
+	        lab_jt_rv67_state_cfg_good_mask_i
+	    };
+
+	    // RV0068 freezes one real ch3 start.  C0 capture values are sampled at
+	    // the raw 9e write, wrapper/shadow values at the corresponding JT CPU
+	    // write, and JT-used values on the first subsequent normal state-8 pass.
+	    wire lab_jt_rv68_ch3_config_cmd =
+	        segapcm_cmd_valid &&
+	        ((mapped_cpu_addr == 8'h18) ||
+	         (mapped_cpu_addr >= 8'h1a && mapped_cpu_addr <= 8'h1f) ||
+	         (mapped_cpu_addr >= 8'h9c && mapped_cpu_addr <= 8'h9f));
+	    wire lab_jt_rv68_ctrl_accept_event =
+	        smoke_c0_jt_backend && core_cpu_cs &&
+	        (latched_cpu_addr == 8'h9e) && !lab_jt_cpu_data[0];
+	    wire [7:0] lab_jt_rv68_translated_c0_ctrl = {
+	        1'b0,
+	        lab_jt_rv68_c0_ctrl_i[5:3],
+	        1'b0,
+	        lab_jt_rv68_c0_ctrl_i[2:0]
+	    };
+	    wire lab_jt_rv68_c0_wrapper_match =
+	        (lab_jt_rv68_c0_current_i == lab_jt_rv68_wrapper_current_i) &&
+	        (lab_jt_rv68_c0_loop_i == lab_jt_rv68_wrapper_loop_i) &&
+	        (lab_jt_rv68_c0_end_i == lab_jt_rv68_wrapper_end_i) &&
+	        (lab_jt_rv68_c0_delta_i == lab_jt_rv68_wrapper_delta_i) &&
+	        (lab_jt_rv68_c0_vol_l_i == lab_jt_rv68_wrapper_vol_l_i) &&
+	        (lab_jt_rv68_c0_vol_r_i == lab_jt_rv68_wrapper_vol_r_i) &&
+	        (lab_jt_rv68_translated_c0_ctrl == lab_jt_rv68_wrapper_ctrl_i);
+	    wire [14:0] lab_jt_rv68_field_matches_now;
+	    assign lab_jt_rv68_field_matches_now[0] =
+	        (lab_jt_rv68_jt_write_i[7:0] == lab_jt_rv68_wrapper_ctrl_i);
+	    assign lab_jt_rv68_field_matches_now[1] =
+	        (lab_jt_rv68_jt_ctrl_i == lab_jt_rv68_wrapper_ctrl_i);
+	    assign lab_jt_rv68_field_matches_now[2] =
+	        (lab_jt_rv68_jt_ctrl_i[6:4] ==
+	         lab_jt_rv68_wrapper_ctrl_i[6:4]);
+	    assign lab_jt_rv68_field_matches_now[3] =
+	        (lab_jt_rv68_jt_current_i == lab_jt_rv68_wrapper_current_i);
+	    assign lab_jt_rv68_field_matches_now[4] =
+	        (lab_jt_rv68_jt_loop_i == lab_jt_rv68_wrapper_loop_i);
+	    assign lab_jt_rv68_field_matches_now[5] =
+	        (lab_jt_rv68_jt_end_i == lab_jt_rv68_wrapper_end_i);
+	    assign lab_jt_rv68_field_matches_now[6] =
+	        (lab_jt_rv68_jt_delta_i == lab_jt_rv68_wrapper_delta_i);
+	    assign lab_jt_rv68_field_matches_now[7] =
+	        (lab_jt_dbg_vol_lr[15:8] == {1'b0, lab_jt_rv68_wrapper_vol_l_i[6:0]});
+	    assign lab_jt_rv68_field_matches_now[8] =
+	        (lab_jt_dbg_vol_lr[7:0] == {1'b0, lab_jt_rv68_wrapper_vol_r_i[6:0]});
+	    assign lab_jt_rv68_field_matches_now[9] =
+	        (lab_jt_rv68_jt_ctrl_i[0] == lab_jt_rv68_wrapper_ctrl_i[0]);
+	    assign lab_jt_rv68_field_matches_now[10] =
+	        (lab_jt_rv68_jt_ctrl_i[1] == lab_jt_rv68_wrapper_ctrl_i[1]);
+	    assign lab_jt_rv68_field_matches_now[11] =
+	        lab_jt_rv68_rom_seen_i &&
+	        (lab_jt_rv68_actual_rom_i == lab_jt_rv68_expected_rom_i);
+	    assign lab_jt_rv68_field_matches_now[12] =
+	        lab_jt_rv68_c0_wrapper_match;
+	    assign lab_jt_rv68_field_matches_now[13] =
+	        (lab_jt_rv68_state_channel_i == 8'h83) &&
+	        lab_jt_rv68_state7_flags_i[7];
+	    assign lab_jt_rv68_field_matches_now[14] =
+	        lab_jt_rv68_state8_seen_i && lab_jt_rv68_rom_seen_i;
+
+	    wire [15:0] lab_jt_rv68_cw = lab_jt_rv68_c0_write_i;
+	    wire [15:0] lab_jt_rv68_jw = lab_jt_rv68_jt_write_i;
+	    wire [15:0] lab_jt_rv68_pc = lab_jt_rv68_prior_ctrl_i;
+	    wire [15:0] lab_jt_rv68_lw = lab_jt_rv68_last_cfg_write_i;
+	    wire [15:0] lab_jt_rv68_ct =
+	        {lab_jt_rv68_wrapper_ctrl_i, lab_jt_rv68_jt_ctrl_i};
+	    wire [15:0] lab_jt_rv68_bk = {
+	        5'd0, lab_jt_rv68_wrapper_ctrl_i[6:4],
+	        5'd0, lab_jt_rv68_jt_ctrl_i[6:4]
+	    };
+	    wire [15:0] lab_jt_rv68_c0 = {
+	        lab_jt_rv68_wrapper_current_i[23:16],
+	        lab_jt_rv68_jt_current_i[23:16]
+	    };
+	    wire [15:0] lab_jt_rv68_c1 = {
+	        lab_jt_rv68_wrapper_current_i[15:8],
+	        lab_jt_rv68_jt_current_i[15:8]
+	    };
+	    wire [15:0] lab_jt_rv68_c2 = {
+	        lab_jt_rv68_wrapper_current_i[7:0],
+	        lab_jt_rv68_jt_current_i[7:0]
+	    };
+	    wire [15:0] lab_jt_rv68_l0 = {
+	        lab_jt_rv68_wrapper_loop_i[15:8],
+	        lab_jt_rv68_jt_loop_i[15:8]
+	    };
+	    wire [15:0] lab_jt_rv68_l1 = {
+	        lab_jt_rv68_wrapper_loop_i[7:0],
+	        lab_jt_rv68_jt_loop_i[7:0]
+	    };
+	    wire [15:0] lab_jt_rv68_ed =
+	        {lab_jt_rv68_wrapper_end_i, lab_jt_rv68_jt_end_i};
+	    wire [15:0] lab_jt_rv68_dl =
+	        {lab_jt_rv68_wrapper_delta_i, lab_jt_rv68_jt_delta_i};
+	    wire [15:0] lab_jt_rv68_vl =
+	        {lab_jt_rv68_wrapper_vol_l_i, lab_jt_rv68_jt_vol_l_i};
+	    wire [15:0] lab_jt_rv68_vr =
+	        {lab_jt_rv68_wrapper_vol_r_i, lab_jt_rv68_jt_vol_r_i};
+	    wire [15:0] lab_jt_rv68_lm = {
+	        8'h68,
+	        !lab_jt_rv68_wrapper_ctrl_i[0],
+	        !lab_jt_rv68_jt_ctrl_i[0],
+	        !lab_jt_rv68_wrapper_ctrl_i[1],
+	        !lab_jt_rv68_jt_ctrl_i[1],
+	        lab_jt_rv68_state7_flags_i[0],
+	        lab_jt_rv68_state7_flags_i[3],
+	        lab_jt_rv68_state7_flags_i[2],
+	        lab_jt_rv68_state7_flags_i[1]
+	    };
+	    wire [15:0] lab_jt_rv68_eh =
+	        {13'd0, lab_jt_rv68_expected_rom_i[18:16]};
+	    wire [15:0] lab_jt_rv68_el = lab_jt_rv68_expected_rom_i[15:0];
+	    wire [15:0] lab_jt_rv68_rh =
+	        {13'd0, lab_jt_rv68_actual_rom_i[18:16]};
+	    wire [15:0] lab_jt_rv68_rl = lab_jt_rv68_actual_rom_i[15:0];
+	    wire [15:0] lab_jt_rv68_ef =
+	        {lab_jt_rv68_jt_end_i, lab_jt_rv68_state7_flags_i};
+	    wire [15:0] lab_jt_rv68_m0 = lab_jt_rv68_match_mask_i;
+	    wire [15:0] lab_jt_rv68_m1 = ~lab_jt_rv68_match_mask_i;
+	    wire [15:0] lab_jt_rv68_st = {
+	        8'h68, 2'd0,
+	        lab_jt_rv68_frozen_i,
+	        lab_jt_rv68_rom_seen_i,
+	        lab_jt_rv68_state8_seen_i,
+	        lab_jt_rv68_ctrl_seen_i,
+	        lab_jt_rv68_armed_i,
+	        lab_jt_rv68_match_mask_i[15]
+	    };
+	    wire [15:0] lab_jt_rv68_wc = {
+	        lab_jt_rv68_writes_after_trigger_i,
+	        lab_jt_rv68_start_ordinal_i
+	    };
+	    wire [15:0] lab_jt_rv68_sc =
+	        {lab_jt_rv68_state_channel_i, lab_jt_rv68_jt_ctrl_i};
+
+	    // RV0069 field slots. Wn is the actual JT CPU-port write
+	    // {address,data}; Rn is {physical RAM readback, value consumed by JT}.
+	    // 0=current fraction, 1=vol L, 2=vol R, 3=loop mid, 4=loop high,
+	    // 5=end, 6=delta, 7=current mid, 8=current high, 9=control.
+	    function automatic [3:0] lab_jt_rv69_field_index(
+	        input logic [8:0] addr
+	    );
+	        begin
+	            unique case (addr)
+	                9'h018: lab_jt_rv69_field_index = 4'd0;
+	                9'h01a: lab_jt_rv69_field_index = 4'd1;
+	                9'h01b: lab_jt_rv69_field_index = 4'd2;
+	                9'h01c: lab_jt_rv69_field_index = 4'd3;
+	                9'h01d: lab_jt_rv69_field_index = 4'd4;
+	                9'h01e: lab_jt_rv69_field_index = 4'd5;
+	                9'h01f: lab_jt_rv69_field_index = 4'd6;
+	                9'h09c: lab_jt_rv69_field_index = 4'd7;
+	                9'h09d: lab_jt_rv69_field_index = 4'd8;
+	                9'h09e: lab_jt_rv69_field_index = 4'd9;
+	                default: lab_jt_rv69_field_index = 4'hf;
+	            endcase
+	        end
+	    endfunction
+
+	    wire [3:0] lab_jt_rv69_cpu_field =
+	        lab_jt_rv69_field_index({1'b0, latched_cpu_addr});
+	    wire [3:0] lab_jt_rv69_internal_field =
+	        lab_jt_rv69_field_index(lab_jt_rv69_internal_write_addr);
+	    wire [3:0] lab_jt_rv69_read_field =
+	        lab_jt_rv69_field_index(lab_jt_rv69_ram_read_addr);
+	    wire lab_jt_rv69_queue_empty =
+	        !segapcm_cmd_valid && !cpu_write_pending && !cpu_write_pulse &&
+	        !core_cpu_cs;
+
+	    wire [15:0] lab_jt_rv69_w0 = lab_jt_rv69_write_i[0];
+	    wire [15:0] lab_jt_rv69_w1 = lab_jt_rv69_write_i[1];
+	    wire [15:0] lab_jt_rv69_w2 = lab_jt_rv69_write_i[2];
+	    wire [15:0] lab_jt_rv69_w3 = lab_jt_rv69_write_i[3];
+	    wire [15:0] lab_jt_rv69_w4 = lab_jt_rv69_write_i[4];
+	    wire [15:0] lab_jt_rv69_w5 = lab_jt_rv69_write_i[5];
+	    wire [15:0] lab_jt_rv69_w6 = lab_jt_rv69_write_i[6];
+	    wire [15:0] lab_jt_rv69_w7 = lab_jt_rv69_write_i[7];
+	    wire [15:0] lab_jt_rv69_w8 = lab_jt_rv69_write_i[8];
+	    wire [15:0] lab_jt_rv69_w9 = lab_jt_rv69_write_i[9];
+	    wire [15:0] lab_jt_rv69_r0 =
+	        {lab_jt_rv69_readback_i[0], lab_jt_rv69_used_i[0]};
+	    wire [15:0] lab_jt_rv69_r1 =
+	        {lab_jt_rv69_readback_i[1], lab_jt_rv69_used_i[1]};
+	    wire [15:0] lab_jt_rv69_r2 =
+	        {lab_jt_rv69_readback_i[2], lab_jt_rv69_used_i[2]};
+	    wire [15:0] lab_jt_rv69_r3 =
+	        {lab_jt_rv69_readback_i[3], lab_jt_rv69_used_i[3]};
+	    wire [15:0] lab_jt_rv69_r4 =
+	        {lab_jt_rv69_readback_i[4], lab_jt_rv69_used_i[4]};
+	    wire [15:0] lab_jt_rv69_r5 =
+	        {lab_jt_rv69_readback_i[5], lab_jt_rv69_used_i[5]};
+	    wire [15:0] lab_jt_rv69_r6 =
+	        {lab_jt_rv69_readback_i[6], lab_jt_rv69_used_i[6]};
+	    wire [15:0] lab_jt_rv69_r7 =
+	        {lab_jt_rv69_readback_i[7], lab_jt_rv69_used_i[7]};
+	    wire [15:0] lab_jt_rv69_r8 =
+	        {lab_jt_rv69_readback_i[8], lab_jt_rv69_used_i[8]};
+	    wire [15:0] lab_jt_rv69_r9 =
+	        {lab_jt_rv69_readback_i[9], lab_jt_rv69_used_i[9]};
+	    wire [15:0] lab_jt_rv70_bk = {
+	        5'd0, lab_jt_rv69_expected_i[9][6:4],
+	        5'd0, lab_jt_rv69_used_i[9][6:4]
+	    };
+	    wire [15:0] lab_jt_rv70_expected_high =
+	        {13'd0, lab_jt_rv70_expected_rom_i[18:16]};
+	    wire [15:0] lab_jt_rv70_expected_low =
+	        lab_jt_rv70_expected_rom_i[15:0];
+	    wire [15:0] lab_jt_rv70_actual_high =
+	        {13'd0, lab_jt_rv70_actual_rom_i[18:16]};
+	    wire [15:0] lab_jt_rv70_actual_low =
+	        lab_jt_rv70_actual_rom_i[15:0];
+	    wire [15:0] lab_jt_rv70_ctrl_overwrite_count =
+	        lab_jt_rv70_ctrl_overwrite_count_i;
+	    wire [15:0] lab_jt_rv69_ct =
+	        {lab_jt_rv69_raw_ctrl_i, lab_jt_rv69_translated_ctrl_i};
+	    wire [15:0] lab_jt_rv69_vm = {
+	        lab_jt_rv69_frozen_i,
+	        lab_jt_rv69_state8_seen_i,
+	        lab_jt_rv69_readback_armed_i,
+	        lab_jt_rv69_start_seen_i,
+	        (lab_jt_rv69_read_valid_mask_i == 10'h3ff),
+	        (lab_jt_rv69_accepted_mask_i == 10'h3ff),
+	        lab_jt_rv69_accepted_mask_i
+	    };
+	    wire [15:0] lab_jt_rv69_cm = {
+	        (|lab_jt_rv69_same_cycle_mask_i),
+	        (|lab_jt_rv69_overwrite_mask_i),
+	        lab_jt_rv69_same_cycle_mask_i[9],
+	        lab_jt_rv69_overwrite_mask_i[9],
+	        (lab_jt_rv69_accepted_mask_i == 10'h3ff),
+	        (lab_jt_rv69_read_valid_mask_i == 10'h3ff),
+	        lab_jt_rv69_overwrite_mask_i
+	    };
+	    wire [15:0] lab_jt_rv69_mm = {
+	        (lab_jt_rv69_ram_match_mask_i == 10'h3ff),
+	        (lab_jt_rv69_accepted_mask_i == 10'h3ff),
+	        (lab_jt_rv69_read_valid_mask_i == 10'h3ff),
+	        lab_jt_rv69_same_cycle_mask_i[9],
+	        lab_jt_rv69_overwrite_mask_i[9],
+	        lab_jt_rv69_state8_seen_i,
+	        lab_jt_rv69_ram_match_mask_i
+	    };
+	    wire [15:0] lab_jt_rv69_iw = lab_jt_rv69_last_internal_write_i;
+	    wire [15:0] lab_jt_rv69_st = {
+	        lab_jt_rv69_last_state_channel_i,
+	        2'd0,
+	        lab_jt_rv69_same_cycle_mask_i[9],
+	        lab_jt_rv69_overwrite_mask_i[9],
+	        lab_jt_rv69_frozen_i,
+	        lab_jt_rv69_state8_seen_i,
+	        lab_jt_rv69_readback_armed_i,
+	        lab_jt_rv69_start_seen_i
+	    };
+	    wire [15:0] lab_jt_rv57_f0 = {
+	        lab_jt_rv57_event_flags_i[0], lab_jt_rv57_event_flags_i[1],
+	        lab_jt_rv57_event_flags_i[2], lab_jt_rv57_event_flags_i[3]
+	    };
+	    wire [15:0] lab_jt_rv57_f1 = {
+	        lab_jt_rv57_event_flags_i[4], lab_jt_rv57_event_flags_i[5],
+	        lab_jt_rv57_event_flags_i[6], lab_jt_rv57_event_flags_i[7]
+	    };
+	    wire [15:0] lab_jt_rv57_hb =
+	        {lab_jt_rv57_last_hold_before_i, lab_jt_rv57_last_hold_after_i};
+	    wire [15:0] lab_jt_rv57_sa =
+	        {lab_jt_rv57_last_selected_before_i,
+	         lab_jt_rv57_last_selected_after_i};
+	    wire [15:0] lab_jt_rv57_n0 = {
+	        lab_jt_rv57_response_count_i[7:0],
+	        lab_jt_rv57_hold_write_count_i[7:0]
+	    };
+	    wire [15:0] lab_jt_rv57_n1 = {
+	        lab_jt_rv57_late_response_count_i[7:0],
+	        lab_jt_rv57_hold_zero_count_i[7:0]
+	    };
+	    always_ff @(posedge clk) begin : rv0058_rom_return_capture
+	        if (reset || loaded_payload_clear) begin
+	            lab_jt_rv57_response_valid_i <= 8'd0;
+	            lab_jt_rv57_request_count_i <= 4'd0;
+	            lab_jt_rv57_pending_slot_i <= 3'd0;
+	            lab_jt_rv57_pending_valid_i <= 1'b0;
+	            lab_jt_rv57_pending_cen_age_i <= 4'd0;
+	            lab_jt_rv57_after_slot_i <= 3'd0;
+	            lab_jt_rv57_after_pending_i <= 1'b0;
+	            lab_jt_rv57_last_request_tag_i <= 16'd0;
+	            lab_jt_rv57_last_response_tag_i <= 16'd0;
+	            lab_jt_rv57_last_hold_before_i <= 8'd0;
+	            lab_jt_rv57_last_hold_after_i <= 8'd0;
+	            lab_jt_rv57_last_selected_before_i <= 8'd0;
+	            lab_jt_rv57_last_selected_after_i <= 8'd0;
+	            lab_jt_rv57_response_count_i <= 16'd0;
+	            lab_jt_rv57_hold_write_count_i <= 16'd0;
+	            lab_jt_rv57_late_response_count_i <= 16'd0;
+	            lab_jt_rv57_hold_zero_count_i <= 16'd0;
+	            lab_jt_rv57_addr_change_repeat_count_i <= 16'd0;
+	            lab_jt_rv57_index_change_repeat_count_i <= 16'd0;
+	            lab_jt_rv57_ram_change_count_i <= 16'd0;
+	            lab_jt_rv57_hold_change_count_i <= 16'd0;
+	            lab_jt_rv57_selected_change_count_i <= 16'd0;
+	            lab_jt_rv57_prev_consume_addr_i <= 19'd0;
+	            lab_jt_rv57_prev_consume_index_i <= 19'd0;
+	            lab_jt_rv57_prev_ram_data_i <= 8'd0;
+	            lab_jt_rv57_prev_hold_after_i <= 8'd0;
+	            lab_jt_rv57_prev_selected_after_i <= 8'd0;
+	            lab_jt_rv57_prev_consume_valid_i <= 1'b0;
+	            lab_jt_rv57_prev_ram_valid_i <= 1'b0;
+	            lab_jt_rv57_prev_after_valid_i <= 1'b0;
+	            lab_jt_rv62_selected_capture_count_i <= 16'd0;
+	            lab_jt_rv62_instance_capture_count_i <= 16'd0;
+	            lab_jt_rv62_last_selected_i <= 8'd0;
+	            lab_jt_rv62_last_instance_i <= 8'd0;
+	            lab_jt_rv62_selected_tag_i <= 16'd0;
+	            lab_jt_rv62_instance_tag_i <= 16'd0;
+	            for (int unsigned rv57_i = 0; rv57_i < 8;
+	                 rv57_i = rv57_i + 1) begin
+	                lab_jt_rv57_rom_addr_i[rv57_i] <= 8'd0;
+	                lab_jt_rv57_block_i[rv57_i] <= 3'd0;
+	                lab_jt_rv57_payload_index_i[rv57_i] <= 8'd0;
+	                lab_jt_rv57_ram_addr_i[rv57_i] <= 8'd0;
+	                lab_jt_rv57_ram_data_i[rv57_i] <= 8'd0;
+	                lab_jt_rv57_hold_after_i[rv57_i] <= 8'd0;
+	                lab_jt_rv57_selected_after_i[rv57_i] <= 8'd0;
+	                lab_jt_rv60_selected_data_i[rv57_i] <= 8'd0;
+	                lab_jt_rv60_instance_data_i[rv57_i] <= 8'd0;
+	                lab_jt_rv57_event_flags_i[rv57_i] <= 4'd0;
+	            end
+	        end else if (smoke_c0_jt_backend) begin
+	            if (lab_jt_rv60_state8_accept_strobe &&
+	                (lab_jt_rv60_state8_accept_txn < 16'd8)) begin
+	                // Both wrapper probes use the core-generated exact state-8
+	                // accept pulse and transaction slot. The instance probe is
+	                // driven back out of the jtoutrun_pcm input port.
+	                lab_jt_rv60_selected_data_i[
+	                    lab_jt_rv60_state8_accept_slot
+	                ] <= lab_jt_rom_data_to_core;
+	                lab_jt_rv60_instance_data_i[
+	                    lab_jt_rv60_state8_accept_slot
+	                ] <= lab_jt_rv62_live_rom_data;
+	                lab_jt_rv62_last_selected_i <= lab_jt_rom_data_to_core;
+	                lab_jt_rv62_last_instance_i <= lab_jt_rv62_live_rom_data;
+	                lab_jt_rv62_selected_tag_i <= {
+	                    lab_jt_rv62_live_state_channel[7:0],
+	                    lab_jt_rv60_state8_accept_txn[7:0]
+	                };
+	                lab_jt_rv62_instance_tag_i <= {
+	                    lab_jt_rv62_live_state_channel[7:0],
+	                    lab_jt_rv60_state8_accept_txn[7:0]
+	                };
+	                if (lab_jt_rv62_selected_capture_count_i != 16'hffff)
+	                    lab_jt_rv62_selected_capture_count_i <=
+	                        lab_jt_rv62_selected_capture_count_i + 16'd1;
+	                if (lab_jt_rv62_instance_capture_count_i != 16'hffff)
+	                    lab_jt_rv62_instance_capture_count_i <=
+	                        lab_jt_rv62_instance_capture_count_i + 16'd1;
+	            end
+	            if (lab_jt_rv57_pending_valid_i && segapcm_cen &&
+	                (lab_jt_rv57_pending_cen_age_i != 4'hf)) begin
+	                lab_jt_rv57_pending_cen_age_i <=
+	                    lab_jt_rv57_pending_cen_age_i + 4'd1;
+	            end
+
+	            if (lab_jt_rv57_after_pending_i) begin
+	                lab_jt_rv57_hold_after_i[
+	                    lab_jt_rv57_after_slot_i
+	                ] <= lab_jt_rom_data_hold_i;
+	                lab_jt_rv57_selected_after_i[
+	                    lab_jt_rv57_after_slot_i
+	                ] <= lab_jt_rom_data_to_core;
+	                lab_jt_rv57_last_hold_after_i <= lab_jt_rom_data_hold_i;
+	                lab_jt_rv57_last_selected_after_i <=
+	                    lab_jt_rom_data_to_core;
+	                if ((lab_jt_rom_data_hold_i == 8'd0) &&
+	                    (lab_jt_rv57_last_hold_before_i != 8'd0) &&
+	                    (lab_jt_rv57_hold_zero_count_i != 16'hffff)) begin
+	                    lab_jt_rv57_hold_zero_count_i <=
+	                        lab_jt_rv57_hold_zero_count_i + 16'd1;
+	                end
+	                if (lab_jt_rv57_prev_after_valid_i &&
+	                    (lab_jt_rom_data_hold_i !=
+	                     lab_jt_rv57_prev_hold_after_i) &&
+	                    (lab_jt_rv57_hold_change_count_i != 16'hffff)) begin
+	                    lab_jt_rv57_hold_change_count_i <=
+	                        lab_jt_rv57_hold_change_count_i + 16'd1;
+	                end
+	                if (lab_jt_rv57_prev_after_valid_i &&
+	                    (lab_jt_rom_data_to_core !=
+	                     lab_jt_rv57_prev_selected_after_i) &&
+	                    (lab_jt_rv57_selected_change_count_i != 16'hffff)) begin
+	                    lab_jt_rv57_selected_change_count_i <=
+	                        lab_jt_rv57_selected_change_count_i + 16'd1;
+	                end
+	                lab_jt_rv57_prev_hold_after_i <= lab_jt_rom_data_hold_i;
+	                lab_jt_rv57_prev_selected_after_i <=
+	                    lab_jt_rom_data_to_core;
+	                lab_jt_rv57_prev_after_valid_i <= 1'b1;
+	                lab_jt_rv57_after_pending_i <= 1'b0;
+	            end
+
+	            if (lab_jt_ddr_read_request_fire &&
+	                (lab_jt_req_src_ch == 4'd3)) begin
+	                lab_jt_rv57_last_request_tag_i <=
+	                    {lab_jt_req_src_ch, lab_jt_rom_addr[11:0]};
+	                if (lab_jt_rv57_request_count_i < 4'd8) begin
+	                    lab_jt_rv57_rom_addr_i[
+	                        lab_jt_rv57_request_count_i[2:0]
+	                    ] <= lab_jt_rom_addr[7:0];
+	                    lab_jt_rv57_block_i[
+	                        lab_jt_rv57_request_count_i[2:0]
+	                    ] <= lab_jt_payload_block_next;
+	                    lab_jt_rv57_payload_index_i[
+	                        lab_jt_rv57_request_count_i[2:0]
+	                    ] <= lab_jt_payload_read_index_next[7:0];
+	                    lab_jt_rv57_ram_addr_i[
+	                        lab_jt_rv57_request_count_i[2:0]
+	                    ] <= smoke_ddr_follow_read_index[7:0];
+	                    lab_jt_rv57_pending_slot_i <=
+	                        lab_jt_rv57_request_count_i[2:0];
+	                    lab_jt_rv57_pending_valid_i <= 1'b1;
+	                    lab_jt_rv57_pending_cen_age_i <= 4'd0;
+	                    lab_jt_rv57_request_count_i <=
+	                        lab_jt_rv57_request_count_i + 4'd1;
+	                end
+	            end
+
+	            if (lab_jt_ddr_payload_real_return_event) begin
+	                if (lab_jt_rv57_response_count_i != 16'hffff) begin
+	                    lab_jt_rv57_response_count_i <=
+	                        lab_jt_rv57_response_count_i + 16'd1;
+	                end
+	                if (lab_jt_ddr_return_hold_candidate &&
+	                    (lab_jt_rv57_hold_write_count_i != 16'hffff)) begin
+	                    lab_jt_rv57_hold_write_count_i <=
+	                        lab_jt_rv57_hold_write_count_i + 16'd1;
+	                end
+	                if ((lab_jt_rv57_pending_cen_age_i >= 4'd6) &&
+	                    (lab_jt_rv57_late_response_count_i != 16'hffff)) begin
+	                    lab_jt_rv57_late_response_count_i <=
+	                        lab_jt_rv57_late_response_count_i + 16'd1;
+	                end
+	                lab_jt_rv57_last_response_tag_i <= {
+	                    lab_jt_ddr_response_matches_current,
+	                    lab_jt_ddr_req_payload_block_i,
+	                    lab_jt_ddr_req_payload_index_i[3:0],
+	                    loaded_ddr_rd_data
+	                };
+	                if (lab_jt_rv57_prev_ram_valid_i &&
+	                    (loaded_ddr_rd_data !=
+	                     lab_jt_rv57_prev_ram_data_i) &&
+	                    (lab_jt_rv57_ram_change_count_i != 16'hffff)) begin
+	                    lab_jt_rv57_ram_change_count_i <=
+	                        lab_jt_rv57_ram_change_count_i + 16'd1;
+	                end
+	                lab_jt_rv57_prev_ram_data_i <= loaded_ddr_rd_data;
+	                lab_jt_rv57_prev_ram_valid_i <= 1'b1;
+	                lab_jt_rv57_last_hold_before_i <=
+	                    lab_jt_rom_data_hold_i;
+	                lab_jt_rv57_last_selected_before_i <=
+	                    lab_jt_rom_data_to_core;
+	                if (lab_jt_rv57_pending_valid_i) begin
+	                    lab_jt_rv57_ram_data_i[
+	                        lab_jt_rv57_pending_slot_i
+	                    ] <= loaded_ddr_rd_data;
+	                    lab_jt_rv57_response_valid_i[
+	                        lab_jt_rv57_pending_slot_i
+	                    ] <= 1'b1;
+	                    lab_jt_rv57_event_flags_i[
+	                        lab_jt_rv57_pending_slot_i
+	                    ] <= {
+	                        1'b1,
+	                        lab_jt_ddr_response_matches_current,
+	                        lab_jt_ddr_return_hold_candidate,
+	                        (lab_jt_rv57_pending_cen_age_i >= 4'd6)
+	                    };
+	                    lab_jt_rv57_after_slot_i <=
+	                        lab_jt_rv57_pending_slot_i;
+	                    lab_jt_rv57_after_pending_i <= 1'b1;
+	                    lab_jt_rv57_pending_valid_i <= 1'b0;
+	                end
+	            end
+	        end
+	    end
+
+	    // RV0062 reset/clear and direct-live monitors. These counters do not
+	    // participate in the ROM or audio path and are deliberately independent
+	    // of the state-8/state-14 capture arrays above.
+	    always_ff @(posedge clk) begin : rv0062_capture_clear_monitor
+	        if (reset) begin
+	            lab_jt_rv62_clear_cycle_count_i <= 16'd0;
+	            lab_jt_rv62_clear_edge_count_i <= 16'd0;
+	            lab_jt_rv62_clear_after_capture_count_i <= 16'd0;
+	            lab_jt_rv62_clear_d_i <= 1'b0;
+	            lab_jt_rv62_prev_live_addr_i <= 19'd0;
+	            lab_jt_rv62_prev_live_addr_valid_i <= 1'b0;
+	            lab_jt_rv62_live_addr_change_count_i <= 16'd0;
+	        end else begin
+	            lab_jt_rv62_clear_d_i <= loaded_payload_clear;
+	            if (loaded_payload_clear &&
+	                (lab_jt_rv62_clear_cycle_count_i != 16'hffff)) begin
+	                lab_jt_rv62_clear_cycle_count_i <=
+	                    lab_jt_rv62_clear_cycle_count_i + 16'd1;
+	            end
+	            if (loaded_payload_clear && !lab_jt_rv62_clear_d_i &&
+	                (lab_jt_rv62_clear_edge_count_i != 16'hffff)) begin
+	                lab_jt_rv62_clear_edge_count_i <=
+	                    lab_jt_rv62_clear_edge_count_i + 16'd1;
+	            end
+	            if (loaded_payload_clear &&
+	                ((lab_jt_rv62_selected_capture_count_i != 16'd0) ||
+	                 (lab_jt_rv62_instance_capture_count_i != 16'd0)) &&
+	                (lab_jt_rv62_clear_after_capture_count_i != 16'hffff)) begin
+	                lab_jt_rv62_clear_after_capture_count_i <=
+	                    lab_jt_rv62_clear_after_capture_count_i + 16'd1;
+	            end
+	            if (!loaded_payload_clear && smoke_c0_jt_backend &&
+	                lab_jt_rom_cs &&
+	                (lab_jt_rv62_live_state_channel[3:0] == 4'd3)) begin
+	                if (lab_jt_rv62_prev_live_addr_valid_i &&
+	                    (lab_jt_rom_addr != lab_jt_rv62_prev_live_addr_i) &&
+	                    (lab_jt_rv62_live_addr_change_count_i != 16'hffff)) begin
+	                    lab_jt_rv62_live_addr_change_count_i <=
+	                        lab_jt_rv62_live_addr_change_count_i + 16'd1;
+	                end
+	                lab_jt_rv62_prev_live_addr_i <= lab_jt_rom_addr;
+	                lab_jt_rv62_prev_live_addr_valid_i <= 1'b1;
+	            end
+	        end
+	    end
+
+	    // RV0063 normal-path transaction trace. These registers observe the
+	    // existing request, matched response/hold write, and state-14 consume;
+	    // none of them feed the ROM, JT, or audio paths.
+	    always_ff @(posedge clk) begin : rv0063_normal_rom_trace
+	        if (reset || loaded_payload_clear) begin
+	            lab_jt_rv63_next_tag_i <= 3'd0;
+	            lab_jt_rv63_pending_tag_i <= 3'd0;
+	            lab_jt_rv63_pending_i <= 1'b0;
+	            lab_jt_rv63_response_seen_i <= 1'b0;
+	            lab_jt_rv63_request_count_i <= 16'd0;
+	            lab_jt_rv63_response_count_i <= 16'd0;
+	            lab_jt_rv63_byte_write_count_i <= 16'd0;
+	            lab_jt_rv63_consume_count_i <= 16'd0;
+	            lab_jt_rv63_request_addr_i <= 19'd0;
+	            lab_jt_rv63_response_port_i <= 8'd0;
+	            lab_jt_rv63_response_byte_i <= 8'd0;
+	            lab_jt_rv63_accepted_byte_i <= 8'd0;
+	            lab_jt_rv63_consumed_byte_i <= 8'd0;
+	            lab_jt_rv63_consumed_mul_i <= 16'd0;
+	            lab_jt_rv63_request_tag_i <= 16'd0;
+	            lab_jt_rv63_response_tag_i <= 16'd0;
+	            lab_jt_rv63_consume_tag_i <= 16'd0;
+	            lab_jt_rv63_match_count_i <= 16'd0;
+	            lab_jt_rv63_mismatch_count_i <= 16'd0;
+	            lab_jt_rv63_accept_capture_count_i <= 4'd0;
+	            lab_jt_rv63_consume_capture_count_i <= 4'd0;
+	            lab_jt_rv63_accept_valid_i <= 8'd0;
+	            lab_jt_rv63_consume_valid_i <= 8'd0;
+	            lab_jt_rv63_response_state_channel_i <= 8'd0;
+	            lab_jt_rv63_response_rom_cs_i <= 1'b0;
+	            lab_jt_rv63_response_rom_ok_i <= 1'b0;
+	            lab_jt_rv63_request_seen_i <= 1'b0;
+	            lab_jt_rv63_wrapper_request_seen_i <= 1'b0;
+	            lab_jt_rv63_response_seen_ever_i <= 1'b0;
+	            lab_jt_rv63_byte_write_seen_i <= 1'b0;
+	            lab_jt_rv63_consume_seen_i <= 1'b0;
+	            lab_jt_rv63_last_match_i <= 1'b0;
+	            lab_jt_rv63_consume_without_response_i <= 1'b0;
+	            for (int unsigned rv63_i = 0; rv63_i < 8;
+	                 rv63_i = rv63_i + 1) begin
+	                lab_jt_rv63_accept_data_i[rv63_i] <= 8'd0;
+	                lab_jt_rv63_consume_data_i[rv63_i] <= 8'd0;
+	            end
+	        end else if (smoke_c0_jt_backend) begin
+	            if (lab_jt_rv63_normal_state8_request_strobe) begin
+	                if (lab_jt_rv63_request_count_i != 16'hffff)
+	                    lab_jt_rv63_request_count_i <=
+	                        lab_jt_rv63_request_count_i + 16'd1;
+	                lab_jt_rv63_pending_tag_i <= lab_jt_rv63_next_tag_i;
+	                lab_jt_rv63_pending_i <= 1'b1;
+	                lab_jt_rv63_response_seen_i <= 1'b0;
+	                lab_jt_rv63_request_seen_i <= 1'b1;
+	                lab_jt_rv63_consume_without_response_i <= 1'b0;
+	                lab_jt_rv63_request_tag_i <= {
+	                    4'd8, 4'd3, 5'd0, lab_jt_rv63_next_tag_i
+	                };
+	                lab_jt_rv63_next_tag_i <=
+	                    lab_jt_rv63_next_tag_i + 3'd1;
+	            end
+
+	            if (ch3_rom_request_event && lab_jt_rv63_pending_i) begin
+	                lab_jt_rv63_request_addr_i <= lab_jt_rom_addr;
+	                lab_jt_rv63_wrapper_request_seen_i <= 1'b1;
+	            end
+
+	            if (lab_jt_rv63_response_event) begin
+	                if (lab_jt_rv63_response_count_i != 16'hffff)
+	                    lab_jt_rv63_response_count_i <=
+	                        lab_jt_rv63_response_count_i + 16'd1;
+	                if (lab_jt_rv63_byte_write_count_i != 16'hffff)
+	                    lab_jt_rv63_byte_write_count_i <=
+	                        lab_jt_rv63_byte_write_count_i + 16'd1;
+	                lab_jt_rv63_response_seen_i <= 1'b1;
+	                lab_jt_rv63_response_seen_ever_i <= 1'b1;
+	                lab_jt_rv63_byte_write_seen_i <= 1'b1;
+	                lab_jt_rv63_response_port_i <= lab_jt_rom_data_to_core;
+	                lab_jt_rv63_response_byte_i <= loaded_ddr_rd_data;
+	                lab_jt_rv63_accepted_byte_i <= loaded_ddr_rd_data;
+	                lab_jt_rv63_response_state_channel_i <=
+	                    lab_jt_rv62_live_state_channel[7:0];
+	                lab_jt_rv63_response_rom_cs_i <= lab_jt_rom_cs;
+	                lab_jt_rv63_response_rom_ok_i <= lab_jt_rom_ok_to_core;
+	                lab_jt_rv63_response_tag_i <= {
+	                    lab_jt_rv62_live_state_channel[7:0],
+	                    5'd0, lab_jt_rv63_pending_tag_i
+	                };
+	                if (lab_jt_rv63_accept_capture_count_i < 4'd8) begin
+	                    lab_jt_rv63_accept_data_i[
+	                        lab_jt_rv63_pending_tag_i
+	                    ] <= loaded_ddr_rd_data;
+	                    lab_jt_rv63_accept_valid_i[
+	                        lab_jt_rv63_pending_tag_i
+	                    ] <= 1'b1;
+	                    lab_jt_rv63_accept_capture_count_i <=
+	                        lab_jt_rv63_accept_capture_count_i + 4'd1;
+	                end
+	            end
+
+	            if (lab_jt_rv63_normal_state14_consume_strobe &&
+	                lab_jt_rv63_pending_i) begin
+	                if (lab_jt_rv63_consume_count_i != 16'hffff)
+	                    lab_jt_rv63_consume_count_i <=
+	                        lab_jt_rv63_consume_count_i + 16'd1;
+	                lab_jt_rv63_consumed_byte_i <=
+	                    lab_jt_rv62_live_source_data;
+	                lab_jt_rv63_consumed_mul_i <= lab_jt_dbg_mul_data;
+	                lab_jt_rv63_consume_tag_i <= {
+	                    4'd14, 4'd3, 5'd0, lab_jt_rv63_pending_tag_i
+	                };
+	                lab_jt_rv63_consume_seen_i <= 1'b1;
+	                if (lab_jt_rv63_consume_capture_count_i < 4'd8) begin
+	                    lab_jt_rv63_consume_data_i[
+	                        lab_jt_rv63_pending_tag_i
+	                    ] <= lab_jt_rv62_live_source_data;
+	                    lab_jt_rv63_consume_valid_i[
+	                        lab_jt_rv63_pending_tag_i
+	                    ] <= 1'b1;
+	                    lab_jt_rv63_consume_capture_count_i <=
+	                        lab_jt_rv63_consume_capture_count_i + 4'd1;
+	                end
+	                if ((lab_jt_rv63_response_seen_i &&
+	                     (lab_jt_rv63_accepted_byte_i ==
+	                      lab_jt_rv62_live_source_data)) ||
+	                    (lab_jt_rv63_response_event &&
+	                     (loaded_ddr_rd_data ==
+	                      lab_jt_rv62_live_source_data))) begin
+	                    if (lab_jt_rv63_match_count_i != 16'hffff)
+	                        lab_jt_rv63_match_count_i <=
+	                            lab_jt_rv63_match_count_i + 16'd1;
+	                    lab_jt_rv63_last_match_i <= 1'b1;
+	                end else if (lab_jt_rv63_response_seen_i ||
+	                             lab_jt_rv63_response_event) begin
+	                    if (lab_jt_rv63_mismatch_count_i != 16'hffff)
+	                        lab_jt_rv63_mismatch_count_i <=
+	                            lab_jt_rv63_mismatch_count_i + 16'd1;
+	                    lab_jt_rv63_last_match_i <= 1'b0;
+	                end else begin
+	                    lab_jt_rv63_consume_without_response_i <= 1'b1;
+	                    lab_jt_rv63_last_match_i <= 1'b0;
+	                end
+	                lab_jt_rv63_pending_i <= 1'b0;
+	            end
+	        end
+	    end
+
+	    // RV0064 one-shot normal-path timing trace. Select the first real ch3
+	    // state-8 request after a payload load, then keep every observation
+	    // frozen under one 8-bit tag through the matching response and state 14.
+	    always_ff @(posedge clk) begin : rv0064_one_transaction_trace
+	        if (reset || loaded_payload_clear) begin
+	            lab_jt_rv64_cycle_i <= 16'd0;
+	            lab_jt_rv64_cen_cycle_i <= 16'd0;
+	            lab_jt_rv64_next_tag_i <= 8'd0;
+	            lab_jt_rv64_target_tag_i <= 8'd0;
+	            lab_jt_rv64_active_i <= 1'b0;
+	            lab_jt_rv64_done_i <= 1'b0;
+	            lab_jt_rv64_response_seen_i <= 1'b0;
+	            lab_jt_rv64_after_pending_i <= 1'b0;
+	            lab_jt_rv64_after_seen_i <= 1'b0;
+	            lab_jt_rv64_addr_seen_i <= 1'b0;
+	            lab_jt_rv64_request_seen_i <= 1'b0;
+	            lab_jt_rv64_consume_seen_i <= 1'b0;
+	            lab_jt_rv64_match_i <= 1'b0;
+	            lab_jt_rv64_consume_without_response_i <= 1'b0;
+	            lab_jt_rv64_request_cycle_i <= 16'd0;
+	            lab_jt_rv64_request_cen_cycle_i <= 16'd0;
+	            lab_jt_rv64_response_cycle_i <= 16'd0;
+	            lab_jt_rv64_response_cen_cycle_i <= 16'd0;
+	            lab_jt_rv64_after_cycle_i <= 16'd0;
+	            lab_jt_rv64_consume_cycle_i <= 16'd0;
+	            lab_jt_rv64_consume_cen_cycle_i <= 16'd0;
+	            lab_jt_rv64_request_addr_i <= 19'd0;
+	            lab_jt_rv64_request_tag_i <= 16'd0;
+	            lab_jt_rv64_response_tag_i <= 16'd0;
+	            lab_jt_rv64_consume_tag_i <= 16'd0;
+	            lab_jt_rv64_response_state_channel_i <= 8'd0;
+	            lab_jt_rv64_consume_state_channel_i <= 8'd0;
+	            lab_jt_rv64_previous_hold_i <= 8'd0;
+	            lab_jt_rv64_incoming_byte_i <= 8'd0;
+	            lab_jt_rv64_hold_before_i <= 8'd0;
+	            lab_jt_rv64_port_before_i <= 8'd0;
+	            lab_jt_rv64_source_before_i <= 8'd0;
+	            lab_jt_rv64_hold_after_i <= 8'd0;
+	            lab_jt_rv64_port_after_i <= 8'd0;
+	            lab_jt_rv64_source_after_i <= 8'd0;
+	            lab_jt_rv64_hold_consume_i <= 8'd0;
+	            lab_jt_rv64_port_consume_i <= 8'd0;
+	            lab_jt_rv64_source_consume_i <= 8'd0;
+	            lab_jt_rv64_mul_consume_i <= 16'd0;
+	            lab_jt_rv64_response_rom_cs_i <= 1'b0;
+	            lab_jt_rv64_response_rom_ok_i <= 1'b0;
+	        end else begin
+	            lab_jt_rv64_cycle_i <= lab_jt_rv64_cycle_i + 16'd1;
+	            if (segapcm_cen)
+	                lab_jt_rv64_cen_cycle_i <=
+	                    lab_jt_rv64_cen_cycle_i + 16'd1;
+
+	            // Every real normal ch3 state-8 event advances the rolling tag;
+	            // only the first eligible event is selected for the frozen page.
+	            if (lab_jt_rv63_normal_state8_request_strobe) begin
+	                lab_jt_rv64_next_tag_i <=
+	                    lab_jt_rv64_next_tag_i + 8'd1;
+	                if (!lab_jt_rv64_active_i && !lab_jt_rv64_done_i &&
+	                    loaded_ddr_payload_present &&
+	                    smoke_ddr_c0drive_active) begin
+	                    lab_jt_rv64_active_i <= 1'b1;
+	                    lab_jt_rv64_request_seen_i <= 1'b1;
+	                    lab_jt_rv64_addr_seen_i <= 1'b0;
+	                    lab_jt_rv64_response_seen_i <= 1'b0;
+	                    lab_jt_rv64_after_pending_i <= 1'b0;
+	                    lab_jt_rv64_after_seen_i <= 1'b0;
+	                    lab_jt_rv64_consume_seen_i <= 1'b0;
+	                    lab_jt_rv64_match_i <= 1'b0;
+	                    lab_jt_rv64_target_tag_i <=
+	                        lab_jt_rv64_next_tag_i;
+	                    lab_jt_rv64_request_cycle_i <=
+	                        lab_jt_rv64_cycle_i;
+	                    lab_jt_rv64_request_cen_cycle_i <=
+	                        lab_jt_rv64_cen_cycle_i;
+	                    lab_jt_rv64_request_tag_i <= {
+	                        4'd8, 4'd3, lab_jt_rv64_next_tag_i
+	                    };
+	                end
+	            end
+
+	            // The wrapper sees the actual asserted request after the JT
+	            // state-8 assignments settle. Capture that address only once.
+	            if (ch3_rom_request_event &&
+	                !lab_jt_rv64_addr_seen_i &&
+	                (lab_jt_rv64_active_i ||
+	                 (lab_jt_rv63_normal_state8_request_strobe &&
+	                  !lab_jt_rv64_done_i))) begin
+	                lab_jt_rv64_request_addr_i <= lab_jt_rom_addr;
+	                lab_jt_rv64_addr_seen_i <= 1'b1;
+	            end
+
+	            if (lab_jt_rv64_response_event) begin
+	                lab_jt_rv64_response_seen_i <= 1'b1;
+	                lab_jt_rv64_after_pending_i <= 1'b1;
+	                lab_jt_rv64_response_cycle_i <=
+	                    lab_jt_rv64_cycle_i;
+	                lab_jt_rv64_response_cen_cycle_i <=
+	                    lab_jt_rv64_cen_cycle_i;
+	                lab_jt_rv64_previous_hold_i <=
+	                    lab_jt_rom_data_hold_d_i;
+	                lab_jt_rv64_incoming_byte_i <= loaded_ddr_rd_data;
+	                lab_jt_rv64_hold_before_i <= lab_jt_rom_data_hold_i;
+	                lab_jt_rv64_port_before_i <= lab_jt_rom_data_to_core;
+	                lab_jt_rv64_source_before_i <=
+	                    lab_jt_rv62_live_source_data;
+	                lab_jt_rv64_response_state_channel_i <=
+	                    lab_jt_rv62_live_state_channel[7:0];
+	                lab_jt_rv64_response_tag_i <= {
+	                    lab_jt_rv62_live_state_channel[7:0],
+	                    lab_jt_rv64_target_tag_i
+	                };
+	                lab_jt_rv64_response_rom_cs_i <= lab_jt_rom_cs;
+	                lab_jt_rv64_response_rom_ok_i <=
+	                    lab_jt_rom_ok_to_core;
+	            end
+
+	            // On this edge, the pre-edge values are the post-NBA outputs
+	            // of the response edge above, before any new edge can replace
+	            // them. This is the stable "after hold write" observation.
+	            if (lab_jt_rv64_after_pending_i) begin
+	                lab_jt_rv64_after_pending_i <= 1'b0;
+	                lab_jt_rv64_after_seen_i <= 1'b1;
+	                lab_jt_rv64_after_cycle_i <= lab_jt_rv64_cycle_i;
+	                lab_jt_rv64_hold_after_i <= lab_jt_rom_data_hold_i;
+	                lab_jt_rv64_port_after_i <= lab_jt_rom_data_to_core;
+	                lab_jt_rv64_source_after_i <=
+	                    lab_jt_rv62_live_source_data;
+	            end
+
+	            if (lab_jt_rv63_normal_state14_consume_strobe &&
+	                lab_jt_rv64_active_i) begin
+	                lab_jt_rv64_active_i <= 1'b0;
+	                if (lab_jt_rv64_response_seen_i ||
+	                    lab_jt_rv64_response_event) begin
+	                    lab_jt_rv64_done_i <= 1'b1;
+	                    lab_jt_rv64_consume_seen_i <= 1'b1;
+	                    lab_jt_rv64_consume_cycle_i <=
+	                        lab_jt_rv64_cycle_i;
+	                    lab_jt_rv64_consume_cen_cycle_i <=
+	                        lab_jt_rv64_cen_cycle_i;
+	                    lab_jt_rv64_hold_consume_i <=
+	                        lab_jt_rom_data_hold_i;
+	                    lab_jt_rv64_port_consume_i <=
+	                        lab_jt_rom_data_to_core;
+	                    lab_jt_rv64_source_consume_i <=
+	                        lab_jt_rv62_live_source_data;
+	                    lab_jt_rv64_mul_consume_i <= lab_jt_dbg_mul_data;
+	                    lab_jt_rv64_consume_state_channel_i <=
+	                        lab_jt_rv62_live_state_channel[7:0];
+	                    lab_jt_rv64_consume_tag_i <= {
+	                        4'd14, 4'd3, lab_jt_rv64_target_tag_i
+	                    };
+	                end
+	                if (lab_jt_rv64_response_seen_i) begin
+	                    lab_jt_rv64_match_i <=
+	                        (lab_jt_rv64_incoming_byte_i ==
+	                         lab_jt_rv62_live_source_data);
+	                end else if (lab_jt_rv64_response_event) begin
+	                    lab_jt_rv64_match_i <=
+	                        (loaded_ddr_rd_data ==
+	                         lab_jt_rv62_live_source_data);
+	                end else begin
+	                    // A state-8 cycle that never generated a matched DDR
+	                    // response is not the transaction this page needs.
+	                    // Record that it occurred and retry on the next ch3
+	                    // request instead of freezing an unpaired snapshot.
+	                    lab_jt_rv64_consume_without_response_i <= 1'b1;
+	                    lab_jt_rv64_match_i <= 1'b0;
+	                end
+	            end
+	        end
+	    end
+
+	    // RV0066 keeps every completed RV0065 slot. Unowned state-14 events are
+	    // counted and ignored; only a fully owned request/response/consume tuple
+	    // advances the fill index.
+	    always_ff @(posedge clk) begin : rv0066_ch3_capture_controller
+	        if (reset || loaded_payload_clear) begin
+	            lab_jt_rv65_next_tag_i <= 8'd0;
+	            lab_jt_rv65_pending_tag_i <= 8'd0;
+	            lab_jt_rv65_complete_count_i <= 4'd0;
+	            lab_jt_rv65_active_i <= 1'b0;
+	            lab_jt_rv65_addr_seen_i <= 1'b0;
+	            lab_jt_rv65_response_seen_i <= 1'b0;
+	            lab_jt_rv65_capture_started_i <= 1'b0;
+	            lab_jt_rv65_frozen_i <= 1'b0;
+	            lab_jt_rv65_pending_before_i <= 24'd0;
+	            lab_jt_rv65_pending_after_i <= 24'd0;
+	            lab_jt_rv65_pending_delta_i <= 8'd0;
+	            lab_jt_rv65_pending_expected_rom_i <= 19'd0;
+	            lab_jt_rv65_pending_request_rom_i <= 19'd0;
+	            lab_jt_rv65_pending_accepted_i <= 8'd0;
+	            lab_jt_rv65_pending_request_tag_i <= 16'd0;
+	            lab_jt_rv65_pending_response_tag_i <= 16'd0;
+	            lab_jt_rv65_previous_after_i <= 24'd0;
+	            lab_jt_rv65_previous_after_valid_i <= 1'b0;
+	            lab_jt_rv65_valid_mask_i <= 8'd0;
+	            lab_jt_rv65_step_match_mask_i <= 8'd0;
+	            lab_jt_rv65_addr_match_mask_i <= 8'd0;
+	            lab_jt_rv65_byte_match_mask_i <= 8'd0;
+	            lab_jt_rv65_step_match_count_i <= 4'd0;
+	            lab_jt_rv65_step_mismatch_count_i <= 4'd0;
+	            lab_jt_rv65_addr_match_count_i <= 4'd0;
+	            lab_jt_rv65_addr_mismatch_count_i <= 4'd0;
+	            lab_jt_rv65_byte_match_count_i <= 4'd0;
+	            lab_jt_rv65_byte_mismatch_count_i <= 4'd0;
+	            lab_jt_rv65_capture_start_count_i <= 16'd0;
+	            lab_jt_rv65_restart_count_i <= 16'd0;
+	            lab_jt_rv65_unmatched_state14_count_i <= 16'd0;
+	            lab_jt_rv65_tag_mismatch_count_i <= 16'd0;
+	            lab_jt_rv65_pending_overwrite_count_i <= 16'd0;
+	            lab_jt_rv65_completed_entry_count_i <= 16'd0;
+	            lab_jt_rv65_last_restart_info_i <= 16'd0;
+	            for (int unsigned rv65_i = 0; rv65_i < 8;
+	                 rv65_i = rv65_i + 1) begin
+	                lab_jt_rv65_before_i[rv65_i] <= 24'd0;
+	                lab_jt_rv65_after_i[rv65_i] <= 24'd0;
+	                lab_jt_rv65_delta_i[rv65_i] <= 8'd0;
+	                lab_jt_rv65_rom_addr_i[rv65_i] <= 19'd0;
+	                lab_jt_rv65_accepted_i[rv65_i] <= 8'd0;
+	                lab_jt_rv65_consumed_i[rv65_i] <= 8'd0;
+	                lab_jt_rv65_request_tag_i[rv65_i] <= 16'd0;
+	                lab_jt_rv65_response_tag_i[rv65_i] <= 16'd0;
+	                lab_jt_rv65_consume_tag_i[rv65_i] <= 16'd0;
+	            end
+	        end else if (smoke_c0_jt_backend) begin
+	            if (lab_jt_rv63_normal_state8_request_strobe) begin
+	                lab_jt_rv65_next_tag_i <=
+	                    lab_jt_rv65_next_tag_i + 8'd1;
+	                if (!lab_jt_rv65_frozen_i &&
+	                    !lab_jt_rv65_active_i &&
+	                    loaded_ddr_payload_present &&
+	                    smoke_ddr_c0drive_active) begin
+	                    if (!lab_jt_rv65_capture_started_i) begin
+	                        lab_jt_rv65_capture_started_i <= 1'b1;
+	                        if (lab_jt_rv65_capture_start_count_i != 16'hffff)
+	                            lab_jt_rv65_capture_start_count_i <=
+	                                lab_jt_rv65_capture_start_count_i + 16'd1;
+	                    end
+	                    lab_jt_rv65_active_i <= 1'b1;
+	                    lab_jt_rv65_addr_seen_i <= 1'b0;
+	                    lab_jt_rv65_response_seen_i <= 1'b0;
+	                    lab_jt_rv65_pending_tag_i <=
+	                        lab_jt_rv65_next_tag_i;
+	                    lab_jt_rv65_pending_before_i <=
+	                        lab_jt_rv65_normal_current_before;
+	                    lab_jt_rv65_pending_after_i <=
+	                        lab_jt_rv65_normal_current_after;
+	                    lab_jt_rv65_pending_delta_i <=
+	                        lab_jt_rv65_normal_delta;
+	                    lab_jt_rv65_pending_expected_rom_i <=
+	                        lab_jt_rv65_normal_expected_rom_addr;
+	                    lab_jt_rv65_pending_request_rom_i <= 19'd0;
+	                    lab_jt_rv65_pending_accepted_i <= 8'd0;
+	                    lab_jt_rv65_pending_request_tag_i <= {
+	                        4'd8, 4'd3, lab_jt_rv65_next_tag_i
+	                    };
+	                    lab_jt_rv65_pending_response_tag_i <= 16'd0;
+	                end else if (!lab_jt_rv65_frozen_i &&
+	                             lab_jt_rv65_active_i) begin
+	                    // Never replace an owned pending transaction. A second
+	                    // state-8 request is diagnostic evidence only.
+	                    if (lab_jt_rv65_pending_overwrite_count_i != 16'hffff)
+	                        lab_jt_rv65_pending_overwrite_count_i <=
+	                            lab_jt_rv65_pending_overwrite_count_i + 16'd1;
+	                end
+	            end
+
+	            if (ch3_rom_request_event &&
+	                lab_jt_rv65_active_i &&
+	                !lab_jt_rv65_addr_seen_i) begin
+	                lab_jt_rv65_pending_request_rom_i <= lab_jt_rom_addr;
+	                lab_jt_rv65_addr_seen_i <= 1'b1;
+	            end
+
+	            if (lab_jt_rv65_response_event) begin
+	                lab_jt_rv65_response_seen_i <= 1'b1;
+	                lab_jt_rv65_pending_accepted_i <= loaded_ddr_rd_data;
+	                lab_jt_rv65_pending_response_tag_i <= {
+	                    lab_jt_rv62_live_state_channel[7:0],
+	                    lab_jt_rv65_pending_tag_i
+	                };
+	            end
+
+	            if (lab_jt_rv65_tag_mismatch_event) begin
+	                // The DDR response belongs to another address/channel tag.
+	                // Drop only this pending debug transaction; filled slots
+	                // and their progression counters remain intact.
+	                lab_jt_rv65_active_i <= 1'b0;
+	                lab_jt_rv65_addr_seen_i <= 1'b0;
+	                lab_jt_rv65_response_seen_i <= 1'b0;
+	                if (lab_jt_rv65_tag_mismatch_count_i != 16'hffff)
+	                    lab_jt_rv65_tag_mismatch_count_i <=
+	                        lab_jt_rv65_tag_mismatch_count_i + 16'd1;
+	                if (lab_jt_rv65_restart_count_i != 16'hffff)
+	                    lab_jt_rv65_restart_count_i <=
+	                        lab_jt_rv65_restart_count_i + 16'd1;
+	                lab_jt_rv65_last_restart_info_i <= {
+	                    lab_jt_rv62_live_state_channel[7:0],
+	                    lab_jt_rv65_pending_tag_i
+	                };
+	            end
+
+	            if (lab_jt_rv63_normal_state14_consume_strobe) begin
+	                if (lab_jt_rv65_active_i) begin
+	                    lab_jt_rv65_active_i <= 1'b0;
+	                    lab_jt_rv65_addr_seen_i <= 1'b0;
+	                    lab_jt_rv65_response_seen_i <= 1'b0;
+	                end
+	                if (lab_jt_rv65_active_i &&
+	                    !lab_jt_rv65_tag_mismatch_event &&
+	                    lab_jt_rv65_addr_seen_i &&
+	                    (lab_jt_rv65_response_seen_i ||
+	                     lab_jt_rv65_response_event)) begin
+	                    lab_jt_rv65_capture_started_i <= 1'b1;
+	                    lab_jt_rv65_before_i[
+	                        lab_jt_rv65_complete_count_i[2:0]
+	                    ] <= lab_jt_rv65_pending_before_i;
+	                    lab_jt_rv65_after_i[
+	                        lab_jt_rv65_complete_count_i[2:0]
+	                    ] <= lab_jt_rv65_pending_after_i;
+	                    lab_jt_rv65_delta_i[
+	                        lab_jt_rv65_complete_count_i[2:0]
+	                    ] <= lab_jt_rv65_pending_delta_i;
+	                    lab_jt_rv65_rom_addr_i[
+	                        lab_jt_rv65_complete_count_i[2:0]
+	                    ] <= lab_jt_rv65_pending_request_rom_i;
+	                    lab_jt_rv65_accepted_i[
+	                        lab_jt_rv65_complete_count_i[2:0]
+	                    ] <= lab_jt_rv65_commit_accepted;
+	                    lab_jt_rv65_consumed_i[
+	                        lab_jt_rv65_complete_count_i[2:0]
+	                    ] <= lab_jt_rv62_live_source_data;
+	                    lab_jt_rv65_request_tag_i[
+	                        lab_jt_rv65_complete_count_i[2:0]
+	                    ] <= lab_jt_rv65_pending_request_tag_i;
+	                    lab_jt_rv65_response_tag_i[
+	                        lab_jt_rv65_complete_count_i[2:0]
+	                    ] <= lab_jt_rv65_response_seen_i ?
+	                        lab_jt_rv65_pending_response_tag_i : {
+	                            lab_jt_rv62_live_state_channel[7:0],
+	                            lab_jt_rv65_pending_tag_i
+	                        };
+	                    lab_jt_rv65_consume_tag_i[
+	                        lab_jt_rv65_complete_count_i[2:0]
+	                    ] <= {4'd14, 4'd3, lab_jt_rv65_pending_tag_i};
+	                    lab_jt_rv65_valid_mask_i[
+	                        lab_jt_rv65_complete_count_i[2:0]
+	                    ] <= 1'b1;
+
+	                    // A valid step must satisfy both the state-8 adder and,
+	                    // after slot zero, continuity from the prior consume.
+	                    if ((lab_jt_rv65_pending_after_i ==
+	                         (lab_jt_rv65_pending_before_i +
+	                          {16'd0, lab_jt_rv65_pending_delta_i})) &&
+	                        (!lab_jt_rv65_previous_after_valid_i ||
+	                         (lab_jt_rv65_pending_before_i ==
+	                          lab_jt_rv65_previous_after_i))) begin
+	                        lab_jt_rv65_step_match_mask_i[
+	                            lab_jt_rv65_complete_count_i[2:0]
+	                        ] <= 1'b1;
+	                        lab_jt_rv65_step_match_count_i <=
+	                            lab_jt_rv65_step_match_count_i + 4'd1;
+	                    end else begin
+	                        lab_jt_rv65_step_match_mask_i[
+	                            lab_jt_rv65_complete_count_i[2:0]
+	                        ] <= 1'b0;
+	                        lab_jt_rv65_step_mismatch_count_i <=
+	                            lab_jt_rv65_step_mismatch_count_i + 4'd1;
+	                    end
+
+	                    if (lab_jt_rv65_pending_request_rom_i ==
+	                        lab_jt_rv65_pending_expected_rom_i) begin
+	                        lab_jt_rv65_addr_match_mask_i[
+	                            lab_jt_rv65_complete_count_i[2:0]
+	                        ] <= 1'b1;
+	                        lab_jt_rv65_addr_match_count_i <=
+	                            lab_jt_rv65_addr_match_count_i + 4'd1;
+	                    end else begin
+	                        lab_jt_rv65_addr_match_mask_i[
+	                            lab_jt_rv65_complete_count_i[2:0]
+	                        ] <= 1'b0;
+	                        lab_jt_rv65_addr_mismatch_count_i <=
+	                            lab_jt_rv65_addr_mismatch_count_i + 4'd1;
+	                    end
+
+	                    if (lab_jt_rv65_commit_accepted ==
+	                        lab_jt_rv62_live_source_data) begin
+	                        lab_jt_rv65_byte_match_mask_i[
+	                            lab_jt_rv65_complete_count_i[2:0]
+	                        ] <= 1'b1;
+	                        lab_jt_rv65_byte_match_count_i <=
+	                            lab_jt_rv65_byte_match_count_i + 4'd1;
+	                    end else begin
+	                        lab_jt_rv65_byte_match_mask_i[
+	                            lab_jt_rv65_complete_count_i[2:0]
+	                        ] <= 1'b0;
+	                        lab_jt_rv65_byte_mismatch_count_i <=
+	                            lab_jt_rv65_byte_mismatch_count_i + 4'd1;
+	                    end
+	                    lab_jt_rv65_previous_after_i <=
+	                        lab_jt_rv65_pending_after_i;
+	                    lab_jt_rv65_previous_after_valid_i <= 1'b1;
+
+	                    lab_jt_rv65_complete_count_i <=
+	                        lab_jt_rv65_complete_count_i + 4'd1;
+	                    if (lab_jt_rv65_completed_entry_count_i != 16'hffff)
+	                        lab_jt_rv65_completed_entry_count_i <=
+	                            lab_jt_rv65_completed_entry_count_i + 16'd1;
+	                    if (lab_jt_rv65_complete_count_i == 4'd7)
+	                        lab_jt_rv65_frozen_i <= 1'b1;
+	                end else if (!lab_jt_rv65_frozen_i &&
+	                             !lab_jt_rv65_tag_mismatch_event &&
+	                             lab_jt_rv65_capture_started_i) begin
+	                    // This is the condition that erased RV0065 after two
+	                    // slots. Count it, preserve all filled slots, and only
+	                    // abort an actually active incomplete transaction.
+	                    if (lab_jt_rv65_unmatched_state14_count_i != 16'hffff)
+	                        lab_jt_rv65_unmatched_state14_count_i <=
+	                            lab_jt_rv65_unmatched_state14_count_i + 16'd1;
+	                    lab_jt_rv65_last_restart_info_i <= {
+	                        lab_jt_rv62_live_state_channel[7:0],
+	                        lab_jt_rv65_pending_tag_i
+	                    };
+	                    if (lab_jt_rv65_active_i) begin
+	                        lab_jt_rv65_active_i <= 1'b0;
+	                        lab_jt_rv65_addr_seen_i <= 1'b0;
+	                        lab_jt_rv65_response_seen_i <= 1'b0;
+	                        if (lab_jt_rv65_restart_count_i != 16'hffff)
+	                            lab_jt_rv65_restart_count_i <=
+	                                lab_jt_rv65_restart_count_i + 16'd1;
+	                    end
+	                end
+	            end
+	        end
+	    end
+
+	    // RV0067 deliberately has no response, hold, tag, or state-14 ownership
+	    // model. Every qualifying normal ch3 state-8 event advances one slot, so
+	    // the eight entries are consecutive JT current updates by construction.
+	    always_ff @(posedge clk) begin : rv0067_ch3_state8_progression
+	        if (reset || loaded_payload_clear) begin
+	            lab_jt_rv67_capture_count_i <= 4'd0;
+	            lab_jt_rv67_started_i <= 1'b0;
+	            lab_jt_rv67_frozen_i <= 1'b0;
+	            lab_jt_rv67_rom_pending_i <= 1'b0;
+	            lab_jt_rv67_rom_pending_slot_i <= 3'd0;
+	            lab_jt_rv67_external_write_since_state8_i <= 1'b0;
+	            lab_jt_rv67_rom_valid_mask_i <= 8'd0;
+	            lab_jt_rv67_equation_match_mask_i <= 8'd0;
+	            lab_jt_rv67_continuity_match_mask_i <= 8'd0;
+	            lab_jt_rv67_external_write_mask_i <= 8'd0;
+	            lab_jt_rv67_state_cfg_good_mask_i <= 8'd0;
+	            lab_jt_rv67_equation_match_count_i <= 4'd0;
+	            lab_jt_rv67_equation_mismatch_count_i <= 4'd0;
+	            lab_jt_rv67_continuity_match_count_i <= 4'd0;
+	            lab_jt_rv67_continuity_mismatch_count_i <= 4'd0;
+	            for (int unsigned rv67_i = 0; rv67_i < 8;
+	                 rv67_i = rv67_i + 1) begin
+	                lab_jt_rv67_before_i[rv67_i] <= 24'd0;
+	                lab_jt_rv67_next_i[rv67_i] <= 24'd0;
+	                lab_jt_rv67_delta_i[rv67_i] <= 8'd0;
+	                lab_jt_rv67_expected_rom_i[rv67_i] <= 19'd0;
+	                lab_jt_rv67_actual_rom_i[rv67_i] <= 19'd0;
+	                lab_jt_rv67_state_channel_i[rv67_i] <= 8'd0;
+	                lab_jt_rv67_cfg_i[rv67_i] <= 8'd0;
+	                lab_jt_rv67_active_i[rv67_i] <= 8'd0;
+	            end
+	        end else if (smoke_c0_jt_backend) begin
+	            if (lab_jt_rv67_external_current_write &&
+	                lab_jt_rv67_started_i && !lab_jt_rv67_frozen_i) begin
+	                lab_jt_rv67_external_write_since_state8_i <= 1'b1;
+	            end
+
+	            // rom_addr is registered by JT in state 8. The wrapper sees the
+	            // actual asserted request on the following clk and attaches it
+	            // to the slot allocated by that state-8 event.
+	            if (ch3_rom_request_event && lab_jt_rv67_rom_pending_i) begin
+	                lab_jt_rv67_actual_rom_i[
+	                    lab_jt_rv67_rom_pending_slot_i
+	                ] <= lab_jt_rom_addr;
+	                lab_jt_rv67_rom_valid_mask_i[
+	                    lab_jt_rv67_rom_pending_slot_i
+	                ] <= 1'b1;
+	                lab_jt_rv67_rom_pending_i <= 1'b0;
+	            end
+
+	            if (lab_jt_rv63_normal_state8_request_strobe &&
+	                !lab_jt_rv67_frozen_i) begin
+	                lab_jt_rv67_before_i[
+	                    lab_jt_rv67_capture_count_i[2:0]
+	                ] <= lab_jt_rv65_normal_current_before;
+	                lab_jt_rv67_next_i[
+	                    lab_jt_rv67_capture_count_i[2:0]
+	                ] <= lab_jt_rv65_normal_current_after;
+	                lab_jt_rv67_delta_i[
+	                    lab_jt_rv67_capture_count_i[2:0]
+	                ] <= lab_jt_rv65_normal_delta;
+	                lab_jt_rv67_expected_rom_i[
+	                    lab_jt_rv67_capture_count_i[2:0]
+	                ] <= lab_jt_rv65_normal_expected_rom_addr;
+	                lab_jt_rv67_state_channel_i[
+	                    lab_jt_rv67_capture_count_i[2:0]
+	                ] <= lab_jt_rv62_live_state_channel[7:0];
+	                lab_jt_rv67_cfg_i[
+	                    lab_jt_rv67_capture_count_i[2:0]
+	                ] <= lab_jt_dbg_active_cfg[7:0];
+	                lab_jt_rv67_active_i[
+	                    lab_jt_rv67_capture_count_i[2:0]
+	                ] <= lab_jt_dbg_active_cfg[15:8];
+
+	                lab_jt_rv67_rom_pending_slot_i <=
+	                    lab_jt_rv67_capture_count_i[2:0];
+	                lab_jt_rv67_rom_pending_i <= 1'b1;
+
+	                if (lab_jt_rv65_normal_current_after ==
+	                    (lab_jt_rv65_normal_current_before +
+	                     {16'd0, lab_jt_rv65_normal_delta})) begin
+	                    lab_jt_rv67_equation_match_mask_i[
+	                        lab_jt_rv67_capture_count_i[2:0]
+	                    ] <= 1'b1;
+	                    lab_jt_rv67_equation_match_count_i <=
+	                        lab_jt_rv67_equation_match_count_i + 4'd1;
+	                end else begin
+	                    lab_jt_rv67_equation_match_mask_i[
+	                        lab_jt_rv67_capture_count_i[2:0]
+	                    ] <= 1'b0;
+	                    lab_jt_rv67_equation_mismatch_count_i <=
+	                        lab_jt_rv67_equation_mismatch_count_i + 4'd1;
+	                end
+
+	                if (lab_jt_rv67_capture_count_i == 4'd0) begin
+	                    // Slot zero has no preceding captured state-8 event.
+	                    lab_jt_rv67_continuity_match_mask_i[0] <= 1'b1;
+	                    lab_jt_rv67_external_write_mask_i[0] <= 1'b0;
+	                end else begin
+	                    if (lab_jt_rv65_normal_current_before ==
+	                        lab_jt_rv67_next_i[
+	                            lab_jt_rv67_capture_count_i[2:0] - 3'd1
+	                        ]) begin
+	                        lab_jt_rv67_continuity_match_mask_i[
+	                            lab_jt_rv67_capture_count_i[2:0]
+	                        ] <= 1'b1;
+	                        lab_jt_rv67_continuity_match_count_i <=
+	                            lab_jt_rv67_continuity_match_count_i + 4'd1;
+	                    end else begin
+	                        lab_jt_rv67_continuity_match_mask_i[
+	                            lab_jt_rv67_capture_count_i[2:0]
+	                        ] <= 1'b0;
+	                        lab_jt_rv67_continuity_mismatch_count_i <=
+	                            lab_jt_rv67_continuity_mismatch_count_i + 4'd1;
+	                    end
+	                    lab_jt_rv67_external_write_mask_i[
+	                        lab_jt_rv67_capture_count_i[2:0]
+	                    ] <= lab_jt_rv67_external_write_since_state8_i ||
+	                         lab_jt_rv67_external_current_write;
+	                end
+
+	                lab_jt_rv67_state_cfg_good_mask_i[
+	                    lab_jt_rv67_capture_count_i[2:0]
+	                ] <= (lab_jt_rv62_live_state_channel[7:0] == 8'h83) &&
+	                     !lab_jt_dbg_active_cfg[0] &&
+	                     lab_jt_dbg_active_cfg[11];
+	                lab_jt_rv67_external_write_since_state8_i <= 1'b0;
+	                lab_jt_rv67_started_i <= 1'b1;
+	                lab_jt_rv67_capture_count_i <=
+	                    lab_jt_rv67_capture_count_i + 4'd1;
+	                if (lab_jt_rv67_capture_count_i == 4'd7)
+	                    lab_jt_rv67_frozen_i <= 1'b1;
+	            end
+	        end
+	    end
+
+	    // RV0068 is observation-only: it follows one raw C0 ch3 start through
+	    // the accepted JT register write, the first normal state-8 request, and
+	    // the corresponding state-14 volume use.  No playback qualifier consumes
+	    // any of these registers.
+	    always_ff @(posedge clk) begin : rv0068_ch3_start_configuration
+	        if (reset || loaded_payload_clear) begin
+	            lab_jt_rv68_armed_i <= 1'b0;
+	            lab_jt_rv68_ctrl_seen_i <= 1'b0;
+	            lab_jt_rv68_state8_seen_i <= 1'b0;
+	            lab_jt_rv68_rom_seen_i <= 1'b0;
+	            lab_jt_rv68_frozen_i <= 1'b0;
+	            lab_jt_rv68_last_cfg_write_live_i <= 16'd0;
+	            lab_jt_rv68_last_cfg_write_i <= 16'd0;
+	            lab_jt_rv68_c0_write_i <= 16'd0;
+	            lab_jt_rv68_jt_write_i <= 16'd0;
+	            lab_jt_rv68_prior_ctrl_i <= 16'd0;
+	            lab_jt_rv68_c0_current_i <= 24'd0;
+	            lab_jt_rv68_c0_loop_i <= 16'd0;
+	            lab_jt_rv68_c0_end_i <= 8'd0;
+	            lab_jt_rv68_c0_delta_i <= 8'd0;
+	            lab_jt_rv68_c0_vol_l_i <= 8'd0;
+	            lab_jt_rv68_c0_vol_r_i <= 8'd0;
+	            lab_jt_rv68_c0_ctrl_i <= 8'd0;
+	            lab_jt_rv68_wrapper_current_i <= 24'd0;
+	            lab_jt_rv68_wrapper_loop_i <= 16'd0;
+	            lab_jt_rv68_wrapper_end_i <= 8'd0;
+	            lab_jt_rv68_wrapper_delta_i <= 8'd0;
+	            lab_jt_rv68_wrapper_vol_l_i <= 8'd0;
+	            lab_jt_rv68_wrapper_vol_r_i <= 8'd0;
+	            lab_jt_rv68_wrapper_ctrl_i <= 8'd0;
+	            lab_jt_rv68_jt_current_i <= 24'd0;
+	            lab_jt_rv68_jt_loop_i <= 16'd0;
+	            lab_jt_rv68_jt_end_i <= 8'd0;
+	            lab_jt_rv68_jt_delta_i <= 8'd0;
+	            lab_jt_rv68_jt_vol_l_i <= 8'd0;
+	            lab_jt_rv68_jt_vol_r_i <= 8'd0;
+	            lab_jt_rv68_jt_ctrl_i <= 8'd0;
+	            lab_jt_rv68_expected_rom_i <= 19'd0;
+	            lab_jt_rv68_actual_rom_i <= 19'd0;
+	            lab_jt_rv68_state7_flags_i <= 8'd0;
+	            lab_jt_rv68_state_channel_i <= 8'd0;
+	            lab_jt_rv68_match_mask_i <= 16'd0;
+	            lab_jt_rv68_writes_after_trigger_i <= 8'd0;
+	            lab_jt_rv68_start_ordinal_i <= 8'd0;
+	        end else if (smoke_c0_jt_backend) begin
+	            if (lab_jt_rv68_ch3_config_cmd)
+	                lab_jt_rv68_last_cfg_write_live_i <=
+	                    {mapped_cpu_addr, segapcm_cmd_data};
+
+	            if (c0_capture_ch3_start_pulse_i &&
+	                !lab_jt_rv68_armed_i && !lab_jt_rv68_frozen_i) begin
+	                lab_jt_rv68_armed_i <= 1'b1;
+	                lab_jt_rv68_c0_write_i <=
+	                    {mapped_cpu_addr, segapcm_cmd_data};
+	                lab_jt_rv68_prior_ctrl_i <=
+	                    {c0_capture_ch3_ctrl_i, segapcm_cmd_data};
+	                lab_jt_rv68_last_cfg_write_i <=
+	                    lab_jt_rv68_last_cfg_write_live_i;
+	                lab_jt_rv68_c0_current_i <= {
+	                    c0_capture_ch3_cur_high_i,
+	                    c0_capture_ch3_cur_mid_i,
+	                    c0_capture_ch3_cur_low_i
+	                };
+	                lab_jt_rv68_c0_loop_i <= {
+	                    c0_capture_ch3_loop_high_i,
+	                    c0_capture_ch3_loop_mid_i
+	                };
+	                lab_jt_rv68_c0_end_i <= c0_capture_ch3_end_i;
+	                lab_jt_rv68_c0_delta_i <= c0_capture_ch3_delta_i;
+	                lab_jt_rv68_c0_vol_l_i <= c0_capture_ch3_vol_l_i;
+	                lab_jt_rv68_c0_vol_r_i <= c0_capture_ch3_vol_r_i;
+	                lab_jt_rv68_c0_ctrl_i <= segapcm_cmd_data;
+	                lab_jt_rv68_start_ordinal_i <=
+	                    c0_capture_ch3_start_count_i[7:0] + 8'd1;
+	            end
+
+	            if (lab_jt_rv68_ch3_config_cmd &&
+	                lab_jt_rv68_armed_i && !lab_jt_rv68_state8_seen_i &&
+	                (lab_jt_rv68_writes_after_trigger_i != 8'hff)) begin
+	                lab_jt_rv68_writes_after_trigger_i <=
+	                    lab_jt_rv68_writes_after_trigger_i + 8'd1;
+	            end
+
+	            if (lab_jt_rv68_ctrl_accept_event &&
+	                lab_jt_rv68_armed_i && !lab_jt_rv68_ctrl_seen_i) begin
+	                lab_jt_rv68_ctrl_seen_i <= 1'b1;
+	                lab_jt_rv68_jt_write_i <=
+	                    {latched_cpu_addr, lab_jt_cpu_data};
+	                lab_jt_rv68_wrapper_current_i <= {
+	                    lab_jt_shadow_cur_high_i[3],
+	                    lab_jt_shadow_cur_mid_i[3],
+	                    shadow_ram[8'h18]
+	                };
+	                lab_jt_rv68_wrapper_loop_i <= {
+	                    shadow_ram[8'h1d], shadow_ram[8'h1c]
+	                };
+	                lab_jt_rv68_wrapper_end_i <= lab_jt_shadow_end_i[3];
+	                lab_jt_rv68_wrapper_delta_i <= lab_jt_shadow_delta_i[3];
+	                lab_jt_rv68_wrapper_vol_l_i <= lab_jt_shadow_vol_l_i[3];
+	                lab_jt_rv68_wrapper_vol_r_i <= lab_jt_shadow_vol_r_i[3];
+	                lab_jt_rv68_wrapper_ctrl_i <= lab_jt_cpu_data;
+	            end
+
+	            if (lab_jt_rv63_normal_state8_request_strobe &&
+	                lab_jt_rv68_ctrl_seen_i && !lab_jt_rv68_state8_seen_i) begin
+	                lab_jt_rv68_state8_seen_i <= 1'b1;
+	                lab_jt_rv68_jt_current_i <=
+	                    lab_jt_rv65_normal_current_before;
+	                lab_jt_rv68_jt_loop_i <= lab_jt_rv68_loop_addr;
+	                lab_jt_rv68_jt_end_i <= lab_jt_rv68_end_addr;
+	                lab_jt_rv68_jt_delta_i <= lab_jt_rv65_normal_delta;
+	                lab_jt_rv68_jt_ctrl_i <= lab_jt_dbg_active_cfg[7:0];
+	                lab_jt_rv68_expected_rom_i <= {
+	                    lab_jt_rv68_wrapper_ctrl_i[6:4],
+	                    lab_jt_rv68_wrapper_current_i[23:8]
+	                };
+	                lab_jt_rv68_state7_flags_i <= lab_jt_rv68_state7_flags;
+	                lab_jt_rv68_state_channel_i <=
+	                    lab_jt_rv62_live_state_channel[7:0];
+	            end
+
+	            if (ch3_rom_request_event &&
+	                lab_jt_rv68_state8_seen_i && !lab_jt_rv68_rom_seen_i) begin
+	                lab_jt_rv68_rom_seen_i <= 1'b1;
+	                lab_jt_rv68_actual_rom_i <= lab_jt_rom_addr;
+	            end
+
+	            if (lab_jt_rv63_normal_state14_consume_strobe &&
+	                lab_jt_rv68_state8_seen_i && lab_jt_rv68_rom_seen_i &&
+	                !lab_jt_rv68_frozen_i) begin
+	                lab_jt_rv68_jt_vol_l_i <= lab_jt_dbg_vol_lr[15:8];
+	                lab_jt_rv68_jt_vol_r_i <= lab_jt_dbg_vol_lr[7:0];
+	                lab_jt_rv68_match_mask_i <= {
+	                    &lab_jt_rv68_field_matches_now,
+	                    lab_jt_rv68_field_matches_now
+	                };
+	                lab_jt_rv68_frozen_i <= 1'b1;
+	            end
+	        end
+	    end
+
+	    // RV0069 is observation-only. It records the actual external RAM-port
+	    // writes which precede one ch3 start, watches the independent internal
+	    // RAM port for collisions/overwrites, reads the physical RAM values back,
+	    // and finally freezes the values consumed by one state-8/state-14 pass.
+	    always_ff @(posedge clk) begin : rv0069_ch3_write_commit_trace
+	        if (reset || loaded_payload_clear) begin
+	            lab_jt_rv69_accepted_mask_i <= 10'd0;
+	            lab_jt_rv69_read_valid_mask_i <= 10'd0;
+	            lab_jt_rv69_overwrite_mask_i <= 10'd0;
+	            lab_jt_rv69_same_cycle_mask_i <= 10'd0;
+	            lab_jt_rv69_ram_match_mask_i <= 10'd0;
+	            lab_jt_rv69_raw_ctrl_i <= 8'd0;
+	            lab_jt_rv69_translated_ctrl_i <= 8'd0;
+	            lab_jt_rv69_last_internal_write_i <= 16'd0;
+	            lab_jt_rv69_last_state_channel_i <= 8'd0;
+	            lab_jt_rv69_start_seen_i <= 1'b0;
+	            lab_jt_rv69_readback_armed_i <= 1'b0;
+	            lab_jt_rv69_state8_seen_i <= 1'b0;
+	            lab_jt_rv69_frozen_i <= 1'b0;
+	            lab_jt_rv69_low_read_pending_i <= 1'b0;
+	            lab_jt_rv69_low_read_age_i <= 2'd0;
+	            lab_jt_rv70_expected_rom_i <= 19'd0;
+	            lab_jt_rv70_actual_rom_i <= 19'd0;
+	            lab_jt_rv70_rom_seen_i <= 1'b0;
+	            lab_jt_rv70_ctrl_overwrite_count_i <= 16'd0;
+	            for (int unsigned rv69_i = 0; rv69_i < 10;
+	                 rv69_i = rv69_i + 1) begin
+	                lab_jt_rv69_write_i[rv69_i] <= 16'd0;
+	                lab_jt_rv69_expected_i[rv69_i] <= 8'd0;
+	                lab_jt_rv69_readback_i[rv69_i] <= 8'd0;
+	                lab_jt_rv69_used_i[rv69_i] <= 8'd0;
+	            end
+	        end else if (smoke_c0_jt_backend && !lab_jt_rv69_frozen_i) begin
+	            // Preserve the untranslated source control byte independently
+	            // of the accepted JT CPU-port value.
+	            if (segapcm_cmd_valid && (mapped_cpu_addr == 8'h9e) &&
+	                !segapcm_cmd_data[0] && !lab_jt_rv69_start_seen_i) begin
+	                lab_jt_rv69_raw_ctrl_i <= segapcm_cmd_data;
+	                lab_jt_rv69_translated_ctrl_i <= {
+	                    1'b0, segapcm_cmd_data[5:3], 1'b0,
+	                    segapcm_cmd_data[2:0]
+	                };
+	            end
+
+	            // core_cpu_cs is the actual port-0 RAM write enable. The word
+	            // therefore proves both translated address/data and acceptance.
+	            if (core_cpu_cs && (lab_jt_rv69_cpu_field != 4'hf) &&
+	                !lab_jt_rv69_start_seen_i) begin
+	                lab_jt_rv69_write_i[lab_jt_rv69_cpu_field] <=
+	                    {latched_cpu_addr, lab_jt_cpu_data};
+	                lab_jt_rv69_expected_i[lab_jt_rv69_cpu_field] <=
+	                    lab_jt_cpu_data;
+	                lab_jt_rv69_accepted_mask_i[
+	                    lab_jt_rv69_cpu_field
+	                ] <= 1'b1;
+	                // Address 018 is not selected by the internal read port in
+	                // the C0 low-byte scratch scheme. Delay two clocks and use
+	                // the real synchronous CPU-port q0 readback instead.
+	                if (lab_jt_rv69_cpu_field == 4'd0) begin
+	                    lab_jt_rv69_low_read_pending_i <= 1'b1;
+	                    lab_jt_rv69_low_read_age_i <= 2'd0;
+	                end
+	                if (lab_jt_rv69_internal_write_enable &&
+	                    ({1'b0, latched_cpu_addr} ==
+	                     lab_jt_rv69_internal_write_addr)) begin
+	                    lab_jt_rv69_same_cycle_mask_i[
+	                        lab_jt_rv69_cpu_field
+	                    ] <= 1'b1;
+	                    lab_jt_rv69_overwrite_mask_i[
+	                        lab_jt_rv69_cpu_field
+	                    ] <= 1'b1;
+	                end
+	                if ((latched_cpu_addr == 8'h9e) &&
+	                    !lab_jt_cpu_data[0]) begin
+	                    lab_jt_rv69_start_seen_i <= 1'b1;
+	                    lab_jt_rv69_translated_ctrl_i <= lab_jt_cpu_data;
+	                end
+	            end
+
+	            if (lab_jt_rv69_low_read_pending_i) begin
+	                if (lab_jt_rv69_low_read_age_i == 2'd1) begin
+	                    lab_jt_rv69_readback_i[0] <= lab_jt_cpu_din;
+	                    lab_jt_rv69_read_valid_mask_i[0] <= 1'b1;
+	                    lab_jt_rv69_low_read_pending_i <= 1'b0;
+	                end else begin
+	                    lab_jt_rv69_low_read_age_i <=
+	                        lab_jt_rv69_low_read_age_i + 2'd1;
+	                end
+	            end
+
+	            // q1 is the physical dual-port RAM output. The core exports the
+	            // registered address which produced it, avoiding state/data skew.
+	            if (!lab_jt_rv69_state8_seen_i &&
+	                (lab_jt_rv69_read_field != 4'hf) &&
+	                (lab_jt_rv69_read_field != 4'd0) &&
+	                lab_jt_rv69_accepted_mask_i[lab_jt_rv69_read_field]) begin
+	                lab_jt_rv69_readback_i[lab_jt_rv69_read_field] <=
+	                    lab_jt_rv69_ram_read_data;
+	                lab_jt_rv69_read_valid_mask_i[
+	                    lab_jt_rv69_read_field
+	                ] <= 1'b1;
+	            end
+
+	            // There is no external/internal winner mux: the RAM has two
+	            // write ports. Record every later internal write to an accepted
+	            // field, including state-8 control and state-10/11 current.
+	            if (lab_jt_rv69_internal_write_enable &&
+	                (lab_jt_rv69_internal_field != 4'hf)) begin
+	                lab_jt_rv69_last_internal_write_i <= {
+	                    lab_jt_rv69_internal_write_addr[7:0],
+	                    lab_jt_rv69_internal_write_data
+	                };
+	                if (lab_jt_rv69_accepted_mask_i[
+	                    lab_jt_rv69_internal_field
+	                ]) begin
+	                    lab_jt_rv69_overwrite_mask_i[
+	                        lab_jt_rv69_internal_field
+	                    ] <= 1'b1;
+	                end
+	            end
+
+	            if (lab_jt_rv69_internal_write_enable &&
+	                (lab_jt_rv69_internal_write_addr == 9'h09e) &&
+	                (lab_jt_rv69_start_seen_i ||
+	                 (core_cpu_cs && (latched_cpu_addr == 8'h9e) &&
+	                  !lab_jt_cpu_data[0])) &&
+	                (lab_jt_rv70_ctrl_overwrite_count_i != 16'hffff)) begin
+	                lab_jt_rv70_ctrl_overwrite_count_i <=
+	                    lab_jt_rv70_ctrl_overwrite_count_i + 16'd1;
+	            end
+
+	            // Arm only after the source queue is empty and every accepted
+	            // configuration byte has an actual RAM readback.
+	            if (lab_jt_rv69_start_seen_i &&
+	                (lab_jt_rv69_accepted_mask_i == 10'h3ff) &&
+	                (lab_jt_rv69_read_valid_mask_i == 10'h3ff) &&
+	                lab_jt_rv69_queue_empty &&
+	                !lab_jt_rv69_readback_armed_i) begin
+	                lab_jt_rv69_readback_armed_i <= 1'b1;
+	            end
+
+	            if (lab_jt_rv69_readback_armed_i &&
+	                lab_jt_rv63_normal_state8_request_strobe &&
+	                !lab_jt_rv69_state8_seen_i) begin
+	                lab_jt_rv69_state8_seen_i <= 1'b1;
+	                lab_jt_rv69_last_state_channel_i <=
+	                    lab_jt_rv62_live_state_channel[7:0];
+	                lab_jt_rv69_used_i[0] <=
+	                    lab_jt_rv65_normal_current_before[7:0];
+	                lab_jt_rv69_used_i[3] <= lab_jt_rv68_loop_addr[7:0];
+	                lab_jt_rv69_used_i[4] <= lab_jt_rv68_loop_addr[15:8];
+	                lab_jt_rv69_used_i[5] <= lab_jt_rv68_end_addr;
+	                lab_jt_rv69_used_i[6] <= lab_jt_rv65_normal_delta;
+	                lab_jt_rv69_used_i[7] <=
+	                    lab_jt_rv65_normal_current_before[15:8];
+	                lab_jt_rv69_used_i[8] <=
+	                    lab_jt_rv65_normal_current_before[23:16];
+	                lab_jt_rv69_used_i[9] <= lab_jt_dbg_active_cfg[7:0];
+	                lab_jt_rv70_expected_rom_i <= {
+	                    lab_jt_rv69_expected_i[9][6:4],
+	                    lab_jt_rv69_expected_i[8],
+	                    lab_jt_rv69_expected_i[7]
+	                };
+	            end
+
+	            if (lab_jt_rv69_state8_seen_i &&
+	                ch3_rom_request_event && !lab_jt_rv70_rom_seen_i) begin
+	                lab_jt_rv70_actual_rom_i <= lab_jt_rom_addr;
+	                lab_jt_rv70_rom_seen_i <= 1'b1;
+	            end
+
+	            if (lab_jt_rv69_state8_seen_i &&
+	                lab_jt_rv70_rom_seen_i &&
+	                lab_jt_rv63_normal_state14_consume_strobe) begin
+	                lab_jt_rv69_used_i[1] <= lab_jt_dbg_vol_lr[15:8];
+	                lab_jt_rv69_used_i[2] <= lab_jt_dbg_vol_lr[7:0];
+	                for (int unsigned rv69_m = 0; rv69_m < 10;
+	                     rv69_m = rv69_m + 1) begin
+	                    lab_jt_rv69_ram_match_mask_i[rv69_m] <=
+	                        lab_jt_rv69_readback_i[rv69_m] ==
+	                        lab_jt_rv69_expected_i[rv69_m];
+	                end
+	                lab_jt_rv69_last_state_channel_i <=
+	                    lab_jt_rv62_live_state_channel[7:0];
+	                lab_jt_rv69_frozen_i <= 1'b1;
+	            end
+	        end
+	    end
+	logic [2:0] lab_c0_fixed_index_i;
     logic [11:0] lab_c0_fixed_div_i;
     logic [3:0] lab_c0_mame_tick_div_count_i;
     logic [15:0] lab_c0_mame_tick_count_i;
@@ -2597,6 +4852,9 @@ module segapcm_sound_module #(
     localparam logic [1:0] LAB16_PM3_MIX_HOLD  = 2'd0;
     localparam logic [1:0] LAB16_PM3_MIX_FRESH = 2'd1;
     localparam logic [1:0] LAB16_PM3_MIX_GATE  = 2'd2;
+    // RV0059/RV0060 are JT bring-up overlays. Keep their source selection
+    // independent of the playback backend and all retired OSD status fields.
+    localparam logic LAB_JT_DEBUG_BUS_SELECTED = 1'b1;
     localparam logic [2:0] LAB16_PM3_START_STRICT       = 3'd0;
     localparam logic [2:0] LAB16_PM3_START_QUAL_RESTART = 3'd1;
     localparam logic [2:0] LAB16_PM3_START_QUAL_REPOS   = 3'd2;
@@ -4486,7 +6744,7 @@ module segapcm_sound_module #(
 `endif
         {8'd0, c0_capture_ch3_end_i};
 	`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
-	    assign jt_smoke_vol_l_debug = smoke_c0_jt_backend ?
+	    assign jt_smoke_vol_l_debug = LAB_JT_DEBUG_BUS_SELECTED ?
             core_dbg_smoke_jt_vol_l :
             (smoke_c0_drive_sel != 2'd0) ?
 	        (lab_c0_multich_delta_mode ? lab16_active_mask : {
@@ -4505,7 +6763,7 @@ module segapcm_sound_module #(
             smoke_c0_drive_sel
         }) :
 	        core_dbg_smoke_seed_reload_req;
-	    assign jt_smoke_vol_r_debug = smoke_c0_jt_backend ?
+	    assign jt_smoke_vol_r_debug = LAB_JT_DEBUG_BUS_SELECTED ?
             core_dbg_smoke_jt_vol_r :
             (smoke_c0_drive_sel != 2'd0) ?
 	        (lab_c0_multich_delta_mode ?
@@ -4523,21 +6781,21 @@ module segapcm_sound_module #(
 `endif
 	    assign jt_smoke_sample_byte_debug =
 	`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
-	        smoke_c0_jt_backend ? core_dbg_smoke_sample_byte :
+	        LAB_JT_DEBUG_BUS_SELECTED ? core_dbg_smoke_sample_byte :
 	        (smoke_c0_drive_sel != 2'd0 && lab_c0_multich_delta_mode) ?
 	            lab16_ch3_worst_raw_cv_i :
 	`endif
 	        core_dbg_smoke_sample_byte;
 	    assign jt_smoke_out_l_debug =
 	`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
-	        smoke_c0_jt_backend ? core_dbg_smoke_out_l :
+	        LAB_JT_DEBUG_BUS_SELECTED ? core_dbg_smoke_out_l :
 	        (smoke_c0_drive_sel != 2'd0 && lab_c0_multich_delta_mode) ?
 	            lab16_ch3_worst_l_i :
 	`endif
 	        core_dbg_smoke_out_l;
 	    assign jt_smoke_out_r_debug =
 	`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
-	        smoke_c0_jt_backend ? core_dbg_smoke_out_r :
+	        LAB_JT_DEBUG_BUS_SELECTED ? core_dbg_smoke_out_r :
 	        (smoke_c0_drive_sel != 2'd0) ?
 	            (lab_c0_multich_delta_mode ?
 	                lab16_ch3_retrig_base_i :
@@ -4577,7 +6835,7 @@ module segapcm_sound_module #(
         smoke_ddr_audio_update_count_i;
 `endif
 	    assign ch3_delta_debug =
-	        smoke_c0_jt_backend ? lab_jt_ch7_req_debug :
+	        LAB_JT_DEBUG_BUS_SELECTED ? lab_jt_ch7_req_debug :
 	        lab_c0_multich_delta_mode ? core_dbg_ch3_delta :
 	        lab_c0_phase_increment[15:0];
 `else
@@ -4719,7 +6977,7 @@ module segapcm_sound_module #(
     assign cpu_addr_debug = {latched_raw_addr[7:0], latched_cpu_addr};
     assign shadow_decode_debug =
 `ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
-        smoke_c0_jt_backend ? lab_jt_last_cpu_write_i :
+        LAB_JT_DEBUG_BUS_SELECTED ? lab_jt_last_cpu_write_i :
 `endif
         shadow_decode_i;
 `ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
@@ -4747,23 +7005,23 @@ module segapcm_sound_module #(
 	    assign shadow_ch3_loop_debug = {shadow_ram[8'h1c], shadow_ram[8'h1d]};
 	    assign shadow_ch3_end_delta_debug =
 `ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
-	        smoke_c0_jt_backend ? lab_jt_ch3_end_delta_debug :
+	        LAB_JT_DEBUG_BUS_SELECTED ? lab_jt_ch3_end_delta_debug :
 `endif
 	        {shadow_ram[8'h1e], shadow_ram[8'h1f]};
 	    assign shadow_ch3_start_debug =
 `ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
-	        smoke_c0_jt_backend ? lab_jt_ch3_current_debug :
+	        LAB_JT_DEBUG_BUS_SELECTED ? lab_jt_ch3_current_debug :
 `endif
 	        {shadow_ram[8'h9c], shadow_ram[8'h9d]};
 	    assign shadow_ch3_ctrl_debug =
 `ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
-	        smoke_c0_jt_backend ? lab_jt_ch3_ctrl_debug :
+	        LAB_JT_DEBUG_BUS_SELECTED ? lab_jt_ch3_ctrl_debug :
 `endif
 	        {shadow_ram[8'h9e], shadow_ram[8'h9f]};
 	    assign shadow_ch3_l0_debug = {shadow_ram[8'h18], shadow_ram[8'h19]};
 	    assign shadow_ch3_l2_debug =
 `ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
-	        smoke_c0_jt_backend ? lab_jt_ch3_volume_debug :
+	        LAB_JT_DEBUG_BUS_SELECTED ? lab_jt_ch3_volume_debug :
 `endif
 	        {shadow_ram[8'h1a], shadow_ram[8'h1b]};
     assign shadow_ch3_l4_debug = {shadow_ram[8'h1c], shadow_ram[8'h1d]};
@@ -4778,7 +7036,7 @@ module segapcm_sound_module #(
     assign last_audio_r_debug = last_audio_r_i;
 `ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
     assign core_status_debug =
-        smoke_c0_jt_backend ? lab_jt_bringup_status :
+        LAB_JT_DEBUG_BUS_SELECTED ? lab_jt_bringup_status :
         {12'd0, lab_c0_pump_branch_debug};
 `else
     assign core_status_debug = {
@@ -10460,7 +12718,7 @@ module segapcm_sound_module #(
         .smoke_c0_ctrl(8'd0),
         .smoke_jt_vol_l_debug(),
         .smoke_jt_vol_r_debug(),
-        .smoke_sample_byte_debug(),
+	        .smoke_sample_byte_debug(lab_jt_rv62_live_smoke_word),
         .smoke_c0_byte_accept_debug(),
         .smoke_c0_mixer_consume_debug(),
         .smoke_out_l_debug(),
@@ -10531,8 +12789,8 @@ module segapcm_sound_module #(
 	        .dbg_ch3_r0_low(lab_jt_dbg_focus_end_count),
 	        .dbg_ch3_r1_high(lab_jt_dbg_focus_cfg_delta),
 	        .dbg_ch3_r1_low(lab_jt_dbg_focus_low_frac),
-	        .dbg_ch3_r2_high(),
-	        .dbg_ch3_r2_low(),
+	        .dbg_ch3_r2_high(lab_jt_dbg_pending_set_count),
+	        .dbg_ch3_r2_low(lab_jt_dbg_state9_addr),
 	        .dbg_update_state_channel(lab_jt_dbg_update_state_channel),
 	        .dbg_update_before_23(lab_jt_dbg_update_before_23),
 	        .dbg_update_before_15(lab_jt_dbg_update_before_15),
@@ -10560,8 +12818,52 @@ module segapcm_sound_module #(
 	        .dbg_ch6_contrib_raw_cv(lab_jt_dbg_ch6_contrib_raw_cv),
 	        .dbg_ch7_contrib_count(lab_jt_dbg_ch7_contrib_count),
 	        .dbg_ch7_contrib_mul(lab_jt_dbg_ch7_contrib_mul),
-	        .dbg_ch7_contrib_raw_cv(lab_jt_dbg_ch7_contrib_raw_cv)
-		    );
+	        .dbg_ch7_contrib_raw_cv(lab_jt_dbg_ch7_contrib_raw_cv),
+	        .dbg_rv60_state8_accept_strobe(
+	            lab_jt_rv60_state8_accept_strobe
+	        ),
+	        .dbg_rv60_state8_accept_slot(lab_jt_rv60_state8_accept_slot),
+	        .dbg_rv60_state8_accept_txn(lab_jt_rv60_state8_accept_txn),
+	        .dbg_rv62_live_state_channel(lab_jt_rv62_live_state_channel),
+	        .dbg_rv62_live_rom_data(lab_jt_rv62_live_rom_data),
+	        .dbg_rv62_live_source_data(lab_jt_rv62_live_source_data),
+	        .dbg_rv62_state14_consume_strobe(
+	            lab_jt_rv62_state14_consume_strobe
+	        ),
+	        .dbg_rv62_capture_condition_flags(
+	            lab_jt_rv62_capture_condition_flags
+	        ),
+	        .dbg_rv63_normal_state8_request_strobe(
+	            lab_jt_rv63_normal_state8_request_strobe
+	        ),
+	        .dbg_rv63_normal_state14_consume_strobe(
+	            lab_jt_rv63_normal_state14_consume_strobe
+	        ),
+	        .dbg_rv65_normal_current_before(
+	            lab_jt_rv65_normal_current_before
+	        ),
+	        .dbg_rv65_normal_current_after(
+	            lab_jt_rv65_normal_current_after
+	        ),
+	        .dbg_rv65_normal_delta(lab_jt_rv65_normal_delta),
+	        .dbg_rv65_normal_expected_rom_addr(
+	            lab_jt_rv65_normal_expected_rom_addr
+	        ),
+	        .dbg_rv68_loop_addr(lab_jt_rv68_loop_addr),
+	        .dbg_rv68_end_addr(lab_jt_rv68_end_addr),
+	        .dbg_rv68_state7_flags(lab_jt_rv68_state7_flags),
+	        .dbg_rv69_internal_write_enable(
+	            lab_jt_rv69_internal_write_enable
+	        ),
+	        .dbg_rv69_internal_write_addr(
+	            lab_jt_rv69_internal_write_addr
+	        ),
+	        .dbg_rv69_internal_write_data(
+	            lab_jt_rv69_internal_write_data
+	        ),
+	        .dbg_rv69_ram_read_addr(lab_jt_rv69_ram_read_addr),
+	        .dbg_rv69_ram_read_data(lab_jt_rv69_ram_read_data)
+	    );
 
     assign cpu_din = smoke_c0_jt_backend ? lab_jt_cpu_din : 8'd0;
     assign core_rom_addr =
@@ -10607,25 +12909,25 @@ module segapcm_sound_module #(
     assign core_dbg_38686_delta = 16'd0;
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_TEST
 		    assign core_dbg_smoke_jt_vol_l =
-		        smoke_c0_jt_backend ? lab_jt_last_non80_pr_i :
+		        LAB_JT_DEBUG_BUS_SELECTED ? lab_jt_last_non80_pr_i :
 		        lab_c0_multich_delta_mode ?
 		        lab16_runtime_rd_i : {9'd0, smoke_c0_vol_l_mapped};
 		    assign core_dbg_smoke_jt_vol_r =
-		        smoke_c0_jt_backend ? lab_jt_last_nonzero_mv_i :
+		        LAB_JT_DEBUG_BUS_SELECTED ? lab_jt_last_nonzero_mv_i :
 		        lab_c0_multich_delta_mode ?
 		        lab16_runtime_l_i[15:0] : {9'd0, smoke_c0_vol_r_mapped};
 		    assign core_dbg_smoke_sample_byte =
-		        smoke_c0_jt_backend ? lab_jt_max_abs_mv_i :
+		        LAB_JT_DEBUG_BUS_SELECTED ? lab_jt_max_abs_mv_i :
 		        lab_c0_multich_delta_mode ?
 		        lab16_runtime_addr_i : lab_c0_sb_debug_i;
     assign core_dbg_smoke_c0_byte_accept = 1'b0;
     assign core_dbg_smoke_c0_mixer_consume = lab_c0_return_pulse;
     assign core_dbg_smoke_out_l =
-        smoke_c0_jt_backend ? lab_jt_snd_left :
+        LAB_JT_DEBUG_BUS_SELECTED ? lab_jt_snd_left :
         lab_c0_multich_delta_mode ?
         lab16_runtime_pi_i[15:0] : lab_c0_so_debug_i;
     assign core_dbg_smoke_out_r =
-        smoke_c0_jt_backend ? lab_jt_snd_right :
+        LAB_JT_DEBUG_BUS_SELECTED ? lab_jt_snd_right :
         lab_c0_multich_delta_mode ?
         lab16_runtime_phase_hint_i : lab_c0_mo_debug_i;
     assign core_dbg_smoke_end_hit = 16'd0;
@@ -10682,122 +12984,122 @@ module segapcm_sound_module #(
         lab_c0_actual_output_sample != 16'sd0
     };
 	    assign core_dbg_ch3_delta =
-	        smoke_c0_jt_backend ? lab_jt_dbg_ch3_delta :
+	        LAB_JT_DEBUG_BUS_SELECTED ? lab_jt_dbg_ch3_delta :
         lab_c0_multich_delta_mode ?
         lab16_wave_vol_i :
         lab_c0_legacy_ch3_block2_mode ?
         {15'd0, lab_c0_seq_output} :
         {5'd0, lab_c0_effective_delta};
 				    assign core_dbg_ch1_first_high =
-					        smoke_c0_jt_backend ?
-					        lab_jt_dbg_contrib_mask :
+					        LAB_JT_DEBUG_BUS_SELECTED ?
+					        lab_jt_rv60_consume_count :
 					        lab_c0_multich_delta_mode ?
 					        lab16_wave_rawcv1_i : smoke_c0_pm3_audio_mask;
 					    assign core_dbg_ch1_first_low =
-						        smoke_c0_jt_backend ?
-						        lab_jt_dbg_mul_nonzero_mask :
+						        LAB_JT_DEBUG_BUS_SELECTED ?
+					        lab_jt_rv60_accept_tag :
 					        lab_c0_multich_delta_mode ?
 					        lab16_wave_addr1_i : loaded_ddr_write_count_debug;
 					    assign core_dbg_ch1_first_raw_high =
-					        smoke_c0_jt_backend ? lab_jt_dbg_last_contrib_info :
+					        LAB_JT_DEBUG_BUS_SELECTED ? lab_jt_rv60_write_tag :
 					        lab_c0_multich_delta_mode ?
 					        lab16_wave_pi1_i : loaded_ddr_last_write_addr_debug;
 					    assign core_dbg_ch1_first_raw_low =
-					        smoke_c0_jt_backend ? lab_jt_dbg_last_contrib_raw_cv :
+					        LAB_JT_DEBUG_BUS_SELECTED ? lab_jt_rv60_consume_tag :
 					        lab_c0_multich_delta_mode ?
 					        lab16_wave_out1_i :
 					        {8'd0, loaded_ddr_last_write_data_debug};
 			    assign core_dbg_ch3_first_high =
-			        smoke_c0_jt_backend ? lab_jt_dbg_focus_status :
+			        LAB_JT_DEBUG_BUS_SELECTED ? lab_jt_rv60_s0 :
 				        lab_c0_multich_delta_mode ?
 				        lab16_wave_rawcv0_i : lab16_ch3_retrig_first0_i;
 						    assign core_dbg_ch3_first_low =
-						        smoke_c0_jt_backend ? lab_jt_dbg_focus_req_count :
-					        lab_c0_multich_delta_mode ?
-					        lab16_wave_addr0_i : lab16_ch3_retrig_first1_i;
+					        LAB_JT_DEBUG_BUS_SELECTED ? lab_jt_rv60_s1 :
+				        lab_c0_multich_delta_mode ?
+				        lab16_wave_addr0_i : lab16_ch3_retrig_first1_i;
 							    assign core_dbg_ch3_first_raw_high =
-							        smoke_c0_jt_backend ?
-							        lab_jt_dbg_focus_advance_count :
+							        LAB_JT_DEBUG_BUS_SELECTED ?
+						        lab_jt_rv60_s2 :
 						        lab_c0_multich_delta_mode ?
 						        lab16_wave_pi0_i :
 						        lab16_ch3_retrig_first2_i;
 						    assign core_dbg_ch3_first_raw_low =
-						        smoke_c0_jt_backend ?
-						        lab_jt_dbg_focus_addr_advance_count :
-					        lab_c0_multich_delta_mode ?
-					        lab16_wave_out0_i : lab16_ch3_retrig_first3_i;
+						        LAB_JT_DEBUG_BUS_SELECTED ?
+					        lab_jt_rv60_s3 :
+				        lab_c0_multich_delta_mode ?
+				        lab16_wave_out0_i : lab16_ch3_retrig_first3_i;
 							    assign core_dbg_ch3_r0_high =
-							        smoke_c0_jt_backend ?
-							        lab_jt_dbg_focus_same_addr_count :
+							        LAB_JT_DEBUG_BUS_SELECTED ?
+						        lab_jt_rv60_i0 :
 							        lab16_ch3_retrig_old_current_i;
 						    assign core_dbg_ch3_r0_low =
-						        smoke_c0_jt_backend ? lab_jt_dbg_focus_end_count :
-					        lab16_ch3_no_read_mix_count_i;
+					        LAB_JT_DEBUG_BUS_SELECTED ? lab_jt_rv60_i1 :
+				        lab16_ch3_no_read_mix_count_i;
 						    assign core_dbg_ch3_r1_high =
-						        smoke_c0_jt_backend ? lab_jt_dbg_focus_cfg_delta :
-					        lab16_ch3_broad_restart_count_i;
+					        LAB_JT_DEBUG_BUS_SELECTED ? lab_jt_rv60_i2 :
+				        lab16_ch3_broad_restart_count_i;
 						    assign core_dbg_ch3_r1_low =
-						        smoke_c0_jt_backend ? lab_jt_dbg_focus_low_frac :
-					        lab16_ch3_retrig_old_offset_i;
+					        LAB_JT_DEBUG_BUS_SELECTED ? lab_jt_rv60_i3 :
+				        lab16_ch3_retrig_old_offset_i;
 	    assign core_dbg_ch3_r2_high =
-	        smoke_c0_jt_backend ? {14'd0, lab_jt_rom_timing_mode} :
+	        LAB_JT_DEBUG_BUS_SELECTED ? lab_jt_rv60_p0 :
 	        lab16_ch3_retrig_old_phase_i;
 			    assign core_dbg_ch3_r2_low =
-			        smoke_c0_jt_backend ? lab_jt_mismatch_status :
+		        LAB_JT_DEBUG_BUS_SELECTED ? lab_jt_rv60_p1 :
 			        lab16_ch3_retrig_flags_i;
 						    assign core_dbg_update_state_channel =
-						        smoke_c0_jt_backend ?
-						        lab_jt_dbg_update_state_channel :
+						        LAB_JT_DEBUG_BUS_SELECTED ?
+					        lab_jt_rv60_p2 :
 						        lab16_wave_pi3_i;
 							    assign core_dbg_update_before_23 =
-								        smoke_c0_jt_backend ?
-								        lab_jt_dbg_update_before_23 :
-							        lab16_ch3_hold_mix_count_i;
+								        LAB_JT_DEBUG_BUS_SELECTED ?
+						        lab_jt_rv60_p3 :
+						        lab16_ch3_hold_mix_count_i;
 							    assign core_dbg_update_before_15 =
-							        smoke_c0_jt_backend ?
-							        lab_jt_dbg_update_before_15 : {
-							        11'd0,
-							        lab16_first_sample_count_i
-							    };
-					    assign core_dbg_update_before_07 =
-					        smoke_c0_jt_backend ? lab_jt_dbg_update_before_07 : {
-					        11'd0,
-					        lab16_active_count
-					    };
+							        LAB_JT_DEBUG_BUS_SELECTED ?
+					        lab_jt_rv60_r0 : {
+						        11'd0,
+						        lab16_first_sample_count_i
+						    };
+				    assign core_dbg_update_before_07 =
+		        LAB_JT_DEBUG_BUS_SELECTED ? lab_jt_rv60_r1 : {
+				        11'd0,
+				        lab16_active_count
+				    };
 						    assign core_dbg_update_addend =
-						        smoke_c0_jt_backend ? lab_jt_dbg_update_addend :
+					        LAB_JT_DEBUG_BUS_SELECTED ? lab_jt_rv60_r2 :
 						        lab_c0_multich_delta_mode ?
 						        lab16_wave_out3_i : lab16_ch3_retrig_write_i;
-					    assign core_dbg_update_after_23 =
-					        smoke_c0_jt_backend ? lab_jt_dbg_update_after_23 :
-					        lab_c0_multich_delta_mode ?
-					        lab16_wave_rawcv2_i : lab16_ch3_worst_abs_i;
+				    assign core_dbg_update_after_23 =
+		        LAB_JT_DEBUG_BUS_SELECTED ? lab_jt_rv60_r3 :
+				        lab_c0_multich_delta_mode ?
+				        lab16_wave_rawcv2_i : lab16_ch3_worst_abs_i;
 				    assign core_dbg_update_after_15 =
-						        smoke_c0_jt_backend ?
-						        lab_jt_dbg_update_after_15 :
-					        lab_c0_multich_delta_mode ?
-					        lab16_wave_addr2_i : lab16_ch3_worst_time_i;
+						        LAB_JT_DEBUG_BUS_SELECTED ?
+					        lab_jt_rv60_j0 :
+				        lab_c0_multich_delta_mode ?
+				        lab16_wave_addr2_i : lab16_ch3_worst_time_i;
 			    assign core_dbg_update_after_07 =
-					        smoke_c0_jt_backend ? lab_jt_dbg_update_after_07 :
-				        lab_c0_multich_delta_mode ?
-				        lab16_wave_pi2_i : lab16_ch3_worst_rc_i;
+			        LAB_JT_DEBUG_BUS_SELECTED ? lab_jt_rv60_j1 :
+			        lab_c0_multich_delta_mode ?
+			        lab16_wave_pi2_i : lab16_ch3_worst_rc_i;
 			    assign core_dbg_ch3_load_after_23 =
-					        smoke_c0_jt_backend ?
-					        lab_jt_dbg_ch3_load_after_23 :
-				        lab_c0_multich_delta_mode ?
-				        lab16_wave_out2_i : lab16_ch3_worst_pi_i;
+					        LAB_JT_DEBUG_BUS_SELECTED ?
+			        lab_jt_rv60_j2 :
+			        lab_c0_multich_delta_mode ?
+			        lab16_wave_out2_i : lab16_ch3_worst_pi_i;
 				    assign core_dbg_ch3_load_after_15 =
-						        smoke_c0_jt_backend ?
-						        lab_jt_dbg_ch3_load_after_15 :
-					        lab_c0_multich_delta_mode ?
-					        lab16_wave_rawcv3_i : lab16_ch3_worst_offset_i;
-				    assign core_dbg_ch3_load_after_07 =
-				        smoke_c0_jt_backend ?
-				        lab_jt_dbg_ch3_load_after_07 :
+						        LAB_JT_DEBUG_BUS_SELECTED ?
+					        lab_jt_rv60_j3 :
 				        lab_c0_multich_delta_mode ?
-				        lab16_wave_addr3_i : lab16_ch3_worst_current_i;
+				        lab16_wave_rawcv3_i : lab16_ch3_worst_offset_i;
+				    assign core_dbg_ch3_load_after_07 =
+			        LAB_JT_DEBUG_BUS_SELECTED ?
+		        lab_jt_rv60_accept_count :
+			        lab_c0_multich_delta_mode ?
+			        lab16_wave_addr3_i : lab16_ch3_worst_current_i;
 				    assign core_dbg_update_reason =
-				        smoke_c0_jt_backend ? lab_jt_dbg_update_reason :
+		        LAB_JT_DEBUG_BUS_SELECTED ? lab_jt_rv60_write_count :
 				        (lab_c0_multich_delta_mode ?
 				         lab16_runtime_pr_hold_i :
 				         lab16_ch3_retrig_first_l_i[15:0]);
@@ -10936,8 +13238,63 @@ module segapcm_sound_module #(
 	        .dbg_ch6_contrib_raw_cv(),
 	        .dbg_ch7_contrib_count (),
 	        .dbg_ch7_contrib_mul   (),
-	        .dbg_ch7_contrib_raw_cv()
+	        .dbg_ch7_contrib_raw_cv(),
+	        .dbg_rv60_state8_accept_strobe(),
+	        .dbg_rv60_state8_accept_slot(),
+	        .dbg_rv60_state8_accept_txn(),
+	        .dbg_rv65_normal_current_before(),
+	        .dbg_rv65_normal_current_after(),
+	        .dbg_rv65_normal_delta(),
+	        .dbg_rv65_normal_expected_rom_addr(),
+	        .dbg_rv68_loop_addr(),
+	        .dbg_rv68_end_addr(),
+	        .dbg_rv68_state7_flags(),
+	        .dbg_rv69_internal_write_enable(),
+	        .dbg_rv69_internal_write_addr(),
+	        .dbg_rv69_internal_write_data(),
+	        .dbg_rv69_ram_read_addr(),
+	        .dbg_rv69_ram_read_data()
 	    );
+`endif
+
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+    // RV0070 packs the accepted JT RAM writes, pre-request physical readbacks,
+    // values consumed by JT, first expected/actual ROM address, and the control
+    // overwrite count. The dedicated 416-bit transport remains unchanged.
+    assign jt_rv60_debug_bus = {
+	        lab_jt_rv69_w0,
+	        lab_jt_rv69_r0,
+	        lab_jt_rv69_w1,
+	        lab_jt_rv69_r1,
+	        lab_jt_rv69_w2,
+	        lab_jt_rv69_r2,
+	        lab_jt_rv69_w3,
+	        lab_jt_rv69_r3,
+	        lab_jt_rv69_w4,
+	        lab_jt_rv69_r4,
+	        lab_jt_rv69_w5,
+	        lab_jt_rv69_r5,
+	        lab_jt_rv69_w6,
+	        lab_jt_rv69_r6,
+	        lab_jt_rv69_w7,
+	        lab_jt_rv69_r7,
+	        lab_jt_rv69_w8,
+	        lab_jt_rv69_r8,
+	        lab_jt_rv69_w9,
+	        lab_jt_rv69_r9,
+	        lab_jt_rv70_bk,
+	        lab_jt_rv70_expected_high,
+	        lab_jt_rv70_expected_low,
+	        lab_jt_rv70_actual_high,
+	        lab_jt_rv70_actual_low,
+	        lab_jt_rv70_ctrl_overwrite_count
+    };
+    (* keep = "true" *) wire [15:0] rv61_internal_signature = 16'hA601;
+    assign rv61_signature_bus[31:16] = rv61_internal_signature;
+    assign rv61_signature_bus[15:0] = 16'hA602;
+`else
+    assign jt_rv60_debug_bus = 416'd0;
+    assign rv61_signature_bus = 32'd0;
 `endif
 
 endmodule
