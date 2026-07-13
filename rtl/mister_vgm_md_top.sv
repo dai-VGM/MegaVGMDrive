@@ -423,6 +423,8 @@ module mister_vgm_md_top #(
     output logic [15:0]       segapcm_core_update_after_15,
     output logic [15:0]       segapcm_core_update_after_07,
     output logic [15:0]       segapcm_core_update_reason,
+    output logic [415:0]      segapcm_jt_rv60_debug_bus,
+    output logic [63:0]       segapcm_rv61_signature_bus,
     output logic [15:0]       segapcm_core_cpu_write_count,
     output logic [15:0]       segapcm_core_cpu_cen_write_count,
     output logic [15:0]       segapcm_core_cpu_addr_debug,
@@ -564,6 +566,9 @@ module mister_vgm_md_top #(
 `else
     localparam bit YM2151_EXPERIMENTAL_MODE = 1'b0;
 `endif
+    (* keep = "true" *) wire [31:0] segapcm_rv61_sound_signature_bus;
+    (* keep = "true" *) wire [15:0] rv61_top_input_signature = 16'hB601;
+    (* keep = "true" *) wire [15:0] rv61_top_output_signature = 16'hB602;
     function automatic [15:0] abs16_top(input logic signed [15:0] value);
         begin
             abs16_top = value[15] ? (~value + 16'd1) : value;
@@ -3992,6 +3997,8 @@ module mister_vgm_md_top #(
                     .update_after_15_debug          (segapcm_core_update_after_15),
                     .update_after_07_debug          (segapcm_core_update_after_07),
                     .update_reason_debug            (segapcm_core_update_reason),
+                    .jt_rv60_debug_bus              (segapcm_jt_rv60_debug_bus),
+                    .rv61_signature_bus             (segapcm_rv61_sound_signature_bus),
                     .cpu_write_count_debug          (segapcm_core_cpu_write_count),
                     .cpu_cen_write_count_debug      (segapcm_core_cpu_cen_write_count),
                     .cpu_addr_debug                 (segapcm_core_cpu_addr_debug),
@@ -4023,6 +4030,11 @@ module mister_vgm_md_top #(
                     .last_audio_r_debug             (segapcm_core_last_audio_r),
                     .core_status_debug              (segapcm_core_status_debug)
                 );
+                assign segapcm_rv61_signature_bus = {
+                    segapcm_rv61_sound_signature_bus,
+                    rv61_top_input_signature,
+                    rv61_top_output_signature
+                };
             end else begin : ym2151_sound_disabled
                 assign ym2151_cmd_ready = 1'b1;
                 assign ym2151_audio_l = 16'sd0;
@@ -4137,6 +4149,13 @@ module mister_vgm_md_top #(
                 assign segapcm_core_update_after_15 = 16'd0;
                 assign segapcm_core_update_after_07 = 16'd0;
                 assign segapcm_core_update_reason = 16'd0;
+                assign segapcm_jt_rv60_debug_bus = 416'd0;
+                assign segapcm_rv61_sound_signature_bus = 32'd0;
+                assign segapcm_rv61_signature_bus = {
+                    32'd0,
+                    rv61_top_input_signature,
+                    rv61_top_output_signature
+                };
                 assign segapcm_core_cpu_write_count = 16'd0;
                 assign segapcm_core_cpu_cen_write_count = 16'd0;
                 assign segapcm_core_cpu_addr_debug = 16'd0;
@@ -4586,6 +4605,13 @@ module mister_vgm_md_top #(
             assign segapcm_core_update_after_15 = 16'd0;
             assign segapcm_core_update_after_07 = 16'd0;
             assign segapcm_core_update_reason = 16'd0;
+            assign segapcm_jt_rv60_debug_bus = 416'd0;
+            assign segapcm_rv61_sound_signature_bus = 32'd0;
+            assign segapcm_rv61_signature_bus = {
+                32'd0,
+                rv61_top_input_signature,
+                rv61_top_output_signature
+            };
             assign segapcm_core_cpu_write_count = 16'd0;
             assign segapcm_core_cpu_cen_write_count = 16'd0;
             assign segapcm_core_cpu_addr_debug = 16'd0;
