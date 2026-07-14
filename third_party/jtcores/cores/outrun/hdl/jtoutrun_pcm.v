@@ -23,7 +23,17 @@
 
 module jtoutrun_pcm #(parameter
     WD        = 12,     // DAC bit width (AD7121) = 12 bits plus bits dropped internally
-    SIMHEXFILE= ""
+    SIMHEXFILE= "",
+`ifdef MEGAVGMDRIVE_SEGAPCM_AB1_MAME_SCRATCH
+    MAME_SCRATCH_CURRENT = 1'b1,
+`else
+    MAME_SCRATCH_CURRENT = 1'b0,
+`endif
+`ifdef MEGAVGMDRIVE_SEGAPCM_AB2_MAME_NONLOOP_END
+    MAME_NONLOOP_END = 1'b1
+`else
+    MAME_NONLOOP_END = 1'b0
+`endif
 )(
     input              rst,
     input              clk,
@@ -503,6 +513,12 @@ reg  [ 7:0] dbg_start_flags_i;
 reg         dbg_start_init_ch3_pending_i;
 
 reg  [23: 0] cur_addr;
+// A/B 2 changes only non-loop voices. Looping voices retain the legacy
+// end+1 boundary so the two compatibility changes remain independently
+// measurable.
+wire [7:0] normal_end_compare =
+    (MAME_NONLOOP_END && cfg_en[1]) ? cfg_data : (cfg_data + 8'b1);
+wire normal_end_match = cur_addr[23:16] == normal_end_compare;
 reg  [23: 8] loop_addr;
 reg  [23:16] end_addr;
 
@@ -794,7 +810,7 @@ assign dbg_rv68_end_addr = dbg_rv68_end_addr_i;
 assign dbg_rv68_state7_flags = dbg_rv68_state7_flags_i;
 // RV0069 observes the real internal RAM port and its registered read address.
 // These signals do not feed the RAM or the PCM state machine.
-assign dbg_rv69_internal_write_enable = cfg_we;
+assign dbg_rv69_internal_write_enable = cfg_we && cen;
 assign dbg_rv69_internal_write_addr = cfg_ram_addr;
 assign dbg_rv69_internal_write_data = cfg_din;
 assign dbg_rv69_ram_read_addr = dbg_rv69_ram_read_addr_i;
@@ -1082,7 +1098,7 @@ jtframe_dual_ram #(.AW(9),.SIMHEXFILE(SIMHEXFILE)) u_ram(
 `endif
     .data1  ( cfg_din   ),
     .addr1  ( cfg_ram_addr ),
-    .we1    ( cfg_we    ),
+    .we1    ( cfg_we && cen ),
     .q1     ( cfg_data  )
 );
 
@@ -1121,7 +1137,8 @@ always @* begin
     // registered q value will be consumed by the following state. State 15
     // uses cfg_ram_ch above to prefetch the next channel's control byte.
     case( st )
-         0: cfg_addr = c0_scratch_valid_i[cur_ch] ? 5'o20 : 5'o00;
+         0: cfg_addr = MAME_SCRATCH_CURRENT ? 5'o20 :
+             (c0_scratch_valid_i[cur_ch] ? 5'o20 : 5'o00);
          1: cfg_addr = 5'o14; // current 15-8 for state 2
          2: cfg_addr = 5'o15; // current 23-16 for state 3
          3: cfg_addr = 5'o07; // delta for state 4
@@ -1552,7 +1569,7 @@ always @(posedge clk) begin
         dbg_start_actl_i <= 0;
         dbg_start_flags_i <= 0;
         dbg_start_init_ch3_pending_i <= 1'b0;
-    end else begin
+    end else if( cen ) begin
 `ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
         // Pair the synchronous port-1 RAM output with the address which
         // produced it.  Capturing this register is observation-only.
@@ -1751,10 +1768,11 @@ always @(posedge clk) begin
 `endif
         if( we ) begin
 `ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
-            // CPU current-low writes start a new externally supplied current.
-            // The hidden fraction scratch must not override that byte until
-            // state 9 has written a newly advanced fraction for this channel.
-            if( !cpu_addr[7] && cpu_addr[2:0] == 3'd0 ) begin
+            // Legacy mode treats CPU offset 0 as an externally supplied
+            // fraction. MAME-compatible mode leaves it as scratch RAM and
+            // preserves the core's hidden 16.8 accumulator fraction.
+            if( !MAME_SCRATCH_CURRENT &&
+                !cpu_addr[7] && cpu_addr[2:0] == 3'd0 ) begin
                 c0_scratch_valid_i[cpu_addr[6:3]] <= 1'b0;
             end
             // Count accepted CPU-side ch3 control writes and retain the last
@@ -2006,7 +2024,13 @@ always @(posedge clk) begin
             1: begin : st_load_low
                 reg [23:0] next_cur_addr;
                 reg [ 7:0] load_byte;
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+                load_byte = was_enb ? 8'd0 :
+                    ((MAME_SCRATCH_CURRENT &&
+                      !c0_scratch_valid_i[cur_ch]) ? 8'd0 : cfg_data);
+`else
                 load_byte = was_enb ? 8'd0 : cfg_data;
+`endif
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
                 if( smoke_forced_play_enable ) begin
                     load_byte = (cur_ch == SMOKE_CH) ?
@@ -2288,30 +2312,27 @@ always @(posedge clk) begin
                     // RV0068 snapshots the exact normal state-7 end decision
                     // that immediately precedes the focused state-8 request.
                     // Bits: valid, enabled-in, loop-mode, stop-mode, end-hit,
-                    // loop-action, stop-action, normal end+1 compare mode.
+                    // loop-action, stop-action, legacy end+1 compare mode.
                     dbg_rv68_end_addr_i <= cfg_data;
                     dbg_rv68_state7_flags_i <= {
                         1'b1,
                         !cfg_en[0],
                         !cfg_en[1],
                         cfg_en[1],
-                        (cur_addr[23:16] == (cfg_data + 8'b1)),
-                        ((cur_addr[23:16] == (cfg_data + 8'b1)) &&
-                         !cfg_en[1]),
-                        ((cur_addr[23:16] == (cfg_data + 8'b1)) &&
-                         cfg_en[1]),
-                        1'b1
+                        normal_end_match,
+                        normal_end_match && !cfg_en[1],
+                        normal_end_match && cfg_en[1],
+                        !MAME_NONLOOP_END
                     };
-                    if( cur_addr[23:16] == (cfg_data + 8'b1) &&
+                    if( normal_end_match &&
                         !dbg_focus_end_match_d_i &&
                         dbg_focus_end_count_i != 16'hffff ) begin
                         dbg_focus_end_count_i <=
                             dbg_focus_end_count_i + 16'd1;
                     end
-                    dbg_focus_end_match_d_i <=
-                        (cur_addr[23:16] == (cfg_data + 8'b1));
+                    dbg_focus_end_match_d_i <= normal_end_match;
 `else
-                    if( cur_addr[23:16] == (cfg_data + 8'b1) ) begin
+                    if( normal_end_match ) begin
                         if( dbg_focus_end_count_i != 16'hffff ) begin
                             dbg_focus_end_count_i <=
                                 dbg_focus_end_count_i + 16'd1;
@@ -2350,9 +2371,9 @@ always @(posedge clk) begin
 	                end else
 `endif
                 if( (!smoke_forced_play_enable || cur_ch != SMOKE_CH) &&
-                    cur_addr[23:16] == (cfg_data + 8'b1) ) begin
+                    normal_end_match ) begin
 `else
-                if( cur_addr[23:16] == (cfg_data + 8'b1) ) begin
+                if( normal_end_match ) begin
 `endif
                 if( cfg_en[1] ) begin : st_end_no_loop
                     reg [23:0] next_cur_addr;

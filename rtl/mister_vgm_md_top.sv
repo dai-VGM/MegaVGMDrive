@@ -1015,6 +1015,7 @@ module mister_vgm_md_top #(
             logic segapcm_cmd_valid;
             logic [15:0] segapcm_cmd_addr;
             logic [7:0] segapcm_cmd_data;
+            logic [31:0] segapcm_interface;
             logic [31:0] md_ym_write_requested_count;
             logic [31:0] md_ym_write_accepted_count;
             logic [31:0] md_ym_write_dropped_or_busy_count;
@@ -3601,6 +3602,7 @@ module mister_vgm_md_top #(
                 .busy                  (loaded_player_busy),
                 .done                  (loaded_player_done),
                 .header_valid          (vgm_header_valid),
+                .segapcm_interface     (segapcm_interface),
                 .player_error          (vgm_player_error),
                 .unsupported_opcode    (vgm_unsupported_opcode),
                 .unsupported_pc        (vgm_unsupported_pc),
@@ -3784,7 +3786,9 @@ module mister_vgm_md_top #(
 
                 segapcm_sound_module #(
                     .CLK_SYS_HZ      (CLK_SYS_HZ),
-                    .SEGAPCM_CLK_HZ  (32'd16_000_000)
+                    // Stage Clear VGM SegaPCM clock (4,026,987 Hz) * 2.
+                    // JT advances one voice once per 16 states * 16 voices.
+                    .SEGAPCM_CLK_HZ  (32'd8_053_974)
                 ) segapcm_sound (
                     .clk                            (clk),
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
@@ -3795,6 +3799,7 @@ module mister_vgm_md_top #(
                     .segapcm_cmd_valid              (segapcm_cmd_valid),
                     .segapcm_cmd_addr               (segapcm_cmd_addr),
                     .segapcm_cmd_data               (segapcm_cmd_data),
+                    .segapcm_interface              (segapcm_interface),
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
                     .smoke_variant                  (segapcm_smoke_variant),
                     .smoke_variant_valid            (segapcm_smoke_variant_valid),

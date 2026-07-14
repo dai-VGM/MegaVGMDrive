@@ -57,6 +57,7 @@ module vgm_loaded_player #(
     output logic                  busy,
     output logic                  done,
     output logic                  header_valid,
+    output logic [31:0]           segapcm_interface,
     output logic                  player_error,
     output logic [7:0]            unsupported_opcode,
     output logic [ADDR_WIDTH-1:0] unsupported_pc,
@@ -234,6 +235,10 @@ module vgm_loaded_player #(
         ST_READ_LOOP1,
         ST_READ_LOOP2,
         ST_READ_LOOP3,
+        ST_READ_SEGAPCM_IF0,
+        ST_READ_SEGAPCM_IF1,
+        ST_READ_SEGAPCM_IF2,
+        ST_READ_SEGAPCM_IF3,
         ST_READ_OFF0,
         ST_READ_OFF1,
         ST_READ_OFF2,
@@ -1206,6 +1211,7 @@ module vgm_loaded_player #(
             block_skip_target <= '0;
             data_offset <= 32'd0;
             loop_offset <= 32'd0;
+            segapcm_interface <= 32'd0;
             loop_pc <= '0;
             loop_valid <= 1'b0;
             block_size <= 32'd0;
@@ -1890,6 +1896,7 @@ module vgm_loaded_player #(
                             first_playback_cmd_count_debug <= 3'd0;
                             data_offset <= 32'd0;
                             loop_offset <= 32'd0;
+                            segapcm_interface <= 32'd0;
                             loop_pc <= '0;
                             loop_valid <= 1'b0;
                             loop_pc_debug <= '0;
@@ -2133,7 +2140,32 @@ module vgm_loaded_player #(
                             loop_valid <= 1'b0;
                             loop_valid_debug <= 1'b0;
                         end
-                        request_byte({{(ADDR_WIDTH-6){1'b0}}, 6'h34}, ST_READ_OFF0);
+                        request_byte({{(ADDR_WIDTH-6){1'b0}}, 6'h3c},
+                                     ST_READ_SEGAPCM_IF0);
+                    end
+
+                    ST_READ_SEGAPCM_IF0: begin
+                        segapcm_interface[7:0] <= read_data;
+                        request_byte({{(ADDR_WIDTH-6){1'b0}}, 6'h3d},
+                                     ST_READ_SEGAPCM_IF1);
+                    end
+
+                    ST_READ_SEGAPCM_IF1: begin
+                        segapcm_interface[15:8] <= read_data;
+                        request_byte({{(ADDR_WIDTH-6){1'b0}}, 6'h3e},
+                                     ST_READ_SEGAPCM_IF2);
+                    end
+
+                    ST_READ_SEGAPCM_IF2: begin
+                        segapcm_interface[23:16] <= read_data;
+                        request_byte({{(ADDR_WIDTH-6){1'b0}}, 6'h3f},
+                                     ST_READ_SEGAPCM_IF3);
+                    end
+
+                    ST_READ_SEGAPCM_IF3: begin
+                        segapcm_interface[31:24] <= read_data;
+                        request_byte({{(ADDR_WIDTH-6){1'b0}}, 6'h34},
+                                     ST_READ_OFF0);
                     end
 
                     ST_READ_OFF0: begin

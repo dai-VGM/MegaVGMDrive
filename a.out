@@ -1,60 +1,379 @@
-//============================================================================
+// MegaVGMDrive video/audio shell using the proven InputTest_MiSTer outer shape.
 //
-//  MiSTer hardware abstraction module
-//  (c)2017-2020 Alexey Melnikov
+// This module intentionally mirrors InputTest_MiSTer's explicit emu port list
+// and hps_io style. The sound module is not instantiated in this baseline.
+
+// Source-side fixed region selection for MiSTer hardware smoke tests.
 //
-//  This program is free software; you can redistribute it and/or modify it
-//  under the terms of the GNU General Public License as published by the Free
-//  Software Foundation; either version 2 of the License, or (at your option)
-//  any later version.
+// QSF does not currently define FIXED_REGION_MODE, so this header provides the
+// temporary hardware default used by both emu.sv debug colors and
+// vgm_region_player.sv ROM selection.
 //
-//  This program is distributed in the hope that it will be useful, but WITHOUT
-//  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-//  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
-//  more details.
-//
-//  You should have received a copy of the GNU General Public License along
-//  with this program; if not, write to the Free Software Foundation, Inc.,
-//  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
-//
-//============================================================================
+//   0 = BRINGUP_TONE
+//   1 = VGM_SNIPPET smoke test
+//   2 = VGM_REAL_SNIPPET, real-VGM-derived YM snippet
+//   3 = VGM_REAL_PHRASE, longer real-VGM-derived YM/PSG phrase
+//   4 = TIMING_CALIBRATION, 1s tone / 1s silence timing check
+//   5 = OSD_LOADED_VGM, first BRAM-loaded uncompressed VGM playback path
 
-module sys_top
+
+
+
+localparam bit FIXED_REAL_SNIPPET_MODE = (3 == 2);
+localparam bit FIXED_REAL_PHRASE_MODE  = (3 == 3);
+localparam bit FIXED_TIMING_CAL_MODE   = (3 == 4);
+localparam bit LOADED_VGM_MODE         = (3 == 5);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+localparam bit MD_AUDIO_OUTPUT_SHIFT_0_BUILD = 1'b0;
+localparam bit MD_AUDIO_OUTPUT_SHIFT_1_BUILD = 1'b0;
+localparam bit MD_AUDIO_ATTENUATE_6DB_BUILD = 1'b0;
+localparam int MD_AUDIO_OUTPUT_SHIFT = 2;
+
+
+
+
+
+localparam bit MD_YM_WRITE_SLOW_BUILD = 1'b0;
+
+
+
+
+
+localparam bit MD_YM_FORCE_LFO_OFF_BUILD = 1'b0;
+
+
+
+
+
+localparam bit MD_YM_MASK_PMS_AMS_BUILD = 1'b0;
+
+
+
+
+
+localparam bit MD_YM_CH3_NORMAL_BUILD = 1'b0;
+
+
+
+
+
+localparam bit MD_AUDIO_FORCE_MUTE_BUILD = 1'b0;
+
+
+
+
+
+localparam bit MD_AUDIO_SYSOUT_ATTENUATE_BUILD = 1'b0;
+
+
+
+
+
+localparam bit MD_AUDIO_SYSOUT_ATTENUATE_24DB_BUILD = 1'b0;
+
+
+
+
+
+localparam bit MD_AUDIO_SYSOUT_FORCE_TONE_BUILD = 1'b0;
+
+
+
+
+
+localparam bit MD_AUDIO_SYSOUT_GAIN_2X_SAT_BUILD = 1'b0;
+
+
+
+
+
+localparam bit MD_AUDIO_SYSOUT_GAIN_4X_SAT_BUILD = 1'b0;
+
+
+
+
+
+localparam bit MD_AUDIO_FM_ONLY_BUILD = 1'b0;
+
+
+
+
+
+localparam bit MD_AUDIO_FM_FORCE_MUTE_BUILD = 1'b0;
+
+
+
+
+
+localparam bit MD_AUDIO_PSG_ONLY_BUILD = 1'b0;
+
+
+
+
+
+localparam bit MD_AUDIO_FM_CH1_ONLY_BUILD = 1'b0;
+
+
+
+
+
+localparam bit MD_AUDIO_FM_CH2_ONLY_BUILD = 1'b0;
+
+
+
+
+
+localparam bit MD_AUDIO_FM_CH3_ONLY_BUILD = 1'b0;
+
+
+
+
+
+localparam bit MD_AUDIO_FM_CH4_ONLY_BUILD = 1'b0;
+
+
+
+
+
+localparam bit MD_AUDIO_FM_CH5_ONLY_BUILD = 1'b0;
+
+
+
+
+
+localparam bit MD_AUDIO_FM_CH6_ONLY_BUILD = 1'b0;
+
+
+localparam bit MD_AUDIO_FM_CH_SOLO_BUILD =
+    MD_AUDIO_FM_CH1_ONLY_BUILD || MD_AUDIO_FM_CH2_ONLY_BUILD ||
+    MD_AUDIO_FM_CH3_ONLY_BUILD || MD_AUDIO_FM_CH4_ONLY_BUILD ||
+    MD_AUDIO_FM_CH5_ONLY_BUILD || MD_AUDIO_FM_CH6_ONLY_BUILD;
+
+
+
+
+localparam bit MD_AUDIO_PREMIX_ATTENUATE_FM_BUILD = 1'b0;
+
+
+
+
+
+localparam bit MD_AUDIO_FM_ADJUST_BYPASS_BUILD = 1'b0;
+
+
+
+
+
+localparam bit MD_AUDIO_FM_ADJUST_LOW_GAIN_BUILD = 1'b0;
+
+
+
+
+
+localparam bit MD_AUDIO_FM_ADJUST_SATURATE_BUILD = 1'b0;
+
+
+
+
+
+localparam bit MD_AUDIO_PREMIX_ATTENUATE_PSG_BUILD = 1'b0;
+
+
+
+
+
+localparam bit MD_AUDIO_RAW_JT12_FM_BUILD = 1'b0;
+
+
+
+
+
+localparam bit MD_AUDIO_RAW_JT12_SAMPLE_LATCH_BUILD = 1'b0;
+
+
+
+
+
+localparam bit MD_AUDIO_NORMAL_SAMPLE_LATCH_BUILD = 1'b0;
+
+
+
+
+
+localparam bit MD_JT12_CEN_NTSC_BUILD = 1'b0;
+
+
+
+
+
+localparam bit MD_JT12_CEN_EVERY_CLK_BUILD = 1'b0;
+
+
+
+
+
+localparam bit MD_JT12_CEN_UNIFORM_10MHZ_BUILD = 1'b0;
+
+
+
+
+
+localparam bit MD_JT12_CEN_UNIFORM_6P67MHZ_BUILD = 1'b0;
+
+
+
+
+
+localparam bit MD_JT12_LADDER_EFFECT_BUILD = 1'b0;
+
+
+
+
+
+localparam bit MD_JT12_FORCE_YM2612_BUILD = 1'b0;
+
+
+
+
+
+localparam bit MD_JT12_FORCE_YM3438_BUILD = 1'b0;
+
+
+
+
+
+localparam bit MD_JT12_FORCE_LADDER_ON_BUILD = 1'b0;
+
+
+
+
+
+localparam bit MD_JT12_FORCE_LADDER_OFF_BUILD = 1'b0;
+
+
+
+
+
+localparam bit MD_JT12_HIFI_PCM_BUILD = 1'b0;
+
+
+
+
+
+localparam bit MD_AUDIO_FM_DC_BLOCK_BUILD = 1'b0;
+
+
+
+
+
+localparam bit MD_AUDIO_PRE_GENMIX_FM_LPF_BUILD = 1'b0;
+
+
+
+
+
+localparam bit MD_AUDIO_POST_FM_LPF_GAIN_BUILD = 1'b0;
+
+
+
+
+
+localparam bit MD_AUDIO_GENMIX_OUTPUT_GAIN_2X_BUILD = 1'b0;
+
+
+
+
+
+localparam bit MD_AUDIO_GENMIX_OUTPUT_GAIN_4X_BUILD = 1'b0;
+
+
+
+
+
+localparam bit MD_AUDIO_GENMIX_OUTPUT_GAIN_6X_BUILD = 1'b0;
+
+
+
+
+
+localparam bit MD_AUDIO_GENMIX_OUTPUT_GAIN_8X_BUILD = 1'b0;
+
+
+
+
+
+
+
+
+
+
+
+localparam bit MD_AUDIO_LPF_TEST_BUILD = 1'b0;
+
+
+
+
+
+
+
+localparam bit MODE5_DEBUG_OVERLAY_FORCED = 1'b0;
+
+
+
+
+localparam bit YM2151_SEGAPCM_OBSERVER_BUILD = 1'b0;
+
+
+
+
+
+localparam bit MODE5_REPEAT_ENABLE_BUILD = 1'b0;
+
+
+module emu
 (
-	/////////// CLOCK //////////
-	input         FPGA_CLK1_50,
-	input         FPGA_CLK2_50,
-	input         FPGA_CLK3_50,
+    input         CLK_50M,
+    input         RESET,
 
-	//////////// HDMI //////////
-	output        HDMI_I2C_SCL,
-	inout         HDMI_I2C_SDA,
+    inout  [48:0] HPS_BUS,
 
-	output        HDMI_MCLK,
-	output        HDMI_SCLK,
-	output        HDMI_LRCLK,
-	output        HDMI_I2S,
+    output        CLK_VIDEO,
+    output        CE_PIXEL,
 
-	output        HDMI_TX_CLK,
-	output        HDMI_TX_DE,
-	output [23:0] HDMI_TX_D,
-	output        HDMI_TX_HS,
-	output        HDMI_TX_VS,
-	
-	input         HDMI_TX_INT,
+    output [12:0] VIDEO_ARX,
+    output [12:0] VIDEO_ARY,
 
-	//////////// SDR ///////////
-	output [12:0] SDRAM_A,
-	inout  [15:0] SDRAM_DQ,
-	output        SDRAM_DQML,
-	output        SDRAM_DQMH,
-	output        SDRAM_nWE,
-	output        SDRAM_nCAS,
-	output        SDRAM_nRAS,
-	output        SDRAM_nCS,
-	output  [1:0] SDRAM_BA,
-	output        SDRAM_CLK,
-	output        SDRAM_CKE,
+    output  [7:0] VGA_R,
+    output  [7:0] VGA_G,
+    output  [7:0] VGA_B,
+    output        VGA_HS,
+    output        VGA_VS,
+    output        VGA_DE,
+    output        VGA_F1,
+    output [1:0]  VGA_SL,
+    output        VGA_SCALER,
+    output        VGA_DISABLE,
+
+    input  [11:0] HDMI_WIDTH,
+    input  [11:0] HDMI_HEIGHT,
+    output        HDMI_FREEZE,
+    output        HDMI_BLACKOUT,
 
 
 
@@ -68,72 +387,2019 @@ module sys_top
 
 
 
-	//////////// VGA ///////////
-	output  [5:0] VGA_R,
-	output  [5:0] VGA_G,
-	output  [5:0] VGA_B,
-	inout         VGA_HS,
-	output		  VGA_VS,
-	input         VGA_EN,  // active low
-
-	/////////// AUDIO //////////
-	output		  AUDIO_L,
-	output		  AUDIO_R,
-	output		  AUDIO_SPDIF,
-
-	//////////// SDIO ///////////
-	inout   [3:0] SDIO_DAT,
-	inout         SDIO_CMD,
-	output        SDIO_CLK,
-
-	//////////// I/O ///////////
-	output        LED_USER,
-	output        LED_HDD,
-	output        LED_POWER,
-	input         BTN_USER,
-	input         BTN_OSD,
-	input         BTN_RESET,
 
 
-	////////// I/O ALT /////////
-	output        SD_SPI_CS,
-	input         SD_SPI_MISO,
-	output        SD_SPI_CLK,
-	output        SD_SPI_MOSI,
 
-	inout         SDCD_SPDIF,
-	output        IO_SCL,
-	inout         IO_SDA,
 
-	////////// ADC //////////////
-	output        ADC_SCK,
-	input         ADC_SDO,
-	output        ADC_SDI,
-	output        ADC_CONVST,
 
-	////////// MB KEY ///////////
-	input   [1:0] KEY,
 
-	////////// MB SWITCH ////////
-	input   [3:0] SW,
 
-	////////// MB LED ///////////
-	output  [7:0] LED,
 
-	///////// USER IO ///////////
-	inout   [6:0] USER_IO
+    output        LED_USER,
+    output  [1:0] LED_POWER,
+    output  [1:0] LED_DISK,
+    output  [1:0] BUTTONS,
+
+    input         CLK_AUDIO,
+    output [15:0] AUDIO_L,
+    output [15:0] AUDIO_R,
+    output        AUDIO_S,
+    output  [1:0] AUDIO_MIX,
+
+    inout   [3:0] ADC_BUS,
+
+    output        SD_SCK,
+    output        SD_MOSI,
+    input         SD_MISO,
+    output        SD_CS,
+    input         SD_CD,
+
+    output        DDRAM_CLK,
+    input         DDRAM_BUSY,
+    output  [7:0] DDRAM_BURSTCNT,
+    output [28:0] DDRAM_ADDR,
+    input  [63:0] DDRAM_DOUT,
+    input         DDRAM_DOUT_READY,
+    output        DDRAM_RD,
+    output [63:0] DDRAM_DIN,
+    output  [7:0] DDRAM_BE,
+    output        DDRAM_WE,
+
+    output        SDRAM_CLK,
+    output        SDRAM_CKE,
+    output [12:0] SDRAM_A,
+    output  [1:0] SDRAM_BA,
+    inout  [15:0] SDRAM_DQ,
+    output        SDRAM_DQML,
+    output        SDRAM_DQMH,
+    output        SDRAM_nCS,
+    output        SDRAM_nCAS,
+    output        SDRAM_nRAS,
+    output        SDRAM_nWE,
+
+
+
+
+
+
+
+
+
+
+
+
+
+    input         UART_CTS,
+    output        UART_RTS,
+    input         UART_RXD,
+    output        UART_TXD,
+    output        UART_DTR,
+    input         UART_DSR,
+
+    input   [6:0] USER_IN,
+    output  [6:0] USER_OUT,
+    output  [1:0] VGM_PLAYER_STATE,
+
+    input         OSD_STATUS
 );
 
-//////////////////////  Secondary SD  ///////////////////////////////////
-wire SD_CS, SD_CLK, SD_MOSI, SD_MISO, SD_CD;
+    ///////// Default values for ports not used in this baseline /////////
 
+    assign ADC_BUS  = 'Z;
+    assign USER_OUT = '1;
+    assign VGM_PLAYER_STATE =
+        (LOADED_VGM_MODE && (ioctl_download || vgm_load_busy)) ? 2'd1 :
+        (LOADED_VGM_MODE && segapcm_rom_scan_busy) ? 2'd2 :
+        (LOADED_VGM_MODE &&
+         vgm_scan_sticky_guard_debug[0] &&
+         vgm_scan_term_be_debug[4] &&
+         !vgm_scan_term_be_debug[3]) ? 2'd2 :
+        (player_busy && audio_gate_open && !audio_muted && !vgm_player_error) ? 2'd2 :
+                                                                              2'd0;
+    assign {UART_RTS, UART_TXD, UART_DTR} = 3'b000;
+    assign {SD_SCK, SD_MOSI, SD_CS} = 'Z;
+    assign {SDRAM_DQ, SDRAM_A, SDRAM_BA, SDRAM_CLK, SDRAM_CKE,
+            SDRAM_DQML, SDRAM_DQMH, SDRAM_nWE, SDRAM_nCAS,
+            SDRAM_nRAS, SDRAM_nCS} = 'Z;
+    wire [7:0]  vgm_ddram_burstcnt;
+    wire [28:0] vgm_ddram_addr;
+    wire [63:0] vgm_ddram_din;
+    wire [7:0]  vgm_ddram_be;
+    wire        vgm_ddram_rd;
+    wire        vgm_ddram_we;
+
+    assign DDRAM_CLK      = clk_sys;
+    assign DDRAM_BURSTCNT = vgm_ddram_burstcnt;
+    assign DDRAM_ADDR     = vgm_ddram_addr;
+    assign DDRAM_DIN      = vgm_ddram_din;
+    assign DDRAM_BE       = vgm_ddram_be;
+    assign DDRAM_RD       = vgm_ddram_rd;
+    assign DDRAM_WE       = vgm_ddram_we;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    assign VGA_F1 = 1'b0;
+    assign VGA_SL = 2'b00;
+    assign VGA_SCALER = 1'b0;
+    assign VGA_DISABLE = 1'b0;
+    assign HDMI_FREEZE = 1'b0;
+    assign HDMI_BLACKOUT = 1'b0;
+
+    wire signed [15:0] md_audio_l;
+    wire signed [15:0] md_audio_r;
+    wire               audio_gate_open;
+    wire               audio_muted;
+    wire signed [15:0] audio_l_safe = md_audio_l >>> MD_AUDIO_OUTPUT_SHIFT;
+    wire signed [15:0] audio_r_safe = md_audio_r >>> MD_AUDIO_OUTPUT_SHIFT;
+    wire signed [15:0] audio_l_gated =
+        (audio_gate_open && !audio_muted) ? audio_l_safe : 16'sd0;
+    wire signed [15:0] audio_r_gated =
+        (audio_gate_open && !audio_muted) ? audio_r_safe : 16'sd0;
+    wire signed [15:0] audio_l_final =
+        MD_AUDIO_FORCE_MUTE_BUILD ? 16'sd0 : audio_l_gated;
+    wire signed [15:0] audio_r_final =
+        MD_AUDIO_FORCE_MUTE_BUILD ? 16'sd0 : audio_r_gated;
+
+    function automatic [15:0] audio_abs16(input logic signed [15:0] value);
+        audio_abs16 = value[15] ? (~value + 16'd1) : value;
+    endfunction
+
+    (* keep = 1 *) wire signed [15:0] debug_md_sound_module_audio_l = md_audio_l;
+    (* keep = 1 *) wire signed [15:0] debug_md_sound_module_audio_r = md_audio_r;
+    (* keep = 1 *) wire signed [15:0] debug_emu_audio_l = audio_l_final;
+    (* keep = 1 *) wire signed [15:0] debug_emu_audio_r = audio_r_final;
+
+    localparam logic signed [15:0] AUDIO_POS_RAIL = 16'sh7fff;
+    localparam logic signed [15:0] AUDIO_NEG_RAIL = 16'sh8000;
+
+    wire [15:0] md_audio_l_abs = audio_abs16(md_audio_l);
+    wire [15:0] md_audio_r_abs = audio_abs16(md_audio_r);
+    wire [15:0] emu_audio_l_abs = audio_abs16(audio_l_final);
+    wire [15:0] emu_audio_r_abs = audio_abs16(audio_r_final);
+    wire               md_audio_l_at_rail =
+        (md_audio_l == AUDIO_POS_RAIL) || (md_audio_l == AUDIO_NEG_RAIL);
+    wire               md_audio_r_at_rail =
+        (md_audio_r == AUDIO_POS_RAIL) || (md_audio_r == AUDIO_NEG_RAIL);
+    wire               emu_audio_l_at_rail =
+        (audio_l_final == AUDIO_POS_RAIL) || (audio_l_final == AUDIO_NEG_RAIL);
+    wire               emu_audio_r_at_rail =
+        (audio_r_final == AUDIO_POS_RAIL) || (audio_r_final == AUDIO_NEG_RAIL);
+    (* keep = 1, noprune = 1 *) reg [15:0] md_audio_l_abs_peak = 16'd0;
+    (* keep = 1, noprune = 1 *) reg [15:0] md_audio_r_abs_peak = 16'd0;
+    (* keep = 1, noprune = 1 *) reg [15:0] emu_audio_l_abs_peak = 16'd0;
+    (* keep = 1, noprune = 1 *) reg [15:0] emu_audio_r_abs_peak = 16'd0;
+    (* keep = 1, noprune = 1 *) reg [15:0] md_audio_abs_avg = 16'd0;
+    (* keep = 1, noprune = 1 *) reg [15:0] emu_audio_abs_avg = 16'd0;
+    reg [27:0] md_audio_abs_sum = 28'd0;
+    reg [27:0] emu_audio_abs_sum = 28'd0;
+    reg [11:0] audio_abs_avg_count = 12'd0;
+    reg         [15:0] md_audio_l_rail_count = 16'd0;
+    reg         [15:0] md_audio_r_rail_count = 16'd0;
+    (* keep = 1, noprune = 1 *) reg [15:0] emu_audio_l_rail_count = 16'd0;
+    (* keep = 1, noprune = 1 *) reg [15:0] emu_audio_r_rail_count = 16'd0;
+
+    always @(posedge clk_sys) begin
+        if (reset) begin
+            md_audio_l_abs_peak <= 16'd0;
+            md_audio_r_abs_peak <= 16'd0;
+            emu_audio_l_abs_peak <= 16'd0;
+            emu_audio_r_abs_peak <= 16'd0;
+            md_audio_abs_avg <= 16'd0;
+            emu_audio_abs_avg <= 16'd0;
+            md_audio_abs_sum <= 28'd0;
+            emu_audio_abs_sum <= 28'd0;
+            audio_abs_avg_count <= 12'd0;
+            md_audio_l_rail_count <= 16'd0;
+            md_audio_r_rail_count <= 16'd0;
+            emu_audio_l_rail_count <= 16'd0;
+            emu_audio_r_rail_count <= 16'd0;
+        end else if (audio_gate_open && audio_sample_valid) begin
+            logic [15:0] md_audio_abs_now;
+            logic [15:0] emu_audio_abs_now;
+
+            md_audio_abs_now =
+                (md_audio_l_abs > md_audio_r_abs) ? md_audio_l_abs : md_audio_r_abs;
+            emu_audio_abs_now =
+                (emu_audio_l_abs > emu_audio_r_abs) ? emu_audio_l_abs : emu_audio_r_abs;
+
+            if (md_audio_l_abs > md_audio_l_abs_peak) begin
+                md_audio_l_abs_peak <= md_audio_l_abs;
+            end
+            if (md_audio_r_abs > md_audio_r_abs_peak) begin
+                md_audio_r_abs_peak <= md_audio_r_abs;
+            end
+            if (emu_audio_l_abs > emu_audio_l_abs_peak) begin
+                emu_audio_l_abs_peak <= emu_audio_l_abs;
+            end
+            if (emu_audio_r_abs > emu_audio_r_abs_peak) begin
+                emu_audio_r_abs_peak <= emu_audio_r_abs;
+            end
+            if (&audio_abs_avg_count) begin
+                md_audio_abs_avg <= (md_audio_abs_sum + md_audio_abs_now) >> 12;
+                emu_audio_abs_avg <= (emu_audio_abs_sum + emu_audio_abs_now) >> 12;
+                md_audio_abs_sum <= 28'd0;
+                emu_audio_abs_sum <= 28'd0;
+                audio_abs_avg_count <= 12'd0;
+            end else begin
+                md_audio_abs_sum <= md_audio_abs_sum + md_audio_abs_now;
+                emu_audio_abs_sum <= emu_audio_abs_sum + emu_audio_abs_now;
+                audio_abs_avg_count <= audio_abs_avg_count + 12'd1;
+            end
+            if (md_audio_l_at_rail && !(&md_audio_l_rail_count)) begin
+                md_audio_l_rail_count <= md_audio_l_rail_count + 16'd1;
+            end
+            if (md_audio_r_at_rail && !(&md_audio_r_rail_count)) begin
+                md_audio_r_rail_count <= md_audio_r_rail_count + 16'd1;
+            end
+            if (emu_audio_l_at_rail && !(&emu_audio_l_rail_count)) begin
+                emu_audio_l_rail_count <= emu_audio_l_rail_count + 16'd1;
+            end
+            if (emu_audio_r_at_rail && !(&emu_audio_r_rail_count)) begin
+                emu_audio_r_rail_count <= emu_audio_r_rail_count + 16'd1;
+            end
+        end
+    end
+
+    assign AUDIO_S = 1'b1;
+    assign AUDIO_L = audio_l_final;
+    assign AUDIO_R = audio_r_final;
+    assign AUDIO_MIX = 2'b00;
+
+    assign LED_DISK = 2'b00;
+    assign LED_POWER = 2'b00;
+    assign BUTTONS = 2'b00;
+
+    //////////////////////////////////////////////////////////////////
+
+    assign VIDEO_ARX = 13'd4;
+    assign VIDEO_ARY = 13'd3;
+
+localparam [63:0] BUILD_DATE = 64'h0;
+    localparam CONF_STR = {
+        "MegaVGMDrive;;",
+        "F1,VGM,Load VGM;",
+        "O1,Audio Gain,Normal,Boost;",
+
+
+
+        "O2,SegaPCM PM3 Source,MultiBlock16ch,LegacyCh3Block2;",
+        "O345,SegaPCM PM3 Mask,ch3,ch1+3,ch0-3,ch0-7,All;",
+        "O6,SegaPCM Polarity,Invert,Normal;",
+        "O78,SegaPCM Top Audio,Normal,PCM only,FM only;",
+        "O9A,SegaPCM PM3 Mix,Hold,Fresh,Gate;",
+        "OBD,SegaPCM PM3 Start,Strict,QualRst,QualRep,QualIdle,Broad,BackOnly,NoDup,Near;",
+        "OE,SegaPCM Backend,PM3,JT;",
+
+
+
+
+
+
+
+
+
+
+
+        "-;",
+        "R0,Reset;",
+        "V,v",0
+    };
+
+    wire [31:0] status;
+    wire  [1:0] buttons;
+    wire        forced_scandoubler;
+    wire        video_rotated;
+    wire        direct_video;
+    wire [21:0] gamma_bus;
+
+    wire        ioctl_download;
+    wire        ioctl_wr;
+    wire [26:0] ioctl_addr;
+    wire  [7:0] ioctl_dout;
+    wire [15:0] ioctl_index;
+    wire        ioctl_wait;
+    wire        vgm_load_busy;
+    wire        vgm_load_done;
+    wire        vgm_load_error;
+    wire        vgm_load_overflow;
+    wire        vgm_header_valid;
+    wire        vgm_player_error;
+    wire  [7:0] vgm_unsupported_opcode;
+    wire [17:0] vgm_unsupported_pc;
+    wire  [7:0] vgm_player_error_code;
+    wire [17:0] vgm_error_pc_debug;
+    wire  [7:0] vgm_error_cmd_debug;
+    wire [31:0] vgm_error_session_id;
+    wire  [6:0] vgm_player_state_debug;
+    wire        vgm_mem_rd_req_debug;
+    wire        vgm_mem_rd_ready_debug;
+    wire        vgm_mem_rd_valid_debug;
+    wire [17:0] vgm_mem_rd_addr_debug;
+    wire [15:0] vgm_player_core_debug;
+    wire [15:0] vgm_player_lifecycle_debug;
+    wire  [7:0] vgm_player_last_read_byte_debug;
+    wire [31:0] vgm_header_magic_read_debug;
+    wire  [3:0] vgm_header_magic_fail_index_debug;
+    wire [17:0] vgm_read_request_addr_debug;
+    wire [17:0] vgm_read_response_addr_debug;
+    wire        vgm_read_pending_debug;
+    wire        vgm_read_valid_consumed_debug;
+    wire  [6:0] vgm_final_state_debug;
+    wire [17:0] vgm_final_pc_debug;
+    wire  [7:0] vgm_final_cmd_debug;
+    wire  [7:0] vgm_final_error_code_debug;
+    wire [15:0] vgm_final_flags_debug;
+    wire  [3:0] vgm_final_reason_debug;
+    wire [15:0] vgm_final_progress_debug;
+    wire  [7:0] vgm_first_playback_cmd_after_scan_debug;
+    wire [31:0] vgm_first_playback_cmds_after_scan_debug;
+    wire  [6:0] vgm_scan_state_debug;
+    wire [17:0] vgm_scan_pc_debug;
+    wire  [7:0] vgm_scan_last_cmd_debug;
+    wire  [7:0] vgm_scan_block_type_debug;
+    wire [15:0] vgm_scan_block_size_low_debug;
+    wire [15:0] vgm_scan_remaining_low_debug;
+    wire [15:0] vgm_scan_wait_debug;
+    wire  [7:0] vgm_scan_abort_reason_debug;
+    wire [15:0] vgm_scan_copy_last_index_low_debug;
+    wire [15:0] vgm_scan_copy_req_count_debug;
+    wire [15:0] vgm_scan_copy_ready_count_debug;
+    wire [15:0] vgm_scan_copy_tail_debug;
+    wire [15:0] vgm_scan_player_accept_count_debug;
+    wire [15:0] vgm_scan_player_remaining_debug;
+    wire [15:0] vgm_scan_payload_len_low_debug;
+    wire        vgm_scan_remaining_zero_before_expected_accept_debug;
+    wire [15:0] vgm_scan_zero_state_debug;
+    wire [15:0] vgm_scan_zero_pc_debug;
+    wire [15:0] vgm_scan_zero_cmd_debug;
+    wire [15:0] vgm_scan_copy_accept_fire_count_debug;
+    wire [15:0] vgm_scan_noncopy_advance_count_debug;
+    wire        vgm_scan_used_noncopy_advance_debug;
+    wire [15:0] vgm_scan_raw_copy_byte_count_debug;
+    wire [15:0] vgm_scan_raw_event_debug;
+    wire [15:0] vgm_scan_copy_exit_debug;
+    wire [15:0] vgm_scan_copy_exit_pc_debug;
+    wire [15:0] vgm_scan_copy_exit_count_debug;
+    wire [15:0] vgm_scan_copy_phase_debug;
+    wire [15:0] vgm_scan_copy_read_req_count_debug;
+    wire [15:0] vgm_scan_copy_read_accept_count_debug;
+    wire [15:0] vgm_scan_copy_read_accept_internal_debug;
+    wire [15:0] vgm_scan_copy_read_valid_count_debug;
+    wire [15:0] vgm_scan_copy_mem_req_cycle_count_debug;
+    wire [15:0] vgm_scan_copy_mem_req_ready_cycle_count_debug;
+    wire [15:0] vgm_scan_copy_request_state_debug;
+    wire [15:0] vgm_scan_copy_state_lifetime_debug;
+    wire [15:0] vgm_scan_copy_clear_reason_debug;
+    wire [15:0] vgm_scan_copy_payload_pc_debug;
+    wire [15:0] vgm_scan_copy_first01_debug;
+    wire [15:0] vgm_scan_copy_first23_debug;
+    wire [15:0] vgm_scan_copy_first45_debug;
+    wire [15:0] vgm_scan_copy_first67_debug;
+    wire [15:0] vgm_scan_copy_first8_phase_debug;
+    wire [15:0] vgm_scan_copy_read_raw_valid_count_debug;
+    wire [15:0] vgm_scan_copy_read_ignored_valid_count_debug;
+    wire [15:0] vgm_scan_copy_read_handshake_debug;
+    wire [15:0] vgm_scan_payload_o0_debug;
+    wire [15:0] vgm_scan_payload_oh_debug;
+    wire [15:0] vgm_scan_payload_bd_debug;
+    wire [15:0] vgm_scan_payload_af_debug;
+    wire [15:0] vgm_scan_payload_ah_debug;
+    wire [15:0] vgm_scan_payload_oh2_debug;
+    wire [15:0] vgm_scan_payload_as_debug;
+    wire [15:0] vgm_scan_payload_vd_debug;
+    wire [15:0] vgm_scan_payload_vh_debug;
+    wire [15:0] vgm_scan_payload_vs_debug;
+    wire [15:0] vgm_scan_payload_cp_debug;
+    wire [15:0] vgm_scan_payload_ch_debug;
+    wire [15:0] vgm_scan_payload_cs_debug;
+    wire [15:0] vgm_scan_raw_player_accept_count_debug;
+    wire [15:0] vgm_scan_raw_copy_accept_count_debug;
+    wire [15:0] vgm_scan_raw_read_accept_count_debug;
+    wire [15:0] vgm_scan_raw_read_valid_count_debug;
+    wire [15:0] vgm_scan_max_player_accept_count_debug;
+    wire [15:0] vgm_scan_max_copy_accept_count_debug;
+    wire [15:0] vgm_scan_max_read_accept_count_debug;
+    wire [15:0] vgm_scan_max_read_valid_count_debug;
+    wire [15:0] vgm_scan_counter_latch_accept_debug;
+    wire [15:0] vgm_scan_counter_latch_read_debug;
+    wire [15:0] vgm_scan_counter_anomaly_debug;
+    wire [15:0] vgm_scan_counter_reset_source_debug;
+    wire [15:0] vgm_scan_stop_source_debug;
+    wire [15:0] vgm_scan_term_pl_debug;
+    wire [15:0] vgm_scan_term_rm_debug;
+    wire [15:0] vgm_scan_term_cc_debug;
+    wire [15:0] vgm_scan_term_nx_debug;
+    wire [15:0] vgm_scan_term_be_debug;
+    wire [15:0] vgm_scan_guard_debug;
+    wire [15:0] vgm_scan_sticky_guard_debug;
+    wire [15:0] vgm_scan_payload_qg_debug;
+    wire [15:0] vgm_scan_payload_sf_debug;
+    wire [15:0] mode5_backend_copy_accept_count_debug;
+    wire [15:0] mode5_backend_copy_write_count_debug;
+    wire [15:0] mode5_backend_copy_fifo_debug;
+    wire [15:0] mode5_backend_copy_ready_debug;
+    wire [15:0] mode5_backend_copy_write_req_debug;
+    wire [15:0] mode5_backend_copy_word_debug;
+    wire [15:0] mode5_backend_copy_flush_debug;
+    wire [15:0] mode5_backend_copy_full_detect_count_debug;
+    wire [15:0] mode5_backend_copy_push_req_count_debug;
+    wire [15:0] mode5_backend_copy_push_fire_count_debug;
+    wire [15:0] mode5_backend_copy_fifo_push_count_debug;
+    wire [15:0] mode5_backend_copy_pack_ready_debug;
+    wire [15:0] mode5_backend_copy_post_push_debug;
+    wire [15:0] mode5_backend_read_gate_debug;
+    wire [15:0] mode5_backend_read_after_copy_count_debug;
+
+    wire [15:0] smoke_ddr_payload_tap_count_debug;
+    wire [15:0] smoke_ddr_last_read_index_debug;
+    wire [7:0] smoke_ddr_last_read_data_debug;
+    wire [15:0] smoke_ddr_last_read_word0_debug;
+    wire [15:0] smoke_ddr_last_read_word1_debug;
+    wire [15:0] smoke_ddr_probe_write_index_debug;
+    wire [15:0] smoke_ddr_probe_write_word_debug;
+    wire [15:0] smoke_ddr_probe_write_lane_debug;
+    wire [15:0] smoke_ddr_probe_write_addr_debug;
+    wire [15:0] smoke_ddr_probe_write_count_debug;
+    wire [15:0] smoke_ddr_probe_write_flags_debug;
+    wire [15:0] smoke_ddr_probe_write_word0_debug;
+    wire [15:0] smoke_ddr_probe_write_word6_debug;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    wire [15:0] mode5_read_mux_debug;
+    wire [15:0] mode5_read_ready_compare_debug;
+    wire [15:0] mode5_read_ready_blocker_debug;
+    wire [15:0] mode5_copy_mismatch_debug;
+    wire [15:0] mode5_copy_max_ready_count_debug;
+    wire [15:0] mode5_copy_min_remaining_debug;
+    wire [15:0] mode5_restart_after_load_count_debug;
+    wire [15:0] mode5_scan_start_count_debug;
+    wire [15:0] mode5_direct_start_debug;
+    wire [15:0] mode5_top_stop_snapshot_debug;
+    wire [18:0] vgm_load_size;
+    wire [31:0] vgm_load_magic;
+    wire [17:0] vgm_data_start_debug;
+    wire [17:0] vgm_current_pc_debug;
+    wire [17:0] vgm_loop_pc_debug;
+    wire        vgm_loop_valid_debug;
+    wire        vgm_loop_taken_debug;
+    wire        vgm_end_command_seen;
+    wire        vgm_restarted_from_data_start;
+    wire        vgm_pcm_oob;
+    wire [31:0] vgm_pcm_oob_count;
+    wire [31:0] vgm_wait_ticks_consumed_debug;
+    wire [31:0] dac_stream_cmd_count;
+    wire [31:0] dac_stream_wait_samples_total;
+    wire [31:0] dac_stream_clk_cycles_total;
+    wire [31:0] dac_stream_overhead_cycles_total;
+    wire [31:0] max_dac_stream_cmd_cycles;
+    wire [31:0] count_wait0_dac_stream_cmd;
+    wire [31:0] count_wait0_overhead_nonzero;
+    wire [31:0] segapcm_write_count;
+    wire [15:0] segapcm_last_addr;
+    wire  [7:0] segapcm_last_data;
+    wire [15:0] segapcm_core_rom_addr_low;
+    wire [15:0] segapcm_core_rom_addr_raw_high;
+    wire [15:0] segapcm_core_rom_addr_raw_low;
+    wire [15:0] segapcm_core_rom_addr_mapped_high;
+    wire [15:0] segapcm_core_rom_addr_mapped_low;
+    wire [15:0] segapcm_core_rom_addr_min_high;
+    wire [15:0] segapcm_core_rom_addr_min_low;
+    wire [15:0] segapcm_core_rom_addr_max_high;
+    wire [15:0] segapcm_core_rom_addr_max_low;
+    wire [15:0] segapcm_core_rom_audio_active_high;
+    wire [15:0] segapcm_core_rom_audio_active_low;
+    wire [15:0] segapcm_core_rom_first_after_ctrl_high;
+    wire [15:0] segapcm_core_rom_first_after_ctrl_low;
+    wire [15:0] segapcm_core_rom_range_group;
+    wire [15:0] segapcm_core_rom_range_group2;
+    wire [15:0] segapcm_core_rom_early_after_ctrl_high;
+    wire [15:0] segapcm_core_rom_early_after_ctrl_low;
+    wire [15:0] segapcm_core_rom_active_after_ctrl_high;
+    wire [15:0] segapcm_core_rom_active_after_ctrl_low;
+    wire [15:0] segapcm_core_rom_hit_miss_compact;
+    wire [15:0] segapcm_core_rom_range_hit_count;
+    wire [15:0] segapcm_core_rom_range_miss_count;
+    wire [15:0] segapcm_core_rom_activity_count;
+    wire [15:0] segapcm_core_rom_return_mapped_high;
+    wire [15:0] segapcm_core_rom_return_mapped_low;
+    wire [15:0] segapcm_core_rom_return_data;
+    wire [15:0] segapcm_core_rom_return_last01;
+    wire [15:0] segapcm_core_rom_return_last23;
+    wire [15:0] segapcm_core_rom_return_nonzero_count;
+    wire [15:0] segapcm_core_rom_return_change_count;
+    wire [15:0] segapcm_core_rom_return_neutral_count;
+    wire [15:0] segapcm_core_rom_preload_data;
+    wire [15:0] segapcm_core_rom_core_ok_count;
+    wire [15:0] segapcm_core_rom_fallback_count;
+    wire [15:0] segapcm_core_rom_read_valid_count;
+    wire [15:0] segapcm_core_rom_latency_debug;
+    wire [15:0] segapcm_core_rom_payload_len_low;
+    wire [15:0] segapcm_core_rom_payload_len_high;
+    wire [15:0] segapcm_core_pcm_debug_bk;
+    wire [15:0] segapcm_core_pcm_debug_cuh;
+    wire [15:0] segapcm_core_pcm_debug_cul;
+    wire [15:0] segapcm_core_known38686_flags;
+    wire [15:0] segapcm_core_known38686_bank;
+    wire [15:0] segapcm_core_known38686_channel;
+    wire [15:0] segapcm_core_known38686_state;
+    wire [15:0] segapcm_core_known38686_cur_high;
+    wire [15:0] segapcm_core_known38686_cur_low;
+    wire [15:0] segapcm_core_known38686_en_addr;
+    wire [15:0] segapcm_core_known38686_en_value;
+    wire [15:0] segapcm_core_known38686_d0_addr;
+    wire [15:0] segapcm_core_known38686_d0_value;
+    wire [15:0] segapcm_core_known38686_d1_addr;
+    wire [15:0] segapcm_core_known38686_d1_value;
+    wire [15:0] segapcm_core_known38686_d2_addr;
+    wire [15:0] segapcm_core_known38686_d2_value;
+    wire [15:0] segapcm_core_known38686_cfg_en;
+    wire [15:0] segapcm_core_known38686_cur_23;
+    wire [15:0] segapcm_core_known38686_cur_15;
+    wire [15:0] segapcm_core_known38686_cur_07;
+    wire [15:0] segapcm_core_c0_capture_write_count;
+    wire [15:0] segapcm_core_c0_capture_last_addr;
+    wire [15:0] segapcm_core_c0_capture_last_data;
+    wire [15:0] segapcm_core_c0_capture_channel_activity;
+    wire [15:0] segapcm_core_c0_capture_selected_channel;
+    wire [15:0] segapcm_core_c0_capture_ch3_ctrl;
+    wire [15:0] segapcm_core_c0_capture_ch3_cur_low;
+    wire [15:0] segapcm_core_c0_capture_ch3_cur_mid;
+    wire [15:0] segapcm_core_c0_capture_ch3_cur_high;
+    wire [15:0] segapcm_core_c0_capture_ch3_delta;
+    wire [15:0] segapcm_core_c0_capture_ch3_vol_l;
+    wire [15:0] segapcm_core_c0_capture_ch3_vol_r;
+    wire [15:0] segapcm_core_c0_capture_ch3_loop;
+    wire [15:0] segapcm_core_c0_capture_ch3_end;
+    wire [15:0] segapcm_core_jt_smoke_vol_l;
+    wire [15:0] segapcm_core_jt_smoke_vol_r;
+    wire [15:0] segapcm_core_jt_smoke_sample_byte;
+    wire [15:0] segapcm_core_jt_smoke_out_l;
+    wire [15:0] segapcm_core_jt_smoke_out_r;
+    wire [15:0] segapcm_core_ch3_evolution_flags;
+    wire [15:0] segapcm_core_ch3_delta;
+    wire [15:0] segapcm_core_ch1_first_high;
+    wire [15:0] segapcm_core_ch1_first_low;
+    wire [15:0] segapcm_core_ch1_first_raw_high;
+    wire [15:0] segapcm_core_ch1_first_raw_low;
+    wire [15:0] segapcm_core_ch3_first_high;
+    wire [15:0] segapcm_core_ch3_first_low;
+    wire [15:0] segapcm_core_ch3_first_raw_high;
+    wire [15:0] segapcm_core_ch3_first_raw_low;
+    wire [15:0] segapcm_core_ch3_r0_high;
+    wire [15:0] segapcm_core_ch3_r0_low;
+    wire [15:0] segapcm_core_ch3_r1_high;
+    wire [15:0] segapcm_core_ch3_r1_low;
+    wire [15:0] segapcm_core_ch3_r2_high;
+    wire [15:0] segapcm_core_ch3_r2_low;
+    wire [15:0] segapcm_core_ch3_load_after_23;
+    wire [15:0] segapcm_core_ch3_load_after_15;
+    wire [15:0] segapcm_core_ch3_load_after_07;
+    wire [15:0] segapcm_core_update_state_channel;
+    wire [15:0] segapcm_core_update_before_23;
+    wire [15:0] segapcm_core_update_before_15;
+    wire [15:0] segapcm_core_update_before_07;
+    wire [15:0] segapcm_core_update_addend;
+    wire [15:0] segapcm_core_update_after_23;
+    wire [15:0] segapcm_core_update_after_15;
+    wire [15:0] segapcm_core_update_after_07;
+    wire [15:0] segapcm_core_update_reason;
+    wire [15:0] segapcm_core_cpu_write_count;
+    wire [15:0] segapcm_core_cpu_cen_write_count;
+    wire [15:0] segapcm_core_cpu_addr_debug;
+    wire [15:0] segapcm_core_shadow_decode_debug;
+    wire [15:0] segapcm_core_shadow_ch0_vol_debug;
+    wire [15:0] segapcm_core_shadow_ch0_end_delta_debug;
+    wire [15:0] segapcm_core_shadow_ch0_start_debug;
+    wire [15:0] segapcm_core_shadow_ch0_ctrl_debug;
+    wire [15:0] segapcm_core_shadow_ch1_vol_debug;
+    wire [15:0] segapcm_core_shadow_ch1_loop_debug;
+    wire [15:0] segapcm_core_shadow_ch1_end_delta_debug;
+    wire [15:0] segapcm_core_shadow_ch1_start_debug;
+    wire [15:0] segapcm_core_shadow_ch1_ctrl_debug;
+    wire [15:0] segapcm_core_shadow_ch3_loop_debug;
+    wire [15:0] segapcm_core_shadow_ch3_end_delta_debug;
+    wire [15:0] segapcm_core_shadow_ch3_start_debug;
+    wire [15:0] segapcm_core_shadow_ch3_ctrl_debug;
+    wire [15:0] segapcm_core_shadow_ch3_l0_debug;
+    wire [15:0] segapcm_core_shadow_ch3_l2_debug;
+    wire [15:0] segapcm_core_shadow_ch3_l4_debug;
+    wire [15:0] segapcm_core_shadow_ch3_l6_debug;
+    wire [15:0] segapcm_core_shadow_ch3_h0_debug;
+    wire [15:0] segapcm_core_shadow_ch3_h2_debug;
+    wire [15:0] segapcm_core_shadow_ch3_h4_debug;
+    wire [15:0] segapcm_core_shadow_ch3_h6_debug;
+    wire [15:0] segapcm_core_audio_nonzero_count;
+    wire [15:0] segapcm_core_audio_abs_peak;
+    wire signed [15:0] segapcm_core_last_audio_l;
+    wire signed [15:0] segapcm_core_last_audio_r;
+    wire [15:0] segapcm_core_status_debug;
+    wire [31:0] data_block_count;
+    wire  [7:0] last_data_block_type;
+    wire [15:0] last_data_block_size_low;
+    wire [31:0] parser_command_count_debug;
+    wire [31:0] parser_data_block_count_debug;
+    wire  [7:0] parser_last_block_type_debug;
+    wire [31:0] parser_type00_block_count_debug;
+    wire [31:0] parser_type80_block_count_debug;
+    wire [31:0] segapcm_rom_block_count;
+    wire [31:0] segapcm_last_rom_size;
+    wire [31:0] segapcm_last_rom_start;
+    wire [31:0] pcm_ram_write_skip_count;
+    wire        segapcm_rom_scan_busy;
+    wire        segapcm_rom_scan_done;
+    wire        segapcm_rom_scan_overflow;
+    wire [31:0] segapcm_rom_scan_block_count;
+    wire [31:0] segapcm_rom_scan_byte_count;
+    wire [31:0] segapcm_rom_scan_checksum32;
+    wire [31:0] segapcm_rom_scan_total_size;
+    wire [31:0] segapcm_rom_scan_last_start;
+    wire [31:0] segapcm_rom_copy_byte_count;
+    wire        segapcm_rom_copy_overflow;
+    wire        segapcm_rom_copy_flush_done;
+    wire        segapcm_copy_flush_req_debug;
+    logic [31:0] segapcm_type80_payload_len_debug;
+    always @* begin
+        segapcm_type80_payload_len_debug = 32'd0;
+        if (segapcm_last_rom_size > 32'd8) begin
+            segapcm_type80_payload_len_debug =
+                segapcm_last_rom_size - 32'd8;
+        end
+    end
+    wire        mode5_sound_reset_active;
+    wire        mode5_player_start_pulse_debug;
+    wire [15:0] mode5_start_hold_debug;
+    wire [31:0] mode5_load_begin_count;
+    wire [31:0] mode5_load_done_edge_count;
+    wire [31:0] mode5_sound_reset_start_count;
+    wire [31:0] mode5_player_start_count;
+    wire [31:0] mode5_player_reset_count;
+    wire [31:0] mode5_playback_session_id;
+    wire [31:0] mode5_duplicate_start_blocked_count;
+    wire [31:0] mode5_player_end_count;
+    wire [31:0] mode5_repeat_restart_count;
+    wire        mode5_done_armed_debug;
+    wire [31:0] mode5_repeat_session_id;
+    wire [31:0] mode5_done_session_id;
+    wire [31:0] mode5_cycles_since_start;
+    wire [17:0] mode5_done_pc_debug;
+    wire  [7:0] mode5_done_cmd_debug;
+    wire [15:0] fm_adjust_clip_count_l;
+    wire [15:0] fm_adjust_clip_count_r;
+    wire [15:0] genmix_wrap_count_l;
+    wire [15:0] genmix_wrap_count_r;
+    wire [31:0] ym_write_requested_count;
+    wire [31:0] ym_write_accepted_count;
+    wire [31:0] ym_write_dropped_or_busy_count;
+    wire [31:0] ym_port0_count;
+    wire [31:0] ym_port1_count;
+    wire        last_ym_port;
+    wire  [7:0] last_ym_addr;
+    wire  [7:0] last_ym_data;
+    wire [15:0] jt12_cen_interval_1_count;
+    wire [15:0] jt12_cen_interval_2_count;
+    wire [15:0] jt12_cen_interval_3_count;
+    wire [15:0] jt12_cen_interval_4_count;
+    wire [15:0] jt12_cen_interval_ge5_count;
+    wire  [7:0] jt12_cen_interval_min;
+    wire  [7:0] jt12_cen_interval_max;
+    wire  [7:0] jt12_cen_interval_last;
+    wire [15:0] fm_raw_abs_peak;
+    wire [15:0] fm_adjust_abs_peak;
+    wire [15:0] fm_lpf_abs_peak;
+    wire [15:0] genmix_abs_peak;
+    wire [15:0] md_final_audio_abs_peak;
+    wire [15:0] c0_top_dbg_tp;
+    wire [15:0] c0_top_dbg_sl;
+    wire [15:0] c0_top_dbg_sr;
+    wire [15:0] c0_top_dbg_ml;
+    wire [15:0] c0_top_dbg_mr;
+    wire [15:0] c0_top_dbg_fl;
+    wire [15:0] c0_top_dbg_fr;
+    wire [15:0] c0_top_dbg_ol;
+    wire [15:0] c0_top_dbg_or;
+    wire [15:0] c0_top_dbg_tm;
+    reg   [7:0] mode5_last_error_code = 8'd0;
+
+    wire [31:0] joystick_0;
+    wire [31:0] joystick_1;
+    wire [31:0] joystick_2;
+    wire [31:0] joystick_3;
+    wire [31:0] joystick_4;
+    wire [31:0] joystick_5;
+    wire [15:0] joystick_l_analog_0;
+    wire [15:0] joystick_l_analog_1;
+    wire [15:0] joystick_l_analog_2;
+    wire [15:0] joystick_l_analog_3;
+    wire [15:0] joystick_l_analog_4;
+    wire [15:0] joystick_l_analog_5;
+    wire [15:0] joystick_r_analog_0;
+    wire [15:0] joystick_r_analog_1;
+    wire [15:0] joystick_r_analog_2;
+    wire [15:0] joystick_r_analog_3;
+    wire [15:0] joystick_r_analog_4;
+    wire [15:0] joystick_r_analog_5;
+    wire  [7:0] paddle_0;
+    wire  [7:0] paddle_1;
+    wire  [7:0] paddle_2;
+    wire  [7:0] paddle_3;
+    wire  [7:0] paddle_4;
+    wire  [7:0] paddle_5;
+    wire  [8:0] spinner_0;
+    wire  [8:0] spinner_1;
+    wire  [8:0] spinner_2;
+    wire  [8:0] spinner_3;
+    wire  [8:0] spinner_4;
+    wire  [8:0] spinner_5;
+    wire [10:0] ps2_key;
+    wire [24:0] ps2_mouse;
+    wire [15:0] ps2_mouse_ext;
+    wire [32:0] timestamp;
+
+    hps_io #(.CONF_STR(CONF_STR)) hps_io (
+        .clk_sys(clk_sys),
+        .HPS_BUS(HPS_BUS),
+        .buttons(buttons),
+        .status(status),
+        .status_menumask({direct_video}),
+        .forced_scandoubler(forced_scandoubler),
+        .video_rotated(video_rotated),
+        .direct_video(direct_video),
+
+        .ioctl_download(ioctl_download),
+        .ioctl_wr(ioctl_wr),
+        .ioctl_addr(ioctl_addr),
+        .ioctl_dout(ioctl_dout),
+        .ioctl_index(ioctl_index),
+        .ioctl_wait(ioctl_wait),
+
+        .joystick_0(joystick_0),
+        .joystick_1(joystick_1),
+        .joystick_2(joystick_2),
+        .joystick_3(joystick_3),
+        .joystick_4(joystick_4),
+        .joystick_5(joystick_5),
+
+        .joystick_l_analog_0(joystick_l_analog_0),
+        .joystick_l_analog_1(joystick_l_analog_1),
+        .joystick_l_analog_2(joystick_l_analog_2),
+        .joystick_l_analog_3(joystick_l_analog_3),
+        .joystick_l_analog_4(joystick_l_analog_4),
+        .joystick_l_analog_5(joystick_l_analog_5),
+
+        .joystick_r_analog_0(joystick_r_analog_0),
+        .joystick_r_analog_1(joystick_r_analog_1),
+        .joystick_r_analog_2(joystick_r_analog_2),
+        .joystick_r_analog_3(joystick_r_analog_3),
+        .joystick_r_analog_4(joystick_r_analog_4),
+        .joystick_r_analog_5(joystick_r_analog_5),
+
+        .paddle_0(paddle_0),
+        .paddle_1(paddle_1),
+        .paddle_2(paddle_2),
+        .paddle_3(paddle_3),
+        .paddle_4(paddle_4),
+        .paddle_5(paddle_5),
+
+        .spinner_0(spinner_0),
+        .spinner_1(spinner_1),
+        .spinner_2(spinner_2),
+        .spinner_3(spinner_3),
+        .spinner_4(spinner_4),
+        .spinner_5(spinner_5),
+
+        .ps2_key(ps2_key),
+        .ps2_mouse(ps2_mouse),
+        .ps2_mouse_ext(ps2_mouse_ext),
+
+        .TIMESTAMP(timestamp)
+    );
+
+    ////////////////////   CLOCKS   ///////////////////
+
+    wire clk_sys;
+    wire pll_locked;
+
+    pll pll (
+        .refclk(CLK_50M),
+        .rst(1'b0),
+        .outclk_0(clk_sys),
+        .locked(pll_locked)
+    );
+
+    ///////////////////   CLOCK DIVIDER   ////////////////////
+
+    wire ce_pix;
+    wire ce_2;
+
+    jtframe_cen24 divider (
+        .clk(clk_sys),
+        .cen6(ce_pix),
+        .cen2(ce_2)
+    );
+
+    ///////////////////   VIDEO   ////////////////////
+
+    wire reset = RESET | status[0] | !pll_locked;
+    wire vgm_reset_req = RESET | status[0] | !pll_locked;
+    reg [23:0] vgm_reset_hold_count = 24'd0;
+    reg        vgm_reset_hold_active = 1'b1;
+
+    always @(posedge clk_sys) begin
+        if (vgm_reset_req) begin
+            vgm_reset_hold_count <= 24'd0;
+            vgm_reset_hold_active <= 1'b1;
+        end else if (vgm_reset_hold_active) begin
+            if (&vgm_reset_hold_count) begin
+                vgm_reset_hold_active <= 1'b0;
+            end else begin
+                vgm_reset_hold_count <= vgm_reset_hold_count + 24'd1;
+            end
+        end
+    end
+
+    wire vgm_reset = vgm_reset_req | vgm_reset_hold_active;
+    wire vgm_reset_n = !vgm_reset;
+    // Public OSD keeps only the user-facing gain switch. The gold audio path
+    // stays fixed at no LPF and PSG 0.75 unless a development build overrides
+    // these through compile-time macros inside md_sound_module.
+    wire [1:0] audio_lpf_mode = 2'd3;
+    wire       audio_gain_boost = status[1];
+    wire [1:0] audio_psg_level = 2'd0;
+    wire               player_busy;
+
+
+    // SegaPCM experimental OSD/status map:
+    //   [0]   Reset
+    //   [1]   Audio Gain
+
+    // C0-only lab:
+    //   [2]   PM3 Source: MultiBlock16ch, LegacyCh3Block2
+    //   [5:3] PM3 Mask: ch3, ch1+3, ch0-3, ch0-7, all
+    //   [6]   Polarity: Invert, Normal
+    //   [8:7] Top Audio: Normal, PCM only, FM only
+    //   [10:9] PM3 Mix: Hold, Fresh, Gate
+    //   [13:11] PM3 Start: Strict, QualRst, QualRep, QualIdle, Broad, BackOnly, NoDup, Near
+    //   [14]  Backend: PM3 scaffold, JT SegaPCM
+
+
+
+
+
+
+
+
+
+    // Fixed while this map is stabilized:
+    //   smoke variant=0, loaded DDR source selected when Mode!=Off,
+    //   follow reader enabled for OffsetRef/DestFull, and for C0Drive only
+    //   while C0 Drive is not Off and the VGM player is busy; offset=0,
+    //   manual delta=08,
+    //   C0 volume map=Raw, end compare=Mid+1, loop source=Loop00.
+
+    wire [1:0] segapcm_smoke_mode = 2'd3;
+
+
+
+    wire       segapcm_smoke_active = (segapcm_smoke_mode != 2'd0);
+    wire [2:0] segapcm_smoke_variant = 3'd0;
+
+    wire [1:0] segapcm_smoke_c0_drive = 2'd2;
+
+
+
+
+    wire       segapcm_smoke_c0drive_enabled =
+        (segapcm_smoke_mode == 2'd3) &&
+        (segapcm_smoke_c0_drive != 2'd0);
+    wire       segapcm_smoke_c0drive_run =
+        segapcm_smoke_c0drive_enabled && player_busy;
+    wire       segapcm_smoke_ddr_follow =
+        (segapcm_smoke_mode == 2'd1) ||
+        (segapcm_smoke_mode == 2'd2) ||
+        segapcm_smoke_c0drive_run;
+    wire       segapcm_smoke_source_loaded = segapcm_smoke_ddr_follow;
+    wire [2:0] segapcm_smoke_ddr_offset = 3'd0;
+    wire [2:0] segapcm_smoke_ddr_delta = 3'd0;
+
+    wire       segapcm_smoke_ddr_c0_view = 1'b1;
+
+
+
+
+    wire [1:0] segapcm_smoke_c0_use = 2'd3;
+
+
+
+
+    wire [2:0] segapcm_smoke_c0_sample_mode = 3'd3;
+    wire [1:0] segapcm_smoke_c0_delta_speed = 2'd2;
+    wire [2:0] segapcm_smoke_c0_hit_window = 3'd0;
+    wire [1:0] segapcm_smoke_c0_format = {1'b0, !status[6]};
+    wire [2:0] segapcm_smoke_c0_mame_tick_div = 3'd0;
+
+
+
+
+
+
+
+
+    wire [2:0] segapcm_smoke_c0_vol_map = {2'd0, status[2]};
+    wire [2:0] segapcm_c0_pm3_mask_sel = status[5:3];
+    wire [15:0] segapcm_c0_pm3_audio_mask =
+        (segapcm_c0_pm3_mask_sel == 3'd0) ? 16'h0008 :
+        (segapcm_c0_pm3_mask_sel == 3'd1) ? 16'h000A :
+        (segapcm_c0_pm3_mask_sel == 3'd2) ? 16'h000F :
+        (segapcm_c0_pm3_mask_sel == 3'd3) ? 16'h00FF :
+        16'hFFFF;
+    wire [1:0] segapcm_c0_top_audio_test =
+        (status[8:7] == 2'd1) ? 2'd3 :
+        (status[8:7] == 2'd2) ? 2'd1 :
+        2'd0;
+    wire [1:0] segapcm_c0_pm3_mix_mode =
+        (status[10:9] == 2'd1) ? 2'd1 :
+        (status[10:9] == 2'd2) ? 2'd2 :
+        2'd0;
+    wire [2:0] segapcm_c0_pm3_start_policy =
+        (status[13:11] == 3'd1) ? 3'd1 :
+        (status[13:11] == 3'd2) ? 3'd2 :
+        (status[13:11] == 3'd3) ? 3'd3 :
+        (status[13:11] == 3'd4) ? 3'd4 :
+        (status[13:11] == 3'd5) ? 3'd5 :
+        (status[13:11] == 3'd6) ? 3'd6 :
+        (status[13:11] == 3'd7) ? 3'd7 :
+        3'd0;
+    wire       segapcm_c0_jt_backend = status[14];
+
+
+
+
+
+
+
+
+    wire       segapcm_smoke_ddr_dest_map =
+        (segapcm_smoke_mode == 2'd2) ||
+        (segapcm_smoke_mode == 2'd3);
+    wire [1:0] segapcm_smoke_ddr_dest_basis =
+        status[4] ? 2'd3 : 2'd1;
+    wire       segapcm_smoke_ddr_full_capture =
+        (segapcm_smoke_mode == 2'd2) ||
+        (segapcm_smoke_mode == 2'd3);
+
+    wire       segapcm_smoke_ddr_dest_loop_wrap = 1'b0;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    wire [2:0] segapcm_smoke_variant_for_debug = segapcm_smoke_variant;
+
+
+
+    wire [6:0] segapcm_smoke_manual_vol_l_debug =
+        (segapcm_smoke_variant_for_debug == 3'd4) ? 7'h20 :
+        (segapcm_smoke_variant_for_debug == 3'd6) ? 7'h00 :
+        7'h40;
+    wire [6:0] segapcm_smoke_manual_vol_r_debug =
+        (segapcm_smoke_variant_for_debug == 3'd4) ? 7'h20 :
+        (segapcm_smoke_variant_for_debug == 3'd5) ? 7'h00 :
+        7'h40;
+    wire [7:0] segapcm_smoke_manual_delta_debug =
+        (segapcm_smoke_ddr_delta == 3'd1) ? 8'h00 :
+        (segapcm_smoke_ddr_delta == 3'd2) ? 8'h01 :
+        (segapcm_smoke_ddr_delta == 3'd3) ? 8'h02 :
+        (segapcm_smoke_ddr_delta == 3'd4) ? 8'h04 :
+        (segapcm_smoke_ddr_delta == 3'd5) ? 8'h10 :
+        (segapcm_smoke_ddr_delta == 3'd6) ? 8'h20 :
+        (segapcm_smoke_ddr_delta == 3'd7) ? 8'h40 :
+        8'h08;
+    wire [23:0] segapcm_c0_current_seed_debug = {
+        segapcm_core_c0_capture_ch3_cur_high[7:0],
+        segapcm_core_c0_capture_ch3_cur_low[7:0],
+        8'd0
+    };
+    wire [23:0] segapcm_c0_current_alt_a_debug = {
+        segapcm_core_c0_capture_ch3_cur_high[7:0],
+        segapcm_core_c0_capture_ch3_cur_mid[7:0],
+        segapcm_core_c0_capture_ch3_cur_low[7:0]
+    };
+    wire [23:0] segapcm_c0_current_alt_b_debug = {
+        segapcm_core_c0_capture_ch3_cur_low[7:0],
+        segapcm_core_c0_capture_ch3_cur_mid[7:0],
+        segapcm_core_c0_capture_ch3_cur_high[7:0]
+    };
+    wire [23:0] segapcm_c0_loop_seed_base_debug = {
+        segapcm_core_c0_capture_ch3_loop[15:0],
+        8'd0
+    };
+    wire [23:0] segapcm_c0_loop_seed_debug = segapcm_c0_loop_seed_base_debug;
+    wire [6:0] segapcm_c0_raw_vol_l_debug = segapcm_core_c0_capture_ch3_vol_l[6:0];
+    wire [6:0] segapcm_c0_raw_vol_r_debug = segapcm_core_c0_capture_ch3_vol_r[6:0];
+    wire [6:0] segapcm_c0_vol_l_x2_debug =
+        (segapcm_c0_raw_vol_l_debug > 7'h3f) ? 7'h7f :
+        (segapcm_c0_raw_vol_l_debug << 1);
+    wire [6:0] segapcm_c0_vol_r_x2_debug =
+        (segapcm_c0_raw_vol_r_debug > 7'h3f) ? 7'h7f :
+        (segapcm_c0_raw_vol_r_debug << 1);
+    wire [6:0] segapcm_c0_vol_l_x4_debug =
+        (segapcm_c0_raw_vol_l_debug > 7'h1f) ? 7'h7f :
+        (segapcm_c0_raw_vol_l_debug << 2);
+    wire [6:0] segapcm_c0_vol_r_x4_debug =
+        (segapcm_c0_raw_vol_r_debug > 7'h1f) ? 7'h7f :
+        (segapcm_c0_raw_vol_r_debug << 2);
+    wire [6:0] segapcm_c0_vol_l_minboost_debug =
+        (segapcm_c0_raw_vol_l_debug == 7'd0) ? 7'd0 :
+        (segapcm_c0_raw_vol_l_debug < 7'h20) ? 7'h20 :
+        segapcm_c0_raw_vol_l_debug;
+    wire [6:0] segapcm_c0_vol_r_minboost_debug =
+        (segapcm_c0_raw_vol_r_debug == 7'd0) ? 7'd0 :
+        (segapcm_c0_raw_vol_r_debug < 7'h20) ? 7'h20 :
+        segapcm_c0_raw_vol_r_debug;
+    wire [6:0] segapcm_c0_vol_l_mapped_debug =
+        (segapcm_smoke_c0_vol_map == 3'd1) ? segapcm_c0_vol_l_x2_debug :
+        (segapcm_smoke_c0_vol_map == 3'd2) ? segapcm_c0_vol_l_x4_debug :
+        (segapcm_smoke_c0_vol_map == 3'd3) ? segapcm_c0_vol_l_minboost_debug :
+        (segapcm_smoke_c0_vol_map == 3'd4) ? (7'h7f - segapcm_c0_raw_vol_l_debug) :
+        (segapcm_smoke_c0_vol_map == 3'd5) ? segapcm_smoke_manual_vol_l_debug :
+        segapcm_c0_raw_vol_l_debug;
+    wire [6:0] segapcm_c0_vol_r_mapped_debug =
+        (segapcm_smoke_c0_vol_map == 3'd1) ? segapcm_c0_vol_r_x2_debug :
+        (segapcm_smoke_c0_vol_map == 3'd2) ? segapcm_c0_vol_r_x4_debug :
+        (segapcm_smoke_c0_vol_map == 3'd3) ? segapcm_c0_vol_r_minboost_debug :
+        (segapcm_smoke_c0_vol_map == 3'd4) ? (7'h7f - segapcm_c0_raw_vol_r_debug) :
+        (segapcm_smoke_c0_vol_map == 3'd5) ? segapcm_smoke_manual_vol_r_debug :
+        segapcm_c0_raw_vol_r_debug;
+    wire [15:0] segapcm_smoke_applied_vol_l_debug =
+        (segapcm_smoke_ddr_follow && segapcm_smoke_c0_use[0]) ?
+        {9'd0, segapcm_c0_vol_l_mapped_debug} :
+        {9'd0, segapcm_smoke_manual_vol_l_debug};
+    wire [15:0] segapcm_smoke_applied_vol_r_debug =
+        (segapcm_smoke_ddr_follow && segapcm_smoke_c0_use[0]) ?
+        {9'd0, segapcm_c0_vol_r_mapped_debug} :
+        {9'd0, segapcm_smoke_manual_vol_r_debug};
+    logic signed [8:0] segapcm_c0_sample_centered9_debug;
+    always_comb begin
+        segapcm_c0_sample_centered9_debug =
+            $signed({1'b0, segapcm_core_ch3_delta[7:0]}) - 9'sd128;
+
+        case (segapcm_smoke_c0_sample_mode)
+            2'd1: begin
+                segapcm_c0_sample_centered9_debug =
+                    $signed({segapcm_core_ch3_delta[7],
+                             segapcm_core_ch3_delta[7:0]});
+            end
+            2'd2: begin
+                segapcm_c0_sample_centered9_debug =
+                    9'sd128 - $signed({1'b0, segapcm_core_ch3_delta[7:0]});
+            end
+            2'd3: begin
+                segapcm_c0_sample_centered9_debug =
+                    $signed({1'b0, 1'b0, segapcm_core_ch3_delta[7:1]});
+            end
+            default: begin
+                segapcm_c0_sample_centered9_debug =
+                    $signed({1'b0, segapcm_core_ch3_delta[7:0]}) - 9'sd128;
+            end
+        endcase
+
+    end
+    wire [15:0] segapcm_c0_sample_centered_debug =
+        {{7{segapcm_c0_sample_centered9_debug[8]}},
+         segapcm_c0_sample_centered9_debug};
+    wire signed [8:0] segapcm_lab_sample_centered9_debug =
+        $signed({1'b0, segapcm_core_jt_smoke_sample_byte[7:0]}) - 9'sd128;
+
+    wire               audio_sample_valid;
+    wire               player_done;
+    wire         [9:0] player_pc_debug;
+    wire         [7:0] player_last_cmd_debug;
+    wire               startup_reset_active;
+    wire               startup_waiting;
+    wire               startup_done;
+
+
+
+
+    localparam int VGM_MODE5_BACKEND_PARAM = 0;
+
+
+
+
+
+    // Keep the BRAM backend at the proven 256KiB size.
+    // The DDRAM backend can safely use a wider VGM address space.
+    localparam int VGM_LOAD_ADDR_WIDTH_PARAM =
+        (VGM_MODE5_BACKEND_PARAM == 1) ? 22 : 18;
+
+
+    mister_vgm_md_top #(
+        .VGM_LOAD_ADDR_WIDTH(VGM_LOAD_ADDR_WIDTH_PARAM),
+        .MODE5_REPEAT_ENABLE(MODE5_REPEAT_ENABLE_BUILD),
+        .MODE5_VGM_BACKEND(VGM_MODE5_BACKEND_PARAM)
+    ) md_sound (
+        .clk                   (clk_sys),
+        .reset_n               (vgm_reset_n),
+        .audio_l               (md_audio_l),
+        .audio_r               (md_audio_r),
+        .audio_sample_valid    (audio_sample_valid),
+        .audio_lpf_mode        (audio_lpf_mode),
+        .audio_gain_boost      (audio_gain_boost),
+        .audio_psg_level       (audio_psg_level),
+
+        .segapcm_smoke_variant (segapcm_smoke_variant),
+        .segapcm_smoke_variant_valid(1'b1),
+        .segapcm_smoke_source_loaded(segapcm_smoke_source_loaded),
+
+        .segapcm_smoke_ddr_follow(segapcm_smoke_ddr_follow),
+        .segapcm_smoke_ddr_offset(segapcm_smoke_ddr_offset),
+        .segapcm_smoke_ddr_delta(segapcm_smoke_ddr_delta),
+        .segapcm_smoke_c0_use(segapcm_smoke_c0_use),
+        .segapcm_smoke_c0_sample_mode(segapcm_smoke_c0_sample_mode),
+        .segapcm_smoke_c0_delta_speed(segapcm_smoke_c0_delta_speed),
+        .segapcm_smoke_c0_hit_window(segapcm_smoke_c0_hit_window),
+        .segapcm_smoke_c0_format(segapcm_smoke_c0_format),
+        .segapcm_smoke_c0_mame_tick_div(segapcm_smoke_c0_mame_tick_div),
+        .segapcm_smoke_c0_vol_map(segapcm_smoke_c0_vol_map),
+        .segapcm_smoke_c0_drive(segapcm_smoke_c0_drive),
+        .segapcm_c0_pm3_audio_mask(segapcm_c0_pm3_audio_mask),
+        .segapcm_c0_top_audio_test(segapcm_c0_top_audio_test),
+        .segapcm_c0_pm3_mix_mode(segapcm_c0_pm3_mix_mode),
+        .segapcm_c0_pm3_start_policy(segapcm_c0_pm3_start_policy),
+        .segapcm_c0_jt_backend(segapcm_c0_jt_backend),
+        .segapcm_smoke_ddr_dest_map(segapcm_smoke_ddr_dest_map),
+        .segapcm_smoke_ddr_dest_basis(segapcm_smoke_ddr_dest_basis),
+        .segapcm_smoke_ddr_full_capture(segapcm_smoke_ddr_full_capture),
+        .segapcm_smoke_ddr_dest_loop_wrap(segapcm_smoke_ddr_dest_loop_wrap),
+
+
+        .player_busy           (player_busy),
+        .player_done           (player_done),
+        .player_pc_debug       (player_pc_debug),
+        .player_last_cmd_debug (player_last_cmd_debug),
+        .startup_reset_active  (startup_reset_active),
+        .startup_waiting       (startup_waiting),
+        .startup_done          (startup_done),
+        .audio_gate_open       (audio_gate_open),
+        .audio_muted           (audio_muted),
+        .ioctl_download        (ioctl_download),
+        .ioctl_wr              (ioctl_wr),
+        .ioctl_addr            (ioctl_addr),
+        .ioctl_dout            (ioctl_dout),
+        .ioctl_index           (ioctl_index),
+        .ioctl_wait            (ioctl_wait),
+        .vgm_load_busy         (vgm_load_busy),
+        .vgm_load_done         (vgm_load_done),
+        .vgm_load_error        (vgm_load_error),
+        .vgm_load_overflow     (vgm_load_overflow),
+        .vgm_header_valid      (vgm_header_valid),
+        .vgm_player_error      (vgm_player_error),
+        .vgm_unsupported_opcode(vgm_unsupported_opcode),
+        .vgm_unsupported_pc    (vgm_unsupported_pc),
+        .vgm_player_error_code (vgm_player_error_code),
+        .vgm_error_pc_debug    (vgm_error_pc_debug),
+        .vgm_error_cmd_debug   (vgm_error_cmd_debug),
+        .vgm_error_session_id  (vgm_error_session_id),
+        .vgm_player_state_debug(vgm_player_state_debug),
+        .vgm_mem_rd_req_debug  (vgm_mem_rd_req_debug),
+        .vgm_mem_rd_ready_debug(vgm_mem_rd_ready_debug),
+        .vgm_mem_rd_valid_debug(vgm_mem_rd_valid_debug),
+        .vgm_mem_rd_addr_debug (vgm_mem_rd_addr_debug),
+        .vgm_player_core_debug (vgm_player_core_debug),
+        .vgm_player_lifecycle_debug(vgm_player_lifecycle_debug),
+        .vgm_player_last_read_byte_debug(vgm_player_last_read_byte_debug),
+        .vgm_header_magic_read_debug(vgm_header_magic_read_debug),
+        .vgm_header_magic_fail_index_debug(vgm_header_magic_fail_index_debug),
+        .vgm_read_request_addr_debug(vgm_read_request_addr_debug),
+        .vgm_read_response_addr_debug(vgm_read_response_addr_debug),
+        .vgm_read_pending_debug(vgm_read_pending_debug),
+        .vgm_read_valid_consumed_debug(vgm_read_valid_consumed_debug),
+        .vgm_final_state_debug (vgm_final_state_debug),
+        .vgm_final_pc_debug    (vgm_final_pc_debug),
+        .vgm_final_cmd_debug   (vgm_final_cmd_debug),
+        .vgm_final_error_code_debug(vgm_final_error_code_debug),
+        .vgm_final_flags_debug (vgm_final_flags_debug),
+        .vgm_final_reason_debug(vgm_final_reason_debug),
+        .vgm_final_progress_debug(vgm_final_progress_debug),
+        .vgm_first_playback_cmd_after_scan_debug(vgm_first_playback_cmd_after_scan_debug),
+        .vgm_first_playback_cmds_after_scan_debug(vgm_first_playback_cmds_after_scan_debug),
+        .vgm_scan_state_debug (vgm_scan_state_debug),
+        .vgm_scan_pc_debug    (vgm_scan_pc_debug),
+        .vgm_scan_last_cmd_debug(vgm_scan_last_cmd_debug),
+        .vgm_scan_block_type_debug(vgm_scan_block_type_debug),
+        .vgm_scan_block_size_low_debug(vgm_scan_block_size_low_debug),
+        .vgm_scan_remaining_low_debug(vgm_scan_remaining_low_debug),
+        .vgm_scan_wait_debug  (vgm_scan_wait_debug),
+        .vgm_scan_abort_reason_debug(vgm_scan_abort_reason_debug),
+        .vgm_scan_copy_last_index_low_debug(vgm_scan_copy_last_index_low_debug),
+        .vgm_scan_copy_req_count_debug(vgm_scan_copy_req_count_debug),
+        .vgm_scan_copy_ready_count_debug(vgm_scan_copy_ready_count_debug),
+        .vgm_scan_copy_tail_debug(vgm_scan_copy_tail_debug),
+        .vgm_scan_player_accept_count_debug(vgm_scan_player_accept_count_debug),
+        .vgm_scan_player_remaining_debug(vgm_scan_player_remaining_debug),
+        .vgm_scan_payload_len_low_debug(vgm_scan_payload_len_low_debug),
+        .vgm_scan_remaining_zero_before_expected_accept_debug(vgm_scan_remaining_zero_before_expected_accept_debug),
+        .vgm_scan_zero_state_debug(vgm_scan_zero_state_debug),
+        .vgm_scan_zero_pc_debug(vgm_scan_zero_pc_debug),
+        .vgm_scan_zero_cmd_debug(vgm_scan_zero_cmd_debug),
+        .vgm_scan_copy_accept_fire_count_debug(vgm_scan_copy_accept_fire_count_debug),
+        .vgm_scan_noncopy_advance_count_debug(vgm_scan_noncopy_advance_count_debug),
+        .vgm_scan_used_noncopy_advance_debug(vgm_scan_used_noncopy_advance_debug),
+        .vgm_scan_raw_copy_byte_count_debug(vgm_scan_raw_copy_byte_count_debug),
+        .vgm_scan_raw_event_debug(vgm_scan_raw_event_debug),
+        .vgm_scan_copy_exit_debug(vgm_scan_copy_exit_debug),
+        .vgm_scan_copy_exit_pc_debug(vgm_scan_copy_exit_pc_debug),
+        .vgm_scan_copy_exit_count_debug(vgm_scan_copy_exit_count_debug),
+        .vgm_scan_copy_phase_debug(vgm_scan_copy_phase_debug),
+        .vgm_scan_copy_read_req_count_debug(vgm_scan_copy_read_req_count_debug),
+        .vgm_scan_copy_read_accept_count_debug(vgm_scan_copy_read_accept_count_debug),
+        .vgm_scan_copy_read_accept_internal_debug(vgm_scan_copy_read_accept_internal_debug),
+        .vgm_scan_copy_read_valid_count_debug(vgm_scan_copy_read_valid_count_debug),
+        .vgm_scan_copy_mem_req_cycle_count_debug(vgm_scan_copy_mem_req_cycle_count_debug),
+        .vgm_scan_copy_mem_req_ready_cycle_count_debug(vgm_scan_copy_mem_req_ready_cycle_count_debug),
+        .vgm_scan_copy_request_state_debug(vgm_scan_copy_request_state_debug),
+        .vgm_scan_copy_state_lifetime_debug(vgm_scan_copy_state_lifetime_debug),
+        .vgm_scan_copy_clear_reason_debug(vgm_scan_copy_clear_reason_debug),
+        .vgm_scan_copy_payload_pc_debug(vgm_scan_copy_payload_pc_debug),
+        .vgm_scan_copy_first01_debug(vgm_scan_copy_first01_debug),
+        .vgm_scan_copy_first23_debug(vgm_scan_copy_first23_debug),
+        .vgm_scan_copy_first45_debug(vgm_scan_copy_first45_debug),
+        .vgm_scan_copy_first67_debug(vgm_scan_copy_first67_debug),
+        .vgm_scan_copy_first8_phase_debug(vgm_scan_copy_first8_phase_debug),
+        .vgm_scan_copy_read_raw_valid_count_debug(vgm_scan_copy_read_raw_valid_count_debug),
+        .vgm_scan_copy_read_ignored_valid_count_debug(vgm_scan_copy_read_ignored_valid_count_debug),
+        .vgm_scan_copy_read_handshake_debug(vgm_scan_copy_read_handshake_debug),
+        .vgm_scan_payload_o0_debug(vgm_scan_payload_o0_debug),
+        .vgm_scan_payload_oh_debug(vgm_scan_payload_oh_debug),
+        .vgm_scan_payload_bd_debug(vgm_scan_payload_bd_debug),
+        .vgm_scan_payload_af_debug(vgm_scan_payload_af_debug),
+        .vgm_scan_payload_ah_debug(vgm_scan_payload_ah_debug),
+        .vgm_scan_payload_oh2_debug(vgm_scan_payload_oh2_debug),
+        .vgm_scan_payload_as_debug(vgm_scan_payload_as_debug),
+        .vgm_scan_payload_vd_debug(vgm_scan_payload_vd_debug),
+        .vgm_scan_payload_vh_debug(vgm_scan_payload_vh_debug),
+        .vgm_scan_payload_vs_debug(vgm_scan_payload_vs_debug),
+        .vgm_scan_payload_cp_debug(vgm_scan_payload_cp_debug),
+        .vgm_scan_payload_ch_debug(vgm_scan_payload_ch_debug),
+        .vgm_scan_payload_cs_debug(vgm_scan_payload_cs_debug),
+        .vgm_scan_raw_player_accept_count_debug(vgm_scan_raw_player_accept_count_debug),
+        .vgm_scan_raw_copy_accept_count_debug(vgm_scan_raw_copy_accept_count_debug),
+        .vgm_scan_raw_read_accept_count_debug(vgm_scan_raw_read_accept_count_debug),
+        .vgm_scan_raw_read_valid_count_debug(vgm_scan_raw_read_valid_count_debug),
+        .vgm_scan_max_player_accept_count_debug(vgm_scan_max_player_accept_count_debug),
+        .vgm_scan_max_copy_accept_count_debug(vgm_scan_max_copy_accept_count_debug),
+        .vgm_scan_max_read_accept_count_debug(vgm_scan_max_read_accept_count_debug),
+        .vgm_scan_max_read_valid_count_debug(vgm_scan_max_read_valid_count_debug),
+        .vgm_scan_counter_latch_accept_debug(vgm_scan_counter_latch_accept_debug),
+        .vgm_scan_counter_latch_read_debug(vgm_scan_counter_latch_read_debug),
+        .vgm_scan_counter_anomaly_debug(vgm_scan_counter_anomaly_debug),
+        .vgm_scan_counter_reset_source_debug(vgm_scan_counter_reset_source_debug),
+        .vgm_scan_stop_source_debug(vgm_scan_stop_source_debug),
+        .vgm_scan_term_pl_debug(vgm_scan_term_pl_debug),
+        .vgm_scan_term_rm_debug(vgm_scan_term_rm_debug),
+        .vgm_scan_term_cc_debug(vgm_scan_term_cc_debug),
+        .vgm_scan_term_nx_debug(vgm_scan_term_nx_debug),
+        .vgm_scan_term_be_debug(vgm_scan_term_be_debug),
+        .vgm_scan_guard_debug(vgm_scan_guard_debug),
+        .vgm_scan_sticky_guard_debug(vgm_scan_sticky_guard_debug),
+        .vgm_scan_payload_qg_debug(vgm_scan_payload_qg_debug),
+        .vgm_scan_payload_sf_debug(vgm_scan_payload_sf_debug),
+        .mode5_backend_copy_accept_count_debug(mode5_backend_copy_accept_count_debug),
+        .mode5_backend_copy_write_count_debug(mode5_backend_copy_write_count_debug),
+        .mode5_backend_copy_fifo_debug(mode5_backend_copy_fifo_debug),
+        .mode5_backend_copy_ready_debug(mode5_backend_copy_ready_debug),
+        .mode5_backend_copy_write_req_debug(mode5_backend_copy_write_req_debug),
+        .mode5_backend_copy_word_debug(mode5_backend_copy_word_debug),
+        .mode5_backend_copy_flush_debug(mode5_backend_copy_flush_debug),
+        .mode5_backend_copy_full_detect_count_debug(mode5_backend_copy_full_detect_count_debug),
+        .mode5_backend_copy_push_req_count_debug(mode5_backend_copy_push_req_count_debug),
+        .mode5_backend_copy_push_fire_count_debug(mode5_backend_copy_push_fire_count_debug),
+        .mode5_backend_copy_fifo_push_count_debug(mode5_backend_copy_fifo_push_count_debug),
+        .mode5_backend_copy_pack_ready_debug(mode5_backend_copy_pack_ready_debug),
+        .mode5_backend_copy_post_push_debug(mode5_backend_copy_post_push_debug),
+        .mode5_backend_read_gate_debug(mode5_backend_read_gate_debug),
+        .mode5_backend_read_after_copy_count_debug(mode5_backend_read_after_copy_count_debug),
+
+        .smoke_ddr_payload_tap_count_debug(smoke_ddr_payload_tap_count_debug),
+        .smoke_ddr_last_read_index_debug(smoke_ddr_last_read_index_debug),
+        .smoke_ddr_last_read_data_debug(smoke_ddr_last_read_data_debug),
+        .smoke_ddr_last_read_word0_debug(smoke_ddr_last_read_word0_debug),
+        .smoke_ddr_last_read_word1_debug(smoke_ddr_last_read_word1_debug),
+        .smoke_ddr_probe_write_index_debug(smoke_ddr_probe_write_index_debug),
+        .smoke_ddr_probe_write_word_debug(smoke_ddr_probe_write_word_debug),
+        .smoke_ddr_probe_write_lane_debug(smoke_ddr_probe_write_lane_debug),
+        .smoke_ddr_probe_write_addr_debug(smoke_ddr_probe_write_addr_debug),
+        .smoke_ddr_probe_write_count_debug(smoke_ddr_probe_write_count_debug),
+        .smoke_ddr_probe_write_flags_debug(smoke_ddr_probe_write_flags_debug),
+        .smoke_ddr_probe_write_word0_debug(smoke_ddr_probe_write_word0_debug),
+        .smoke_ddr_probe_write_word6_debug(smoke_ddr_probe_write_word6_debug),
+
+        .mode5_read_mux_debug(mode5_read_mux_debug),
+        .mode5_read_ready_compare_debug(mode5_read_ready_compare_debug),
+        .mode5_read_ready_blocker_debug(mode5_read_ready_blocker_debug),
+        .mode5_copy_mismatch_debug(mode5_copy_mismatch_debug),
+        .mode5_copy_max_ready_count_debug(mode5_copy_max_ready_count_debug),
+        .mode5_copy_min_remaining_debug(mode5_copy_min_remaining_debug),
+        .mode5_restart_after_load_count_debug(mode5_restart_after_load_count_debug),
+        .mode5_scan_start_count_debug(mode5_scan_start_count_debug),
+        .mode5_direct_start_debug(mode5_direct_start_debug),
+        .mode5_top_stop_snapshot_debug(mode5_top_stop_snapshot_debug),
+        .vgm_load_size         (vgm_load_size),
+        .vgm_load_magic        (vgm_load_magic),
+        .vgm_data_start_debug  (vgm_data_start_debug),
+        .vgm_current_pc_debug  (vgm_current_pc_debug),
+        .vgm_loop_pc_debug     (vgm_loop_pc_debug),
+        .vgm_loop_valid_debug  (vgm_loop_valid_debug),
+        .vgm_loop_taken_debug  (vgm_loop_taken_debug),
+        .vgm_end_command_seen  (vgm_end_command_seen),
+        .vgm_restarted_from_data_start(vgm_restarted_from_data_start),
+        .vgm_pcm_oob           (vgm_pcm_oob),
+        .vgm_pcm_oob_count     (vgm_pcm_oob_count),
+        .vgm_wait_ticks_consumed_debug(vgm_wait_ticks_consumed_debug),
+        .dac_stream_cmd_count  (dac_stream_cmd_count),
+        .dac_stream_wait_samples_total(dac_stream_wait_samples_total),
+        .dac_stream_clk_cycles_total(dac_stream_clk_cycles_total),
+        .dac_stream_overhead_cycles_total(dac_stream_overhead_cycles_total),
+        .max_dac_stream_cmd_cycles(max_dac_stream_cmd_cycles),
+        .count_wait0_dac_stream_cmd(count_wait0_dac_stream_cmd),
+        .count_wait0_overhead_nonzero(count_wait0_overhead_nonzero),
+        .segapcm_write_count   (segapcm_write_count),
+        .segapcm_last_addr     (segapcm_last_addr),
+        .segapcm_last_data     (segapcm_last_data),
+        .segapcm_core_rom_addr_low(segapcm_core_rom_addr_low),
+        .segapcm_core_rom_addr_raw_high(segapcm_core_rom_addr_raw_high),
+        .segapcm_core_rom_addr_raw_low(segapcm_core_rom_addr_raw_low),
+        .segapcm_core_rom_addr_mapped_high(segapcm_core_rom_addr_mapped_high),
+        .segapcm_core_rom_addr_mapped_low(segapcm_core_rom_addr_mapped_low),
+        .segapcm_core_rom_addr_min_high(segapcm_core_rom_addr_min_high),
+        .segapcm_core_rom_addr_min_low(segapcm_core_rom_addr_min_low),
+        .segapcm_core_rom_addr_max_high(segapcm_core_rom_addr_max_high),
+        .segapcm_core_rom_addr_max_low(segapcm_core_rom_addr_max_low),
+        .segapcm_core_rom_audio_active_high(segapcm_core_rom_audio_active_high),
+        .segapcm_core_rom_audio_active_low(segapcm_core_rom_audio_active_low),
+        .segapcm_core_rom_first_after_ctrl_high(segapcm_core_rom_first_after_ctrl_high),
+        .segapcm_core_rom_first_after_ctrl_low(segapcm_core_rom_first_after_ctrl_low),
+        .segapcm_core_rom_range_group(segapcm_core_rom_range_group),
+        .segapcm_core_rom_range_group2(segapcm_core_rom_range_group2),
+        .segapcm_core_rom_early_after_ctrl_high(segapcm_core_rom_early_after_ctrl_high),
+        .segapcm_core_rom_early_after_ctrl_low(segapcm_core_rom_early_after_ctrl_low),
+        .segapcm_core_rom_active_after_ctrl_high(segapcm_core_rom_active_after_ctrl_high),
+        .segapcm_core_rom_active_after_ctrl_low(segapcm_core_rom_active_after_ctrl_low),
+        .segapcm_core_rom_hit_miss_compact(segapcm_core_rom_hit_miss_compact),
+        .segapcm_core_rom_range_hit_count(segapcm_core_rom_range_hit_count),
+        .segapcm_core_rom_range_miss_count(segapcm_core_rom_range_miss_count),
+        .segapcm_core_rom_activity_count(segapcm_core_rom_activity_count),
+        .segapcm_core_rom_return_mapped_high(segapcm_core_rom_return_mapped_high),
+        .segapcm_core_rom_return_mapped_low(segapcm_core_rom_return_mapped_low),
+        .segapcm_core_rom_return_data(segapcm_core_rom_return_data),
+        .segapcm_core_rom_return_last01(segapcm_core_rom_return_last01),
+        .segapcm_core_rom_return_last23(segapcm_core_rom_return_last23),
+        .segapcm_core_rom_return_nonzero_count(segapcm_core_rom_return_nonzero_count),
+        .segapcm_core_rom_return_change_count(segapcm_core_rom_return_change_count),
+        .segapcm_core_rom_return_neutral_count(segapcm_core_rom_return_neutral_count),
+        .segapcm_core_rom_preload_data(segapcm_core_rom_preload_data),
+        .segapcm_core_rom_core_ok_count(segapcm_core_rom_core_ok_count),
+        .segapcm_core_rom_fallback_count(segapcm_core_rom_fallback_count),
+        .segapcm_core_rom_read_valid_count(segapcm_core_rom_read_valid_count),
+        .segapcm_core_rom_latency_debug(segapcm_core_rom_latency_debug),
+        .segapcm_core_rom_payload_len_low(segapcm_core_rom_payload_len_low),
+        .segapcm_core_rom_payload_len_high(segapcm_core_rom_payload_len_high),
+        .segapcm_core_pcm_debug_bk(segapcm_core_pcm_debug_bk),
+        .segapcm_core_pcm_debug_cuh(segapcm_core_pcm_debug_cuh),
+        .segapcm_core_pcm_debug_cul(segapcm_core_pcm_debug_cul),
+        .segapcm_core_known38686_flags(segapcm_core_known38686_flags),
+        .segapcm_core_known38686_bank(segapcm_core_known38686_bank),
+        .segapcm_core_known38686_channel(segapcm_core_known38686_channel),
+        .segapcm_core_known38686_state(segapcm_core_known38686_state),
+        .segapcm_core_known38686_cur_high(segapcm_core_known38686_cur_high),
+        .segapcm_core_known38686_cur_low(segapcm_core_known38686_cur_low),
+        .segapcm_core_known38686_en_addr(segapcm_core_known38686_en_addr),
+        .segapcm_core_known38686_en_value(segapcm_core_known38686_en_value),
+        .segapcm_core_known38686_d0_addr(segapcm_core_known38686_d0_addr),
+        .segapcm_core_known38686_d0_value(segapcm_core_known38686_d0_value),
+        .segapcm_core_known38686_d1_addr(segapcm_core_known38686_d1_addr),
+        .segapcm_core_known38686_d1_value(segapcm_core_known38686_d1_value),
+        .segapcm_core_known38686_d2_addr(segapcm_core_known38686_d2_addr),
+        .segapcm_core_known38686_d2_value(segapcm_core_known38686_d2_value),
+        .segapcm_core_known38686_cfg_en(segapcm_core_known38686_cfg_en),
+        .segapcm_core_known38686_cur_23(segapcm_core_known38686_cur_23),
+        .segapcm_core_known38686_cur_15(segapcm_core_known38686_cur_15),
+        .segapcm_core_known38686_cur_07(segapcm_core_known38686_cur_07),
+        .segapcm_core_c0_capture_write_count(segapcm_core_c0_capture_write_count),
+        .segapcm_core_c0_capture_last_addr(segapcm_core_c0_capture_last_addr),
+        .segapcm_core_c0_capture_last_data(segapcm_core_c0_capture_last_data),
+        .segapcm_core_c0_capture_channel_activity(segapcm_core_c0_capture_channel_activity),
+        .segapcm_core_c0_capture_selected_channel(segapcm_core_c0_capture_selected_channel),
+        .segapcm_core_c0_capture_ch3_ctrl(segapcm_core_c0_capture_ch3_ctrl),
+        .segapcm_core_c0_capture_ch3_cur_low(segapcm_core_c0_capture_ch3_cur_low),
+        .segapcm_core_c0_capture_ch3_cur_mid(segapcm_core_c0_capture_ch3_cur_mid),
+        .segapcm_core_c0_capture_ch3_cur_high(segapcm_core_c0_capture_ch3_cur_high),
+        .segapcm_core_c0_capture_ch3_delta(segapcm_core_c0_capture_ch3_delta),
+        .segapcm_core_c0_capture_ch3_vol_l(segapcm_core_c0_capture_ch3_vol_l),
+        .segapcm_core_c0_capture_ch3_vol_r(segapcm_core_c0_capture_ch3_vol_r),
+        .segapcm_core_c0_capture_ch3_loop(segapcm_core_c0_capture_ch3_loop),
+        .segapcm_core_c0_capture_ch3_end(segapcm_core_c0_capture_ch3_end),
+        .segapcm_core_jt_smoke_vol_l(segapcm_core_jt_smoke_vol_l),
+        .segapcm_core_jt_smoke_vol_r(segapcm_core_jt_smoke_vol_r),
+        .segapcm_core_jt_smoke_sample_byte(segapcm_core_jt_smoke_sample_byte),
+        .segapcm_core_jt_smoke_out_l(segapcm_core_jt_smoke_out_l),
+        .segapcm_core_jt_smoke_out_r(segapcm_core_jt_smoke_out_r),
+        .segapcm_core_ch3_evolution_flags(segapcm_core_ch3_evolution_flags),
+        .segapcm_core_ch3_delta(segapcm_core_ch3_delta),
+        .segapcm_core_ch1_first_high(segapcm_core_ch1_first_high),
+        .segapcm_core_ch1_first_low(segapcm_core_ch1_first_low),
+        .segapcm_core_ch1_first_raw_high(segapcm_core_ch1_first_raw_high),
+        .segapcm_core_ch1_first_raw_low(segapcm_core_ch1_first_raw_low),
+        .segapcm_core_ch3_first_high(segapcm_core_ch3_first_high),
+        .segapcm_core_ch3_first_low(segapcm_core_ch3_first_low),
+        .segapcm_core_ch3_first_raw_high(segapcm_core_ch3_first_raw_high),
+        .segapcm_core_ch3_first_raw_low(segapcm_core_ch3_first_raw_low),
+        .segapcm_core_ch3_r0_high(segapcm_core_ch3_r0_high),
+        .segapcm_core_ch3_r0_low(segapcm_core_ch3_r0_low),
+        .segapcm_core_ch3_r1_high(segapcm_core_ch3_r1_high),
+        .segapcm_core_ch3_r1_low(segapcm_core_ch3_r1_low),
+        .segapcm_core_ch3_r2_high(segapcm_core_ch3_r2_high),
+        .segapcm_core_ch3_r2_low(segapcm_core_ch3_r2_low),
+        .segapcm_core_ch3_load_after_23(segapcm_core_ch3_load_after_23),
+        .segapcm_core_ch3_load_after_15(segapcm_core_ch3_load_after_15),
+        .segapcm_core_ch3_load_after_07(segapcm_core_ch3_load_after_07),
+        .segapcm_core_update_state_channel(segapcm_core_update_state_channel),
+        .segapcm_core_update_before_23(segapcm_core_update_before_23),
+        .segapcm_core_update_before_15(segapcm_core_update_before_15),
+        .segapcm_core_update_before_07(segapcm_core_update_before_07),
+        .segapcm_core_update_addend(segapcm_core_update_addend),
+        .segapcm_core_update_after_23(segapcm_core_update_after_23),
+        .segapcm_core_update_after_15(segapcm_core_update_after_15),
+        .segapcm_core_update_after_07(segapcm_core_update_after_07),
+        .segapcm_core_update_reason(segapcm_core_update_reason),
+        .segapcm_core_cpu_write_count(segapcm_core_cpu_write_count),
+        .segapcm_core_cpu_cen_write_count(segapcm_core_cpu_cen_write_count),
+        .segapcm_core_cpu_addr_debug(segapcm_core_cpu_addr_debug),
+        .segapcm_core_shadow_decode_debug(segapcm_core_shadow_decode_debug),
+        .segapcm_core_shadow_ch0_vol_debug(segapcm_core_shadow_ch0_vol_debug),
+        .segapcm_core_shadow_ch0_end_delta_debug(segapcm_core_shadow_ch0_end_delta_debug),
+        .segapcm_core_shadow_ch0_start_debug(segapcm_core_shadow_ch0_start_debug),
+        .segapcm_core_shadow_ch0_ctrl_debug(segapcm_core_shadow_ch0_ctrl_debug),
+        .segapcm_core_shadow_ch1_vol_debug(segapcm_core_shadow_ch1_vol_debug),
+        .segapcm_core_shadow_ch1_loop_debug(segapcm_core_shadow_ch1_loop_debug),
+        .segapcm_core_shadow_ch1_end_delta_debug(segapcm_core_shadow_ch1_end_delta_debug),
+        .segapcm_core_shadow_ch1_start_debug(segapcm_core_shadow_ch1_start_debug),
+        .segapcm_core_shadow_ch1_ctrl_debug(segapcm_core_shadow_ch1_ctrl_debug),
+        .segapcm_core_shadow_ch3_loop_debug(segapcm_core_shadow_ch3_loop_debug),
+        .segapcm_core_shadow_ch3_end_delta_debug(segapcm_core_shadow_ch3_end_delta_debug),
+        .segapcm_core_shadow_ch3_start_debug(segapcm_core_shadow_ch3_start_debug),
+        .segapcm_core_shadow_ch3_ctrl_debug(segapcm_core_shadow_ch3_ctrl_debug),
+        .segapcm_core_shadow_ch3_l0_debug(segapcm_core_shadow_ch3_l0_debug),
+        .segapcm_core_shadow_ch3_l2_debug(segapcm_core_shadow_ch3_l2_debug),
+        .segapcm_core_shadow_ch3_l4_debug(segapcm_core_shadow_ch3_l4_debug),
+        .segapcm_core_shadow_ch3_l6_debug(segapcm_core_shadow_ch3_l6_debug),
+        .segapcm_core_shadow_ch3_h0_debug(segapcm_core_shadow_ch3_h0_debug),
+        .segapcm_core_shadow_ch3_h2_debug(segapcm_core_shadow_ch3_h2_debug),
+        .segapcm_core_shadow_ch3_h4_debug(segapcm_core_shadow_ch3_h4_debug),
+        .segapcm_core_shadow_ch3_h6_debug(segapcm_core_shadow_ch3_h6_debug),
+        .segapcm_core_audio_nonzero_count(segapcm_core_audio_nonzero_count),
+        .segapcm_core_audio_abs_peak(segapcm_core_audio_abs_peak),
+        .segapcm_core_last_audio_l(segapcm_core_last_audio_l),
+        .segapcm_core_last_audio_r(segapcm_core_last_audio_r),
+        .segapcm_core_status_debug(segapcm_core_status_debug),
+        .data_block_count      (data_block_count),
+        .last_data_block_type  (last_data_block_type),
+        .last_data_block_size_low(last_data_block_size_low),
+        .parser_command_count_debug(parser_command_count_debug),
+        .parser_data_block_count_debug(parser_data_block_count_debug),
+        .parser_last_block_type_debug(parser_last_block_type_debug),
+        .parser_type00_block_count_debug(parser_type00_block_count_debug),
+        .parser_type80_block_count_debug(parser_type80_block_count_debug),
+        .segapcm_rom_block_count(segapcm_rom_block_count),
+        .segapcm_last_rom_size (segapcm_last_rom_size),
+        .segapcm_last_rom_start(segapcm_last_rom_start),
+        .pcm_ram_write_skip_count(pcm_ram_write_skip_count),
+        .segapcm_rom_scan_busy (segapcm_rom_scan_busy),
+        .segapcm_rom_scan_done (segapcm_rom_scan_done),
+        .segapcm_rom_scan_overflow(segapcm_rom_scan_overflow),
+        .segapcm_rom_scan_block_count(segapcm_rom_scan_block_count),
+        .segapcm_rom_scan_byte_count(segapcm_rom_scan_byte_count),
+        .segapcm_rom_scan_checksum32(segapcm_rom_scan_checksum32),
+        .segapcm_rom_scan_total_size(segapcm_rom_scan_total_size),
+        .segapcm_rom_scan_last_start(segapcm_rom_scan_last_start),
+        .segapcm_rom_copy_byte_count(segapcm_rom_copy_byte_count),
+        .segapcm_rom_copy_overflow(segapcm_rom_copy_overflow),
+        .segapcm_rom_copy_flush_done(segapcm_rom_copy_flush_done),
+        .segapcm_copy_flush_req_debug(segapcm_copy_flush_req_debug),
+        .mode5_sound_reset_active(mode5_sound_reset_active),
+        .mode5_player_start_pulse_debug(mode5_player_start_pulse_debug),
+        .mode5_start_hold_debug(mode5_start_hold_debug),
+        .mode5_load_begin_count(mode5_load_begin_count),
+        .mode5_load_done_edge_count(mode5_load_done_edge_count),
+        .mode5_sound_reset_start_count(mode5_sound_reset_start_count),
+        .mode5_player_start_count(mode5_player_start_count),
+        .mode5_player_reset_count(mode5_player_reset_count),
+        .mode5_playback_session_id(mode5_playback_session_id),
+        .mode5_duplicate_start_blocked_count(mode5_duplicate_start_blocked_count),
+        .mode5_player_end_count(mode5_player_end_count),
+        .mode5_repeat_restart_count(mode5_repeat_restart_count),
+        .mode5_done_armed_debug(mode5_done_armed_debug),
+        .mode5_repeat_session_id(mode5_repeat_session_id),
+        .mode5_done_session_id(mode5_done_session_id),
+        .mode5_cycles_since_start(mode5_cycles_since_start),
+        .mode5_done_pc_debug(mode5_done_pc_debug),
+        .mode5_done_cmd_debug(mode5_done_cmd_debug),
+        .fm_adjust_clip_count_l(fm_adjust_clip_count_l),
+        .fm_adjust_clip_count_r(fm_adjust_clip_count_r),
+        .genmix_wrap_count_l   (genmix_wrap_count_l),
+        .genmix_wrap_count_r   (genmix_wrap_count_r),
+        .ym_write_requested_count(ym_write_requested_count),
+        .ym_write_accepted_count(ym_write_accepted_count),
+        .ym_write_dropped_or_busy_count(ym_write_dropped_or_busy_count),
+        .ym_port0_count        (ym_port0_count),
+        .ym_port1_count        (ym_port1_count),
+        .last_ym_port          (last_ym_port),
+        .last_ym_addr          (last_ym_addr),
+        .last_ym_data          (last_ym_data),
+        .jt12_cen_interval_1_count(jt12_cen_interval_1_count),
+        .jt12_cen_interval_2_count(jt12_cen_interval_2_count),
+        .jt12_cen_interval_3_count(jt12_cen_interval_3_count),
+        .jt12_cen_interval_4_count(jt12_cen_interval_4_count),
+        .jt12_cen_interval_ge5_count(jt12_cen_interval_ge5_count),
+        .jt12_cen_interval_min(jt12_cen_interval_min),
+        .jt12_cen_interval_max(jt12_cen_interval_max),
+        .jt12_cen_interval_last(jt12_cen_interval_last),
+        .fm_raw_abs_peak      (fm_raw_abs_peak),
+        .fm_adjust_abs_peak   (fm_adjust_abs_peak),
+        .fm_lpf_abs_peak      (fm_lpf_abs_peak),
+        .genmix_abs_peak      (genmix_abs_peak),
+        .md_final_audio_abs_peak(md_final_audio_abs_peak),
+        .c0_top_dbg_tp        (c0_top_dbg_tp),
+        .c0_top_dbg_sl        (c0_top_dbg_sl),
+        .c0_top_dbg_sr        (c0_top_dbg_sr),
+        .c0_top_dbg_ml        (c0_top_dbg_ml),
+        .c0_top_dbg_mr        (c0_top_dbg_mr),
+        .c0_top_dbg_fl        (c0_top_dbg_fl),
+        .c0_top_dbg_fr        (c0_top_dbg_fr),
+        .c0_top_dbg_ol        (c0_top_dbg_ol),
+        .c0_top_dbg_or        (c0_top_dbg_or),
+        .c0_top_dbg_tm        (c0_top_dbg_tm),
+
+        .ddram_busy           (DDRAM_BUSY),
+        .ddram_burstcnt       (vgm_ddram_burstcnt),
+        .ddram_addr           (vgm_ddram_addr),
+        .ddram_dout           (DDRAM_DOUT),
+        .ddram_dout_ready     (DDRAM_DOUT_READY),
+        .ddram_rd             (vgm_ddram_rd),
+        .ddram_din            (vgm_ddram_din),
+        .ddram_be             (vgm_ddram_be),
+        .ddram_we             (vgm_ddram_we)
+    );
+
+    reg [8:0] h_count;
+    reg [8:0] v_count;
+    reg [7:0] frame_count;
+    reg       done_latched;
+    reg       audio_seen_latched;
+
+    always @(posedge clk_sys) begin
+        if (reset) begin
+            h_count <= 9'd0;
+            v_count <= 9'd0;
+            frame_count <= 8'd0;
+        end else if (ce_pix) begin
+            if (h_count == 9'd383) begin
+                h_count <= 9'd0;
+                if (v_count == 9'd263) begin
+                    v_count <= 9'd0;
+                    if (frame_count != 8'hff) begin
+                        frame_count <= frame_count + 8'd1;
+                    end
+                end else begin
+                    v_count <= v_count + 9'd1;
+                end
+            end else begin
+                h_count <= h_count + 9'd1;
+            end
+        end
+
+        if (reset || startup_reset_active) begin
+            done_latched <= 1'b0;
+            audio_seen_latched <= 1'b0;
+        end else begin
+            if (player_done) begin
+                done_latched <= 1'b1;
+            end
+
+            if (audio_sample_valid) begin
+                audio_seen_latched <= 1'b1;
+            end
+        end
+
+        if (reset) begin
+            mode5_last_error_code <= 8'd0;
+        end else if (vgm_player_error) begin
+            mode5_last_error_code <= vgm_player_error_code;
+        end else if (vgm_load_overflow) begin
+            mode5_last_error_code <= 8'hf2;
+        end else if (vgm_load_error) begin
+            mode5_last_error_code <= 8'hf1;
+        end
+    end
+
+    wire hblank = (h_count >= 9'd320);
+    wire vblank = (v_count >= 9'd240);
+    wire active = !hblank && !vblank;
+    wire [15:0] md_audio_abs_peak =
+        (md_audio_l_abs_peak > md_audio_r_abs_peak) ?
+        md_audio_l_abs_peak : md_audio_r_abs_peak;
+    wire [15:0] emu_audio_abs_peak =
+        (emu_audio_l_abs_peak > emu_audio_r_abs_peak) ?
+        emu_audio_l_abs_peak : emu_audio_r_abs_peak;
+    wire md_audio_rail_seen =
+        (md_audio_l_rail_count != 16'd0) || (md_audio_r_rail_count != 16'd0);
+    wire emu_audio_rail_seen =
+        (emu_audio_l_rail_count != 16'd0) || (emu_audio_r_rail_count != 16'd0);
+
+    wire [15:0] meter_x_level = h_count * 16'd102;
+    wire meter_x_active = (h_count < 9'd320);
+    wire meter_reference_marker = (h_count >= 9'd234) && (h_count < 9'd237);
+    wire meter_rail_block = (h_count >= 9'd312) && (h_count < 9'd320);
+    wire stage_fm_raw_row = (v_count >= 9'd184) && (v_count < 9'd188);
+    wire stage_fm_adjust_row = (v_count >= 9'd190) && (v_count < 9'd194);
+    wire stage_fm_lpf_row = (v_count >= 9'd196) && (v_count < 9'd200);
+    wire stage_genmix_row = (v_count >= 9'd202) && (v_count < 9'd206);
+    wire stage_final_row = (v_count >= 9'd208) && (v_count < 9'd212);
+    wire md_avg_meter_row = (v_count >= 9'd214) && (v_count < 9'd218);
+    wire md_meter_row = (v_count >= 9'd220) && (v_count < 9'd226);
+    wire emu_meter_row = (v_count >= 9'd230) && (v_count < 9'd236);
+    wire emu_avg_meter_row = (v_count >= 9'd236) && (v_count < 9'd240);
+    wire stage_meter_pixel =
+        meter_x_active &&
+        (stage_fm_raw_row ||
+         stage_fm_adjust_row ||
+         stage_fm_lpf_row ||
+         stage_genmix_row ||
+         stage_final_row);
+    wire md_meter_pixel = md_meter_row && meter_x_active;
+    wire emu_meter_pixel = emu_meter_row && meter_x_active;
+    wire md_avg_meter_pixel = md_avg_meter_row && meter_x_active;
+    wire emu_avg_meter_pixel = emu_avg_meter_row && meter_x_active;
+    wire stage_fm_raw_fill = fm_raw_abs_peak >= meter_x_level;
+    wire stage_fm_adjust_fill = fm_adjust_abs_peak >= meter_x_level;
+    wire stage_fm_lpf_fill = fm_lpf_abs_peak >= meter_x_level;
+    wire stage_genmix_fill = genmix_abs_peak >= meter_x_level;
+    wire stage_final_fill = md_final_audio_abs_peak >= meter_x_level;
+    wire md_meter_fill = md_audio_abs_peak >= meter_x_level;
+    wire emu_meter_fill = emu_audio_abs_peak >= meter_x_level;
+    wire md_avg_meter_fill = md_audio_abs_avg >= meter_x_level;
+    wire emu_avg_meter_fill = emu_audio_abs_avg >= meter_x_level;
+    wire [23:0] stage_meter_rgb =
+        meter_reference_marker ? 24'hffffff :
+        stage_fm_raw_row ? (stage_fm_raw_fill ? 24'h00c8ff : 24'h081018) :
+        stage_fm_adjust_row ? (stage_fm_adjust_fill ? 24'hff8000 : 24'h181000) :
+        stage_fm_lpf_row ? (stage_fm_lpf_fill ? 24'hc080ff : 24'h140818) :
+        stage_genmix_row ? (stage_genmix_fill ? 24'hff40c0 : 24'h180814) :
+        stage_final_fill ? 24'hc0c0c0 :
+                           24'h101010;
+    wire [23:0] md_meter_rgb =
+        (meter_rail_block && md_audio_rail_seen) ? 24'hff0000 :
+        meter_reference_marker ? 24'hffffff :
+        md_meter_fill ? 24'h2040ff :
+                        24'h101018;
+    wire [23:0] emu_meter_rgb =
+        (meter_rail_block && emu_audio_rail_seen) ? 24'hff0000 :
+        meter_reference_marker ? 24'hffffff :
+        emu_meter_fill ? 24'h00d060 :
+                         24'h101810;
+    wire [23:0] md_avg_meter_rgb =
+        meter_reference_marker ? 24'hffffff :
+        md_avg_meter_fill ? 24'h4080ff :
+                            24'h080c18;
+    wire [23:0] emu_avg_meter_rgb =
+        meter_reference_marker ? 24'hffffff :
+        emu_avg_meter_fill ? 24'h40ff80 :
+                             24'h081208;
+    wire force_mute_build_marker = MD_AUDIO_FORCE_MUTE_BUILD && (v_count < 9'd12);
+    wire ym_write_slow_build_marker = MD_YM_WRITE_SLOW_BUILD && (v_count < 9'd12);
+    wire ym_force_lfo_off_build_marker =
+        MD_YM_FORCE_LFO_OFF_BUILD && (v_count < 9'd12);
+    wire ym_mask_pms_ams_build_marker =
+        MD_YM_MASK_PMS_AMS_BUILD && (v_count < 9'd12);
+    wire ym_ch3_normal_build_marker =
+        MD_YM_CH3_NORMAL_BUILD && (v_count < 9'd12);
+    wire sysout_attenuate_24db_build_marker =
+        MD_AUDIO_SYSOUT_ATTENUATE_24DB_BUILD && (v_count < 9'd12);
+    wire sysout_attenuate_build_marker =
+        MD_AUDIO_SYSOUT_ATTENUATE_BUILD && (v_count < 9'd12);
+    wire sysout_force_tone_build_marker =
+        MD_AUDIO_SYSOUT_FORCE_TONE_BUILD && (v_count < 9'd12);
+    wire sysout_gain_4x_sat_build_marker =
+        MD_AUDIO_SYSOUT_GAIN_4X_SAT_BUILD && (v_count < 9'd12);
+    wire sysout_gain_2x_sat_build_marker =
+        MD_AUDIO_SYSOUT_GAIN_2X_SAT_BUILD && (v_count < 9'd12);
+    wire attenuate_6db_build_marker = MD_AUDIO_ATTENUATE_6DB_BUILD && (v_count < 9'd12);
+    wire output_shift_1_build_marker =
+        MD_AUDIO_OUTPUT_SHIFT_1_BUILD && (v_count < 9'd12);
+    wire output_shift_0_build_marker =
+        MD_AUDIO_OUTPUT_SHIFT_0_BUILD && (v_count < 9'd12);
+    wire fm_force_mute_build_marker =
+        MD_AUDIO_FM_FORCE_MUTE_BUILD && (v_count < 9'd12);
+    wire fm_only_build_marker = MD_AUDIO_FM_ONLY_BUILD && (v_count < 9'd12);
+    wire psg_only_build_marker = MD_AUDIO_PSG_ONLY_BUILD && (v_count < 9'd12);
+    wire fm_ch_solo_build_marker =
+        MD_AUDIO_FM_CH_SOLO_BUILD && (v_count < 9'd12);
+    wire premix_fm_attenuate_build_marker =
+        MD_AUDIO_PREMIX_ATTENUATE_FM_BUILD && (v_count < 9'd12);
+    wire fm_adjust_bypass_build_marker =
+        MD_AUDIO_FM_ADJUST_BYPASS_BUILD && (v_count < 9'd12);
+    wire fm_adjust_low_gain_build_marker =
+        MD_AUDIO_FM_ADJUST_LOW_GAIN_BUILD && (v_count < 9'd12);
+    wire fm_adjust_saturate_build_marker =
+        MD_AUDIO_FM_ADJUST_SATURATE_BUILD && (v_count < 9'd12);
+    wire premix_psg_attenuate_build_marker =
+        MD_AUDIO_PREMIX_ATTENUATE_PSG_BUILD && (v_count < 9'd12);
+    wire raw_jt12_fm_build_marker =
+        MD_AUDIO_RAW_JT12_FM_BUILD && (v_count < 9'd12);
+    wire raw_jt12_sample_latch_build_marker =
+        MD_AUDIO_RAW_JT12_SAMPLE_LATCH_BUILD && (v_count < 9'd12);
+    wire normal_sample_latch_build_marker =
+        MD_AUDIO_NORMAL_SAMPLE_LATCH_BUILD && (v_count < 9'd12);
+    wire jt12_cen_ntsc_build_marker =
+        MD_JT12_CEN_NTSC_BUILD && (v_count < 9'd12);
+    wire jt12_cen_every_clk_build_marker =
+        MD_JT12_CEN_EVERY_CLK_BUILD && (v_count < 9'd12);
+    wire jt12_cen_uniform_10mhz_build_marker =
+        MD_JT12_CEN_UNIFORM_10MHZ_BUILD && (v_count < 9'd12);
+    wire jt12_cen_uniform_6p67mhz_build_marker =
+        MD_JT12_CEN_UNIFORM_6P67MHZ_BUILD && (v_count < 9'd12);
+    wire jt12_ladder_effect_build_marker =
+        MD_JT12_LADDER_EFFECT_BUILD && (v_count < 9'd12);
+    wire jt12_force_ym2612_build_marker =
+        MD_JT12_FORCE_YM2612_BUILD && (v_count < 9'd12);
+    wire jt12_force_ym3438_build_marker =
+        MD_JT12_FORCE_YM3438_BUILD && (v_count < 9'd12);
+    wire jt12_force_ladder_on_build_marker =
+        MD_JT12_FORCE_LADDER_ON_BUILD && (v_count < 9'd12);
+    wire jt12_force_ladder_off_build_marker =
+        MD_JT12_FORCE_LADDER_OFF_BUILD && (v_count < 9'd12);
+    wire jt12_hifi_pcm_build_marker =
+        MD_JT12_HIFI_PCM_BUILD && (v_count < 9'd12);
+    wire fm_dc_block_build_marker =
+        MD_AUDIO_FM_DC_BLOCK_BUILD && (v_count < 9'd12);
+    wire pre_genmix_fm_lpf_build_marker =
+        MD_AUDIO_PRE_GENMIX_FM_LPF_BUILD && (v_count < 9'd12);
+    wire post_fm_lpf_gain_build_marker =
+        MD_AUDIO_POST_FM_LPF_GAIN_BUILD && (v_count < 9'd12);
+    wire genmix_output_gain_2x_build_marker =
+        MD_AUDIO_GENMIX_OUTPUT_GAIN_2X_BUILD && (v_count < 9'd12);
+    wire genmix_output_gain_4x_build_marker =
+        MD_AUDIO_GENMIX_OUTPUT_GAIN_4X_BUILD && (v_count < 9'd12);
+    wire genmix_output_gain_6x_build_marker =
+        MD_AUDIO_GENMIX_OUTPUT_GAIN_6X_BUILD && (v_count < 9'd12);
+    wire genmix_output_gain_8x_build_marker =
+        MD_AUDIO_GENMIX_OUTPUT_GAIN_8X_BUILD && (v_count < 9'd12);
+    wire lpf_test_build_marker = MD_AUDIO_LPF_TEST_BUILD && (v_count < 9'd12);
+    wire mode5_debug_overlay_enable =
+        LOADED_VGM_MODE && MODE5_DEBUG_OVERLAY_FORCED;
+    wire [31:0] dac_stream_avg_cmd_cycles =
+        (dac_stream_cmd_count == 32'd0) ? 32'd0 :
+        (dac_stream_clk_cycles_total / dac_stream_cmd_count);
+    wire [31:0] dac_stream_avg_overhead_cycles =
+        (dac_stream_cmd_count == 32'd0) ? 32'd0 :
+        (dac_stream_overhead_cycles_total / dac_stream_cmd_count);
+    wire segapcm_debug_seen =
+
+        1'b1 ||
+
+        YM2151_SEGAPCM_OBSERVER_BUILD ||
+        (segapcm_write_count != 32'd0) ||
+        (segapcm_rom_block_count != 32'd0) ||
+        (segapcm_rom_scan_block_count != 32'd0) ||
+        (segapcm_rom_copy_byte_count != 32'd0) ||
+        segapcm_rom_scan_busy ||
+        segapcm_rom_scan_done ||
+        (pcm_ram_write_skip_count != 32'd0);
+    wire segapcm_loaded_tap_debug_seen =
+        segapcm_debug_seen &&
+        (segapcm_core_rom_addr_mapped_low == 16'h0001);
+    wire segapcm_loaded_ddr_debug_seen =
+        segapcm_debug_seen &&
+        (segapcm_core_rom_addr_mapped_low == 16'h0002);
+    wire [15:0] segapcm_display_derived_remaining =
+        (vgm_scan_payload_len_low_debug > vgm_scan_player_accept_count_debug) ?
+        (vgm_scan_payload_len_low_debug - vgm_scan_player_accept_count_debug) :
+        16'd0;
+
+    function automatic [34:0] font5x7_bits(input logic [7:0] ch);
+        begin
+            unique case (ch)
+                "0": font5x7_bits = 35'b01110_10001_10011_10101_11001_10001_01110;
+                "1": font5x7_bits = 35'b00100_01100_00100_00100_00100_00100_01110;
+                "2": font5x7_bits = 35'b01110_10001_00001_00010_00100_01000_11111;
+                "3": font5x7_bits = 35'b11110_00001_00001_01110_00001_00001_11110;
+                "4": font5x7_bits = 35'b00010_00110_01010_10010_11111_00010_00010;
+                "5": font5x7_bits = 35'b11111_10000_11110_00001_00001_10001_01110;
+                "6": font5x7_bits = 35'b00110_01000_10000_11110_10001_10001_01110;
+                "7": font5x7_bits = 35'b11111_00001_00010_00100_01000_01000_01000;
+                "8": font5x7_bits = 35'b01110_10001_10001_01110_10001_10001_01110;
+                "9": font5x7_bits = 35'b01110_10001_10001_01111_00001_00010_01100;
+                "A": font5x7_bits = 35'b01110_10001_10001_11111_10001_10001_10001;
+                "B": font5x7_bits = 35'b11110_10001_10001_11110_10001_10001_11110;
+                "C": font5x7_bits = 35'b01110_10001_10000_10000_10000_10001_01110;
+                "D": font5x7_bits = 35'b11110_10001_10001_10001_10001_10001_11110;
+                "E": font5x7_bits = 35'b11111_10000_10000_11110_10000_10000_11111;
+                "F": font5x7_bits = 35'b11111_10000_10000_11110_10000_10000_10000;
+                "H": font5x7_bits = 35'b10001_10001_10001_11111_10001_10001_10001;
+                "I": font5x7_bits = 35'b01110_00100_00100_00100_00100_00100_01110;
+                "K": font5x7_bits = 35'b10001_10010_10100_11000_10100_10010_10001;
+                "L": font5x7_bits = 35'b10000_10000_10000_10000_10000_10000_11111;
+                "M": font5x7_bits = 35'b10001_11011_10101_10101_10001_10001_10001;
+                "N": font5x7_bits = 35'b10001_11001_10101_10011_10001_10001_10001;
+                "O": font5x7_bits = 35'b01110_10001_10001_10001_10001_10001_01110;
+                "P": font5x7_bits = 35'b11110_10001_10001_11110_10000_10000_10000;
+                "Q": font5x7_bits = 35'b01110_10001_10001_10001_10101_10010_01101;
+                "R": font5x7_bits = 35'b11110_10001_10001_11110_10100_10010_10001;
+                "S": font5x7_bits = 35'b01111_10000_10000_01110_00001_00001_11110;
+                "T": font5x7_bits = 35'b11111_00100_00100_00100_00100_00100_00100;
+                "U": font5x7_bits = 35'b10001_10001_10001_10001_10001_10001_01110;
+                "V": font5x7_bits = 35'b10001_10001_10001_10001_10001_01010_00100;
+                "W": font5x7_bits = 35'b10001_10001_10001_10101_10101_10101_01010;
+                "X": font5x7_bits = 35'b10001_10001_01010_00100_01010_10001_10001;
+                "Y": font5x7_bits = 35'b10001_10001_01010_00100_00100_00100_00100;
+                "Z": font5x7_bits = 35'b11111_00001_00010_00100_01000_10000_11111;
+                default: font5x7_bits = 35'b00000_00000_00000_00000_00000_00000_00000;
+            endcase
+        end
+    endfunction
+
+    function automatic logic font5x7_pixel(
+        input logic [7:0] ch,
+        input logic [2:0] x,
+        input logic [2:0] y
+    );
+        logic [34:0] bits;
+        int idx;
+        begin
+            bits = font5x7_bits(ch);
+            idx = 34 - ((y * 5) + x);
+            font5x7_pixel = bits[idx];
+        end
+    endfunction
+
+    function automatic [7:0] segapcm_debug_label_char(
+        input logic [4:0] row,
+        input logic [1:0] col
+    );
+        begin
+
+            if (segapcm_c0_jt_backend) begin
+                unique case (row)
+                    5'd0:  segapcm_debug_label_char = (col == 2'd0) ? "D" : (col == 2'd1) ? "B" : " ";
+                    5'd1:  segapcm_debug_label_char = (col == 2'd0) ? "R" : (col == 2'd1) ? "V" : " ";
+                    5'd2:  segapcm_debug_label_char = (col == 2'd0) ? "L" : (col == 2'd1) ? "K" : " ";
+                    5'd3:  segapcm_debug_label_char = (col == 2'd0) ? "J" : (col == 2'd1) ? "B" : " ";
+                    5'd4:  segapcm_debug_label_char = (col == 2'd0) ? "J" : (col == 2'd1) ? "W" : " ";
+                    5'd5:  segapcm_debug_label_char = (col == 2'd0) ? "J" : (col == 2'd1) ? "R" : " ";
+                    5'd6:  segapcm_debug_label_char = (col == 2'd0) ? "J" : (col == 2'd1) ? "E" : " ";
+                    5'd7:  segapcm_debug_label_char = (col == 2'd0) ? "J" : (col == 2'd1) ? "A" : " ";
+                    5'd8:  segapcm_debug_label_char = (col == 2'd0) ? "C" : (col == 2'd1) ? "S" : " ";
+                    5'd9:  segapcm_debug_label_char = (col == 2'd0) ? "C" : (col == 2'd1) ? "E" : " ";
+                    5'd10: segapcm_debug_label_char = (col == 2'd0) ? "E" : (col == 2'd1) ? "D" : " ";
+                    5'd11: segapcm_debug_label_char = (col == 2'd0) ? "V" : (col == 2'd1) ? "V" : " ";
+                    5'd12: segapcm_debug_label_char = (col == 2'd0) ? "R" : (col == 2'd1) ? "H" : " ";
+                    5'd13: segapcm_debug_label_char = (col == 2'd0) ? "R" : (col == 2'd1) ? "L" : " ";
+                    5'd14: segapcm_debug_label_char = (col == 2'd0) ? "B" : (col == 2'd1) ? "M" : " ";
+                    5'd15: segapcm_debug_label_char = (col == 2'd0) ? "P" : (col == 2'd1) ? "I" : " ";
+                    5'd16: segapcm_debug_label_char = (col == 2'd0) ? "R" : (col == 2'd1) ? "D" : " ";
+                    5'd17: segapcm_debug_label_char = (col == 2'd0) ? "R" : (col == 2'd1) ? "O" : " ";
+                    5'd18: segapcm_debug_label_char = (col == 2'd0) ? "J" : (col == 2'd1) ? "O" : " ";
+                    5'd19: segapcm_debug_label_char = (col == 2'd0) ? "J" : (col == 2'd1) ? "M" : " ";
+                    5'd20: segapcm_debug_label_char = (col == 2'd0) ? "N" : (col == 2'd1) ? "8" : " ";
+                    5'd21: segapcm_debug_label_char = (col == 2'd0) ? "D" : (col == 2'd1) ? "G" : " ";
+                    5'd22: segapcm_debug_label_char = (col == 2'd0) ? "O" : (col == 2'd1) ? "S" : " ";
+                    5'd23: segapcm_debug_label_char = (col == 2'd0) ? "S" : (col == 2'd1) ? "L" : " ";
+                    5'd24: segapcm_debug_label_char = (col == 2'd0) ? "C" : (col == 2'd1) ? "U" : " ";
+                    5'd25: segapcm_debug_label_char = (col == 2'd0) ? "E" : (col == 2'd1) ? "N" : " ";
+                    5'd26: segapcm_debug_label_char = (col == 2'd0) ? "D" : (col == 2'd1) ? "L" : " ";
+                    5'd27: segapcm_debug_label_char = (col == 2'd0) ? "V" : (col == 2'd1) ? "U" : " ";
+                    5'd28: segapcm_debug_label_char = (col == 2'd0) ? "C" : (col == 2'd1) ? "T" : " ";
+                    5'd29: segapcm_debug_label_char = " ";
+                    5'd30: segapcm_debug_label_char = " ";
+                    5'd31: segapcm_debug_label_char = " ";
+	                    default: segapcm_debug_label_char = " ";
+	                endcase
+            end else begin
+                unique case (row)
+                    5'd0:  segapcm_debug_label_char = (col == 2'd0) ? "D" : (col == 2'd1) ? "B" : " ";
+                    5'd1:  segapcm_debug_label_char = (col == 2'd0) ? "R" : (col == 2'd1) ? "V" : " ";
+                    5'd2:  segapcm_debug_label_char = (col == 2'd0) ? "L" : (col == 2'd1) ? "K" : " ";
+                    5'd3:  segapcm_debug_label_char = (col == 2'd0) ? "R" : (col == 2'd1) ? "C" : " ";
+                    5'd4:  segapcm_debug_label_char = (col == 2'd0) ? "A" : (col == 2'd1) ? "S" : " ";
+                    5'd5:  segapcm_debug_label_char = (col == 2'd0) ? "Q" : (col == 2'd1) ? "S" : " ";
+                    5'd6:  segapcm_debug_label_char = (col == 2'd0) ? "F" : (col == 2'd1) ? "C" : " ";
+                    5'd7:  segapcm_debug_label_char = (col == 2'd0) ? "P" : (col == 2'd1) ? "R" : " ";
+                    5'd8:  segapcm_debug_label_char = (col == 2'd0) ? "F" : (col == 2'd1) ? "0" : " ";
+                    5'd9:  segapcm_debug_label_char = (col == 2'd0) ? "A" : (col == 2'd1) ? "0" : " ";
+                    5'd10: segapcm_debug_label_char = (col == 2'd0) ? "I" : (col == 2'd1) ? "0" : " ";
+                    5'd11: segapcm_debug_label_char = (col == 2'd0) ? "O" : (col == 2'd1) ? "0" : " ";
+                    5'd12: segapcm_debug_label_char = (col == 2'd0) ? "F" : (col == 2'd1) ? "1" : " ";
+                    5'd13: segapcm_debug_label_char = (col == 2'd0) ? "A" : (col == 2'd1) ? "1" : " ";
+                    5'd14: segapcm_debug_label_char = (col == 2'd0) ? "I" : (col == 2'd1) ? "1" : " ";
+                    5'd15: segapcm_debug_label_char = (col == 2'd0) ? "O" : (col == 2'd1) ? "1" : " ";
+                    5'd16: segapcm_debug_label_char = (col == 2'd0) ? "F" : (col == 2'd1) ? "2" : " ";
+                    5'd17: segapcm_debug_label_char = (col == 2'd0) ? "A" : (col == 2'd1) ? "2" : " ";
+                    5'd18: segapcm_debug_label_char = (col == 2'd0) ? "I" : (col == 2'd1) ? "2" : " ";
+                    5'd19: segapcm_debug_label_char = (col == 2'd0) ? "O" : (col == 2'd1) ? "2" : " ";
+                    5'd20: segapcm_debug_label_char = (col == 2'd0) ? "F" : (col == 2'd1) ? "3" : " ";
+                    5'd21: segapcm_debug_label_char = (col == 2'd0) ? "A" : (col == 2'd1) ? "3" : " ";
+                    5'd22: segapcm_debug_label_char = (col == 2'd0) ? "I" : (col == 2'd1) ? "3" : " ";
+                    5'd23: segapcm_debug_label_char = (col == 2'd0) ? "O" : (col == 2'd1) ? "3" : " ";
+                    5'd24: segapcm_debug_label_char = (col == 2'd0) ? "R" : (col == 2'd1) ? "D" : " ";
+                    5'd25: segapcm_debug_label_char = (col == 2'd0) ? "O" : (col == 2'd1) ? "L" : " ";
+                    5'd26: segapcm_debug_label_char = (col == 2'd0) ? "R" : (col == 2'd1) ? "A" : " ";
+                    5'd27: segapcm_debug_label_char = (col == 2'd0) ? "R" : (col == 2'd1) ? "I" : " ";
+                    5'd28: segapcm_debug_label_char = (col == 2'd0) ? "P" : (col == 2'd1) ? "H" : " ";
+                    5'd29: segapcm_debug_label_char = (col == 2'd0) ? "V" : (col == 2'd1) ? "O" : " ";
+                    5'd30: segapcm_debug_label_char = (col == 2'd0) ? "H" : (col == 2'd1) ? "C" : " ";
+                    5'd31: segapcm_debug_label_char = (col == 2'd0) ? "N" : (col == 2'd1) ? "R" : " ";
+                    default: segapcm_debug_label_char = " ";
+                endcase
+            end
 
-	assign SD_CD       = mcp_en ? mcp_sdcd : SDCD_SPDIF;
-	assign SD_MISO     = SD_CD | (mcp_en ? SD_SPI_MISO : (VGA_EN | SDIO_DAT[0]));
-	assign SD_SPI_CS   = mcp_en ?  (mcp_sdcd  ? 1'bZ : SD_CS) : (sog & ~cs1 & ~VGA_EN) ? 1'b1 : 1'bZ;
-	assign SD_SPI_CLK  = (~mcp_en | mcp_sdcd) ? 1'bZ : SD_CLK;
-	assign SD_SPI_MOSI = (~mcp_en | mcp_sdcd) ? 1'bZ : SD_MOSI;
-	assign {SDIO_CLK,SDIO_CMD,SDIO_DAT} = av_dis ? 6'bZZZZZZ : (mcp_en | (SDCD_SPDIF & ~SW[2])) ? {vga_g,vga_r,vga_b} : {SD_CLK,SD_MOSI,SD_CS,3'bZZZ};
 
 
 
@@ -142,46 +2408,15 @@ wire SD_CS, SD_CLK, SD_MOSI, SD_MISO, SD_CD;
 
 
 
-//////////////////////  LEDs/Buttons  ///////////////////////////////////
 
-reg [7:0] led_overtake = 0;
-reg [7:0] led_state    = 0;
 
-wire led_p =  led_power[1] ? ~led_power[0] : 1'b0;
-wire led_d =  led_disk[1]  ? ~led_disk[0]  : ~(led_disk[0] | gp_out[29]);
-wire led_u = ~led_user;
-wire led_locked;
 
-//LEDs on de10-nano board
-assign LED = (led_overtake & led_state) | (~led_overtake & {1'b0,led_locked,1'b0, ~led_p, 1'b0, ~led_d, 1'b0, ~led_u});
 
-wire [2:0] mcp_btn;
-wire       mcp_sdcd;
-wire       mcp_en;
-wire       mcp_mode;
-mcp23009 mcp23009
-(
-	.clk(FPGA_CLK2_50),
 
-	.btn(mcp_btn),
-	.led({led_p, led_d, led_u}),
-	.flg_sd_cd(mcp_sdcd),
-	.flg_present(mcp_en),
-	.flg_mode(mcp_mode),
 
-	.scl(IO_SCL),
-	.sda(IO_SDA)
-);
 
-wire io_dig = mcp_en ? mcp_mode : SW[3];
 
 
-	wire   av_dis    = io_dig | VGA_EN;
-	assign LED_POWER = av_dis ? 1'bZ : mcp_en ? de1          : led_p ? 1'bZ : 1'b0;
-	assign LED_HDD   = av_dis ? 1'bZ : mcp_en ? (sog & ~cs1) : led_d ? 1'bZ : 1'b0;
-	//assign LED_USER  = av_dis ? 1'bZ : mcp_en ? ~vga_tx_clk  : led_u ? 1'bZ : 1'b0;
-	assign LED_USER  = VGA_TX_CLK;
-	wire   BTN_DIS   = VGA_EN;
 
 
 
@@ -189,1837 +2424,1591 @@ wire io_dig = mcp_en ? mcp_mode : SW[3];
 
 
 
-reg BTN_EN = 0;
-reg [25:0] btn_timeout = 0;
-initial btn_timeout = 0;
-always @(posedge FPGA_CLK2_50) begin
-	reg btn_up = 0;
-	reg btn_en = 0;
 
-	btn_up <= BTN_RESET & BTN_OSD & BTN_USER;
-	if(~reset & btn_up & ~&btn_timeout) btn_timeout <= btn_timeout + 1'd1;
-	btn_en <= ~BTN_DIS;
-	BTN_EN <= &btn_timeout & btn_en;
-end
 
-wire btn_r = (mcp_en | SW[3]) ? mcp_btn[1] : (BTN_EN & ~BTN_RESET);
-wire btn_o = (mcp_en | SW[3]) ? mcp_btn[2] : (BTN_EN & ~BTN_OSD  );
-wire btn_u = (mcp_en | SW[3]) ? mcp_btn[0] : (BTN_EN & ~BTN_USER );
 
-reg btn_user, btn_osd;
-always @(posedge FPGA_CLK2_50) begin
-	integer div;
-	reg [7:0] deb_user;
-	reg [7:0] deb_osd;
 
-	div <= div + 1'b1;
-	if(div > 100000) div <= 0;
 
-	if(!div) begin
-		deb_user <= {deb_user[6:0], btn_u | ~KEY[1]};
-		if(&deb_user) btn_user <= 1;
-		if(!deb_user) btn_user <= 0;
 
-		deb_osd <= {deb_osd[6:0], btn_o | ~KEY[0]};
-		if(&deb_osd) btn_osd <= 1;
-		if(!deb_osd) btn_osd <= 0;
-	end
-end
 
-/////////////////////////  HPS I/O  /////////////////////////////////////
 
-// gp_in[31] = 0 - quick flag that FPGA is initialized (HPS reads 1 when FPGA is not in user mode)
-//                 used to avoid lockups while JTAG loading
-wire [31:0] gp_in = {1'b0, btn_user | btn[1], btn_osd | btn[0], io_dig, 8'd0, io_ver, io_ack, io_wide, io_dout | io_dout_sys};
-wire [31:0] gp_out;
 
-wire  [1:0] io_ver = 1; // 0 - obsolete. 1 - optimized HPS I/O. 2,3 - reserved for future.
-wire        io_wait;
-wire        io_wide;
-wire [15:0] io_dout;
-wire [15:0] io_din = gp_outr[15:0];
-wire        io_clk = gp_outr[17];
-wire        io_ss0 = gp_outr[18];
-wire        io_ss1 = gp_outr[19];
-wire        io_ss2 = gp_outr[20];
 
 
-	wire io_osd_hdmi = io_ss1 & ~io_ss0;
 
 
-wire io_fpga     = ~io_ss1 & io_ss0;
-wire io_uio      = ~io_ss1 & io_ss2;
 
-reg  io_ack;
-reg  rack;
-wire io_strobe = ~rack & io_clk;
 
-always @(posedge clk_sys) begin
-	if(~(io_wait | vs_wait) | io_strobe) begin
-		rack <= io_clk;
-		io_ack <= rack;
-	end
-end
 
-reg [31:0] gp_outr;
-always @(posedge clk_sys) begin
-	reg [31:0] gp_outd;
-	gp_outr <= gp_outd;
-	gp_outd <= gp_out;
-end
 
 
 
 
-	wire  [7:0] core_type  = 'hA4; // generic core.
 
 
-// HPS will not communicate to core if magic is different
-wire [31:0] core_magic = {24'h5CA623, core_type};
 
-cyclonev_hps_interface_mpu_general_purpose h2f_gp
-(
-	.gp_in({~gp_out[31] ? core_magic : gp_in}),
-	.gp_out(gp_out)
-);
 
 
-reg [15:0] cfg;
-reg        cfg_set      = 0;
 
 
 
 
 
-	wire    vga_fb       = cfg[12] | vga_force_scaler;
-	wire    direct_video = cfg[10];
 
 
-wire       audio_96k    = cfg[6];
-wire       csync_en     = cfg[3];
-wire       io_osd_vga   = io_ss1 & ~io_ss2;
 
-	wire    ypbpr_en     = cfg[5];
-	wire    sog          = cfg[9];
-	
 
 
-		wire vga_scaler   = cfg[2] | vga_force_scaler;
-	
-
-
-reg        cfg_custom_t = 0;
-reg  [5:0] cfg_custom_p1;
-reg [31:0] cfg_custom_p2;
-
-reg  [4:0] vol_att;
-initial vol_att = 5'b11111;
-
-reg  [11:0] coef_addr;
-reg  [9:0] coef_data;
-reg        coef_wr = 0;
-
-wire[12:0] ARX, ARY;
-reg [11:0] VSET = 0, HSET = 0;
-reg        FREESCALE = 0;
-reg  [2:0] scaler_flt;
-reg        lowlat = 0;
-reg        cfg_done = 0;
-
-reg        vs_wait = 0;
-reg [11:0] vs_line = 0;
-
-reg        scaler_out = 0;
-reg        vrr_mode = 0;
-wire       hdmi_blackout;
-
-reg [31:0] aflt_rate = 7056000;
-reg [39:0] acx  = 4258969;
-reg  [7:0] acx0 = 3;
-reg  [7:0] acx1 = 3;
-reg  [7:0] acx2 = 1;
-reg [23:0] acy0 = -24'd6216759;
-reg [23:0] acy1 =  24'd6143386;
-reg [23:0] acy2 = -24'd2023767;
-reg        areset = 0;
-reg [12:0] arc1x = 0;
-reg [12:0] arc1y = 0;
-reg [12:0] arc2x = 0;
-reg [12:0] arc2y = 0;
-reg [15:0] io_dout_sys;
-
-always@(posedge clk_sys) begin
-	reg  [7:0] cmd;
-	reg        has_cmd;
-	reg  [7:0] cnt = 0;
-	reg        vs_d0,vs_d1,vs_d2;
-	reg  [4:0] acx_att;
-	reg  [7:0] fb_crc;
-
-	coef_wr <= 0;
-
-
-	shadowmask_wr <= 0;
-
-
-	if(~io_uio) begin
-		has_cmd <= 0;
-		cmd <= 0;
-		areset <= 0;
-		acx_att <= 0;
-		acx <= acx >> acx_att;
-		io_dout_sys <= 0;
-	end
-	else
-	if(io_strobe) begin
-		io_dout_sys <= 0;
-		if(!has_cmd) begin
-			has_cmd <= 1;
-			cmd <= io_din[7:0];
-			cnt <= 0;
-			if(io_din[7:0] == 'h30) vs_wait <= 1;
-			if(io_din[7:0] == 'h39) begin
-				aflt_rate <= 7056000;
-				acx  <= 4258969;
-				acx0 <= 3;
-				acx1 <= 3;
-				acx2 <= 1;
-				acy0 <= -24'd6216759;
-				acy1 <=  24'd6143386;
-				acy2 <= -24'd2023767;
-				areset <= 1;
-			end
-			if(io_din[7:0] == 'h20) io_dout_sys <= 'b11;
-
-			if(io_din[7:0] == 'h40) io_dout_sys <= fb_crc;
-
-		end
-		else begin
-			cnt <= cnt + 1'd1;
-			if(cmd == 1) begin
-				cfg <= io_din;
-				cfg_set <= 1;
-				scaler_out <= 1;
-			end
-			if(cmd == 'h20) begin
-				cfg_set <= 0;
-				if(cnt<8) begin
-					case(cnt[2:0])
-						0: {HDMI_PR,vrr_mode,WIDTH} <= {io_din[15:14], io_din[11:0]};
-						1: HFP    <= io_din[11:0];
-						2: HS     <= {io_din[15], io_din[11:0]};
-						3: HBP    <= io_din[11:0];
-						4: HEIGHT <= io_din[11:0];
-						5: VFP    <= io_din[11:0];
-						6: VS     <= {io_din[15],io_din[11:0]};
-						7: VBP    <= io_din[11:0];
-					endcase
-
-					if(cnt == 1) begin
-						cfg_custom_p1 <= 0;
-						cfg_custom_p2 <= 0;
-						cfg_custom_t <= ~cfg_custom_t;
-					end
-				end
-				else begin
-					if(cnt[1:0]==0) cfg_custom_p1 <= io_din[5:0];
-					if(cnt[1:0]==1) cfg_custom_p2[15:0]  <= io_din;
-					if(cnt[1:0]==2) begin
-						cfg_custom_p2[31:16] <= io_din;
-						cfg_custom_t <= ~cfg_custom_t;
-						cnt[2:0] <= 3'b100;
-					end
-					if(cnt == 8) {lowlat,cfg_done} <= {io_din[15],1'b1};
-
-				end
-			end
-			if(cmd == 'h2F) begin
-				case(cnt[3:0])
-					0: {LFB_EN,LFB_FLT,LFB_FMT} <= {io_din[15], io_din[14], io_din[5:0]};
-					1: LFB_BASE[15:0]  <= io_din[15:0];
-					2: LFB_BASE[31:16] <= io_din[15:0];
-					3: LFB_WIDTH       <= io_din[11:0];
-					4: LFB_HEIGHT      <= io_din[11:0];
-					5: LFB_HMIN        <= io_din[11:0];
-					6: LFB_HMAX        <= io_din[11:0];
-					7: LFB_VMIN        <= io_din[11:0];
-					8: LFB_VMAX        <= io_din[11:0];
-					9: LFB_STRIDE      <= io_din[13:0];
-				endcase
-			end
-			if(cmd == 'h25) {led_overtake, led_state} <= io_din;
-			if(cmd == 'h26) vol_att <= io_din[4:0];
-			if(cmd == 'h27) VSET <= io_din[11:0];
-			if(cmd == 'h2A) begin
-				if(cnt[0]) {coef_wr,coef_data} <= {1'b1,io_din[9:0]};
-				else coef_addr <= io_din[11:0];
-			end
-			if(cmd == 'h2B) scaler_flt <= io_din[2:0];
-			if(cmd == 'h37) {FREESCALE,HSET} <= {io_din[15],io_din[11:0]};
-			if(cmd == 'h38) vs_line <= io_din[11:0];
-			if(cmd == 'h39) begin
-				case(cnt[3:0])
-					 0: acx_att          <= io_din[4:0];
-					 1: aflt_rate[15:0]  <= io_din;
-					 2: aflt_rate[31:16] <= io_din;
-					 3: acx[15:0]        <= io_din;
-					 4: acx[31:16]       <= io_din;
-					 5: acx[39:32]       <= io_din[7:0];
-					 6: acx0             <= io_din[7:0];
-					 7: acx1             <= io_din[7:0];
-					 8: acx2             <= io_din[7:0];
-					 9: acy0[15:0]       <= io_din;
-					10: acy0[23:16]      <= io_din[7:0];
-					11: acy1[15:0]       <= io_din;
-					12: acy1[23:16]      <= io_din[7:0];
-					13: acy2[15:0]       <= io_din;
-					14: acy2[23:16]      <= io_din[7:0];
-				endcase
-			end
-			if(cmd == 'h3A) begin
-				case(cnt[3:0])
-					 0: arc1x <= io_din[12:0];
-					 1: arc1y <= io_din[12:0];
-					 2: arc2x <= io_din[12:0];
-					 3: arc2y <= io_din[12:0];
-				endcase
-			end
-
-			if(cmd == 'h3E) {shadowmask_wr,shadowmask_data} <= {1'b1, io_din};
-			if(cmd == 'h40) begin
-				case(cnt[3:0])
-					0: io_dout_sys <= {arxy, arx};
-					1: io_dout_sys <= {arxy, ary};
-					2: io_dout_sys <= {LFB_EN, FB_EN, FB_FMT};
-					3: io_dout_sys <= FB_WIDTH;
-					4: io_dout_sys <= FB_HEIGHT;
-					5: io_dout_sys <= FB_BASE[15:0];
-					6: io_dout_sys <= FB_BASE[31:16];
-					7: io_dout_sys <= FB_STRIDE;
-				endcase
-			end
-
-
-			if(cmd == 'h41) begin
-				case(cnt[3:0])
-					 0: {pal_en,cvbs,yc_en}    <= io_din[2:0];
-					 1: PhaseInc[15:0]         <= io_din;
-					 2: PhaseInc[31:16]        <= io_din;
-					 3: PhaseInc[39:32]        <= io_din[7:0];
-					 4: ColorBurst_Range[15:0] <= io_din;
-					 5: ColorBurst_Range[16]   <= io_din[0];
-				endcase
-			end
-
-		end
-	end
-
-
-	fb_crc <= {LFB_EN, FB_EN, FB_FMT}
-				^ FB_WIDTH[7:0]  ^ FB_WIDTH[11:8] 
-				^ FB_HEIGHT[7:0] ^ FB_HEIGHT[11:8] 
-				^ arx[7:0] ^ arx[11:8] ^ arxy
-				^ ary[7:0] ^ ary[11:8];
-
-
-	vs_d0 <= HDMI_TX_VS;
-	if(vs_d0 == HDMI_TX_VS) vs_d1 <= vs_d0;
-
-	vs_d2 <= vs_d1;
-	if(~vs_d2 & vs_d1) vs_wait <= 0;
-end
-
-cyclonev_hps_interface_peripheral_uart uart
-(
-	.ri(0),
-	.dsr(uart_dsr),
-	.dcd(uart_dsr),
-	.dtr(uart_dtr),
-
-	.cts(uart_cts),
-	.rts(uart_rts),
-	.rxd(uart_rxd),
-	.txd(uart_txd)
-);
-
-wire [63:0] f2h_irq = {video_sync,HDMI_TX_VS};
-cyclonev_hps_interface_interrupts interrupts
-(
-	.irq(f2h_irq)
-);
-
-///////////////////////////  RESET  ///////////////////////////////////
-
-reg reset_req = 0;
-always @(posedge FPGA_CLK2_50) begin
-	reg [1:0] resetd, resetd2;
-	reg       old_reset;
-
-	//latch the reset
-	old_reset <= reset;
-	if(~old_reset & reset) reset_req <= 1;
-
-	//special combination to set/clear the reset
-	//preventing of accidental reset control
-	if(resetd==1) reset_req <= 1;
-	if(resetd==2 && resetd2==0) reset_req <= 0;
-
-	resetd  <= gp_out[31:30];
-	resetd2 <= resetd;
-end
-
-////////////////////  SYSTEM MEMORY & SCALER  /////////////////////////
-
-wire reset;
-wire clk_100m;
-
-sysmem_lite sysmem
-(
-	//Reset/Clock
-	.reset_core_req(reset_req),
-	.reset_out(reset),
-	.clock(clk_100m),
-
-	//DE10-nano has no reset signal on GPIO, so core has to emulate cold reset button.
-	.reset_hps_cold_req(btn_r),
-
-	//64-bit DDR3 RAM access
-	.ram1_clk(ram_clk),
-	.ram1_address(ram_address),
-	.ram1_burstcount(ram_burstcount),
-	.ram1_waitrequest(ram_waitrequest),
-	.ram1_readdata(ram_readdata),
-	.ram1_readdatavalid(ram_readdatavalid),
-	.ram1_read(ram_read),
-	.ram1_writedata(ram_writedata),
-	.ram1_byteenable(ram_byteenable),
-	.ram1_write(ram_write),
-
-	//64-bit DDR3 RAM access
-	.ram2_clk(clk_audio),
-	.ram2_address(ram2_address),
-	.ram2_burstcount(ram2_burstcount),
-	.ram2_waitrequest(ram2_waitrequest),
-	.ram2_readdata(ram2_readdata),
-	.ram2_readdatavalid(ram2_readdatavalid),
-	.ram2_read(ram2_read),
-	.ram2_writedata(ram2_writedata),
-	.ram2_byteenable(ram2_byteenable),
-	.ram2_write(ram2_write),
-
-	//128-bit DDR3 RAM access
-	// HDMI frame buffer
-	.vbuf_clk(clk_100m),
-	.vbuf_address(vbuf_address),
-	.vbuf_burstcount(vbuf_burstcount),
-	.vbuf_waitrequest(vbuf_waitrequest),
-	.vbuf_writedata(vbuf_writedata),
-	.vbuf_byteenable(vbuf_byteenable),
-	.vbuf_write(vbuf_write),
-	.vbuf_readdata(vbuf_readdata),
-	.vbuf_readdatavalid(vbuf_readdatavalid),
-	.vbuf_read(vbuf_read)
-);
-
-wire [28:0] ram2_address;
-wire  [7:0] ram2_burstcount;
-wire  [7:0] ram2_byteenable;
-wire        ram2_waitrequest;
-wire [63:0] ram2_readdata;
-wire [63:0] ram2_writedata;
-wire        ram2_readdatavalid;
-wire        ram2_read;
-wire        ram2_write;
-wire  [7:0] ram2_bcnt;
-
-ddr_svc ddr_svc
-(
-	.clk(clk_audio),
-
-	.ram_waitrequest(ram2_waitrequest),
-	.ram_burstcnt(ram2_burstcount),
-	.ram_addr(ram2_address),
-	.ram_readdata(ram2_readdata),
-	.ram_read_ready(ram2_readdatavalid),
-	.ram_read(ram2_read),
-	.ram_writedata(ram2_writedata),
-	.ram_byteenable(ram2_byteenable),
-	.ram_write(ram2_write),
-	.ram_bcnt(ram2_bcnt),
-
-
-	.ch0_addr(alsa_address),
-	.ch0_burst(1),
-	.ch0_data(alsa_readdata),
-	.ch0_req(alsa_req),
-	.ch0_ready(alsa_ready),
-
-
-	.ch1_addr(pal_addr),
-	.ch1_burst(128),
-	.ch1_data(pal_data),
-	.ch1_req(pal_req),
-	.ch1_ready(pal_wr)
-);
-
-wire clk_pal = clk_audio;
-
-
-wire  [27:0] vbuf_address;
-wire   [7:0] vbuf_burstcount;
-wire         vbuf_waitrequest;
-wire [127:0] vbuf_readdata;
-wire         vbuf_readdatavalid;
-wire         vbuf_read;
-wire [127:0] vbuf_writedata;
-wire  [15:0] vbuf_byteenable;
-wire         vbuf_write;
-
-wire  [23:0] hdmi_data;
-wire         hdmi_vs, hdmi_hs, hdmi_de, hdmi_vbl, hdmi_brd;
-wire         freeze;
-
-
-	wire clk_hdmi  = hdmi_clk_out;
-
-	ascal 
-	#(
-		.RAMBASE(32'h20000000),
-	
-
-
-		.RAMSIZE(32'h00800000),
-	
-	
-		.PALETTE2("false"),
-	
-
-
-
-
-	
-
-
-	
-
-
-		.FRAC(8),
-		.N_DW(128),
-		.N_AW(28)
-	)
-	ascal
-	(
-		.reset_na (~reset_req),
-		.run      (1),
-		.freeze   (freeze),
-
-		.i_clk    (clk_ihdmi),
-		.i_ce     (ce_hpix),
-		.i_r      (hr_out),
-		.i_g      (hg_out),
-		.i_b      (hb_out),
-		.i_hs     (hhs_fix),
-		.i_vs     (hvs_fix),
-		.i_fl     (f1),
-		.i_de     (hde_emu),
-		.iauto    (1),
-		.himin    (0),
-		.himax    (0),
-		.vimin    (0),
-		.vimax    (0),
-
-		.o_clk    (clk_hdmi),
-		.o_ce     (scaler_out),
-		.o_r      (hdmi_data[23:16]),
-		.o_g      (hdmi_data[15:8]),
-		.o_b      (hdmi_data[7:0]),
-		.o_hs     (hdmi_hs),
-		.o_vs     (hdmi_vs),
-		.o_de     (hdmi_de),
-		.o_vbl    (hdmi_vbl),
-		.o_brd    (hdmi_brd),
-		.o_lltune (lltune),
-		.htotal   (WIDTH + HFP + HBP + HS[11:0]),
-		.hsstart  (WIDTH + HFP),
-		.hsend    (WIDTH + HFP + HS[11:0]),
-		.hdisp    (WIDTH),
-		.hmin     (hmin),
-		.hmax     (hmax),
-		.vtotal   (HEIGHT + VFP + VBP + VS[11:0]),
-		.vsstart  (HEIGHT + VFP),
-		.vsend    (HEIGHT + VFP + VS[11:0]),
-		.vdisp    (HEIGHT),
-		.vmin     (vmin),
-		.vmax     (vmax),
-		.vrr      (vrr_mode),
-		.vrrmax   (HEIGHT + VBP + VS[11:0] + 12'd1),
-		.swblack  (hdmi_blackout),
-
-		.mode     ({~lowlat,LFB_EN ? LFB_FLT : |scaler_flt,2'b00}),
-		.poly_clk (clk_sys),
-		.poly_a   (coef_addr),
-		.poly_dw  (coef_data),
-		.poly_wr  (coef_wr),
-
-		.pal1_clk (clk_pal),
-		.pal1_dw  (pal_d),
-		.pal1_a   (pal_a),
-		.pal1_wr  (pal_wr),
-
-	
-
-
-
-
-
-
-
-
-
-
-		.o_fb_ena         (FB_EN),
-		.o_fb_hsize       (FB_WIDTH),
-		.o_fb_vsize       (FB_HEIGHT),
-		.o_fb_format      (FB_FMT),
-		.o_fb_base        (FB_BASE),
-		.o_fb_stride      (FB_STRIDE),
-
-		.avl_clk          (clk_100m),
-		.avl_waitrequest  (vbuf_waitrequest),
-		.avl_readdata     (vbuf_readdata),
-		.avl_readdatavalid(vbuf_readdatavalid),
-		.avl_burstcount   (vbuf_burstcount),
-		.avl_writedata    (vbuf_writedata),
-		.avl_address      (vbuf_address),
-		.avl_write        (vbuf_write),
-		.avl_read         (vbuf_read),
-		.avl_byteenable   (vbuf_byteenable)
-	);
-
-
-reg        LFB_EN     = 0;
-reg        LFB_FLT    = 0;
-reg  [5:0] LFB_FMT    = 0;
-reg [11:0] LFB_WIDTH  = 0;
-reg [11:0] LFB_HEIGHT = 0;
-reg [11:0] LFB_HMIN   = 0;
-reg [11:0] LFB_HMAX   = 0;
-reg [11:0] LFB_VMIN   = 0;
-reg [11:0] LFB_VMAX   = 0;
-reg [31:0] LFB_BASE   = 0;
-reg [13:0] LFB_STRIDE = 0;
-
-reg        FB_EN     = 0;
-reg  [5:0] FB_FMT    = 0;
-reg [11:0] FB_WIDTH  = 0;
-reg [11:0] FB_HEIGHT = 0;
-reg [31:0] FB_BASE   = 0;
-reg [13:0] FB_STRIDE = 0;
-
-always @(posedge clk_sys) begin
-	FB_EN <= LFB_EN | fb_en;
-	if(LFB_EN) begin
-		FB_FMT    <= LFB_FMT;
-		FB_WIDTH  <= LFB_WIDTH;
-		FB_HEIGHT <= LFB_HEIGHT;
-		FB_BASE   <= LFB_BASE;
-		FB_STRIDE <= LFB_STRIDE;
-	end
-	else begin
-		FB_FMT    <= fb_fmt;
-		FB_WIDTH  <= fb_width;
-		FB_HEIGHT <= fb_height;
-		FB_BASE   <= fb_base;
-		FB_STRIDE <= fb_stride;
-	end
-end
-
-
-
-
-
-
-reg  ar_md_start;
-wire ar_md_busy;
-reg  [11:0] ar_md_mul1, ar_md_mul2, ar_md_div;
-wire [11:0] ar_md_res;
-
-sys_umuldiv #(12,12,12) ar_muldiv
-(
-	.clk(clk_vid),
-	.start(ar_md_start),
-	.busy(ar_md_busy),
-
-	.mul1(ar_md_mul1),
-	.mul2(ar_md_mul2),
-	.div(ar_md_div),
-	.result(ar_md_res)
-);
-
-reg [11:0] hmin;
-reg [11:0] hmax;
-reg [11:0] vmin;
-reg [11:0] vmax;
-reg [11:0] hdmi_height;
-reg [11:0] hdmi_width;
-
-reg [11:0] arx;
-reg [11:0] ary;
-reg        arxy;
-
-always @(posedge clk_vid) begin
-	reg [11:0] hmini,hmaxi,vmini,vmaxi;
-	reg [11:0] wcalc,videow;
-	reg [11:0] hcalc,videoh;
-	reg  [2:0] state;
-
-	hdmi_height <= (VSET && (VSET < HEIGHT)) ? VSET : HEIGHT;
-	hdmi_width  <= (HSET && (HSET < WIDTH))  ? HSET << HDMI_PR : WIDTH << HDMI_PR;
-
-	if(!ARY) begin
-		if(ARX == 1) begin
-			arx  <= arc1x[11:0];
-			ary  <= arc1y[11:0];
-			arxy <= arc1x[12] | arc1y[12];
-		end
-		else if(ARX == 2) begin
-			arx  <= arc2x[11:0];
-			ary  <= arc2y[11:0];
-			arxy <= arc2x[12] | arc2y[12];
-		end
-		else begin
-			arx  <= 0;
-			ary  <= 0;
-			arxy <= 0;
-		end
-	end
-	else begin
-		arx  <= ARX[11:0];
-		ary  <= ARY[11:0];
-		arxy <= ARX[12] | ARY[12];
-	end
-	
-	ar_md_start <= 0;
-	state <= state + 1'd1;
-	case(state)
-		0: if(LFB_EN) begin
-				hmini <= LFB_HMIN;
-				vmini <= LFB_VMIN;
-				hmaxi <= LFB_HMAX;
-				vmaxi <= LFB_VMAX;
-				state <= 0;
-			end
-			else if(FREESCALE || !arx || !ary) begin
-				wcalc <= hdmi_width;
-				hcalc <= hdmi_height;
-				state <= 6;
-			end
-			else if(arxy) begin
-				wcalc <= arx;
-				hcalc <= ary;
-				state <= 6;
-			end
-
-		1: begin
-				ar_md_mul1 <= hdmi_height;
-				ar_md_mul2 <= arx;
-				ar_md_div  <= ary;
-				ar_md_start<= 1;
-			end
-		2: begin
-				wcalc <= ar_md_res;
-				if(ar_md_start | ar_md_busy) state <= 2;
-			end
-
-		3: begin
-				ar_md_mul1 <= hdmi_width;
-				ar_md_mul2 <= ary;
-				ar_md_div  <= arx;
-				ar_md_start<= 1;
-			end
-		4: begin
-				hcalc <= ar_md_res;
-				if(ar_md_start | ar_md_busy) state <= 4;
-			end
-
-		6: begin
-				videow <= (wcalc > hdmi_width)  ? (hdmi_width >> HDMI_PR)  : (wcalc[11:0] >> HDMI_PR);
-				videoh <= (hcalc > hdmi_height) ? hdmi_height : hcalc[11:0];
-			end
-
-		7: begin
-				hmini <= ((WIDTH  - videow)>>1);
-				hmaxi <= ((WIDTH  - videow)>>1) + videow - 1'd1;
-				vmini <= ((HEIGHT - videoh)>>1);
-				vmaxi <= ((HEIGHT - videoh)>>1) + videoh - 1'd1;
-			end
-	endcase
-	
-	hmin <= hmini;
-	hmax <= hmaxi;
-	vmin <= vmini;
-	vmax <= vmaxi;
-end
-
-
-	wire [15:0] lltune;
-	pll_hdmi_adj pll_hdmi_adj
-	(
-		.clk(FPGA_CLK1_50),
-		.reset_na(~reset_req),
-
-		.llena(lowlat),
-		.lltune({16{cfg_done}} & lltune),
-		.locked(led_locked),
-		.i_waitrequest(adj_waitrequest),
-		.i_write(adj_write),
-		.i_address(adj_address),
-		.i_writedata(adj_data),
-		.o_waitrequest(cfg_waitrequest),
-		.o_write(cfg_write),
-		.o_address(cfg_address),
-		.o_writedata(cfg_data)
-	);
-
-
-
-
-wire [63:0] pal_data;
-wire [47:0] pal_d = {pal_data[55:32], pal_data[23:0]};
-wire  [6:0] pal_a = ram2_bcnt[6:0];
-wire        pal_wr;
-
-reg  [28:0] pal_addr;
-reg         pal_req = 0;
-always @(posedge clk_pal) begin
-	reg old_vs1, old_vs2;
-
-	pal_addr <= LFB_BASE[31:3] - 29'd512;
-
-	old_vs1 <= hdmi_vs;
-	old_vs2 <= old_vs1;
-	
-	if(~old_vs2 & old_vs1 & ~FB_FMT[2] & FB_FMT[1] & FB_FMT[0] & FB_EN) pal_req <= ~pal_req;
-end
-
-
-/////////////////////////  HDMI output  /////////////////////////////////
-
-	wire hdmi_clk_out;
-	pll_hdmi pll_hdmi
-	(
-		.refclk(FPGA_CLK1_50),
-		.rst(reset_req),
-		.reconfig_to_pll(reconfig_to_pll),
-		.reconfig_from_pll(reconfig_from_pll),
-		.outclk_0(hdmi_clk_out)
-	);
-
-
-//1920x1080@60 PCLK=148.5MHz CEA
-reg  [11:0] WIDTH   = 1920;
-reg  [11:0] HFP     = 88;
-reg  [12:0] HS      = 48;
-reg  [11:0] HBP     = 148;
-reg  [11:0] HEIGHT  = 1080;
-reg  [11:0] VFP     = 4;
-reg  [12:0] VS      = 5;
-reg  [11:0] VBP     = 36;
-reg         HDMI_PR = 0;
-
-wire [63:0] reconfig_to_pll;
-wire [63:0] reconfig_from_pll;
-wire        cfg_waitrequest,adj_waitrequest;
-wire        cfg_write;
-wire  [5:0] cfg_address;
-wire [31:0] cfg_data;
-reg         adj_write;
-reg   [5:0] adj_address;
-reg  [31:0] adj_data;
-
-
-	pll_cfg_hdmi pll_cfg_hdmi
-	(
-		.mgmt_clk(FPGA_CLK1_50),
-		.mgmt_reset(reset_req),
-		.mgmt_waitrequest(cfg_waitrequest),
-		.mgmt_write(cfg_write),
-		.mgmt_address(cfg_address),
-		.mgmt_writedata(cfg_data),
-		.reconfig_to_pll(reconfig_to_pll),
-		.reconfig_from_pll(reconfig_from_pll)
-	);
-
-	reg cfg_got = 0;
-	always @(posedge clk_sys) begin
-		reg vsd, vsd2;
-		if(~cfg_ready || ~cfg_set) cfg_got <= cfg_set;
-		else begin
-			vsd  <= HDMI_TX_VS;
-			vsd2 <= vsd;
-			if(~vsd2 & vsd) cfg_got <= cfg_set;
-		end
-	end
-
-	reg cfg_ready = 0;
-	always @(posedge FPGA_CLK1_50) begin
-		reg gotd = 0, gotd2 = 0;
-		reg custd = 0, custd2 = 0;
-		reg old_wait = 0;
-
-		gotd  <= cfg_got;
-		gotd2 <= gotd;
-		
-		adj_write <= 0;
-		
-		custd <= cfg_custom_t;
-		custd2 <= custd;
-		if(custd2 != custd & ~gotd) begin
-			adj_address <= cfg_custom_p1;
-			adj_data <= cfg_custom_p2;
-			adj_write <= 1;
-		end
-
-		if(~gotd2 & gotd) begin
-			adj_address <= 2;
-			adj_data <= 0;
-			adj_write <= 1;
-		end
-
-		old_wait <= adj_waitrequest;
-		if(old_wait & ~adj_waitrequest & gotd) cfg_ready <= 1;
-	end
-
-
-
-
-assign HDMI_I2C_SCL = hdmi_scl_en ? 1'b0 : 1'bZ;
-assign HDMI_I2C_SDA = hdmi_sda_en ? 1'b0 : 1'bZ;
-
-wire hdmi_scl_en, hdmi_sda_en;
-cyclonev_hps_interface_peripheral_i2c hdmi_i2c
-(
-	.out_clk(hdmi_scl_en),
-	.scl(HDMI_I2C_SCL),
-	.out_data(hdmi_sda_en),
-	.sda(HDMI_I2C_SDA)
-);
-
-
-	
-
-
-
-
-
-
-
-	wire dis_output = 0;
-	
-
-	wire [23:0] hdmi_data_mask;
-	wire        hdmi_de_mask, hdmi_vs_mask, hdmi_hs_mask;
-
-	reg [15:0] shadowmask_data;
-	reg        shadowmask_wr = 0;
-
-	shadowmask HDMI_shadowmask
-	(
-		.clk(clk_hdmi),
-		.clk_sys(clk_sys),
-
-		.cmd_wr(shadowmask_wr),
-		.cmd_in(shadowmask_data),
-
-		.din(dis_output ? 24'd0 : hdmi_data),
-		.hs_in(hdmi_hs),
-		.vs_in(hdmi_vs),
-		.de_in(hdmi_de),
-		.brd_in(hdmi_brd),
-		.enable(~LFB_EN),
-
-		.dout(hdmi_data_mask),
-		.hs_out(hdmi_hs_mask),
-		.vs_out(hdmi_vs_mask),
-		.de_out(hdmi_de_mask)
-	);
-
-	wire [23:0] hdmi_data_osd;
-	wire        hdmi_de_osd, hdmi_vs_osd, hdmi_hs_osd;
-
-	osd hdmi_osd
-	(
-		.clk_sys(clk_sys),
-
-		.io_osd(io_osd_hdmi),
-		.io_strobe(io_strobe),
-		.io_din(io_din),
-
-		.clk_video(clk_hdmi),
-		.din(hdmi_data_mask),
-		.hs_in(hdmi_hs_mask),
-		.vs_in(hdmi_vs_mask),
-		.de_in(hdmi_de_mask),
-
-		.dout(hdmi_data_osd),
-		.hs_out(hdmi_hs_osd),
-		.vs_out(hdmi_vs_osd),
-		.de_out(hdmi_de_osd)
-	);
-
-	wire hdmi_cs_osd;
-	csync csync_hdmi(clk_hdmi, hdmi_hs_osd, hdmi_vs_osd, hdmi_cs_osd);
-
-
-reg [23:0] dv_data;
-reg        dv_hs, dv_vs, dv_de;
-wire [23:0] dv_data_osd;
-wire dv_hs_osd, dv_vs_osd, dv_cs_osd;
-
-always @(posedge clk_vid) begin
-	reg [23:0] dv_d1, dv_d2;
-	reg        dv_de1, dv_de2, dv_hs1, dv_hs2, dv_vs1, dv_vs2;
-	reg [12:0] vsz, vcnt, vcnt_l, vcnt_ll;
-	reg        old_hs, old_vs;
-	reg        vde;
-	reg  [3:0] hss;
-
-	if(ce_pix) begin
-		hss <= (hss << 1) | dv_hs_osd;
-
-		old_hs <= dv_hs_osd;
-		if(~old_hs && dv_hs_osd) begin
-			old_vs <= dv_vs_osd;
-			if(~&vcnt) vcnt <= vcnt + 1'd1;
-			if(~old_vs & dv_vs_osd) begin
-				if (vcnt != vcnt_ll || vcnt < vcnt_l) vsz <= vcnt;
-				vcnt_l <= vcnt;
-				vcnt_ll <= vcnt_l;
-			end
-			if(old_vs & ~dv_vs_osd) vcnt <= 0;
-			
-			if(vcnt == 1) vde <= 1;
-			if(vcnt == vsz - 3) vde <= 0;
-		end
-
-		dv_de1 <= !{hss,dv_hs_osd} && vde;
-	end
-
-	dv_d1  <= dv_data_osd;
-	dv_hs1 <= csync_en ? dv_cs_osd : dv_hs_osd;
-	dv_vs1 <= dv_vs_osd;
-
-	dv_d2  <= dv_d1;
-	dv_de2 <= dv_de1;
-	dv_hs2 <= dv_hs1;
-	dv_vs2 <= dv_vs1;
-
-	dv_data<= dv_d2;
-	dv_de  <= dv_de2;
-	dv_hs  <= dv_hs2;
-	dv_vs  <= dv_vs2;
-end
-
-
-	assign {dv_data_osd, dv_hs_osd, dv_vs_osd, dv_cs_osd } = ~yc_en ? {vga_data_osd, vga_hs_osd, vga_vs_osd, vga_cs_osd } : {yc_o, yc_hs, yc_vs, yc_cs };
-
-
-
-
-wire hdmi_tx_clk;
-
-	cyclonev_clkselect hdmi_clk_sw
-	( 
-		.clkselect({1'b1, ~vga_fb & direct_video}),
-		.inclk({clk_vid, hdmi_clk_out, 2'b00}),
-		.outclk(hdmi_tx_clk)
-	);
-
-
-
-
-altddio_out
-#(
-	.extend_oe_disable("OFF"),
-	.intended_device_family("Cyclone V"),
-	.invert_output("OFF"),
-	.lpm_hint("UNUSED"),
-	.lpm_type("altddio_out"),
-	.oe_reg("UNREGISTERED"),
-	.power_up_high("OFF"),
-	.width(1)
-)
-hdmiclk_ddr
-(
-	.datain_h(1'b0),
-	.datain_l(1'b1),
-	.outclock(hdmi_tx_clk),
-	.dataout(HDMI_TX_CLK),
-	.aclr(1'b0),
-	.aset(1'b0),
-	.oe(1'b1),
-	.outclocken(1'b1),
-	.sclr(1'b0),
-	.sset(1'b0)
-);
-
-reg hdmi_out_hs;
-reg hdmi_out_vs;
-reg hdmi_out_de;
-reg [23:0] hdmi_out_d;
-
-always @(posedge hdmi_tx_clk) begin
-	reg [23:0] hdmi_dv_data;
-	reg        hdmi_dv_hs, hdmi_dv_vs, hdmi_dv_de;
-
-	reg hs,vs,de;
-	reg [23:0] d;
-	
-	hdmi_dv_data <= dv_data;
-	hdmi_dv_hs   <= dv_hs;
-	hdmi_dv_vs   <= dv_vs;
-	hdmi_dv_de   <= dv_de;
-	
-
-	hs <= (~vga_fb & direct_video) ? hdmi_dv_hs   : (direct_video & csync_en) ? hdmi_cs_osd : hdmi_hs_osd;
-	vs <= (~vga_fb & direct_video) ? hdmi_dv_vs   : hdmi_vs_osd;
-	de <= (~vga_fb & direct_video) ? hdmi_dv_de   : hdmi_de_osd;
-	d  <= (~vga_fb & direct_video) ? hdmi_dv_data : hdmi_data_osd;
-
-
-
-
-
-
-
-	hdmi_out_hs <= hs;
-	hdmi_out_vs <= vs;
-	hdmi_out_de <= de;
-	hdmi_out_d  <= d;
-end
-
-assign HDMI_TX_HS = hdmi_out_hs;
-assign HDMI_TX_VS = hdmi_out_vs;
-assign HDMI_TX_DE = hdmi_out_de;
-assign HDMI_TX_D  = hdmi_out_d;
-
-/////////////////////////  VGA output  //////////////////////////////////
-
-
-	wire vga_tx_clk;
-	
-		cyclonev_clkselect vga_clk_sw
-		( 
-			.clkselect({1'b1, ~vga_fb & ~vga_scaler}),
-			.inclk({clk_vid, hdmi_clk_out, 2'b00}),
-			.outclk(vga_tx_clk)
-		);
-	
-
-
-
-	wire VGA_TX_CLK;
-	altddio_out
-	#(
-		.extend_oe_disable("OFF"),
-		.intended_device_family("Cyclone V"),
-		.invert_output("OFF"),
-		.lpm_hint("UNUSED"),
-		.lpm_type("altddio_out"),
-		.oe_reg("UNREGISTERED"),
-		.power_up_high("OFF"),
-		.width(1)
-	)
-	vgaclk_ddr
-	(
-		.datain_h(1'b0),
-		.datain_l(1'b1),
-		.outclock(vga_tx_clk),
-		.dataout(VGA_TX_CLK),
-		.aclr(~mcp_en & ~av_dis),
-		.aset(1'b0),
-		.oe(~av_dis & (mcp_en | ~led_u)),
-		.outclocken(1'b1),
-		.sclr(1'b0),
-		.sset(1'b0)
-	);
-
-
-wire [23:0] vga_data_sl;
-wire        vga_de_sl, vga_ce_sl, vga_vs_sl, vga_hs_sl;
-scanlines #(0) VGA_scanlines
-(
-	.clk(clk_vid),
-
-	.scanlines(scanlines),
-	.din(de_emu ? {r_out, g_out, b_out} : 24'd0),
-	.hs_in(hs_fix),
-	.vs_in(vs_fix),
-	.de_in(de_emu),
-	.ce_in(ce_pix),
-
-	.dout(vga_data_sl),
-	.hs_out(vga_hs_sl),
-	.vs_out(vga_vs_sl),
-	.de_out(vga_de_sl),
-	.ce_out(vga_ce_sl)
-);
-
-wire [23:0] vga_data_osd;
-wire        vga_vs_osd, vga_hs_osd, vga_de_osd;
-osd vga_osd
-(
-	.clk_sys(clk_sys),
-
-	.io_osd(io_osd_vga),
-	.io_strobe(io_strobe),
-	.io_din(io_din),
-	.osd_status(osd_status),
-
-	.clk_video(clk_vid),
-	.din(vga_data_sl),
-	.hs_in(vga_hs_sl),
-	.vs_in(vga_vs_sl),
-	.de_in(vga_de_sl),
-
-	.dout(vga_data_osd),
-	.hs_out(vga_hs_osd),
-	.vs_out(vga_vs_osd),
-	.de_out(vga_de_osd)
-);
-
-wire vga_cs_osd;
-csync csync_vga(clk_vid, vga_hs_osd, vga_vs_osd, vga_cs_osd);
-
-
-	reg         pal_en;
-	reg         yc_en;
-	reg         cvbs;
-	reg  [16:0] ColorBurst_Range;
-	reg  [39:0] PhaseInc;
-	wire [23:0] yc_o;
-	wire        yc_hs, yc_vs, yc_cs, yc_de;
-
-	yc_out yc_out
-	(
-		.clk(clk_vid),
-		.PAL_EN(pal_en),
-		.CVBS(cvbs),
-		.PHASE_INC(PhaseInc),
-		.COLORBURST_RANGE(ColorBurst_Range),
-		.hsync(vga_hs_osd),
-		.vsync(vga_vs_osd),
-		.csync(vga_cs_osd),
-		.de(vga_de_osd),
-		.dout(yc_o),
-		.din(vga_data_osd),
-		.hsync_o(yc_hs),
-		.vsync_o(yc_vs),
-		.csync_o(yc_cs),
-		.de_o(yc_de)
-	);
-
-
-
-	wire VGA_DISABLE;
-	wire [23:0] vgas_o;
-	wire vgas_hs, vgas_vs, vgas_cs, vgas_de;
-	
-		vga_out vga_scaler_out
-		(
-			.clk(clk_hdmi),
-			.ypbpr_en(ypbpr_en),
-			.hsync(hdmi_hs_osd),
-			.vsync(hdmi_vs_osd),
-			.csync(hdmi_cs_osd),
-			.de(hdmi_de_osd),
-			.dout(vgas_o),
-			.din({24{hdmi_de_osd}} & hdmi_data_osd),
-			.hsync_o(vgas_hs),
-			.vsync_o(vgas_vs),
-			.csync_o(vgas_cs),
-			.de_o(vgas_de)
-		);
-	
-
-
-
-	wire [23:0] vga_o, vga_o_t;
-	wire vga_hs, vga_vs, vga_cs, vga_de, vga_hs_t, vga_vs_t, vga_cs_t, vga_de_t;
-	vga_out vga_out
-	(
-		.clk(clk_vid),
-		.ypbpr_en(ypbpr_en),
-		.hsync(vga_hs_osd),
-		.vsync(vga_vs_osd),
-		.csync(vga_cs_osd),
-		.de(vga_de_osd),
-		.dout(vga_o_t),
-		.din(vga_data_osd),
-		.hsync_o(vga_hs_t),
-		.vsync_o(vga_vs_t),
-		.csync_o(vga_cs_t),
-		.de_o(vga_de_t)
-	);
-
-	
-		assign {vga_o, vga_hs, vga_vs, vga_cs, vga_de } = ~yc_en ? {vga_o_t, vga_hs_t, vga_vs_t, vga_cs_t, vga_de_t } : {yc_o, yc_hs, yc_vs, yc_cs, yc_de };
-	
-
-
-
-	wire vgas_en = vga_fb | vga_scaler;
-
-	wire cs1 = vgas_en ? vgas_cs : vga_cs;
-	wire de1 = vgas_en ? vgas_de : vga_de;
-
-	assign VGA_VS = av_dis ? 1'bZ      : ((vgas_en ? (~vgas_vs ^ VS[12])                         : VGA_DISABLE ? 1'd1 : ~vga_vs) | csync_en);
-	assign VGA_HS = av_dis ? 1'bZ      :  (vgas_en ? ((csync_en ? ~vgas_cs : ~vgas_hs) ^ HS[12]) : VGA_DISABLE ? 1'd1 : (csync_en ? ~vga_cs : ~vga_hs));
-	assign VGA_R  = av_dis ? 6'bZZZZZZ :   vgas_en ? vgas_o[23:18]                               : VGA_DISABLE ? 6'd0 : vga_o[23:18];
-	assign VGA_G  = av_dis ? 6'bZZZZZZ :   vgas_en ? vgas_o[15:10]                               : VGA_DISABLE ? 6'd0 : vga_o[15:10];
-	assign VGA_B  = av_dis ? 6'bZZZZZZ :   vgas_en ? vgas_o[7:2]                                 : VGA_DISABLE ? 6'd0 : vga_o[7:2]  ;
-
-	wire [1:0] vga_r  = vgas_en ? vgas_o[17:16] : VGA_DISABLE ? 2'd0 : vga_o[17:16];
-	wire [1:0] vga_g  = vgas_en ? vgas_o[9:8]   : VGA_DISABLE ? 2'd0 : vga_o[9:8];
-	wire [1:0] vga_b  = vgas_en ? vgas_o[1:0]   : VGA_DISABLE ? 2'd0 : vga_o[1:0];
-
-
-reg video_sync = 0;
-always @(posedge clk_vid) begin
-	reg [11:0] line_cnt  = 0;
-	reg [11:0] sync_line = 0;
-	reg  [1:0] hs_cnt = 0;
-	reg        old_hs;
-
-	old_hs <= hs_fix;
-	if(~old_hs & hs_fix) begin
-
-		video_sync <= (sync_line == line_cnt);
-
-		line_cnt <= line_cnt + 1'd1;
-		if(~hs_cnt[1]) begin	
-			hs_cnt <= hs_cnt + 1'd1;
-			if(hs_cnt[0]) begin
-				sync_line <= (line_cnt - vs_line);
-				line_cnt <= 0;
-			end
-		end
-	end
-
-	if(de_emu) hs_cnt <= 0;
-end
-
-/////////////////////////  Audio output  ////////////////////////////////
-
-assign SDCD_SPDIF = (mcp_en & ~spdif) ? 1'b0 : 1'bZ;
-
-
-	wire analog_l, analog_r;
-
-	assign AUDIO_SPDIF = av_dis ? 1'bZ : (SW[0] | mcp_en) ? HDMI_LRCLK : spdif;
-	assign AUDIO_R     = av_dis ? 1'bZ : (SW[0] | mcp_en) ? HDMI_I2S   : analog_r;
-	assign AUDIO_L     = av_dis ? 1'bZ : (SW[0] | mcp_en) ? HDMI_SCLK  : analog_l;
-
-
-assign HDMI_MCLK = clk_audio;
-wire clk_audio;
-
-pll_audio pll_audio
-(
-	.refclk(FPGA_CLK3_50),
-	.rst(0),
-	.outclk_0(clk_audio)
-);
-
-wire spdif;
-
-function [15:0] md_audio_sat18;
-	input signed [17:0] value;
-	begin
-		if (value > 18'sd32767) begin
-			md_audio_sat18 = 16'h7fff;
-		end else if (value < -18'sd32768) begin
-			md_audio_sat18 = 16'h8000;
-		end else begin
-			md_audio_sat18 = value[15:0];
-		end
-	end
-endfunction
-
-wire signed [15:0] audio_l_signed = audio_l;
-wire signed [15:0] audio_r_signed = audio_r;
-wire signed [17:0] audio_l_gain_2x_wide = {{2{audio_l_signed[15]}}, audio_l_signed} <<< 1;
-wire signed [17:0] audio_r_gain_2x_wide = {{2{audio_r_signed[15]}}, audio_r_signed} <<< 1;
-wire signed [17:0] audio_l_gain_4x_wide = {{2{audio_l_signed[15]}}, audio_l_signed} <<< 2;
-wire signed [17:0] audio_r_gain_4x_wide = {{2{audio_r_signed[15]}}, audio_r_signed} <<< 2;
-wire [15:0] audio_l_gain_2x_sat = md_audio_sat18(audio_l_gain_2x_wide);
-wire [15:0] audio_r_gain_2x_sat = md_audio_sat18(audio_r_gain_2x_wide);
-wire [15:0] audio_l_gain_4x_sat = md_audio_sat18(audio_l_gain_4x_wide);
-wire [15:0] audio_r_gain_4x_sat = md_audio_sat18(audio_r_gain_4x_wide);
-
-reg [13:0] md_audio_tone_div;
-reg        md_audio_tone_phase;
-
-always @(posedge clk_audio) begin
-	if (reset | areset) begin
-		md_audio_tone_div <= 14'd0;
-		md_audio_tone_phase <= 1'b0;
-	end else if (md_audio_tone_div == 14'd12287) begin
-		md_audio_tone_div <= 14'd0;
-		md_audio_tone_phase <= ~md_audio_tone_phase;
-	end else begin
-		md_audio_tone_div <= md_audio_tone_div + 14'd1;
-	end
-end
-
-wire signed [15:0] md_audio_force_tone =
-	md_audio_tone_phase ? 16'sd24000 : -16'sd24000;
-wire [15:0] md_audio_force_tone_bits = md_audio_force_tone;
-
-
-wire signed [15:0] alsa_l_signed = alsa_l;
-wire signed [15:0] alsa_r_signed = alsa_r;
-wire signed [17:0] alsa_l_gain_2x_wide = {{2{alsa_l_signed[15]}}, alsa_l_signed} <<< 1;
-wire signed [17:0] alsa_r_gain_2x_wide = {{2{alsa_r_signed[15]}}, alsa_r_signed} <<< 1;
-wire signed [17:0] alsa_l_gain_4x_wide = {{2{alsa_l_signed[15]}}, alsa_l_signed} <<< 2;
-wire signed [17:0] alsa_r_gain_4x_wide = {{2{alsa_r_signed[15]}}, alsa_r_signed} <<< 2;
-wire [15:0] alsa_l_gain_2x_sat = md_audio_sat18(alsa_l_gain_2x_wide);
-wire [15:0] alsa_r_gain_2x_sat = md_audio_sat18(alsa_r_gain_2x_wide);
-wire [15:0] alsa_l_gain_4x_sat = md_audio_sat18(alsa_l_gain_4x_wide);
-wire [15:0] alsa_r_gain_4x_sat = md_audio_sat18(alsa_r_gain_4x_wide);
-
-
-
-
-
-
-
-
-
-
-
-wire [15:0] audio_out_core_l = md_audio_force_tone_bits;
-wire [15:0] audio_out_core_r = md_audio_force_tone_bits;
-
-wire [15:0] audio_out_alsa_l = 16'd0;
-wire [15:0] audio_out_alsa_r = 16'd0;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-audio_out audio_out
-(
-	.reset(reset | areset),
-	.clk(clk_audio),
-
-	.att(vol_att),
-	.mix(audio_mix),
-	.sample_rate(audio_96k),
-
-	.flt_rate(aflt_rate),
-	.cx(acx),
-	.cx0(acx0),
-	.cx1(acx1),
-	.cx2(acx2),
-	.cy0(acy0),
-	.cy1(acy1),
-	.cy2(acy2),
-
-	.is_signed(audio_s),
-	.core_l(audio_out_core_l),
-	.core_r(audio_out_core_r),
-
-
-	.alsa_l(audio_out_alsa_l),
-	.alsa_r(audio_out_alsa_r),
-
-
-	.i2s_bclk(HDMI_SCLK),
-	.i2s_lrclk(HDMI_LRCLK),
-	.i2s_data(HDMI_I2S),
-
-	.dac_l(analog_l),
-	.dac_r(analog_r),
-
-	.spdif(spdif)
-);
-
-
-
-	wire aspi_sck,aspi_mosi,aspi_ss,aspi_miso;
-	cyclonev_hps_interface_peripheral_spi_master spi
-	(
-		.sclk_out(aspi_sck),
-		.txd(aspi_mosi), // mosi
-		.rxd(aspi_miso), // miso
-
-		.ss_0_n(aspi_ss),
-		.ss_in_n(1)
-	);
-
-	wire [28:0] alsa_address;
-	wire [63:0] alsa_readdata;
-	wire        alsa_ready;
-	wire        alsa_req;
-	wire        alsa_late;
-
-	wire [15:0] alsa_l, alsa_r;
-
-	alsa alsa
-	(
-		.reset(reset),
-		.clk(clk_audio),
-
-		.ram_address(alsa_address),
-		.ram_data(alsa_readdata),
-		.ram_req(alsa_req),
-		.ram_ready(alsa_ready),
-
-		.spi_ss(aspi_ss),
-		.spi_sck(aspi_sck),
-		.spi_mosi(aspi_mosi),
-		.spi_miso(aspi_miso),
-
-		.pcm_l(alsa_l),
-		.pcm_r(alsa_r)
-	);
-
-
-////////////////  User I/O (USB 3.0 connector) /////////////////////////
-
-assign USER_IO[0] =                       !user_out[0]  ? 1'b0 : 1'bZ;
-assign USER_IO[1] =                       !user_out[1]  ? 1'b0 : 1'bZ;
-assign USER_IO[2] = !(SW[1] ? HDMI_I2S   : user_out[2]) ? 1'b0 : 1'bZ;
-assign USER_IO[3] =                       !user_out[3]  ? 1'b0 : 1'bZ;
-assign USER_IO[4] = !(SW[1] ? HDMI_SCLK  : user_out[4]) ? 1'b0 : 1'bZ;
-assign USER_IO[5] = !(SW[1] ? HDMI_LRCLK : user_out[5]) ? 1'b0 : 1'bZ;
-assign USER_IO[6] =                       !user_out[6]  ? 1'b0 : 1'bZ;
-
-assign user_in[0] =         USER_IO[0];
-assign user_in[1] =         USER_IO[1];
-assign user_in[2] = SW[1] | USER_IO[2];
-assign user_in[3] =         USER_IO[3];
-assign user_in[4] = SW[1] | USER_IO[4];
-assign user_in[5] = SW[1] | USER_IO[5];
-assign user_in[6] =         USER_IO[6];
-
-
-///////////////////  User module connection ////////////////////////////
-
-wire        clk_sys;
-wire [15:0] audio_l, audio_r;
-wire        audio_s;
-wire  [1:0] audio_mix;
-wire  [1:0] scanlines;
-wire  [7:0] r_out, g_out, b_out, hr_out, hg_out, hb_out;
-wire        vs_fix, hs_fix, de_emu, vs_emu, hs_emu, f1;
-wire        hvs_fix, hhs_fix, hde_emu;
-wire        clk_vid, ce_pix, clk_ihdmi, ce_hpix;
-wire        vga_force_scaler;
-
-wire        ram_clk;
-wire [28:0] ram_address;
-wire [7:0]  ram_burstcount;
-wire        ram_waitrequest;
-wire [63:0] ram_readdata;
-wire        ram_readdatavalid;
-wire        ram_read;
-wire [63:0] ram_writedata;
-wire [7:0]  ram_byteenable;
-wire        ram_write;
-
-wire        led_user;
-wire  [1:0] led_power;
-wire  [1:0] led_disk;
-wire  [1:0] btn;
-
-sync_fix sync_v(clk_vid, vs_emu, vs_fix);
-sync_fix sync_h(clk_vid, hs_emu, hs_fix);
-
-wire  [6:0] user_out, user_in;
-
-assign clk_ihdmi= clk_vid;
-assign ce_hpix  = vga_ce_sl;
-assign hr_out   = vga_data_sl[23:16];
-assign hg_out   = vga_data_sl[15:8];
-assign hb_out   = vga_data_sl[7:0];
-assign hhs_fix  = vga_hs_sl;
-assign hvs_fix  = vga_vs_sl;
-assign hde_emu  = vga_de_sl;
-
-wire uart_dtr;
-wire uart_dsr;
-wire uart_cts;
-wire uart_rts;
-wire uart_rxd;
-wire uart_txd;
-
-wire osd_status;
-
-wire        fb_en;
-wire  [4:0] fb_fmt;
-wire [11:0] fb_width;
-wire [11:0] fb_height;
-wire [31:0] fb_base;
-wire [13:0] fb_stride;
-
-
-
-
-
-
-
-
-
-
-
-
-	assign fb_en = 0;
-	assign fb_fmt = 0;
-	assign fb_width = 0;
-	assign fb_height = 0;
-	assign fb_base = 0;
-	assign fb_stride = 0;
-
-
-reg  [1:0] sl_r;
-wire [1:0] sl = sl_r;
-always @(posedge clk_sys) sl_r <= FB_EN ? 2'b00 : scanlines;
-
-emu emu
-(
-	.CLK_50M(FPGA_CLK2_50),
-	.RESET(reset),
-	.HPS_BUS({fb_en, sl, f1, HDMI_TX_VS, 
-				 clk_100m, clk_ihdmi,
-				 ce_hpix, hde_emu, hhs_fix, hvs_fix, 
-				 io_wait, clk_sys, io_fpga, io_uio, io_strobe, io_wide, io_din, io_dout}),
-
-	.VGA_R(r_out),
-	.VGA_G(g_out),
-	.VGA_B(b_out),
-	.VGA_HS(hs_emu),
-	.VGA_VS(vs_emu),
-	.VGA_DE(de_emu),
-	.VGA_F1(f1),
-	.VGA_SCALER(vga_force_scaler),
-
-
-	.VGA_DISABLE(VGA_DISABLE),
-
-
-	.HDMI_WIDTH(direct_video ? 12'd0 : hdmi_width),
-	.HDMI_HEIGHT(direct_video ? 12'd0 : hdmi_height),
-	.HDMI_FREEZE(freeze),
-	.HDMI_BLACKOUT(hdmi_blackout),
-
-	.CLK_VIDEO(clk_vid),
-	.CE_PIXEL(ce_pix),
-	.VGA_SL(scanlines),
-	.VIDEO_ARX(ARX),
-	.VIDEO_ARY(ARY),
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-	.LED_USER(led_user),
-	.LED_POWER(led_power),
-	.LED_DISK(led_disk),
-
-	.CLK_AUDIO(clk_audio),
-	.AUDIO_L(audio_l),
-	.AUDIO_R(audio_r),
-	.AUDIO_S(audio_s),
-	.AUDIO_MIX(audio_mix),
-
-	.ADC_BUS({ADC_SCK,ADC_SDO,ADC_SDI,ADC_CONVST}),
-
-	.DDRAM_CLK(ram_clk),
-	.DDRAM_ADDR(ram_address),
-	.DDRAM_BURSTCNT(ram_burstcount),
-	.DDRAM_BUSY(ram_waitrequest),
-	.DDRAM_DOUT(ram_readdata),
-	.DDRAM_DOUT_READY(ram_readdatavalid),
-	.DDRAM_RD(ram_read),
-	.DDRAM_DIN(ram_writedata),
-	.DDRAM_BE(ram_byteenable),
-	.DDRAM_WE(ram_write),
-
-	.SDRAM_DQ(SDRAM_DQ),
-	.SDRAM_A(SDRAM_A),
-	.SDRAM_DQML(SDRAM_DQML),
-	.SDRAM_DQMH(SDRAM_DQMH),
-	.SDRAM_BA(SDRAM_BA),
-	.SDRAM_nCS(SDRAM_nCS),
-	.SDRAM_nWE(SDRAM_nWE),
-	.SDRAM_nRAS(SDRAM_nRAS),
-	.SDRAM_nCAS(SDRAM_nCAS),
-	.SDRAM_CLK(SDRAM_CLK),
-	.SDRAM_CKE(SDRAM_CKE),
-
-
-
-
-
-
-
-
-
-
-
-
-
-	.BUTTONS(btn),
-	.OSD_STATUS(osd_status),
-
-	.SD_SCK(SD_CLK),
-	.SD_MOSI(SD_MOSI),
-	.SD_MISO(SD_MISO),
-	.SD_CS(SD_CS),
-	.SD_CD(SD_CD),
-
-	.UART_CTS(uart_rts),
-	.UART_RTS(uart_cts),
-	.UART_RXD(uart_txd),
-	.UART_TXD(uart_rxd),
-	.UART_DTR(uart_dsr),
-	.UART_DSR(uart_dtr),
-
-	.USER_OUT(user_out),
-	.USER_IN(user_in)
-);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        end
+    endfunction
+
+    function automatic [15:0] segapcm_debug_value(
+        input logic [4:0] row
+    );
+        begin
+
+            if (segapcm_c0_jt_backend) begin
+            unique case (row)
+                5'd0:  segapcm_debug_value = 16'hD6C0;
+                5'd1:  segapcm_debug_value = 16'h001F;
+                5'd2:  segapcm_debug_value = 16'h51C0;
+                5'd3:  segapcm_debug_value = segapcm_core_status_debug;
+                5'd4:  segapcm_debug_value = segapcm_core_ch3_r0_low;
+                5'd5:  segapcm_debug_value = segapcm_core_ch3_first_high;
+                5'd6:  segapcm_debug_value = segapcm_core_ch3_delta;
+                5'd7:  segapcm_debug_value = segapcm_core_shadow_decode_debug;
+                5'd8:  segapcm_debug_value = segapcm_core_update_before_15;
+                5'd9:  segapcm_debug_value = segapcm_core_update_before_07;
+                5'd10: segapcm_debug_value = segapcm_core_update_addend;
+                5'd11: segapcm_debug_value = segapcm_core_update_reason;
+                5'd12: segapcm_debug_value = segapcm_core_ch3_first_raw_high;
+                5'd13: segapcm_debug_value = segapcm_core_ch3_first_raw_low;
+                5'd14: segapcm_debug_value = segapcm_core_jt_smoke_vol_l;
+                5'd15: segapcm_debug_value = segapcm_core_update_state_channel;
+                5'd16: segapcm_debug_value = segapcm_core_update_before_23;
+                5'd17: segapcm_debug_value = segapcm_core_ch1_first_raw_high;
+                5'd18: segapcm_debug_value = segapcm_core_ch3_r2_high;
+                5'd19: segapcm_debug_value = segapcm_core_audio_nonzero_count;
+                5'd20: segapcm_debug_value = segapcm_core_ch1_first_raw_low;
+                5'd21: segapcm_debug_value = segapcm_core_ch1_first_low;
+                5'd22: segapcm_debug_value = segapcm_core_ch1_first_high;
+                5'd23: segapcm_debug_value = segapcm_core_jt_smoke_out_l;
+                5'd24: segapcm_debug_value = segapcm_core_update_after_23;
+                5'd25: segapcm_debug_value = segapcm_core_update_after_15;
+                5'd26: segapcm_debug_value = segapcm_core_update_after_07;
+                5'd27: segapcm_debug_value = segapcm_core_ch3_load_after_23;
+                5'd28: segapcm_debug_value = segapcm_core_ch3_load_after_15;
+                5'd29: segapcm_debug_value = 16'd0;
+                5'd30: segapcm_debug_value = 16'd0;
+                5'd31: segapcm_debug_value = 16'd0;
+	                default: segapcm_debug_value = 16'd0;
+	            endcase
+            end else begin
+            unique case (row)
+                5'd0:  segapcm_debug_value = 16'hD6C0;
+                5'd1:  segapcm_debug_value = 16'h001E;
+                5'd2:  segapcm_debug_value = 16'h51C0;
+                5'd3:  segapcm_debug_value = segapcm_core_ch3_r1_high;
+                5'd4:  segapcm_debug_value = segapcm_core_shadow_ch1_end_delta_debug;
+                5'd5:  segapcm_debug_value = segapcm_core_shadow_ch1_start_debug;
+                5'd6:  segapcm_debug_value = segapcm_core_update_before_15;
+                5'd7:  segapcm_debug_value = segapcm_core_update_reason;
+                5'd8:  segapcm_debug_value = segapcm_core_ch3_first_high;
+                5'd9:  segapcm_debug_value = segapcm_core_ch3_first_low;
+                5'd10: segapcm_debug_value = segapcm_core_ch3_first_raw_high;
+                5'd11: segapcm_debug_value = segapcm_core_ch3_first_raw_low;
+                5'd12: segapcm_debug_value = segapcm_core_ch1_first_high;
+                5'd13: segapcm_debug_value = segapcm_core_ch1_first_low;
+                5'd14: segapcm_debug_value = segapcm_core_ch1_first_raw_high;
+                5'd15: segapcm_debug_value = segapcm_core_ch1_first_raw_low;
+                5'd16: segapcm_debug_value = segapcm_core_update_after_23;
+                5'd17: segapcm_debug_value = segapcm_core_update_after_15;
+                5'd18: segapcm_debug_value = segapcm_core_update_after_07;
+                5'd19: segapcm_debug_value = segapcm_core_ch3_load_after_23;
+                5'd20: segapcm_debug_value = segapcm_core_ch3_load_after_15;
+                5'd21: segapcm_debug_value = segapcm_core_ch3_load_after_07;
+                5'd22: segapcm_debug_value = segapcm_core_update_state_channel;
+                5'd23: segapcm_debug_value = segapcm_core_update_addend;
+                5'd24: segapcm_debug_value = segapcm_core_jt_smoke_vol_l;
+                5'd25: segapcm_debug_value = segapcm_core_jt_smoke_vol_r;
+                5'd26: segapcm_debug_value = segapcm_core_jt_smoke_sample_byte;
+                5'd27: segapcm_debug_value = segapcm_core_jt_smoke_out_l;
+                5'd28: segapcm_debug_value = segapcm_core_jt_smoke_out_r;
+                5'd29: segapcm_debug_value = segapcm_core_ch3_delta;
+                5'd30: segapcm_debug_value = segapcm_core_update_before_23;
+                5'd31: segapcm_debug_value = segapcm_core_ch3_r0_low;
+                default: segapcm_debug_value = 16'd0;
+            endcase
+            end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        end
+    endfunction
+
+    function automatic [7:0] mode5_debug_label_char(
+        input logic [4:0] row,
+        input logic [1:0] col
+    );
+        begin
+            if (segapcm_debug_seen) begin
+                mode5_debug_label_char = segapcm_debug_label_char(row, col);
+            end else begin
+            unique case (row)
+                5'd0:  mode5_debug_label_char = segapcm_debug_seen ? " " :
+                    (col == 2'd0) ? "S" : (col == 2'd1) ? "I" : " ";
+                5'd1:  mode5_debug_label_char = segapcm_debug_seen ? " " :
+                    (col == 2'd0) ? "L" : (col == 2'd1) ? "B" : " ";
+                5'd2:  mode5_debug_label_char = segapcm_debug_seen ? " " :
+                    (col == 2'd0) ? "L" : (col == 2'd1) ? "D" : " ";
+                5'd3:  mode5_debug_label_char = segapcm_debug_seen ? " " :
+                    (col == 2'd0) ? "S" : (col == 2'd1) ? "R" : " ";
+                5'd4:  mode5_debug_label_char = segapcm_debug_seen ? " " :
+                    (col == 2'd0) ? "S" : (col == 2'd1) ? "T" : " ";
+                5'd5:  mode5_debug_label_char = segapcm_debug_seen ? " " :
+                    (col == 2'd0) ? "P" : (col == 2'd1) ? "R" : " ";
+                5'd6:  mode5_debug_label_char = segapcm_debug_seen ? " " :
+                    (col == 2'd0) ? "D" : (col == 2'd1) ? "U" : " ";
+                5'd7:  mode5_debug_label_char = segapcm_debug_seen ? " " :
+                    (col == 2'd0) ? "P" : (col == 2'd1) ? "E" : " ";
+                5'd8:  mode5_debug_label_char = segapcm_debug_seen ? " " :
+                    (col == 2'd0) ? "E" : (col == 2'd1) ? "R" : " ";
+                5'd9:  mode5_debug_label_char = segapcm_debug_seen ? " " :
+                    (col == 2'd0) ? "A" : (col == 2'd1) ? "M" : " ";
+                5'd10: mode5_debug_label_char = segapcm_debug_seen ? " " :
+                    (col == 2'd0) ? "P" : (col == 2'd1) ? "B" : " ";
+                5'd11: mode5_debug_label_char = segapcm_debug_seen ? " " :
+                    (col == 2'd0) ? "C" : (col == 2'd1) ? "P" : " ";
+                5'd12: mode5_debug_label_char = segapcm_debug_seen ? " " :
+                    (col == 2'd0) ? "L" : (col == 2'd1) ? "C" : " ";
+                5'd13: mode5_debug_label_char = segapcm_debug_seen ? " " :
+                    (col == 2'd0) ? "D" : (col == 2'd1) ? "P" : " ";
+                5'd14: mode5_debug_label_char =
+                    segapcm_debug_seen ? ((col == 2'd0) ? "M" : (col == 2'd1) ? "K" : " ") :
+                    ((col == 2'd0) ? "D" : (col == 2'd1) ? "C" : " ");
+                5'd15: mode5_debug_label_char =
+                    segapcm_debug_seen ? ((col == 2'd0) ? "P" : (col == 2'd1) ? "A" : " ") :
+                    ((col == 2'd0) ? "D" : (col == 2'd1) ? "S" : " ");
+                5'd16: mode5_debug_label_char =
+                    segapcm_debug_seen ? ((col == 2'd0) ? "C" : (col == 2'd1) ? "A" : " ") :
+                    ((col == 2'd0) ? "F" : (col == 2'd1) ? "S" : " ");
+                5'd17: mode5_debug_label_char =
+                    segapcm_debug_seen ? ((col == 2'd0) ? "R" : (col == 2'd1) ? "Q" : " ") :
+                    ((col == 2'd0) ? "W" : (col == 2'd1) ? "T" : " ");
+                5'd18: mode5_debug_label_char =
+                    segapcm_debug_seen ? ((col == 2'd0) ? "R" : (col == 2'd1) ? "R" : " ") :
+                    ((col == 2'd0) ? "C" : (col == 2'd1) ? "Y" : " ");
+                5'd19: mode5_debug_label_char =
+                    segapcm_debug_seen ? ((col == 2'd0) ? "R" : (col == 2'd1) ? "V" : " ") :
+                    ((col == 2'd0) ? "E" : (col == 2'd1) ? "C" : " ");
+                5'd20: mode5_debug_label_char =
+                    segapcm_debug_seen ? ((col == 2'd0) ? "X" : (col == 2'd1) ? "0" : " ") :
+                    ((col == 2'd0) ? "E" : (col == 2'd1) ? "P" : " ");
+                5'd21: mode5_debug_label_char =
+                    segapcm_debug_seen ? ((col == 2'd0) ? "X" : (col == 2'd1) ? "1" : " ") :
+                    ((col == 2'd0) ? "E" : (col == 2'd1) ? "X" : " ");
+                5'd22: mode5_debug_label_char =
+                    segapcm_debug_seen ? ((col == 2'd0) ? "X" : (col == 2'd1) ? "2" : " ") :
+                    ((col == 2'd0) ? "E" : (col == 2'd1) ? "S" : " ");
+                5'd23: mode5_debug_label_char =
+                    segapcm_debug_seen ? ((col == 2'd0) ? "M" : (col == 2'd1) ? "M" : " ") :
+                    ((col == 2'd0) ? "D" : (col == 2'd1) ? "C" : " ");
+                5'd24: mode5_debug_label_char =
+                    segapcm_debug_seen ? ((col == 2'd0) ? "Q" : (col == 2'd1) ? "C" : " ") :
+                    ((col == 2'd0) ? "A" : (col == 2'd1) ? "V" : " ");
+                5'd25: mode5_debug_label_char =
+                    segapcm_debug_seen ? ((col == 2'd0) ? "O" : (col == 2'd1) ? "0" : " ") :
+                    ((col == 2'd0) ? "O" : (col == 2'd1) ? "H" : " ");
+                5'd26: mode5_debug_label_char =
+                    segapcm_debug_seen ? ((col == 2'd0) ? "O" : (col == 2'd1) ? "H" : " ") :
+                    ((col == 2'd0) ? "W" : (col == 2'd1) ? "0" : " ");
+                5'd27: mode5_debug_label_char =
+                    segapcm_debug_seen ? ((col == 2'd0) ? "B" : (col == 2'd1) ? "D" : " ") :
+                    ((col == 2'd0) ? "M" : (col == 2'd1) ? "A" : " ");
+                5'd28: mode5_debug_label_char =
+                    segapcm_debug_seen ? ((col == 2'd0) ? "A" : (col == 2'd1) ? "F" : " ") :
+                    ((col == 2'd0) ? "R" : (col == 2'd1) ? "C" : " ");
+                5'd29: mode5_debug_label_char =
+                    segapcm_debug_seen ? ((col == 2'd0) ? "H" : (col == 2'd1) ? "2" : " ") :
+                    ((col == 2'd0) ? "D" : (col == 2'd1) ? "A" : " ");
+                5'd30: mode5_debug_label_char =
+                    segapcm_debug_seen ? ((col == 2'd0) ? "A" : (col == 2'd1) ? "H" : " ") :
+                    ((col == 2'd0) ? "R" : (col == 2'd1) ? "S" : " ");
+                5'd31: mode5_debug_label_char =
+                    segapcm_debug_seen ? ((col == 2'd0) ? "A" : (col == 2'd1) ? "S" : " ") :
+                    " ";
+                default: mode5_debug_label_char = " ";
+            endcase
+            end
+        end
+    endfunction
+
+    function automatic [15:0] mode5_debug_value(
+        input logic [4:0] row
+    );
+        begin
+            if (segapcm_debug_seen) begin
+                mode5_debug_value = segapcm_debug_value(row);
+            end else begin
+            unique case (row)
+                5'd0:  mode5_debug_value = segapcm_debug_seen ? 16'd0 : mode5_playback_session_id[15:0];
+                5'd1:  mode5_debug_value = segapcm_debug_seen ? 16'd0 : mode5_load_begin_count[15:0];
+                5'd2:  mode5_debug_value = segapcm_debug_seen ? 16'd0 : mode5_load_done_edge_count[15:0];
+                5'd3:  mode5_debug_value = segapcm_debug_seen ? 16'd0 : mode5_sound_reset_start_count[15:0];
+                5'd4:  mode5_debug_value = segapcm_debug_seen ? 16'd0 : mode5_player_start_count[15:0];
+                5'd5:  mode5_debug_value = segapcm_debug_seen ? 16'd0 : mode5_player_reset_count[15:0];
+                5'd6:  mode5_debug_value = segapcm_debug_seen ? 16'd0 : mode5_duplicate_start_blocked_count[15:0];
+                5'd7:  mode5_debug_value = segapcm_debug_seen ? 16'd0 : mode5_player_end_count[15:0];
+                5'd8:  mode5_debug_value = segapcm_debug_seen ? 16'd0 : {8'd0, vgm_player_error_code};
+                5'd9:  mode5_debug_value = segapcm_debug_seen ? 16'd0 : {15'd0, audio_muted};
+                5'd10: mode5_debug_value = segapcm_debug_seen ? 16'd0 : {15'd0, player_busy};
+                5'd11: mode5_debug_value = segapcm_debug_seen ? 16'd0 : vgm_current_pc_debug[15:0];
+                5'd12: mode5_debug_value = segapcm_debug_seen ? 16'd0 : {8'd0, player_last_cmd_debug};
+                5'd13: mode5_debug_value = segapcm_debug_seen ? 16'd0 : mode5_done_pc_debug[15:0];
+                5'd14: mode5_debug_value =
+                    segapcm_debug_seen ? 16'hF519 :
+                    {8'd0, mode5_done_cmd_debug};
+                5'd15: mode5_debug_value =
+                    segapcm_debug_seen ? vgm_scan_player_accept_count_debug :
+                    mode5_done_session_id[15:0];
+                5'd16: mode5_debug_value =
+                    segapcm_debug_seen ? vgm_scan_copy_accept_fire_count_debug :
+                    vgm_load_size[15:0];
+                5'd17: mode5_debug_value =
+                    segapcm_debug_seen ? vgm_scan_copy_read_req_count_debug :
+                    vgm_wait_ticks_consumed_debug[15:0];
+                5'd18: mode5_debug_value =
+                    segapcm_debug_seen ? vgm_scan_copy_read_accept_count_debug :
+                    mode5_cycles_since_start[15:0];
+                5'd19: mode5_debug_value =
+                    segapcm_debug_seen ? vgm_scan_copy_read_valid_count_debug :
+                    {8'd0, vgm_player_error_code};
+                5'd20: mode5_debug_value =
+                    segapcm_debug_seen ? vgm_scan_copy_request_state_debug :
+                    vgm_error_pc_debug[15:0];
+                5'd21: mode5_debug_value =
+                    segapcm_debug_seen ? vgm_scan_copy_state_lifetime_debug :
+                    {8'd0, vgm_error_cmd_debug};
+                5'd22: mode5_debug_value =
+                    segapcm_debug_seen ? {
+                        8'd0,
+                        vgm_scan_copy_phase_debug[0],
+                        vgm_scan_copy_phase_debug[1],
+                        mode5_read_mux_debug[4],
+                        vgm_scan_copy_phase_debug[3],
+                        vgm_scan_copy_phase_debug[2],
+                        (vgm_scan_copy_phase_debug[4] &
+                         vgm_scan_copy_phase_debug[5]),
+                        vgm_scan_copy_phase_debug[5],
+                        vgm_scan_copy_phase_debug[4]
+                    } :
+                    vgm_error_session_id[15:0];
+                5'd23: mode5_debug_value =
+                    segapcm_debug_seen ? {
+                        vgm_scan_copy_mem_req_cycle_count_debug[7:0],
+                        vgm_scan_copy_mem_req_ready_cycle_count_debug[7:0]
+                    } :
+                    dac_stream_cmd_count[15:0];
+                5'd24: mode5_debug_value =
+                    segapcm_debug_seen ? {
+                        8'hC0,
+                        7'd0,
+                        (vgm_scan_copy_read_req_count_debug >
+                         vgm_scan_copy_read_accept_count_debug)
+                    } :
+                    dac_stream_avg_cmd_cycles[15:0];
+                5'd25: mode5_debug_value =
+                    segapcm_debug_seen ? vgm_scan_payload_o0_debug :
+                    dac_stream_avg_overhead_cycles[15:0];
+                5'd26: mode5_debug_value =
+                    segapcm_debug_seen ? vgm_scan_payload_oh_debug :
+                    count_wait0_dac_stream_cmd[15:0];
+                5'd27: mode5_debug_value =
+                    segapcm_debug_seen ? vgm_scan_payload_bd_debug :
+                    vgm_mem_rd_addr_debug[15:0];
+                5'd28: mode5_debug_value =
+                    segapcm_debug_seen ? vgm_scan_payload_af_debug :
+                    mode5_repeat_restart_count[15:0];
+                5'd29: mode5_debug_value =
+                    segapcm_debug_seen ? vgm_scan_payload_oh2_debug :
+                    {15'd0, mode5_done_armed_debug};
+                5'd30: mode5_debug_value =
+                    segapcm_debug_seen ? vgm_scan_payload_ah_debug :
+                    mode5_repeat_session_id[15:0];
+                5'd31: mode5_debug_value =
+                    segapcm_debug_seen ? vgm_scan_payload_as_debug :
+                    16'd0;
+                default: mode5_debug_value = 16'd0;
+            endcase
+            end
+        end
+    endfunction
+
+    function automatic [7:0] hex_char(input logic [3:0] nibble);
+        begin
+            hex_char = (nibble < 4'd10) ?
+                ("0" + {4'd0, nibble}) :
+                ("A" + {4'd0, nibble - 4'd10});
+        end
+    endfunction
+
+    function automatic [7:0] mode5_debug_char(
+        input logic [4:0] row,
+        input logic [3:0] col
+    );
+        logic [15:0] value;
+        begin
+            value = mode5_debug_value(row);
+            unique case (col)
+                4'd0: mode5_debug_char = mode5_debug_label_char(row, 2'd0);
+                4'd1: mode5_debug_char = mode5_debug_label_char(row, 2'd1);
+                4'd2: mode5_debug_char = " ";
+                4'd3: mode5_debug_char = hex_char(value[15:12]);
+                4'd4: mode5_debug_char = hex_char(value[11:8]);
+                4'd5: mode5_debug_char = hex_char(value[7:4]);
+                4'd6: mode5_debug_char = hex_char(value[3:0]);
+                default: mode5_debug_char = " ";
+            endcase
+        end
+    endfunction
+
+    wire [8:0] mode5_dbg_x = h_count - 9'd8;
+    wire [8:0] mode5_dbg_y = v_count - 9'd8;
+    wire [4:0] mode5_dbg_row = mode5_dbg_y[7:3];
+    wire [3:0] mode5_dbg_col = mode5_dbg_x[6:3];
+    wire [2:0] mode5_dbg_char_x = mode5_dbg_x[2:0];
+    wire [2:0] mode5_dbg_char_y = mode5_dbg_y[2:0];
+    wire mode5_dbg_back =
+        mode5_debug_overlay_enable &&
+        (h_count >= 9'd8) && (h_count < 9'd64) &&
+        (v_count >= 9'd8) && (v_count < 9'd256);
+    wire mode5_dbg_region =
+        mode5_dbg_back &&
+        (mode5_dbg_row <= 5'd31) &&
+        (mode5_dbg_col <= 4'd6) &&
+        (mode5_dbg_char_x < 3'd5) &&
+        (mode5_dbg_char_y < 3'd7);
+    wire mode5_debug_pixel =
+        mode5_dbg_region &&
+        font5x7_pixel(mode5_debug_char(mode5_dbg_row,
+                                       mode5_dbg_col),
+                      mode5_dbg_char_x,
+                      mode5_dbg_char_y);
+
+    wire hsync = ~((h_count >= 9'd336) && (h_count < 9'd368));
+    wire vsync = ~((v_count >= 9'd244) && (v_count < 9'd248));
+
+    // State colors:
+    // idle/running background : green
+    // internal/retry reset    : yellow
+    // init wait / start wait  : magenta
+    // region mode 2 playing   : purple
+    // region mode 3 playing   : orange
+    // region mode 4 playing   : lime
+    // region mode 5 loaded    : teal/blue
+    // VGM file downloading    : blue
+    // VGM file loaded         : cyan
+    // VGM file load error     : red
+    // audio gate open         : white
+    // audio_seen_latched      : cyan
+    // player_done latched     : green
+    // player_busy             : red
+    //
+    // Color priority is reset > done > waiting > mode/gate > sample seen.
+    // AUDIO debug build markers: MD_AUDIO_FORCE_MUTE_TEST paints yellow,
+    // MD_YM_WRITE_SLOW_TEST paints a white/green stripe pattern,
+    // YM LFO-off paints black/yellow stripes, PMS/AMS mask paints cyan/yellow
+    // stripes, ch3-normal paints red/blue stripes.
+    // MD_AUDIO_SYSOUT_ATTENUATE_24DB paints a red/cyan stripe pattern,
+    // MD_AUDIO_SYSOUT_ATTENUATE_6DB paints yellow/magenta stripes,
+    // sysout force tone paints white/black/red stripes,
+    // sysout gain 2x paints green/white stripes, sysout gain 4x paints
+    // orange/blue stripes,
+    // MD_AUDIO_FINAL_ATTENUATE_6DB paints magenta, output shift=1 paints
+    // cyan/white stripes, output shift=0 paints red/green stripes. Upstream A/B markers:
+    // FM force mute white/black stripes, FM-only red, PSG-only blue, FM channel
+    // solo uses ch1 red / ch2 green / ch3 blue / ch4 yellow / ch5 magenta /
+    // ch6 cyan, premix FM orange stripes, fm_adjust bypass purple stripes, low-gain green/blue
+    // stripes, saturate red/yellow stripes, premix PSG cyan stripes, raw JT12
+    // blue/white stripes, raw sample-latched JT12 blue/yellow stripes,
+    // normal sample-latched blue/green stripes, JT12 NTSC cen green/white
+    // stripes, JT12 every-clk cen red/white stripes, JT12 uniform 10 MHz
+    // yellow/blue stripes, JT12 uniform 6.67 MHz amber/green stripes,
+    // JT12 forced YM2612 orange/white stripes, forced YM3438 cyan/blue
+    // stripes, ladder-on magenta/white stripes, ladder-off green/black
+    // stripes, hifi-PCM white/cyan stripes, FM DC-block yellow/green stripes,
+    // pre-genmix FM LPF purple/green stripes, post-FM-LPF gain white/purple
+    // stripes, genmix-output gain 2x green/purple stripes, genmix-output gain
+    // 4x red/white/blue stripes, 6x amber/cyan stripes,
+    // 8x green/red/black stripes, JT12 ladder-effect magenta/cyan stripes, LPF green.
+    wire [7:0] red =
+        mode5_debug_pixel ? 8'hff :
+        mode5_dbg_back ? 8'h00 :
+        stage_meter_pixel ? stage_meter_rgb[23:16] :
+        md_avg_meter_pixel ? md_avg_meter_rgb[23:16] :
+        md_meter_pixel ? md_meter_rgb[23:16] :
+        emu_meter_pixel ? emu_meter_rgb[23:16] :
+        emu_avg_meter_pixel ? emu_avg_meter_rgb[23:16] :
+        force_mute_build_marker ? 8'hff :
+        ym_write_slow_build_marker ? (h_count[4] ? 8'hff : 8'h00) :
+        ym_force_lfo_off_build_marker ? (h_count[4] ? 8'h00 : 8'hff) :
+        ym_mask_pms_ams_build_marker ? 8'hff :
+        ym_ch3_normal_build_marker ? (h_count[4] ? 8'hff : 8'h00) :
+        sysout_attenuate_24db_build_marker ? (h_count[4] ? 8'hff : 8'h00) :
+        sysout_attenuate_build_marker ? 8'hff :
+        sysout_force_tone_build_marker ? (h_count[5] ? 8'hff : (h_count[4] ? 8'h00 : 8'hff)) :
+        sysout_gain_4x_sat_build_marker ? (h_count[4] ? 8'hff : 8'h00) :
+        sysout_gain_2x_sat_build_marker ? (h_count[4] ? 8'h00 : 8'hff) :
+        attenuate_6db_build_marker ? 8'hff :
+        output_shift_1_build_marker ? (h_count[4] ? 8'h00 : 8'hff) :
+        output_shift_0_build_marker ? (h_count[4] ? 8'hff : 8'h00) :
+        fm_force_mute_build_marker ? (h_count[4] ? 8'hff : 8'h00) :
+        fm_only_build_marker ? 8'hff :
+        psg_only_build_marker ? 8'h00 :
+        fm_ch_solo_build_marker ?
+            ((MD_AUDIO_FM_CH1_ONLY_BUILD || MD_AUDIO_FM_CH4_ONLY_BUILD || MD_AUDIO_FM_CH5_ONLY_BUILD) ? 8'hff : 8'h00) :
+        premix_fm_attenuate_build_marker ? 8'hff :
+        fm_adjust_bypass_build_marker ? (h_count[4] ? 8'hc0 : 8'h40) :
+        fm_adjust_low_gain_build_marker ? 8'h00 :
+        fm_adjust_saturate_build_marker ? 8'hff :
+        premix_psg_attenuate_build_marker ? (h_count[4] ? 8'h00 : 8'h00) :
+        jt12_cen_uniform_10mhz_build_marker ? 8'hff :
+        jt12_cen_uniform_6p67mhz_build_marker ? (h_count[4] ? 8'hff : 8'h80) :
+        jt12_cen_ntsc_build_marker ? (h_count[4] ? 8'h00 : 8'hff) :
+        jt12_cen_every_clk_build_marker ? 8'hff :
+        jt12_force_ym2612_build_marker ? 8'hff :
+        jt12_force_ym3438_build_marker ? 8'h00 :
+        jt12_force_ladder_on_build_marker ? (h_count[4] ? 8'hff : 8'h80) :
+        jt12_force_ladder_off_build_marker ? 8'h00 :
+        jt12_hifi_pcm_build_marker ? (h_count[4] ? 8'hff : 8'h00) :
+        fm_dc_block_build_marker ? (h_count[4] ? 8'hff : 8'h40) :
+        pre_genmix_fm_lpf_build_marker ? (h_count[4] ? 8'h90 : 8'h00) :
+        post_fm_lpf_gain_build_marker ? (h_count[4] ? 8'hff : 8'h80) :
+        genmix_output_gain_8x_build_marker ? (h_count[5] ? 8'h00 : (h_count[4] ? 8'hff : 8'h00)) :
+        genmix_output_gain_6x_build_marker ? (h_count[4] ? 8'hff : 8'h00) :
+        genmix_output_gain_4x_build_marker ? (h_count[5] ? 8'hff : (h_count[4] ? 8'h00 : 8'hff)) :
+        genmix_output_gain_2x_build_marker ? (h_count[4] ? 8'h20 : 8'h90) :
+        jt12_ladder_effect_build_marker ? (h_count[4] ? 8'hff : 8'h00) :
+        normal_sample_latch_build_marker ? 8'h00 :
+        raw_jt12_sample_latch_build_marker ? (h_count[4] ? 8'h00 : 8'hff) :
+        raw_jt12_fm_build_marker ? (h_count[4] ? 8'hff : 8'h00) :
+        lpf_test_build_marker ? (h_count[4] ? 8'h00 : 8'h00) :
+        startup_reset_active ? 8'hff :
+        mode5_sound_reset_active ? 8'hff :
+        mode5_player_start_pulse_debug ? 8'hff :
+        (vgm_load_error || vgm_load_overflow || vgm_player_error) ? 8'hff :
+        (LOADED_VGM_MODE && vgm_header_valid && player_busy) ? 8'h00 :
+        vgm_load_busy     ? 8'h00 :
+        vgm_load_done     ? 8'h00 :
+        done_latched       ? 8'h00 :
+        startup_waiting    ? 8'hff :
+        (audio_gate_open && FIXED_TIMING_CAL_MODE)   ? 8'h80 :
+        (audio_gate_open && FIXED_REAL_PHRASE_MODE)  ? 8'hff :
+        (audio_gate_open && FIXED_REAL_SNIPPET_MODE) ? 8'hc0 :
+        audio_gate_open    ? 8'hff :
+        audio_seen_latched ? 8'h00 :
+        player_busy        ? 8'hd0 :
+                             8'h00;
+
+    wire [7:0] green =
+        mode5_debug_pixel ? 8'hff :
+        mode5_dbg_back ? 8'h00 :
+        stage_meter_pixel ? stage_meter_rgb[15:8] :
+        md_avg_meter_pixel ? md_avg_meter_rgb[15:8] :
+        md_meter_pixel ? md_meter_rgb[15:8] :
+        emu_meter_pixel ? emu_meter_rgb[15:8] :
+        emu_avg_meter_pixel ? emu_avg_meter_rgb[15:8] :
+        force_mute_build_marker ? 8'hff :
+        ym_write_slow_build_marker ? 8'hff :
+        ym_force_lfo_off_build_marker ? (h_count[4] ? 8'h00 : 8'hff) :
+        ym_mask_pms_ams_build_marker ? 8'hff :
+        ym_ch3_normal_build_marker ? 8'h00 :
+        sysout_attenuate_24db_build_marker ? (h_count[4] ? 8'h00 : 8'hff) :
+        sysout_attenuate_build_marker ? (h_count[4] ? 8'hff : 8'h00) :
+        sysout_force_tone_build_marker ? (h_count[5] ? 8'hff : 8'h00) :
+        sysout_gain_4x_sat_build_marker ? (h_count[4] ? 8'h80 : 8'h00) :
+        sysout_gain_2x_sat_build_marker ? 8'hff :
+        attenuate_6db_build_marker ? 8'h00 :
+        output_shift_1_build_marker ? 8'hff :
+        output_shift_0_build_marker ? (h_count[4] ? 8'h00 : 8'hff) :
+        fm_force_mute_build_marker ? (h_count[4] ? 8'hff : 8'h00) :
+        fm_only_build_marker ? 8'h00 :
+        psg_only_build_marker ? 8'h00 :
+        fm_ch_solo_build_marker ?
+            ((MD_AUDIO_FM_CH2_ONLY_BUILD || MD_AUDIO_FM_CH4_ONLY_BUILD || MD_AUDIO_FM_CH6_ONLY_BUILD) ? 8'hff : 8'h00) :
+        premix_fm_attenuate_build_marker ? (h_count[4] ? 8'h80 : 8'h30) :
+        fm_adjust_bypass_build_marker ? 8'h00 :
+        fm_adjust_low_gain_build_marker ? (h_count[4] ? 8'hff : 8'h40) :
+        fm_adjust_saturate_build_marker ? (h_count[4] ? 8'hff : 8'h60) :
+        premix_psg_attenuate_build_marker ? (h_count[4] ? 8'hff : 8'h40) :
+        jt12_cen_uniform_10mhz_build_marker ? (h_count[4] ? 8'hff : 8'h00) :
+        jt12_cen_uniform_6p67mhz_build_marker ? (h_count[4] ? 8'hc0 : 8'hff) :
+        jt12_cen_ntsc_build_marker ? 8'hff :
+        jt12_cen_every_clk_build_marker ? (h_count[4] ? 8'hff : 8'h00) :
+        jt12_force_ym2612_build_marker ? (h_count[4] ? 8'h80 : 8'hff) :
+        jt12_force_ym3438_build_marker ? (h_count[4] ? 8'hff : 8'h80) :
+        jt12_force_ladder_on_build_marker ? (h_count[4] ? 8'h00 : 8'hff) :
+        jt12_force_ladder_off_build_marker ? (h_count[4] ? 8'hff : 8'h00) :
+        jt12_hifi_pcm_build_marker ? 8'hff :
+        fm_dc_block_build_marker ? (h_count[4] ? 8'hff : 8'h40) :
+        pre_genmix_fm_lpf_build_marker ? (h_count[4] ? 8'h00 : 8'hff) :
+        post_fm_lpf_gain_build_marker ? (h_count[4] ? 8'hff : 8'h00) :
+        genmix_output_gain_8x_build_marker ? (h_count[5] ? 8'hff : 8'h00) :
+        genmix_output_gain_6x_build_marker ? (h_count[4] ? 8'hc0 : 8'hff) :
+        genmix_output_gain_4x_build_marker ? (h_count[5] ? 8'hff : 8'h00) :
+        genmix_output_gain_2x_build_marker ? (h_count[4] ? 8'hff : 8'h00) :
+        jt12_ladder_effect_build_marker ? (h_count[4] ? 8'h00 : 8'hff) :
+        normal_sample_latch_build_marker ? (h_count[4] ? 8'hff : 8'h40) :
+        raw_jt12_sample_latch_build_marker ? (h_count[4] ? 8'h00 : 8'hff) :
+        raw_jt12_fm_build_marker ? (h_count[4] ? 8'hff : 8'h00) :
+        lpf_test_build_marker ? (h_count[4] ? 8'hff : 8'h60) :
+        startup_reset_active ? 8'hff :
+        mode5_sound_reset_active ? 8'hff :
+        mode5_player_start_pulse_debug ? 8'hff :
+        (vgm_load_error || vgm_load_overflow || vgm_player_error) ? 8'h00 :
+        (LOADED_VGM_MODE && vgm_header_valid && player_busy) ? 8'hc0 :
+        vgm_load_busy     ? 8'h40 :
+        vgm_load_done     ? 8'hff :
+        done_latched       ? 8'hd0 :
+        startup_waiting    ? 8'h00 :
+        (audio_gate_open && FIXED_TIMING_CAL_MODE)   ? 8'hff :
+        (audio_gate_open && FIXED_REAL_PHRASE_MODE)  ? 8'h80 :
+        (audio_gate_open && FIXED_REAL_SNIPPET_MODE) ? 8'h00 :
+        audio_gate_open    ? 8'hff :
+        audio_seen_latched ? 8'hff :
+        player_busy        ? 8'h00 :
+                             8'hb0;
+
+    wire [7:0] blue =
+        mode5_debug_pixel ? 8'hff :
+        mode5_dbg_back ? 8'h00 :
+        stage_meter_pixel ? stage_meter_rgb[7:0] :
+        md_avg_meter_pixel ? md_avg_meter_rgb[7:0] :
+        md_meter_pixel ? md_meter_rgb[7:0] :
+        emu_meter_pixel ? emu_meter_rgb[7:0] :
+        emu_avg_meter_pixel ? emu_avg_meter_rgb[7:0] :
+        force_mute_build_marker ? 8'h00 :
+        ym_write_slow_build_marker ? (h_count[4] ? 8'hff : 8'h00) :
+        ym_force_lfo_off_build_marker ? 8'h00 :
+        ym_mask_pms_ams_build_marker ? (h_count[4] ? 8'hff : 8'h00) :
+        ym_ch3_normal_build_marker ? (h_count[4] ? 8'h00 : 8'hff) :
+        sysout_attenuate_24db_build_marker ? (h_count[4] ? 8'h00 : 8'hff) :
+        sysout_attenuate_build_marker ? (h_count[4] ? 8'h00 : 8'hff) :
+        sysout_force_tone_build_marker ? (h_count[5] ? 8'hff : 8'h00) :
+        sysout_gain_4x_sat_build_marker ? (h_count[4] ? 8'h00 : 8'hff) :
+        sysout_gain_2x_sat_build_marker ? (h_count[4] ? 8'h00 : 8'hff) :
+        attenuate_6db_build_marker ? 8'hff :
+        output_shift_1_build_marker ? 8'hff :
+        output_shift_0_build_marker ? 8'h00 :
+        fm_force_mute_build_marker ? (h_count[4] ? 8'hff : 8'h00) :
+        fm_only_build_marker ? 8'h00 :
+        psg_only_build_marker ? 8'hff :
+        fm_ch_solo_build_marker ?
+            ((MD_AUDIO_FM_CH3_ONLY_BUILD || MD_AUDIO_FM_CH5_ONLY_BUILD || MD_AUDIO_FM_CH6_ONLY_BUILD) ? 8'hff : 8'h00) :
+        premix_fm_attenuate_build_marker ? 8'h00 :
+        fm_adjust_bypass_build_marker ? (h_count[4] ? 8'hff : 8'h80) :
+        fm_adjust_low_gain_build_marker ? (h_count[4] ? 8'hff : 8'h60) :
+        fm_adjust_saturate_build_marker ? 8'h00 :
+        premix_psg_attenuate_build_marker ? (h_count[4] ? 8'hff : 8'h80) :
+        jt12_cen_uniform_10mhz_build_marker ? (h_count[4] ? 8'h00 : 8'hff) :
+        jt12_cen_uniform_6p67mhz_build_marker ? 8'h00 :
+        jt12_cen_ntsc_build_marker ? (h_count[4] ? 8'h00 : 8'hff) :
+        jt12_cen_every_clk_build_marker ? (h_count[4] ? 8'hff : 8'h00) :
+        jt12_force_ym2612_build_marker ? (h_count[4] ? 8'h00 : 8'hff) :
+        jt12_force_ym3438_build_marker ? 8'hff :
+        jt12_force_ladder_on_build_marker ? (h_count[4] ? 8'hff : 8'h00) :
+        jt12_force_ladder_off_build_marker ? 8'h00 :
+        jt12_hifi_pcm_build_marker ? (h_count[4] ? 8'hff : 8'h80) :
+        fm_dc_block_build_marker ? 8'h00 :
+        pre_genmix_fm_lpf_build_marker ? (h_count[4] ? 8'hff : 8'h40) :
+        post_fm_lpf_gain_build_marker ? 8'hff :
+        genmix_output_gain_8x_build_marker ? 8'h00 :
+        genmix_output_gain_6x_build_marker ? (h_count[4] ? 8'h00 : 8'hff) :
+        genmix_output_gain_4x_build_marker ? (h_count[5] ? 8'hff : (h_count[4] ? 8'hff : 8'h00)) :
+        genmix_output_gain_2x_build_marker ? (h_count[4] ? 8'h40 : 8'hff) :
+        jt12_ladder_effect_build_marker ? 8'hff :
+        normal_sample_latch_build_marker ? (h_count[4] ? 8'hff : 8'h80) :
+        raw_jt12_sample_latch_build_marker ? 8'hff :
+        raw_jt12_fm_build_marker ? 8'hff :
+        lpf_test_build_marker ? 8'h00 :
+        startup_reset_active ? 8'h00 :
+        mode5_sound_reset_active ? 8'h00 :
+        mode5_player_start_pulse_debug ? 8'hff :
+        (vgm_load_error || vgm_load_overflow || vgm_player_error) ? 8'h00 :
+        (LOADED_VGM_MODE && vgm_header_valid && player_busy) ? 8'hff :
+        vgm_load_busy     ? 8'hff :
+        vgm_load_done     ? 8'hff :
+        done_latched       ? 8'h00 :
+        startup_waiting    ? 8'hff :
+        (audio_gate_open && FIXED_TIMING_CAL_MODE)   ? 8'h00 :
+        (audio_gate_open && FIXED_REAL_PHRASE_MODE)  ? 8'h00 :
+        (audio_gate_open && FIXED_REAL_SNIPPET_MODE) ? 8'hff :
+        audio_gate_open    ? 8'hff :
+        audio_seen_latched ? 8'hff :
+        player_busy        ? 8'h00 :
+                             8'h40;
+
+    assign CLK_VIDEO = clk_sys;
+    assign CE_PIXEL = ce_pix;
+    assign VGA_DE = active;
+    assign VGA_HS = hsync;
+    assign VGA_VS = vsync;
+
+
+
+
+
+    // Keep the normal player screen quiet; the OSD is overlaid later in sys_top.
+    // MODE5_DEBUG_OVERLAY_ALWAYS_ON is a special debug build escape hatch that
+    // lets the text overlay reach video without restoring public OSD controls.
+    wire [7:0] video_red   = mode5_debug_pixel ? 8'hff :
+                             mode5_dbg_back ? 8'h00 : 8'h00;
+    wire [7:0] video_green = mode5_debug_pixel ? 8'hff :
+                             mode5_dbg_back ? 8'h00 : 8'h08;
+    wire [7:0] video_blue  = mode5_debug_pixel ? 8'hff :
+                             mode5_dbg_back ? 8'h00 : 8'h18;
+
+    assign VGA_R = active ? video_red : 8'd0;
+    assign VGA_G = active ? video_green : 8'd0;
+    assign VGA_B = active ? video_blue : 8'd0;
+
+    reg [26:0] act_cnt;
+    always @(posedge clk_sys) begin
+        act_cnt <= reset ? 27'd0 : act_cnt + 27'd1;
+    end
+
+    assign LED_USER = player_busy | done_latched | audio_seen_latched | act_cnt[25];
+
+    wire unused_inputs = ^{
+        forced_scandoubler,
+        video_rotated,
+        gamma_bus,
+        vgm_load_overflow,
+        vgm_load_size,
+        vgm_load_magic,
+        vgm_data_start_debug,
+        vgm_current_pc_debug,
+        vgm_loop_pc_debug,
+        vgm_loop_valid_debug,
+        vgm_loop_taken_debug,
+        vgm_end_command_seen,
+        vgm_restarted_from_data_start,
+        vgm_pcm_oob,
+        vgm_pcm_oob_count,
+        vgm_wait_ticks_consumed_debug,
+        dac_stream_wait_samples_total,
+        max_dac_stream_cmd_cycles,
+        count_wait0_overhead_nonzero,
+        segapcm_last_addr,
+        segapcm_last_data,
+        data_block_count,
+        last_data_block_type,
+        last_data_block_size_low,
+        segapcm_last_rom_size,
+        segapcm_last_rom_start,
+        pcm_ram_write_skip_count,
+        segapcm_rom_scan_total_size,
+        segapcm_rom_scan_byte_count,
+        mode5_repeat_restart_count,
+        mode5_done_armed_debug,
+        mode5_repeat_session_id,
+        mode5_done_session_id,
+        mode5_cycles_since_start,
+        mode5_done_pc_debug,
+        mode5_done_cmd_debug,
+        vgm_unsupported_opcode,
+        vgm_unsupported_pc,
+        vgm_player_error_code,
+        MD_AUDIO_ATTENUATE_6DB_BUILD,
+        MD_AUDIO_OUTPUT_SHIFT_0_BUILD,
+        MD_AUDIO_OUTPUT_SHIFT_1_BUILD,
+        MD_AUDIO_OUTPUT_SHIFT,
+        MODE5_REPEAT_ENABLE_BUILD,
+        MD_YM_WRITE_SLOW_BUILD,
+        MD_YM_FORCE_LFO_OFF_BUILD,
+        MD_YM_MASK_PMS_AMS_BUILD,
+        MD_YM_CH3_NORMAL_BUILD,
+        MD_AUDIO_FORCE_MUTE_BUILD,
+        MD_AUDIO_SYSOUT_ATTENUATE_BUILD,
+        MD_AUDIO_SYSOUT_ATTENUATE_24DB_BUILD,
+        MD_AUDIO_SYSOUT_FORCE_TONE_BUILD,
+        MD_AUDIO_SYSOUT_GAIN_2X_SAT_BUILD,
+        MD_AUDIO_SYSOUT_GAIN_4X_SAT_BUILD,
+        MD_AUDIO_FM_ONLY_BUILD,
+        MD_AUDIO_FM_FORCE_MUTE_BUILD,
+        MD_AUDIO_PSG_ONLY_BUILD,
+        MD_AUDIO_PREMIX_ATTENUATE_FM_BUILD,
+        MD_AUDIO_FM_ADJUST_BYPASS_BUILD,
+        MD_AUDIO_FM_ADJUST_LOW_GAIN_BUILD,
+        MD_AUDIO_FM_ADJUST_SATURATE_BUILD,
+        MD_AUDIO_PREMIX_ATTENUATE_PSG_BUILD,
+        MD_AUDIO_RAW_JT12_FM_BUILD,
+        MD_AUDIO_RAW_JT12_SAMPLE_LATCH_BUILD,
+        MD_AUDIO_NORMAL_SAMPLE_LATCH_BUILD,
+        MD_JT12_CEN_NTSC_BUILD,
+        MD_JT12_CEN_EVERY_CLK_BUILD,
+        MD_JT12_CEN_UNIFORM_10MHZ_BUILD,
+        MD_JT12_CEN_UNIFORM_6P67MHZ_BUILD,
+        MD_JT12_LADDER_EFFECT_BUILD,
+        MD_JT12_FORCE_YM2612_BUILD,
+        MD_JT12_FORCE_YM3438_BUILD,
+        MD_JT12_FORCE_LADDER_ON_BUILD,
+        MD_JT12_FORCE_LADDER_OFF_BUILD,
+        MD_JT12_HIFI_PCM_BUILD,
+        MD_AUDIO_FM_DC_BLOCK_BUILD,
+        MD_AUDIO_PRE_GENMIX_FM_LPF_BUILD,
+        MD_AUDIO_POST_FM_LPF_GAIN_BUILD,
+        MD_AUDIO_GENMIX_OUTPUT_GAIN_2X_BUILD,
+        MD_AUDIO_GENMIX_OUTPUT_GAIN_4X_BUILD,
+        MD_AUDIO_GENMIX_OUTPUT_GAIN_6X_BUILD,
+        MD_AUDIO_GENMIX_OUTPUT_GAIN_8X_BUILD,
+        MD_AUDIO_LPF_TEST_BUILD,
+        debug_md_sound_module_audio_l,
+        debug_md_sound_module_audio_r,
+        debug_emu_audio_l,
+        debug_emu_audio_r,
+        fm_raw_abs_peak,
+        fm_adjust_abs_peak,
+        fm_lpf_abs_peak,
+        genmix_abs_peak,
+        md_final_audio_abs_peak,
+        md_audio_l_abs_peak,
+        md_audio_r_abs_peak,
+        emu_audio_l_abs_peak,
+        emu_audio_r_abs_peak,
+        md_audio_l_at_rail,
+        md_audio_r_at_rail,
+        md_audio_l_rail_count,
+        md_audio_r_rail_count,
+        emu_audio_l_rail_count,
+        emu_audio_r_rail_count,
+        fm_adjust_clip_count_l,
+        fm_adjust_clip_count_r,
+        genmix_wrap_count_l,
+        genmix_wrap_count_r,
+        ym_write_requested_count,
+        ym_write_accepted_count,
+        ym_write_dropped_or_busy_count,
+        ym_port0_count,
+        ym_port1_count,
+        last_ym_port,
+        last_ym_addr,
+        last_ym_data,
+        jt12_cen_interval_1_count,
+        jt12_cen_interval_2_count,
+        jt12_cen_interval_3_count,
+        jt12_cen_interval_4_count,
+        jt12_cen_interval_ge5_count,
+        jt12_cen_interval_min,
+        jt12_cen_interval_max,
+        jt12_cen_interval_last,
+        joystick_0,
+        joystick_1,
+        joystick_2,
+        joystick_3,
+        joystick_4,
+        joystick_5,
+        joystick_l_analog_0,
+        joystick_l_analog_1,
+        joystick_l_analog_2,
+        joystick_l_analog_3,
+        joystick_l_analog_4,
+        joystick_l_analog_5,
+        joystick_r_analog_0,
+        joystick_r_analog_1,
+        joystick_r_analog_2,
+        joystick_r_analog_3,
+        joystick_r_analog_4,
+        joystick_r_analog_5,
+        paddle_0,
+        paddle_1,
+        paddle_2,
+        paddle_3,
+        paddle_4,
+        paddle_5,
+        spinner_0,
+        spinner_1,
+        spinner_2,
+        spinner_3,
+        spinner_4,
+        spinner_5,
+        ps2_key,
+        ps2_mouse,
+        ps2_mouse_ext,
+        timestamp,
+        ce_2,
+        player_pc_debug,
+        player_last_cmd_debug,
+        HDMI_WIDTH,
+        HDMI_HEIGHT,
+        CLK_AUDIO,
+        SD_MISO,
+        SD_CD,
+        DDRAM_BUSY,
+        DDRAM_DOUT,
+        DDRAM_DOUT_READY,
+        UART_CTS,
+        UART_RXD,
+        UART_DSR,
+        USER_IN,
+        OSD_STATUS
+    };
 
 endmodule
-
-/////////////////////////////////////////////////////////////////////
-
-module sync_fix
-(
-	input clk,
-	
-	input sync_in,
-	output sync_out
-);
-
-assign sync_out = sync_in ^ pol;
-
-reg pol;
-always @(posedge clk) begin
-	reg [31:0] cnt;
-	reg s1,s2;
-
-	s1 <= sync_in;
-	s2 <= s1;
-	cnt <= s2 ? (cnt - 1) : (cnt + 1);
-
-	if(~s2 & s1) begin
-		cnt <= 0;
-		pol <= cnt[31];
-	end
-end
-
-endmodule
-
-/////////////////////////////////////////////////////////////////////
-
-// CSync generation
-// Shifts HSync left by 1 HSync period during VSync
-
-module csync
-(
-	input  clk,
-	input  hsync,
-	input  vsync,
-
-	output csync
-);
-
-assign csync = (csync_vs ^ csync_hs);
-
-reg csync_hs, csync_vs;
-always @(posedge clk) begin
-	reg prev_hs;
-	reg [15:0] h_cnt, line_len, hs_len;
-
-	// Count line/Hsync length
-	h_cnt <= h_cnt + 1'd1;
-
-	prev_hs <= hsync;
-	if (prev_hs ^ hsync) begin
-		h_cnt <= 0;
-		if (hsync) begin
-			line_len <= h_cnt - hs_len;
-			csync_hs <= 0;
-		end
-		else hs_len <= h_cnt;
-	end
-	
-	if (~vsync) csync_hs <= hsync;
-	else if(h_cnt == line_len) csync_hs <= 1;
-	
-	csync_vs <= vsync;
-end
-
-endmodule
-// Icarus preprocessor had (1) errors.

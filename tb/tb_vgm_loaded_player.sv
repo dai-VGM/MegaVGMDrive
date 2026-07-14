@@ -27,6 +27,7 @@ module tb_vgm_loaded_player;
     wire busy;
     wire done;
     wire header_valid;
+    wire [31:0] segapcm_interface;
     wire player_error;
     wire [7:0] unsupported_opcode;
     wire [7:0] unsupported_pc;
@@ -94,6 +95,7 @@ module tb_vgm_loaded_player;
         .busy                (busy),
         .done                (done),
         .header_valid        (header_valid),
+        .segapcm_interface   (segapcm_interface),
         .player_error        (player_error),
         .unsupported_opcode  (unsupported_opcode),
         .unsupported_pc      (unsupported_pc),
@@ -216,6 +218,7 @@ module tb_vgm_loaded_player;
         mem[8'h35] = 8'h00;
         mem[8'h36] = 8'h00;
         mem[8'h37] = 8'h00;
+        mem[8'h3c] = 8'h0c;
         mem[8'h40] = 8'h52;
         mem[8'h41] = 8'h28;
         mem[8'h42] = 8'h00;
@@ -244,11 +247,13 @@ module tb_vgm_loaded_player;
             end
         end
 
-        if (!header_valid || data_start_debug != 8'h40 || !restarted_from_data_start ||
+        if (!header_valid || segapcm_interface != 32'h0000_000c ||
+            data_start_debug != 8'h40 || !restarted_from_data_start ||
             ym_count != 1 ||
             ym_cmd_reg != 8'h28 || ym_cmd_data != 8'h00) begin
-            $display("FAIL zero_offset header=%0b data_start=%02h restarted=%0b ym_count=%0d reg=%02h data=%02h",
-                     header_valid, data_start_debug, restarted_from_data_start,
+            $display("FAIL zero_offset header=%0b interface=%08h data_start=%02h restarted=%0b ym_count=%0d reg=%02h data=%02h",
+                     header_valid, segapcm_interface, data_start_debug,
+                     restarted_from_data_start,
                      ym_count, ym_cmd_reg, ym_cmd_data);
             $finish;
         end

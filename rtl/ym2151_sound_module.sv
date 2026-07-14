@@ -6,7 +6,9 @@
 
 module ym2151_sound_module #(
     parameter logic [31:0] CLK_SYS_HZ = 32'd20_000_000,
-    parameter logic [31:0] YM2151_CLK_HZ = 32'd4_000_000
+    parameter logic [31:0] YM2151_CLK_HZ = 32'd4_000_000,
+    // Test-only compatibility switch for measuring the former 2x-pitch path.
+    parameter logic LEGACY_FULL_RATE_CEN_P1 = 1'b0
 ) (
     input  logic              clk,
     input  logic              reset,
@@ -32,6 +34,8 @@ module ym2151_sound_module #(
 
     logic [31:0] cen_accum = 32'd0;
     logic jt51_cen = 1'b0;
+    logic jt51_cen_p1 = 1'b0;
+    logic jt51_cen_phase = 1'b0;
     logic [7:0] latched_reg = 8'd0;
     logic [7:0] latched_data = 8'd0;
     logic jt51_cs_n;
@@ -49,9 +53,9 @@ module ym2151_sound_module #(
     wire signed [15:0] jt51_xright;
     wire jt51_busy = jt51_dout[7];
     wire jt51_addr_write =
-        (write_state == WR_ADDR_WAIT) && jt51_cen;
+        (write_state == WR_ADDR_WAIT) && jt51_cen_p1;
     wire jt51_data_write =
-        (write_state == WR_DATA_WAIT) && jt51_cen && !jt51_busy;
+        (write_state == WR_DATA_WAIT) && jt51_cen_p1 && !jt51_busy;
 
     assign ym2151_cmd_ready = (write_state == WR_IDLE) && !jt51_busy;
     assign audio_l = jt51_xleft;
@@ -62,12 +66,17 @@ module ym2151_sound_module #(
         if (reset) begin
             cen_accum <= 32'd0;
             jt51_cen <= 1'b0;
+            jt51_cen_p1 <= 1'b0;
+            jt51_cen_phase <= 1'b0;
         end else if (cen_accum >= (CLK_SYS_HZ - YM2151_CLK_HZ)) begin
             cen_accum <= cen_accum + YM2151_CLK_HZ - CLK_SYS_HZ;
             jt51_cen <= 1'b1;
+            jt51_cen_phase <= ~jt51_cen_phase;
+            jt51_cen_p1 <= LEGACY_FULL_RATE_CEN_P1 || jt51_cen_phase;
         end else begin
             cen_accum <= cen_accum + YM2151_CLK_HZ;
             jt51_cen <= 1'b0;
+            jt51_cen_p1 <= 1'b0;
         end
     end
 
@@ -105,12 +114,12 @@ module ym2151_sound_module #(
                     end
                 end
                 WR_ADDR_WAIT: begin
-                    if (jt51_cen) begin
+                    if (jt51_cen_p1) begin
                         write_state <= WR_DATA_WAIT;
                     end
                 end
                 WR_DATA_WAIT: begin
-                    if (jt51_cen && !jt51_busy) begin
+                    if (jt51_cen_p1 && !jt51_busy) begin
                         write_state <= WR_BUSY_WAIT;
                     end
                 end
@@ -127,15 +136,16 @@ module ym2151_sound_module #(
     end
 
     /*
-     * JT51 samples write on clk and updates its busy flag only on cen. The
+     * JT51 samples write on clk and updates its busy flag only on cen_p1. The
      * write strobes above are therefore one clk_sys cycle wide and aligned
-     * with jt51_cen, avoiding repeated register writes while waiting for cen.
+     * with jt51_cen_p1, avoiding repeated register writes while waiting for
+     * the 2 MHz P1 enable used by the synthesis pipeline.
      */
     jt51 jt51_core (
         .rst    (reset),
         .clk    (clk),
         .cen    (jt51_cen),
-        .cen_p1 (jt51_cen),
+        .cen_p1 (jt51_cen_p1),
         .cs_n   (jt51_cs_n),
         .wr_n   (jt51_wr_n),
         .a0     (jt51_a0),
