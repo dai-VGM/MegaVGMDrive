@@ -15,6 +15,7 @@ module tb_vgm_c0_lab_backend;
     wire [15:0] smoke_last_read_word1_debug;
     wire [15:0] smoke_probe_write_word0_debug;
     wire [15:0] smoke_probe_write_word6_debug;
+    wire [15:0] smoke_write_blocked_count_debug;
     logic [31:0] type80_block_dest = 32'h0001_7100;
     logic [31:0] type80_block_size = 32'h0000_1208;
 
@@ -52,7 +53,7 @@ module tb_vgm_c0_lab_backend;
         .smoke_payload_length(smoke_payload_length),
         .smoke_write_req_count_debug(),
         .smoke_write_count_debug(),
-        .smoke_write_blocked_count_debug(),
+        .smoke_write_blocked_count_debug(smoke_write_blocked_count_debug),
         .smoke_write_status_debug(),
         .smoke_header_skip_count_debug(),
         .smoke_last_write_index_debug(),
@@ -169,7 +170,25 @@ module tb_vgm_c0_lab_backend;
             $finish;
         end
 
-        $display("PASS tb_vgm_c0_lab_backend W0=%04h W2=%04h D0=%04h D2=%04h",
+        // The active hardware C0-only branch uses the default 0x20000-byte
+        // lab capture. Block 6 begins at cumulative payload index 0x21800.
+        write_payload(19'h1ffff, 8'h55);
+        write_payload(19'h21800, 8'h7a);
+        @(posedge clk);
+        if (smoke_payload_length !== 19'h20000 ||
+            smoke_write_blocked_count_debug !== 16'd1) begin
+            $display("FAIL lab limit len=%05h blocked=%0d",
+                     smoke_payload_length, smoke_write_blocked_count_debug);
+            $finish;
+        end
+        read_payload(19'h21800, b4_0);
+        if (b4_0 !== 8'h80) begin
+            $display("FAIL out-of-range block6 read=%02h", b4_0);
+            $finish;
+        end
+
+        $display("PASS tb_vgm_c0_lab_backend limit=20000 block6=21800 blocked=%0d W0=%04h W2=%04h D0=%04h D2=%04h",
+                 smoke_write_blocked_count_debug,
                  smoke_probe_write_word0_debug,
                  smoke_probe_write_word6_debug,
                  smoke_last_read_word0_debug,

@@ -17,6 +17,7 @@ module tb_jtoutrun_pcm_outrun_bank_trace;
     logic core_rom_cs_d = 1'b0;
     logic [18:0] core_rom_addr_d = 19'd0;
     logic [7:0] sample_hold [0:15];
+    logic [18:0] sample_hold_addr [0:15];
     logic [15:0] sample_hold_valid = 16'd0;
     logic fifo_valid = 1'b0;
     logic [3:0] fifo_ch = 4'd0;
@@ -37,6 +38,18 @@ module tb_jtoutrun_pcm_outrun_bank_trace;
     integer audio_nonzero_count = 0;
     integer timeout;
     integer i;
+    integer checked_consume_count = 0;
+    integer state12_enter_count = 0;
+    integer state12_execute_count = 0;
+    integer state12_stall_count = 0;
+    integer accumulator_commit_count = 0;
+    integer output_valid_count = 0;
+    integer checked_output_count = 0;
+    logic [3:0] prev_state = 4'd0;
+    logic prev_wait_hold = 1'b0;
+    logic prev_sample = 1'b0;
+    logic signed [15:0] prev_acc_l = 16'sd0;
+    logic signed [15:0] prev_acc_r = 16'sd0;
 
     wire [7:0] outrun_jt_control;
     wire [20:0] outrun_full_bank;
@@ -52,7 +65,18 @@ module tb_jtoutrun_pcm_outrun_bank_trace;
     wire fifo_push = request_event && payload_match;
     wire [7:0] jt_rom_data = sample_hold_valid[dut.cur_ch] ?
                              sample_hold[dut.cur_ch] : 8'h80;
-    wire jt_rom_ok = sample_hold_valid[dut.cur_ch];
+    wire jt_rom_ok = sample_hold_valid[dut.cur_ch] &&
+                     (sample_hold_addr[dut.cur_ch] == rom_addr);
+
+    function automatic [7:0] expected_first_byte(input integer n);
+        begin
+            case (n)
+                0, 1: expected_first_byte = 8'h7f;
+                2, 3: expected_first_byte = 8'h85;
+                default: expected_first_byte = 8'h80;
+            endcase
+        end
+    endfunction
 
     function automatic [7:0] splash_rom_byte(input [18:0] addr);
         begin
@@ -80,6 +104,72 @@ module tb_jtoutrun_pcm_outrun_bank_trace;
     endtask
 
     always @(posedge clk) begin
+        if (!reset) begin
+            if (prev_wait_hold &&
+                ((dut.acc_l !== prev_acc_l) || (dut.acc_r !== prev_acc_r)))
+                $fatal(1,
+                    "accumulator changed during state12 stall before=%0d/%0d after=%0d/%0d",
+                    $signed(prev_acc_l), $signed(prev_acc_r),
+                    $signed(dut.acc_l), $signed(dut.acc_r));
+            if (prev_wait_hold && sample)
+                $fatal(1, "output valid asserted during state12 stall");
+            if ((request_event_count != 0) && sample && prev_sample)
+                $fatal(1, "duplicate consecutive PCM output-valid pulse");
+
+            if (dut.cen && dut.st == 4'd12 && dut.cur_ch == 4'd1) begin
+                if (prev_state != 4'd12)
+                    state12_enter_count <= state12_enter_count + 1;
+                if (dut.c0_effective_rom_ok)
+                    state12_execute_count <= state12_execute_count + 1;
+                else
+                    state12_stall_count <= state12_stall_count + 1;
+                $display("TRACE_CYCLE t=%0t st=%0d stall=%0d enter=%0d execute=%0d ch=%0d consume=%02h mul=%0d acc_before=%0d/%0d out=%0d/%0d valid=%0d",
+                         $time, dut.st, dut.c0_normal_rom_wait_hold,
+                         (prev_state != 4'd12), dut.c0_effective_rom_ok,
+                         dut.cur_ch, dut.pcm_source_data,
+                         $signed(dut.mul_data), $signed(dut.acc_l),
+                         $signed(dut.acc_r), $signed(snd_left),
+                         $signed(snd_right), sample);
+            end
+            if (dut.cen && dut.st == 4'd15 && dut.cur_ch == 4'd1 &&
+                !dut.cfg_en[0]) begin
+                accumulator_commit_count <= accumulator_commit_count + 1;
+                $display("TRACE_COMMIT t=%0t st=15 ch=%0d mul=%0d buf_r=%0d acc_before=%0d/%0d",
+                         $time, dut.cur_ch, $signed(dut.mul_data),
+                         $signed(dut.buf_r), $signed(dut.acc_l),
+                         $signed(dut.acc_r));
+            end
+            if ((request_event_count != 0) && sample) begin
+                output_valid_count <= output_valid_count + 1;
+                if (checked_output_count < 3) begin
+                    case (checked_output_count)
+                        0, 1: begin
+                            if (($signed(snd_left) != -16'sd40) ||
+                                ($signed(snd_right) != -16'sd39))
+                                $fatal(1,
+                                    "ideal JT output mismatch slot=%0d got=%0d/%0d expected=-40/-39",
+                                    checked_output_count,
+                                    $signed(snd_left), $signed(snd_right));
+                        end
+                        2: begin
+                            if (($signed(snd_left) != 16'sd200) ||
+                                ($signed(snd_right) != 16'sd195))
+                                $fatal(1,
+                                    "ideal JT output mismatch slot=2 got=%0d/%0d expected=200/195",
+                                    $signed(snd_left), $signed(snd_right));
+                        end
+                    endcase
+                    checked_output_count <= checked_output_count + 1;
+                end
+                $display("TRACE_OUTPUT t=%0t out=%0d/%0d valid=1",
+                         $time, $signed(snd_left), $signed(snd_right));
+            end
+        end
+        prev_state <= dut.st;
+        prev_wait_hold <= !reset && dut.c0_normal_rom_wait_hold;
+        prev_acc_l <= dut.acc_l;
+        prev_acc_r <= dut.acc_r;
+        prev_sample <= !reset && sample;
         core_rom_cs_d <= rom_cs;
         core_rom_addr_d <= rom_addr;
         if (!reset && request_event && request_ch == 4'd1) begin
@@ -115,6 +205,7 @@ module tb_jtoutrun_pcm_outrun_bank_trace;
                 ddr_response_count <= ddr_response_count + 1;
                 hold_update_count <= hold_update_count + 1;
                 sample_hold[owner_ch] <= splash_rom_byte(owner_addr);
+                sample_hold_addr[owner_ch] <= owner_addr;
                 sample_hold_valid[owner_ch] <= 1'b1;
                 owner_valid <= 1'b0;
                 $display("TRACE ddr_response t=%0t owner_ch=%0d addr=%05h data=%02h hold_update=1",
@@ -122,10 +213,21 @@ module tb_jtoutrun_pcm_outrun_bank_trace;
                          splash_rom_byte(owner_addr));
             end
         end
-        if (!reset && dut.cen && dut.st == 4'd14 && dut.cur_ch == 4'd1) begin
+        if (!reset && dut.cen && dut.st == 4'd12 && dut.cur_ch == 4'd1 &&
+            dut.c0_effective_rom_ok) begin
             consume_count <= consume_count + 1;
-            if (dut.pcm_data != 0)
+            if (dut.pcm_source_data != 8'h80)
                 mixer_nonzero_count <= mixer_nonzero_count + 1;
+            if (checked_consume_count < 4) begin
+                if (dut.pcm_source_data !==
+                    expected_first_byte(checked_consume_count))
+                    $fatal(1,
+                        "Splash consume%0d byte=%02h expected=%02h addr=%05h",
+                        checked_consume_count, dut.pcm_source_data,
+                        expected_first_byte(checked_consume_count),
+                        rom_addr);
+                checked_consume_count <= checked_consume_count + 1;
+            end
             $display("TRACE consume t=%0t ch=%0d st=%0d hold_valid=%0d hold=%02h jt_data=%02h jt_ok=%0d mul=%0d",
                      $time, dut.cur_ch, dut.st, sample_hold_valid[1],
                      sample_hold[1], jt_rom_data, jt_rom_ok,
@@ -156,7 +258,7 @@ module tb_jtoutrun_pcm_outrun_bank_trace;
         .rst(reset), .clk(clk), .cen(1'b1), .debug_bus(8'd0),
         .cpu_addr(cpu_addr), .cpu_dout(cpu_dout), .cpu_rnw(1'b0),
         .cpu_cs(cpu_cs), .rom_addr(rom_addr), .rom_data(jt_rom_data),
-        .rom_ok(jt_rom_ok), .rom_cs(rom_cs),
+        .rom_ok(jt_rom_ok), .rom_prefetch_clear(1'b0), .rom_cs(rom_cs),
         .snd_left(snd_left), .snd_right(snd_right), .sample(sample),
         .smoke_variant(3'd0), .smoke_ddr_follow_mode(1'b0),
         .smoke_ddr_follow_init_enable(1'b0),
@@ -171,8 +273,10 @@ module tb_jtoutrun_pcm_outrun_bank_trace;
     );
 
     initial begin
-        for (i = 0; i < 16; i = i + 1)
+        for (i = 0; i < 16; i = i + 1) begin
             sample_hold[i] = 8'h80;
+            sample_hold_addr[i] = 19'd0;
+        end
         for (i = 0; i < 512; i = i + 1)
             dut.u_ram.mem[i] = 8'hff;
 
@@ -205,8 +309,10 @@ module tb_jtoutrun_pcm_outrun_bank_trace;
         begin : wait_trace
             for (timeout = 0; timeout < 10000; timeout = timeout + 1) begin
                 @(negedge clk);
-                if (request_event_count >= 2 && ddr_response_count >= 2 &&
-                    consume_count >= 2 && audio_nonzero_count >= 1)
+                if (request_event_count >= 4 && ddr_response_count >= 4 &&
+                    checked_consume_count >= 4 &&
+                    accumulator_commit_count >= 4 &&
+                    audio_nonzero_count >= 1)
                     disable wait_trace;
             end
             $fatal(1, "trace timeout request=%0d consume=%0d",
@@ -224,6 +330,23 @@ module tb_jtoutrun_pcm_outrun_bank_trace;
             $fatal(1, "OutRun payload path did not complete");
         if (mixer_nonzero_count == 0 || audio_nonzero_count == 0)
             $fatal(1, "OutRun sample did not reach audio");
+        if (checked_consume_count != 4)
+            $fatal(1, "Splash first-four consume coverage=%0d",
+                   checked_consume_count);
+        if (state12_enter_count != state12_execute_count)
+            $fatal(1, "state12 enter/execute mismatch enter=%0d execute=%0d",
+                   state12_enter_count, state12_execute_count);
+        if (accumulator_commit_count != state12_execute_count)
+            $fatal(1, "consume/contribution mismatch execute=%0d commit=%0d",
+                   state12_execute_count, accumulator_commit_count);
+        if (output_valid_count == 0)
+            $fatal(1, "no PCM output-valid pulse");
+        if (checked_output_count != 3)
+            $fatal(1, "ideal JT output coverage=%0d", checked_output_count);
+        $display("STALL_SUMMARY enter=%0d execute=%0d stall_cycles=%0d commits=%0d output_valid=%0d",
+                 state12_enter_count, state12_execute_count,
+                 state12_stall_count, accumulator_commit_count,
+                 output_valid_count);
         $display("PASS tb_jtoutrun_pcm_outrun_bank_trace");
         $finish;
     end

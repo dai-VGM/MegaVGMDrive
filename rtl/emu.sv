@@ -320,6 +320,63 @@ localparam bit MODE5_DEBUG_OVERLAY_FORCED = 1'b1;
 `else
 localparam bit MODE5_DEBUG_OVERLAY_FORCED = 1'b0;
 `endif
+
+// Compile-time SegaPCM compatibility signature.  No runtime state is used:
+//   [15:8] prefetch/consume contract revision
+//   [7] START_HOLD, [6] DIRECT_START, [5] TICK_SLOW, [4] PARSER_RUN
+//   [3] LOADED_DDR_SMOKE, [2] SMOKE, [1] C0_ONLY, [0] LAB backend
+localparam logic [7:0] SEGAPCM_PREFETCH_REVISION = 8'h01;
+`ifdef MEGAVGMDRIVE_SEGAPCM_USE_C0_LAB_BACKEND
+localparam bit SEGAPCM_BUILD_LAB = 1'b1;
+`else
+localparam bit SEGAPCM_BUILD_LAB = 1'b0;
+`endif
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+localparam bit SEGAPCM_BUILD_C0_ONLY = 1'b1;
+`else
+localparam bit SEGAPCM_BUILD_C0_ONLY = 1'b0;
+`endif
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
+localparam bit SEGAPCM_BUILD_SMOKE = 1'b1;
+`else
+localparam bit SEGAPCM_BUILD_SMOKE = 1'b0;
+`endif
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_TEST
+localparam bit SEGAPCM_BUILD_LOADED_DDR_SMOKE = 1'b1;
+`else
+localparam bit SEGAPCM_BUILD_LOADED_DDR_SMOKE = 1'b0;
+`endif
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_PARSER_RUN_TEST
+localparam bit SEGAPCM_BUILD_PARSER_RUN = 1'b1;
+`else
+localparam bit SEGAPCM_BUILD_PARSER_RUN = 1'b0;
+`endif
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0DRIVE_TICK_SLOW
+localparam bit SEGAPCM_BUILD_TICK_SLOW = 1'b1;
+`else
+localparam bit SEGAPCM_BUILD_TICK_SLOW = 1'b0;
+`endif
+`ifdef MEGAVGMDRIVE_DIRECT_PLAYER_START_DEBUG
+localparam bit SEGAPCM_BUILD_DIRECT_START = 1'b1;
+`else
+localparam bit SEGAPCM_BUILD_DIRECT_START = 1'b0;
+`endif
+`ifdef MEGAVGMDRIVE_START_HOLD_NO_BUSY_CLEAR
+localparam bit SEGAPCM_BUILD_START_HOLD = 1'b1;
+`else
+localparam bit SEGAPCM_BUILD_START_HOLD = 1'b0;
+`endif
+localparam logic [15:0] SEGAPCM_BUILD_SIGNATURE = {
+    SEGAPCM_PREFETCH_REVISION,
+    SEGAPCM_BUILD_START_HOLD,
+    SEGAPCM_BUILD_DIRECT_START,
+    SEGAPCM_BUILD_TICK_SLOW,
+    SEGAPCM_BUILD_PARSER_RUN,
+    SEGAPCM_BUILD_LOADED_DDR_SMOKE,
+    SEGAPCM_BUILD_SMOKE,
+    SEGAPCM_BUILD_C0_ONLY,
+    SEGAPCM_BUILD_LAB
+};
 `ifdef MEGAVGMDRIVE_YM2151_MODE_TEST
 localparam bit YM2151_SEGAPCM_OBSERVER_BUILD = 1'b1;
 `else
@@ -1072,6 +1129,11 @@ module emu
     wire signed [15:0] segapcm_core_last_audio_l;
     wire signed [15:0] segapcm_core_last_audio_r;
     wire [15:0] segapcm_core_status_debug;
+    wire [31:0] segapcm_block6_probe_b6_debug;
+    wire [31:0] segapcm_block6_probe_r6_debug;
+    wire [31:0] segapcm_block6_probe_h6_debug;
+    wire [31:0] segapcm_block6_probe_c6_debug;
+    wire [31:0] segapcm_block6_probe_m6_debug;
     wire [31:0] data_block_count;
     wire  [7:0] last_data_block_type;
     wire [15:0] last_data_block_size_low;
@@ -1975,6 +2037,11 @@ module emu
         .segapcm_core_last_audio_l(segapcm_core_last_audio_l),
         .segapcm_core_last_audio_r(segapcm_core_last_audio_r),
         .segapcm_core_status_debug(segapcm_core_status_debug),
+        .segapcm_block6_probe_b6_debug(segapcm_block6_probe_b6_debug),
+        .segapcm_block6_probe_r6_debug(segapcm_block6_probe_r6_debug),
+        .segapcm_block6_probe_h6_debug(segapcm_block6_probe_h6_debug),
+        .segapcm_block6_probe_c6_debug(segapcm_block6_probe_c6_debug),
+        .segapcm_block6_probe_m6_debug(segapcm_block6_probe_m6_debug),
         .data_block_count      (data_block_count),
         .last_data_block_type  (last_data_block_type),
         .last_data_block_size_low(last_data_block_size_low),
@@ -2380,6 +2447,8 @@ module emu
     localparam logic [4:0] JTDBG_W9    = 5'd21;
     localparam logic [4:0] JTDBG_R9    = 5'd22;
     localparam logic [4:0] JTDBG_BK    = 5'd23;
+    // Rows 25..29 are rendered as the two-column request/response pipeline
+    // probe by mode5_debug_char. These IDs preserve the upper 24-row mapping.
     localparam logic [4:0] JTDBG_EH    = 5'd24;
     localparam logic [4:0] JTDBG_EL    = 5'd25;
     localparam logic [4:0] JTDBG_AH    = 5'd26;
@@ -2458,11 +2527,11 @@ module emu
                     JTDBG_W9: segapcm_debug_label_char = (col == 2'd0) ? "W" : (col == 2'd1) ? "9" : " ";
                     JTDBG_R9: segapcm_debug_label_char = (col == 2'd0) ? "R" : (col == 2'd1) ? "9" : " ";
                     JTDBG_BK: segapcm_debug_label_char = (col == 2'd0) ? "B" : (col == 2'd1) ? "K" : " ";
-                    JTDBG_EH: segapcm_debug_label_char = (col == 2'd0) ? "E" : (col == 2'd1) ? "H" : " ";
-                    JTDBG_EL: segapcm_debug_label_char = (col == 2'd0) ? "E" : (col == 2'd1) ? "L" : " ";
-                    JTDBG_AH: segapcm_debug_label_char = (col == 2'd0) ? "A" : (col == 2'd1) ? "H" : " ";
-                    JTDBG_AL: segapcm_debug_label_char = (col == 2'd0) ? "A" : (col == 2'd1) ? "L" : " ";
-                    JTDBG_OC: segapcm_debug_label_char = (col == 2'd0) ? "O" : (col == 2'd1) ? "C" : " ";
+                    JTDBG_EH: segapcm_debug_label_char = (col == 2'd0) ? "B" : (col == 2'd1) ? "6" : " ";
+                    JTDBG_EL: segapcm_debug_label_char = (col == 2'd0) ? "R" : (col == 2'd1) ? "6" : " ";
+                    JTDBG_AH: segapcm_debug_label_char = (col == 2'd0) ? "H" : (col == 2'd1) ? "6" : " ";
+                    JTDBG_AL: segapcm_debug_label_char = (col == 2'd0) ? "C" : (col == 2'd1) ? "6" : " ";
+                    JTDBG_OC: segapcm_debug_label_char = (col == 2'd0) ? "M" : (col == 2'd1) ? "6" : " ";
                     default: segapcm_debug_label_char = " ";
             endcase
 `else
@@ -2969,11 +3038,12 @@ module emu
                 JTDBG_W9: segapcm_debug_value = segapcm_jt_rv60_j2;
                 JTDBG_R9: segapcm_debug_value = segapcm_jt_rv60_j3;
                 JTDBG_BK: segapcm_debug_value = segapcm_jt_rv60_a8;
-                JTDBG_EH: segapcm_debug_value = segapcm_jt_rv60_sw;
-                JTDBG_EL: segapcm_debug_value = segapcm_jt_rv60_c4;
-                JTDBG_AH: segapcm_debug_value = segapcm_jt_rv60_t8;
-                JTDBG_AL: segapcm_debug_value = segapcm_jt_rv60_tw;
-                JTDBG_OC: segapcm_debug_value = segapcm_jt_rv60_t4;
+                JTDBG_EH: segapcm_debug_value = segapcm_block6_probe_b6_debug[15:0];
+                JTDBG_EL: segapcm_debug_value = segapcm_block6_probe_r6_debug[15:0];
+                JTDBG_AH: segapcm_debug_value = segapcm_block6_probe_h6_debug[15:0];
+                JTDBG_AL: segapcm_debug_value = segapcm_block6_probe_c6_debug[15:0];
+                JTDBG_OC: segapcm_debug_value =
+                    segapcm_block6_probe_m6_debug[15:0];
                 default: segapcm_debug_value = 16'd0;
             endcase
 `else
@@ -3507,18 +3577,110 @@ module emu
         input logic [3:0] col
     );
         logic [15:0] value;
+        logic [15:0] probe_left;
+        logic [15:0] probe_right;
+        logic [7:0] probe_label_l0;
+        logic [7:0] probe_label_l1;
+        logic [7:0] probe_label_r0;
+        logic [7:0] probe_label_r1;
         begin
             value = mode5_debug_value(row);
-            unique case (col)
-                4'd0: mode5_debug_char = mode5_debug_label_char(row, 2'd0);
-                4'd1: mode5_debug_char = mode5_debug_label_char(row, 2'd1);
-                4'd2: mode5_debug_char = " ";
-                4'd3: mode5_debug_char = hex_char(value[15:12]);
-                4'd4: mode5_debug_char = hex_char(value[11:8]);
-                4'd5: mode5_debug_char = hex_char(value[7:4]);
-                4'd6: mode5_debug_char = hex_char(value[3:0]);
-                default: mode5_debug_char = " ";
-            endcase
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+	            if ((row >= 5'd24) && (row <= 5'd27)) begin
+                probe_left = 16'd0;
+                probe_right = 16'd0;
+                probe_label_l0 = " ";
+                probe_label_l1 = " ";
+                probe_label_r0 = " ";
+                probe_label_r1 = " ";
+                unique case (row)
+		                    5'd24: begin
+		                        probe_left = segapcm_block6_probe_b6_debug[31:16];
+		                        probe_right = segapcm_block6_probe_b6_debug[15:0];
+		                        probe_label_l0 = "J"; probe_label_l1 = "L";
+		                        probe_label_r0 = "J"; probe_label_r1 = "R";
+		                    end
+		                    5'd25: begin
+		                        probe_left = segapcm_block6_probe_r6_debug[31:16];
+		                        probe_right = segapcm_block6_probe_r6_debug[15:0];
+		                        probe_label_l0 = "M"; probe_label_l1 = "L";
+		                        probe_label_r0 = "M"; probe_label_r1 = "R";
+		                    end
+		                    5'd26: begin
+		                        probe_left = segapcm_block6_probe_h6_debug[31:16];
+		                        probe_right = segapcm_block6_probe_h6_debug[15:0];
+		                        probe_label_l0 = "P"; probe_label_l1 = "L";
+		                        probe_label_r0 = "P"; probe_label_r1 = "R";
+		                    end
+		                    default: begin
+		                        probe_left = segapcm_block6_probe_c6_debug[31:16];
+		                        probe_right = segapcm_block6_probe_c6_debug[15:0];
+		                        probe_label_l0 = "S"; probe_label_l1 = "G";
+		                        probe_label_r0 = "C"; probe_label_r1 = "L";
+                    end
+                endcase
+                unique case (col)
+                    4'd0: mode5_debug_char = probe_label_l0;
+                    4'd1: mode5_debug_char = probe_label_l1;
+                    4'd2: mode5_debug_char = "=";
+                    4'd3: mode5_debug_char = hex_char(probe_left[15:12]);
+                    4'd4: mode5_debug_char = hex_char(probe_left[11:8]);
+                    4'd5: mode5_debug_char = hex_char(probe_left[7:4]);
+                    4'd6: mode5_debug_char = hex_char(probe_left[3:0]);
+                    4'd7: mode5_debug_char = " ";
+                    4'd8: mode5_debug_char = probe_label_r0;
+                    4'd9: mode5_debug_char = probe_label_r1;
+                    4'd10: mode5_debug_char = "=";
+                    4'd11: mode5_debug_char = hex_char(probe_right[15:12]);
+                    4'd12: mode5_debug_char = hex_char(probe_right[11:8]);
+                    4'd13: mode5_debug_char = hex_char(probe_right[7:4]);
+                    4'd14: mode5_debug_char = hex_char(probe_right[3:0]);
+                    default: mode5_debug_char = " ";
+                endcase
+		            end else if (row == 5'd28) begin
+		                // "BS=xxxx PF=xx D/L" is derived solely from `ifdefs.
+		                // The final character makes the selected backend obvious;
+		                // the full bit allocation is documented above.
+		                unique case (col)
+	                    4'd0: mode5_debug_char = "B";
+	                    4'd1: mode5_debug_char = "S";
+	                    4'd2: mode5_debug_char = "=";
+	                    4'd3: mode5_debug_char =
+	                        hex_char(SEGAPCM_BUILD_SIGNATURE[15:12]);
+	                    4'd4: mode5_debug_char =
+	                        hex_char(SEGAPCM_BUILD_SIGNATURE[11:8]);
+	                    4'd5: mode5_debug_char =
+	                        hex_char(SEGAPCM_BUILD_SIGNATURE[7:4]);
+	                    4'd6: mode5_debug_char =
+	                        hex_char(SEGAPCM_BUILD_SIGNATURE[3:0]);
+		                    4'd7: mode5_debug_char = " ";
+		                    4'd8: mode5_debug_char = "P";
+		                    4'd9: mode5_debug_char = "F";
+		                    4'd10: mode5_debug_char = "=";
+		                    4'd11: mode5_debug_char =
+	                        hex_char(SEGAPCM_PREFETCH_REVISION[7:4]);
+		                    4'd12: mode5_debug_char =
+	                        hex_char(SEGAPCM_PREFETCH_REVISION[3:0]);
+		                    4'd13: mode5_debug_char = " ";
+		                    4'd14: mode5_debug_char =
+	                        SEGAPCM_BUILD_LAB ? "L" : "D";
+	                    default: mode5_debug_char = " ";
+	                endcase
+            end else begin
+`endif
+                unique case (col)
+                    4'd0: mode5_debug_char = mode5_debug_label_char(row, 2'd0);
+                    4'd1: mode5_debug_char = mode5_debug_label_char(row, 2'd1);
+                    4'd2: mode5_debug_char = " ";
+                    4'd3: mode5_debug_char = hex_char(value[15:12]);
+                    4'd4: mode5_debug_char = hex_char(value[11:8]);
+                    4'd5: mode5_debug_char = hex_char(value[7:4]);
+                    4'd6: mode5_debug_char = hex_char(value[3:0]);
+                    default: mode5_debug_char = " ";
+                endcase
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+            end
+`endif
         end
     endfunction
 
@@ -3528,14 +3690,17 @@ module emu
     wire [3:0] mode5_dbg_col = mode5_dbg_x[6:3];
     wire [2:0] mode5_dbg_char_x = mode5_dbg_x[2:0];
     wire [2:0] mode5_dbg_char_y = mode5_dbg_y[2:0];
+    wire mode5_dbg_wide_row =
+        (mode5_dbg_row >= 5'd24) && (mode5_dbg_row <= 5'd28);
     wire mode5_dbg_back =
         mode5_debug_overlay_enable &&
-        (h_count >= 9'd8) && (h_count < 9'd64) &&
+        (h_count >= 9'd8) &&
+        (h_count < (mode5_dbg_wide_row ? 9'd128 : 9'd64)) &&
         (v_count >= 9'd8) && (v_count < 9'd256);
     wire mode5_dbg_region =
         mode5_dbg_back &&
         (mode5_dbg_row <= 5'd31) &&
-        (mode5_dbg_col <= 4'd6) &&
+        (mode5_dbg_col <= (mode5_dbg_wide_row ? 4'd14 : 4'd6)) &&
         (mode5_dbg_char_x < 3'd5) &&
         (mode5_dbg_char_y < 3'd7);
     wire mode5_debug_pixel =

@@ -455,6 +455,11 @@ module mister_vgm_md_top #(
     output logic signed [15:0] segapcm_core_last_audio_l,
     output logic signed [15:0] segapcm_core_last_audio_r,
     output logic [15:0]       segapcm_core_status_debug,
+    output logic [31:0]       segapcm_block6_probe_b6_debug,
+    output logic [31:0]       segapcm_block6_probe_r6_debug,
+    output logic [31:0]       segapcm_block6_probe_h6_debug,
+    output logic [31:0]       segapcm_block6_probe_c6_debug,
+    output logic [31:0]       segapcm_block6_probe_m6_debug,
     output logic [31:0]       data_block_count,
     output logic [7:0]        last_data_block_type,
     output logic [15:0]       last_data_block_size_low,
@@ -1053,6 +1058,32 @@ module mister_vgm_md_top #(
             logic [15:0] lab_pcm_abs_peak_i = 16'd0;
             logic [15:0] lab_pcm_mix_abs_peak_i = 16'd0;
             logic [15:0] lab_mix_abs_peak_i = 16'd0;
+            // Observation-only signed PCM path statistics.  Values 0/1 are the
+            // raw JT frame outputs, 2/3 are the configured SegaPCM mix values,
+            // and 4/5 are the PCM operands immediately before the FM+PCM sum.
+            wire signed [15:0] pcm_path_probe_value_i [0:5];
+            logic signed [15:0] pcm_path_probe_min_i [0:5];
+            logic signed [15:0] pcm_path_probe_max_i [0:5];
+            logic signed [15:0] pcm_path_probe_last_i [0:5];
+            logic [15:0] pcm_path_probe_pos_count_i [0:5];
+            logic [15:0] pcm_path_probe_neg_count_i [0:5];
+            logic [15:0] pcm_path_probe_zero_count_i [0:5];
+            logic [15:0] pcm_path_probe_sign_change_count_i [0:5];
+            logic [15:0] pcm_path_probe_clip_count_i [0:5];
+            logic [15:0] pcm_path_probe_abs_peak_i [0:5];
+            logic [5:0] pcm_path_probe_seen_i = 6'd0;
+            logic [5:0] pcm_path_probe_prev_nonzero_i = 6'd0;
+            logic [5:0] pcm_path_probe_prev_sign_i = 6'd0;
+            logic pcm_path_probe_unsigned_mismatch_i = 1'b0;
+            logic pcm_path_probe_signext_mismatch_i = 1'b0;
+            integer pcm_path_probe_reset_i;
+
+            assign pcm_path_probe_value_i[0] = segapcm_audio_l;
+            assign pcm_path_probe_value_i[1] = segapcm_audio_r;
+            assign pcm_path_probe_value_i[2] = segapcm_audio_l_mix;
+            assign pcm_path_probe_value_i[3] = segapcm_audio_r_mix;
+            assign pcm_path_probe_value_i[4] = lab_pcm_mix_l_selected;
+            assign pcm_path_probe_value_i[5] = lab_pcm_mix_r_selected;
             wire lab_mix_clip =
                 (ym2151_segapcm_l_sum[16] != ym2151_segapcm_l_sum[15]) ||
                 (ym2151_segapcm_r_sum[16] != ym2151_segapcm_r_sum[15]);
@@ -1077,6 +1108,153 @@ module mister_vgm_md_top #(
                     segapcm_audio_r,
                     C0_JT51_LAB_PCM_GAIN_SHIFT_SEL
                 );
+
+            always_ff @(posedge clk) begin
+                if (reset || ioctl_download) begin
+                    pcm_path_probe_seen_i <= 6'd0;
+                    pcm_path_probe_prev_nonzero_i <= 6'd0;
+                    pcm_path_probe_prev_sign_i <= 6'd0;
+                    pcm_path_probe_unsigned_mismatch_i <= 1'b0;
+                    pcm_path_probe_signext_mismatch_i <= 1'b0;
+                    for (pcm_path_probe_reset_i = 0;
+                         pcm_path_probe_reset_i < 6;
+                         pcm_path_probe_reset_i = pcm_path_probe_reset_i + 1) begin
+                        pcm_path_probe_min_i[pcm_path_probe_reset_i] <= 16'sh7fff;
+                        pcm_path_probe_max_i[pcm_path_probe_reset_i] <= 16'sh8000;
+                        pcm_path_probe_last_i[pcm_path_probe_reset_i] <= 16'sd0;
+                        pcm_path_probe_pos_count_i[pcm_path_probe_reset_i] <= 16'd0;
+                        pcm_path_probe_neg_count_i[pcm_path_probe_reset_i] <= 16'd0;
+                        pcm_path_probe_zero_count_i[pcm_path_probe_reset_i] <= 16'd0;
+                        pcm_path_probe_sign_change_count_i[pcm_path_probe_reset_i] <= 16'd0;
+                        pcm_path_probe_clip_count_i[pcm_path_probe_reset_i] <= 16'd0;
+                        pcm_path_probe_abs_peak_i[pcm_path_probe_reset_i] <= 16'd0;
+                    end
+                end else if (segapcm_audio_sample_valid) begin
+                    for (pcm_path_probe_reset_i = 0;
+                         pcm_path_probe_reset_i < 6;
+                         pcm_path_probe_reset_i = pcm_path_probe_reset_i + 1) begin
+                        pcm_path_probe_last_i[pcm_path_probe_reset_i] <=
+                            pcm_path_probe_value_i[pcm_path_probe_reset_i];
+                        if (!pcm_path_probe_seen_i[pcm_path_probe_reset_i]) begin
+                            pcm_path_probe_seen_i[pcm_path_probe_reset_i] <= 1'b1;
+                            pcm_path_probe_min_i[pcm_path_probe_reset_i] <=
+                                pcm_path_probe_value_i[pcm_path_probe_reset_i];
+                            pcm_path_probe_max_i[pcm_path_probe_reset_i] <=
+                                pcm_path_probe_value_i[pcm_path_probe_reset_i];
+                        end else begin
+                            if ($signed(pcm_path_probe_value_i[pcm_path_probe_reset_i]) <
+                                $signed(pcm_path_probe_min_i[pcm_path_probe_reset_i])) begin
+                                pcm_path_probe_min_i[pcm_path_probe_reset_i] <=
+                                    pcm_path_probe_value_i[pcm_path_probe_reset_i];
+                            end
+                            if ($signed(pcm_path_probe_value_i[pcm_path_probe_reset_i]) >
+                                $signed(pcm_path_probe_max_i[pcm_path_probe_reset_i])) begin
+                                pcm_path_probe_max_i[pcm_path_probe_reset_i] <=
+                                    pcm_path_probe_value_i[pcm_path_probe_reset_i];
+                            end
+                        end
+                        if (pcm_path_probe_value_i[pcm_path_probe_reset_i] == 16'sd0) begin
+                            if (pcm_path_probe_zero_count_i[pcm_path_probe_reset_i] != 16'hffff)
+                                pcm_path_probe_zero_count_i[pcm_path_probe_reset_i] <=
+                                    pcm_path_probe_zero_count_i[pcm_path_probe_reset_i] + 16'd1;
+                        end else begin
+                            if (pcm_path_probe_value_i[pcm_path_probe_reset_i][15]) begin
+                                if (pcm_path_probe_neg_count_i[pcm_path_probe_reset_i] != 16'hffff)
+                                    pcm_path_probe_neg_count_i[pcm_path_probe_reset_i] <=
+                                        pcm_path_probe_neg_count_i[pcm_path_probe_reset_i] + 16'd1;
+                            end else if (pcm_path_probe_pos_count_i[pcm_path_probe_reset_i] != 16'hffff) begin
+                                pcm_path_probe_pos_count_i[pcm_path_probe_reset_i] <=
+                                    pcm_path_probe_pos_count_i[pcm_path_probe_reset_i] + 16'd1;
+                            end
+                            if (pcm_path_probe_prev_nonzero_i[pcm_path_probe_reset_i] &&
+                                (pcm_path_probe_prev_sign_i[pcm_path_probe_reset_i] !=
+                                 pcm_path_probe_value_i[pcm_path_probe_reset_i][15]) &&
+                                (pcm_path_probe_sign_change_count_i[pcm_path_probe_reset_i] !=
+                                 16'hffff)) begin
+                                pcm_path_probe_sign_change_count_i[pcm_path_probe_reset_i] <=
+                                    pcm_path_probe_sign_change_count_i[pcm_path_probe_reset_i] + 16'd1;
+                            end
+                            pcm_path_probe_prev_nonzero_i[pcm_path_probe_reset_i] <= 1'b1;
+                            pcm_path_probe_prev_sign_i[pcm_path_probe_reset_i] <=
+                                pcm_path_probe_value_i[pcm_path_probe_reset_i][15];
+                        end
+                        if (((pcm_path_probe_value_i[pcm_path_probe_reset_i] == 16'sh7fff) ||
+                             (pcm_path_probe_value_i[pcm_path_probe_reset_i] == 16'sh8000)) &&
+                            (pcm_path_probe_clip_count_i[pcm_path_probe_reset_i] != 16'hffff)) begin
+                            pcm_path_probe_clip_count_i[pcm_path_probe_reset_i] <=
+                                pcm_path_probe_clip_count_i[pcm_path_probe_reset_i] + 16'd1;
+                        end
+                        if (abs16_top(pcm_path_probe_value_i[pcm_path_probe_reset_i]) >
+                            pcm_path_probe_abs_peak_i[pcm_path_probe_reset_i]) begin
+                            pcm_path_probe_abs_peak_i[pcm_path_probe_reset_i] <=
+                                abs16_top(pcm_path_probe_value_i[pcm_path_probe_reset_i]);
+                        end
+                    end
+                    // A positive gain/shift must not invert a nonzero sign.
+                    if ((((segapcm_audio_l != 16'sd0) &&
+                          (segapcm_audio_l_mix != 16'sd0)) &&
+                         (segapcm_audio_l[15] != segapcm_audio_l_mix[15])) ||
+                        (((segapcm_audio_r != 16'sd0) &&
+                          (segapcm_audio_r_mix != 16'sd0)) &&
+                         (segapcm_audio_r[15] != segapcm_audio_r_mix[15]))) begin
+                        pcm_path_probe_unsigned_mismatch_i <= 1'b1;
+                    end
+                    if ((((segapcm_audio_l_mix != 16'sd0) &&
+                          (lab_pcm_mix_l_selected != 16'sd0)) &&
+                         (segapcm_audio_l_mix[15] != lab_pcm_mix_l_selected[15])) ||
+                        (((segapcm_audio_r_mix != 16'sd0) &&
+                          (lab_pcm_mix_r_selected != 16'sd0)) &&
+                         (segapcm_audio_r_mix[15] != lab_pcm_mix_r_selected[15]))) begin
+                        pcm_path_probe_signext_mismatch_i <= 1'b1;
+                    end
+                end
+            end
+
+            assign segapcm_block6_probe_b6_debug = {
+                pcm_path_probe_last_i[0], pcm_path_probe_last_i[1]
+            };
+            assign segapcm_block6_probe_r6_debug = {
+                pcm_path_probe_last_i[2], pcm_path_probe_last_i[3]
+            };
+            assign segapcm_block6_probe_h6_debug = {
+                pcm_path_probe_last_i[4], pcm_path_probe_last_i[5]
+            };
+            assign segapcm_block6_probe_c6_debug = {
+                1'b0,
+                ((pcm_path_probe_sign_change_count_i[4] != 16'd0) ||
+                 (pcm_path_probe_sign_change_count_i[5] != 16'd0)),
+                ((pcm_path_probe_sign_change_count_i[2] != 16'd0) ||
+                 (pcm_path_probe_sign_change_count_i[3] != 16'd0)),
+                ((pcm_path_probe_sign_change_count_i[0] != 16'd0) ||
+                 (pcm_path_probe_sign_change_count_i[1] != 16'd0)),
+                (pcm_path_probe_neg_count_i[5] != 16'd0),
+                (pcm_path_probe_pos_count_i[5] != 16'd0),
+                (pcm_path_probe_neg_count_i[4] != 16'd0),
+                (pcm_path_probe_pos_count_i[4] != 16'd0),
+                (pcm_path_probe_neg_count_i[3] != 16'd0),
+                (pcm_path_probe_pos_count_i[3] != 16'd0),
+                (pcm_path_probe_neg_count_i[2] != 16'd0),
+                (pcm_path_probe_pos_count_i[2] != 16'd0),
+                (pcm_path_probe_neg_count_i[1] != 16'd0),
+                (pcm_path_probe_pos_count_i[1] != 16'd0),
+                (pcm_path_probe_neg_count_i[0] != 16'd0),
+                (pcm_path_probe_pos_count_i[0] != 16'd0),
+                8'd0,
+                pcm_path_probe_signext_mismatch_i,
+                pcm_path_probe_unsigned_mismatch_i,
+                (pcm_path_probe_clip_count_i[5] != 16'd0),
+                (pcm_path_probe_clip_count_i[4] != 16'd0),
+                (pcm_path_probe_clip_count_i[3] != 16'd0),
+                (pcm_path_probe_clip_count_i[2] != 16'd0),
+                (pcm_path_probe_clip_count_i[1] != 16'd0),
+                (pcm_path_probe_clip_count_i[0] != 16'd0)
+            };
+            assign segapcm_block6_probe_m6_debug = {
+                ($signed(pcm_path_probe_min_i[0]) < $signed(pcm_path_probe_min_i[1])) ?
+                    pcm_path_probe_min_i[0] : pcm_path_probe_min_i[1],
+                ($signed(pcm_path_probe_max_i[0]) > $signed(pcm_path_probe_max_i[1])) ?
+                    pcm_path_probe_max_i[0] : pcm_path_probe_max_i[1]
+            };
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
 `ifdef SEGA_PCM_STARTUP_SMOKE
             wire segapcm_smoke_output_enabled = 1'b1;
@@ -3281,7 +3459,7 @@ module mister_vgm_md_top #(
                 assign ddram_be       = 8'd0;
                 assign ddram_we       = 1'b0;
             end else if (MODE5_VGM_BACKEND == MODE5_BACKEND_DDRAM) begin : backend_ddram
-`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+`ifdef MEGAVGMDRIVE_SEGAPCM_USE_C0_LAB_BACKEND
                 assign segapcm_copy_wr_ready = 1'b1;
                 assign segapcm_copy_flush_done = segapcm_copy_flush_req;
                 assign backend_copy_accept_count_debug = 16'd0;
@@ -3300,6 +3478,9 @@ module mister_vgm_md_top #(
                 assign backend_read_gate_debug = 16'd0;
                 assign backend_read_after_copy_count_debug = 16'd0;
 
+                // Optional small local-RAM backend for focused lab builds.
+                // Compatibility builds leave this macro undefined and use
+                // the normal vgm_ddram_backend below, even with C0-only audio.
                 vgm_c0_lab_backend #(
                     .ADDR_WIDTH       (VGM_LOAD_ADDR_WIDTH),
                     .ACCEPT_ANY_INDEX (1'b0),
@@ -3386,7 +3567,11 @@ module mister_vgm_md_top #(
                     .ADDR_WIDTH       (VGM_LOAD_ADDR_WIDTH),
                     .ACCEPT_ANY_INDEX (1'b0),
                     .FILE_INDEX       (VGM_LOAD_FILE_INDEX),
-                    .WRITE_FIFO_DEPTH (1024),
+                    // The FIFO arrays are asynchronously read by the DDR
+                    // issue path and are not suitable for M10K inference.
+                    // 256 entries retain 2 KiB of packed-write buffering
+                    // without the 1024-entry LAB cost.
+                    .WRITE_FIFO_DEPTH (256),
                     // Match the common MiSTer DDRAM window used by PSX/GBA:
                     // DDRAM_ADDR[28:25] = 4'b0011 maps to 0x30000000.
                     .DDRAM_BASE_ADDR  ({4'b0011, 25'd0}),
@@ -3791,11 +3976,10 @@ module mister_vgm_md_top #(
                     .SEGAPCM_CLK_HZ  (32'd8_053_974)
                 ) segapcm_sound (
                     .clk                            (clk),
-`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
-                    .reset                          (reset),
-`else
+                    // A new VGM session must also reset the JT channel state.
+                    // Otherwise a channel left active by the previous file can
+                    // request ROM while the new type80 table is still filling.
                     .reset                          (reset | mode5_sound_core_reset),
-`endif
                     .segapcm_cmd_valid              (segapcm_cmd_valid),
                     .segapcm_cmd_addr               (segapcm_cmd_addr),
                     .segapcm_cmd_data               (segapcm_cmd_data),
@@ -3827,6 +4011,7 @@ module mister_vgm_md_top #(
                     .smoke_playback_running        (player_busy),
                     .smoke_playback_done           (player_done),
                     .smoke_vgm_end_seen            (vgm_end_command_seen),
+                    .smoke_vgm_wait_ticks          (vgm_wait_ticks_consumed_debug),
                     .loaded_type80_rom_size         (smoke_ddr_type80_block_size),
                     .loaded_type80_rom_dest         (smoke_ddr_type80_dest_addr),
                     .loaded_payload_wr_valid        (segapcm_payload_tap_valid),
@@ -4033,7 +4218,12 @@ module mister_vgm_md_top #(
                     .audio_abs_peak_debug           (segapcm_core_audio_abs_peak),
                     .last_audio_l_debug             (segapcm_core_last_audio_l),
                     .last_audio_r_debug             (segapcm_core_last_audio_r),
-                    .core_status_debug              (segapcm_core_status_debug)
+                    .core_status_debug              (segapcm_core_status_debug),
+                    .block6_probe_b6_debug          (),
+                    .block6_probe_r6_debug          (),
+                    .block6_probe_h6_debug          (),
+                    .block6_probe_c6_debug          (),
+                    .block6_probe_m6_debug          ()
                 );
                 assign segapcm_rv61_signature_bus = {
                     segapcm_rv61_sound_signature_bus,

@@ -14,7 +14,6 @@ module galaxy_force_pcm_case #(
     input logic reset,
     input logic cen
 );
-    reg rom_ok = 1'b0;
     reg [3:0] last_request_ch = 4'hf;
     reg [18:0] last_request_addr = 19'd0;
     reg [3:0] last_return_ch = 4'hf;
@@ -22,6 +21,8 @@ module galaxy_force_pcm_case #(
     reg last_return_accepted = 1'b0;
     reg [7:0] tagged_hold_ch1 = 8'h80;
     reg [7:0] tagged_hold_ch2 = 8'h80;
+    reg [18:0] tagged_addr_ch1 = 19'd0;
+    reg [18:0] tagged_addr_ch2 = 19'd0;
     wire [7:0] rom_data =
         (dut.cur_ch == 4'd1) ? tagged_hold_ch1 :
         (dut.cur_ch == 4'd2) ? tagged_hold_ch2 : 8'h80;
@@ -40,6 +41,11 @@ module galaxy_force_pcm_case #(
     integer req_count_ch2 = 0;
     integer ret_count_ch1 = 0;
     integer ret_count_ch2 = 0;
+    wire rom_ok =
+        ((dut.cur_ch == 4'd1) && (tagged_addr_ch1 == rom_addr) &&
+         (ret_count_ch1 != 0)) ||
+        ((dut.cur_ch == 4'd2) && (tagged_addr_ch2 == rom_addr) &&
+         (ret_count_ch2 != 0));
     integer contrib_count_ch1 = 0;
     integer contrib_count_ch2 = 0;
     integer mix_count = 0;
@@ -169,7 +175,6 @@ module galaxy_force_pcm_case #(
     end
 
     always @(posedge clk) begin
-        rom_ok <= 1'b0;
         last_return_accepted <= 1'b0;
         rom_cs_d <= rom_cs;
         for (pipe_i = ROM_LATENCY_CYCLES; pipe_i > 0; pipe_i = pipe_i - 1) begin
@@ -179,15 +184,15 @@ module galaxy_force_pcm_case #(
         end
         response_valid[0] <= rom_cs && !rom_cs_d;
         response_addr[0] <= rom_addr;
-        response_ch[0] <= dut.cur_ch;
+        response_ch[0] <= dut.dbg_last_ch;
 
         if (rom_cs && !rom_cs_d) begin
-            last_request_ch <= dut.cur_ch;
+            last_request_ch <= dut.dbg_last_ch;
             last_request_addr <= rom_addr;
-            if (dut.cur_ch == 4'd1) begin
+            if (dut.dbg_last_ch == 4'd1) begin
                 req_addr_ch1[req_count_ch1] <= rom_addr;
                 req_count_ch1 <= req_count_ch1 + 1;
-            end else if (dut.cur_ch == 4'd2) begin
+            end else if (dut.dbg_last_ch == 4'd2) begin
                 req_addr_ch2[req_count_ch2] <= rom_addr;
                 req_count_ch2 <= req_count_ch2 + 1;
             end
@@ -198,15 +203,16 @@ module galaxy_force_pcm_case #(
             last_return_sample <= actual_rom_byte(response_addr[ROM_LATENCY_CYCLES]);
             // The returned request tag owns the response. Route it only to
             // that channel's hold; a later live request cannot retag it.
-            rom_ok <= 1'b1;
             last_return_accepted <= 1'b1;
             if (response_ch[ROM_LATENCY_CYCLES] == 4'd1) begin
                 tagged_hold_ch1 <= actual_rom_byte(response_addr[ROM_LATENCY_CYCLES]);
+                tagged_addr_ch1 <= response_addr[ROM_LATENCY_CYCLES];
                 ret_data_ch1[ret_count_ch1] <=
                     actual_rom_byte(response_addr[ROM_LATENCY_CYCLES]);
                 ret_count_ch1 <= ret_count_ch1 + 1;
             end else if (response_ch[ROM_LATENCY_CYCLES] == 4'd2) begin
                 tagged_hold_ch2 <= actual_rom_byte(response_addr[ROM_LATENCY_CYCLES]);
+                tagged_addr_ch2 <= response_addr[ROM_LATENCY_CYCLES];
                 ret_data_ch2[ret_count_ch2] <=
                     actual_rom_byte(response_addr[ROM_LATENCY_CYCLES]);
                 ret_count_ch2 <= ret_count_ch2 + 1;

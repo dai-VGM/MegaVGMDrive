@@ -97,8 +97,9 @@ module tb_jtoutrun_pcm_pitch_progression;
     // Count the actual request edge independently from the state/address
     // monitor above. Every address increment must produce exactly one request.
     always @(posedge rom_cs) begin
-        if (!reset && dut.cur_ch < 4)
-            request_count[dut.cur_ch] = request_count[dut.cur_ch] + 1;
+        if (!reset && dut.dbg_last_ch < 4)
+            request_count[dut.dbg_last_ch] =
+                request_count[dut.dbg_last_ch] + 1;
     end
 
     // Sample after nonblocking assignments. State, channel, and current
@@ -201,7 +202,10 @@ module tb_jtoutrun_pcm_pitch_progression;
         end
 
         for (i = 0; i < 4; i = i + 1) begin
-            if (update_count[i] != request_count[i]) begin
+            // State 15 may already have issued the next scan's one-entry
+            // look-ahead when the state-8 update target reaches 16.
+            if (request_count[i] != update_count[i] &&
+                request_count[i] != (update_count[i] + 1)) begin
                 $display("FAIL ch%0d updates=%0d requests=%0d", i,
                          update_count[i], request_count[i]);
                 $fatal(1);

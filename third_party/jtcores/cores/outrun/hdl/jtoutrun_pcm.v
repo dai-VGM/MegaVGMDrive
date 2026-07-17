@@ -24,6 +24,7 @@
 module jtoutrun_pcm #(parameter
     WD        = 12,     // DAC bit width (AD7121) = 12 bits plus bits dropped internally
     SIMHEXFILE= "",
+    REQUIRE_CONTROL_WRITE_BEFORE_ENABLE = 1'b0,
 `ifdef MEGAVGMDRIVE_SEGAPCM_AB1_MAME_SCRATCH
     MAME_SCRATCH_CURRENT = 1'b1,
 `else
@@ -109,6 +110,7 @@ module jtoutrun_pcm #(parameter
     output reg  [18:0] rom_addr,
     input       [ 7:0] rom_data,
     input              rom_ok,
+    input              rom_prefetch_clear,
     output reg         rom_cs,
 
     // sound output
@@ -198,10 +200,22 @@ module jtoutrun_pcm #(parameter
     output      [ 8:0] dbg_rv69_internal_write_addr,
     output      [ 7:0] dbg_rv69_internal_write_data,
     output      [ 8:0] dbg_rv69_ram_read_addr,
-    output      [ 7:0] dbg_rv69_ram_read_data
+    output      [ 7:0] dbg_rv69_ram_read_data,
+    output      [ 7:0] dbg_live_end_addr,
+    output      [15:0] dbg_control_written_mask,
+    output      [15:0] dbg_scratch_valid_mask,
+    output      [15:0] dbg_prefetch_cpu_invalid_mask,
+    output      [ 7:0] dbg_current_source_flags
 );
 
 wire        we = cpu_cs & ~cpu_rnw;
+wire [3:0]  cpu_write_ch = cpu_addr[6:3];
+wire        cpu_control_write =
+    we && cpu_addr[7] && (cpu_addr[2:0] == 3'd6);
+wire        cpu_current_write =
+    we && cpu_addr[7] &&
+    ((cpu_addr[2:0] == 3'd4) || (cpu_addr[2:0] == 3'd5));
+wire        cpu_control_disable = cpu_control_write && cpu_dout[0];
 reg  [ 3:0] st;
 reg  [ 8:0] cfg_ram_addr_d;
 wire [ 2:0] bank;
@@ -216,16 +230,101 @@ wire [ 3:0] cfg_ram_ch = (st == 4'd15) ? (cur_ch + 4'd1) : cur_ch;
 wire [ 3:0] cfg_ram_ch = cur_ch;
 `endif
 wire [ 8:0] cfg_ram_addr = { cfg_addr[4:3], cfg_ram_ch, cfg_addr[2:0] };
+wire cpu_internal_ram_write_collision =
+    we && ({1'b0, cpu_addr} == cfg_ram_addr);
 reg  [15:0] active;     // high for active channels, debug only
 reg  [ 7:0] cfg_en;
 reg  [ 7:0] delta, cfg_din;
 reg         cfg_we, was_enb;
 `ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+reg  [15:0] c0_control_written_i;
 reg  [23:0] wb_cur_addr_i;
 reg  [ 3:0] wb_cur_ch_i;
 reg         wb_cur_valid_i;
 reg  [ 2:0] wb_cur_write_seen_i;
-wire        wb_cur_selected = wb_cur_valid_i && (cur_ch == wb_cur_ch_i);
+wire        cpu_current_write_for_wb =
+    cpu_current_write && (cpu_write_ch == wb_cur_ch_i);
+wire        cpu_control_disable_for_wb =
+    cpu_control_disable && (cpu_write_ch == wb_cur_ch_i);
+wire        cpu_current_write_for_cur =
+    cpu_current_write && (cpu_write_ch == cur_ch);
+wire        cpu_control_disable_for_cur =
+    cpu_control_disable && (cpu_write_ch == cur_ch);
+wire        cpu_control_write_for_cur =
+    cpu_control_write && (cpu_write_ch == cur_ch);
+wire        wb_cur_selected = wb_cur_valid_i && (cur_ch == wb_cur_ch_i) &&
+    !cpu_current_write_for_wb;
+// The normal DDR path prefetches the next byte at state 15.  The bit remains
+// armed until the matching response is made visible at state 12.  State 8
+// only issues a request when no matching look-ahead request exists (initial
+// activation, retrigger, loop/end redirect, or a CPU current/control write).
+reg  [15:0] c0_rom_prefetch_armed_i;
+reg  [18:0] c0_rom_prefetch_addr_i [0:15];
+reg  [15:0] c0_rom_prefetch_cpu_invalid_i;
+reg  [15:0] c0_core_response_valid_i;
+reg  [ 7:0] c0_core_response_data_i [0:15];
+reg  [18:0] c0_core_response_addr_i [0:15];
+integer c0_response_reset_i;
+integer c0_prefetch_reset_i;
+wire c0_rom_prefetch_reissue_clear =
+    cen && (st == 4'd8) && !cfg_en[0] &&
+    c0_rom_prefetch_cpu_invalid_i[cur_ch];
+
+// A zero-filled config RAM looks enabled because control bit 0 is active-low.
+// Keep validity in a dedicated owner block so a channel remains disabled until
+// its first explicit CPU control write.
+always @(posedge clk) begin
+    if( rst || rom_prefetch_clear ) begin
+        c0_control_written_i <= 16'd0;
+    end else if( cpu_control_write ) begin
+        c0_control_written_i[cpu_write_ch] <= 1'b1;
+    end
+end
+
+// CPU writes are not cen-qualified.  Remember invalidation until that channel
+// actually reaches state 8; otherwise a one-cycle C0 pulse between enables
+// could leave the core waiting forever for an obsolete prefetch tag.
+always @(posedge clk) begin
+    if( rst || rom_prefetch_clear ) begin
+        c0_rom_prefetch_cpu_invalid_i <= 16'd0;
+    end else begin
+        if( c0_rom_prefetch_reissue_clear ) begin
+            c0_rom_prefetch_cpu_invalid_i[cur_ch] <= 1'b0;
+        end
+        if( (cpu_control_write || cpu_current_write ||
+             (we && !cpu_addr[7] && cpu_addr[2:0] == 3'd0)) ) begin
+            c0_rom_prefetch_cpu_invalid_i[cpu_write_ch] <= 1'b1;
+        end
+    end
+end
+
+// Retain a transient rom_ok pulse through the state-12/13/14 multiply
+// pipeline. The wrapper normally presents a persistent tagged prefetch; this
+// latch also preserves the same contract for direct JT testbenches/backends.
+always @(posedge clk) begin
+    if( rst || rom_prefetch_clear ) begin
+        c0_core_response_valid_i <= 16'd0;
+        for( c0_response_reset_i = 0;
+             c0_response_reset_i < 16;
+             c0_response_reset_i = c0_response_reset_i + 1 ) begin
+            c0_core_response_data_i[c0_response_reset_i] <= 8'h80;
+            c0_core_response_addr_i[c0_response_reset_i] <= 19'd0;
+        end
+    end else begin
+        if( cen && (st == 4'd15) ) begin
+            c0_core_response_valid_i[cur_ch] <= 1'b0;
+        end
+        if( cpu_control_write || cpu_current_write ||
+            (we && !cpu_addr[7] && cpu_addr[2:0] == 3'd0) ) begin
+            c0_core_response_valid_i[cpu_write_ch] <= 1'b0;
+        end
+        if( rom_ok && (st <= 4'd12) ) begin
+            c0_core_response_valid_i[cur_ch] <= 1'b1;
+            c0_core_response_data_i[cur_ch] <= rom_data;
+            c0_core_response_addr_i[cur_ch] <= rom_addr;
+        end
+    end
+end
 reg  [15:0] dbg_wb_pending_set_count_i;
 reg  [15:0] dbg_wb_pending_match_count_i;
 reg  [15:0] dbg_wb_pending_miss_count_i;
@@ -423,6 +522,7 @@ reg  [ 8:0] dbg_rv69_ram_read_addr_i;
 reg  [15:0] c0_scratch_valid_i;
 reg         c0_ctrl_write_pending_i;
 reg         c0_vol_right_read_pending_i;
+reg  [ 7:0] dbg_current_source_flags_i;
 `endif
 reg  [ 8:0] dbg_ch3_roll_d0_addr_i;
 reg  [ 7:0] dbg_ch3_roll_d0_value_i;
@@ -513,6 +613,37 @@ reg  [ 7:0] dbg_start_flags_i;
 reg         dbg_start_init_ch3_pending_i;
 
 reg  [23: 0] cur_addr;
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+wire [18:0] c0_live_rom_addr = {bank, cur_addr[23:8]};
+`ifdef MEGAVGMDRIVE_SEGAPCM_USE_C0_LAB_BACKEND
+// A LAB read belongs to the slot selected by this scan.  CPU writes update
+// config RAM for the following scan and never invalidate the in-flight byte.
+wire c0_response_use_allowed = 1'b1;
+wire c0_core_response_match = 1'b0;
+wire c0_effective_rom_ok = rom_ok;
+wire [7:0] c0_effective_rom_data = rom_ok ? rom_data : 8'h80;
+wire c0_normal_rom_wait_hold = 1'b0;
+`else
+wire c0_response_use_allowed =
+    !c0_rom_prefetch_cpu_invalid_i[cur_ch] &&
+    !cpu_current_write_for_cur && !cpu_control_write_for_cur;
+wire c0_core_response_match =
+    c0_response_use_allowed &&
+    c0_core_response_valid_i[cur_ch] &&
+    // cur_addr is incremented at state 8; rom_addr remains the address of the
+    // slot being consumed and is therefore the response tag through state 15.
+    (c0_core_response_addr_i[cur_ch] == rom_addr);
+wire c0_effective_rom_ok = c0_response_use_allowed &&
+    (rom_ok || c0_core_response_match);
+wire [7:0] c0_effective_rom_data =
+    (c0_response_use_allowed && rom_ok) ? rom_data :
+    (c0_core_response_match ? c0_core_response_data_i[cur_ch] : 8'h80);
+wire c0_normal_rom_wait_hold =
+    (st == 4'd12) && !cfg_en[0] && !c0_effective_rom_ok
+    && !c0_rom_prefetch_cpu_invalid_i[cur_ch]
+    ;
+`endif
+`endif
 // A/B 2 changes only non-loop voices. Looping voices retain the legacy
 // end+1 boundary so the two compatibility changes remain independently
 // measurable.
@@ -773,7 +904,11 @@ wire [7:0] pcm_source_data =
     smoke_c0_current_seed_active ?
     (smoke_c0_sample_pending_i ? smoke_sample_byte_i : 8'h80) :
 `endif
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+    c0_effective_rom_data;
+`else
     rom_data;
+`endif
 
 // RV0062 live probes are observation-only. Unlike the older transaction
 // captures, these wires do not depend on an accept/consume event.
@@ -815,6 +950,11 @@ assign dbg_rv69_internal_write_addr = cfg_ram_addr;
 assign dbg_rv69_internal_write_data = cfg_din;
 assign dbg_rv69_ram_read_addr = dbg_rv69_ram_read_addr_i;
 assign dbg_rv69_ram_read_data = cfg_data;
+assign dbg_live_end_addr = end_addr;
+assign dbg_control_written_mask = c0_control_written_i;
+assign dbg_scratch_valid_mask = c0_scratch_valid_i;
+assign dbg_prefetch_cpu_invalid_mask = c0_rom_prefetch_cpu_invalid_i;
+assign dbg_current_source_flags = dbg_current_source_flags_i;
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
 assign dbg_rv65_normal_expected_rom_addr =
     (cur_ch == SMOKE_CH && smoke_forced_play_enable) ?
@@ -838,6 +978,11 @@ assign dbg_rv69_internal_write_addr = 9'd0;
 assign dbg_rv69_internal_write_data = 8'd0;
 assign dbg_rv69_ram_read_addr = 9'd0;
 assign dbg_rv69_ram_read_data = 8'd0;
+assign dbg_live_end_addr = 8'd0;
+assign dbg_control_written_mask = 16'd0;
+assign dbg_scratch_valid_mask = 16'd0;
+assign dbg_prefetch_cpu_invalid_mask = 16'd0;
+assign dbg_current_source_flags = 8'd0;
 `endif
 
 `ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
@@ -1098,7 +1243,8 @@ jtframe_dual_ram #(.AW(9),.SIMHEXFILE(SIMHEXFILE)) u_ram(
 `endif
     .data1  ( cfg_din   ),
     .addr1  ( cfg_ram_addr ),
-    .we1    ( cfg_we && cen ),
+    // CPU programming wins if both ports target the same register byte.
+    .we1    ( cfg_we && cen && !cpu_internal_ram_write_collision ),
     .q1     ( cfg_data  )
 );
 
@@ -1182,17 +1328,17 @@ always @* begin
              cfg_din = cfg_en;
          end
          9: begin
-             cfg_we = cen && (wb_cur_selected || !was_enb);
+             cfg_we = cen && !was_enb;
              cfg_din = wb_cur_selected ?
                  wb_cur_addr_i[7:0] : cur_addr[7:0];
          end
         10: begin
-             cfg_we = cen && (wb_cur_selected || !was_enb);
+             cfg_we = cen && !was_enb;
              cfg_din = wb_cur_selected ?
                  wb_cur_addr_i[15:8] : cur_addr[15:8];
          end
         11: begin
-             cfg_we = cen && (wb_cur_selected || !was_enb);
+             cfg_we = cen && !was_enb;
              cfg_din = wb_cur_selected ?
                  wb_cur_addr_i[23:16] : cur_addr[23:16];
          end
@@ -1220,7 +1366,7 @@ always @(posedge clk) begin
 end
 
 always @(posedge clk) begin
-    if( rst ) begin
+    if( rst || rom_prefetch_clear ) begin
         st        <= 0;
         cur_ch    <= 0;
         rom_cs    <= 0;
@@ -1241,6 +1387,12 @@ always @(posedge clk) begin
         wb_cur_ch_i <= 4'd0;
         wb_cur_valid_i <= 1'b0;
         wb_cur_write_seen_i <= 3'd0;
+        c0_rom_prefetch_armed_i <= 16'd0;
+        for( c0_prefetch_reset_i = 0;
+             c0_prefetch_reset_i < 16;
+             c0_prefetch_reset_i = c0_prefetch_reset_i + 1 ) begin
+            c0_rom_prefetch_addr_i[c0_prefetch_reset_i] <= 19'd0;
+        end
         dbg_wb_pending_set_count_i <= 16'd0;
         dbg_wb_pending_match_count_i <= 16'd0;
         dbg_wb_pending_miss_count_i <= 16'd0;
@@ -1482,6 +1634,7 @@ always @(posedge clk) begin
         c0_scratch_valid_i <= 16'd0;
         c0_ctrl_write_pending_i <= 1'b0;
         c0_vol_right_read_pending_i <= 1'b0;
+        dbg_current_source_flags_i <= 8'd0;
 `endif
         dbg_ch3_roll_d0_addr_i <= 0;
         dbg_ch3_roll_d0_value_i <= 0;
@@ -1570,6 +1723,10 @@ always @(posedge clk) begin
         dbg_start_flags_i <= 0;
         dbg_start_init_ch3_pending_i <= 1'b0;
     end else if( cen ) begin
+        // ROM requests are transaction pulses.  In particular, the state-15
+        // look-ahead must return low in state 0 so two consecutive channels
+        // remain two distinct request events even when their addresses match.
+        rom_cs <= 1'b0;
 `ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
         // Pair the synchronous port-1 RAM output with the address which
         // produced it.  Capturing this register is observation-only.
@@ -1768,6 +1925,16 @@ always @(posedge clk) begin
 `endif
         if( we ) begin
 `ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+            if( cpu_control_write || cpu_current_write ||
+                (!cpu_addr[7] && cpu_addr[2:0] == 3'd0) ) begin
+                c0_rom_prefetch_armed_i[cpu_write_ch] <= 1'b0;
+            end
+            // A CPU current update is the authoritative seed. Drop any
+            // deferred writeback computed by an older scan of that channel.
+            if( cpu_current_write_for_wb || cpu_control_disable_for_wb ) begin
+                wb_cur_valid_i <= 1'b0;
+                wb_cur_write_seen_i <= 3'd0;
+            end
             // Legacy mode treats CPU offset 0 as an externally supplied
             // fraction. MAME-compatible mode leaves it as scratch RAM and
             // preserves the core's hidden 16.8 accumulator fraction.
@@ -1904,7 +2071,18 @@ always @(posedge clk) begin
         cfg_ram_addr_d <= cfg_ram_addr;
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_TEST
-        if( smoke_c0_rom_wait_hold ) begin
+        if( smoke_c0_rom_wait_hold
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+            || c0_normal_rom_wait_hold
+`endif
+          ) begin
+            st <= st;
+        end else begin
+            st <= st + 1'd1;
+        end
+`else
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+        if( c0_normal_rom_wait_hold ) begin
             st <= st;
         end else begin
             st <= st + 1'd1;
@@ -1912,8 +2090,17 @@ always @(posedge clk) begin
 `else
         st <= st + 1'd1;
 `endif
+`endif
+`else
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+        if( c0_normal_rom_wait_hold ) begin
+            st <= st;
+        end else begin
+            st <= st + 1'd1;
+        end
 `else
         st <= st + 1'd1;
+`endif
 `endif
 `ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
         // cfg_data is the registered RAM output from the address presented by
@@ -2007,12 +2194,36 @@ always @(posedge clk) begin
                         was_enb <= 1'b1;
                     end
                 end else begin
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+                    if( REQUIRE_CONTROL_WRITE_BEFORE_ENABLE &&
+                        !c0_control_written_i[cur_ch] ) begin
+                        cfg_en  <= cfg_data | 8'h01;
+                        was_enb <= 1'b1;
+                    end else begin
+                        cfg_en  <= cfg_data;
+                        was_enb <= cfg_data[0];
+                    end
+`else
+                    cfg_en  <= cfg_data;
+                    was_enb <= cfg_data[0];
+`endif
+                end
+`else
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+                if( REQUIRE_CONTROL_WRITE_BEFORE_ENABLE &&
+                    !c0_control_written_i[cur_ch] ) begin
+                    // Control bit 0 is active-low, so zero-filled RAM must not
+                    // make a never-configured channel progress during setup.
+                    cfg_en  <= cfg_data | 8'h01;
+                    was_enb <= 1'b1;
+                end else begin
                     cfg_en  <= cfg_data;
                     was_enb <= cfg_data[0];
                 end
 `else
                 cfg_en  <= cfg_data;
                 was_enb <= cfg_data[0];
+`endif
 `endif
                 if( cur_ch==0 ) begin
                     snd_left  <= acc_l;
@@ -2054,6 +2265,16 @@ always @(posedge clk) begin
                 end
 `endif
                 next_cur_addr = {cur_addr[23:8], load_byte};
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+                dbg_current_source_flags_i <= {
+                    3'd0,
+                    c0_control_written_i[cur_ch],
+                    (load_byte == cfg_data),
+                    c0_scratch_valid_i[cur_ch],
+                    MAME_SCRATCH_CURRENT,
+                    was_enb
+                };
+`endif
                 dbg_seq_d0_addr <= cfg_ram_addr_d;
                 dbg_seq_d0_value <= cfg_data;
                 if( cur_ch == 4'd3 ) begin
@@ -2304,6 +2525,13 @@ always @(posedge clk) begin
 `endif
             end
             7: begin
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+                // A loop reload or terminal stop redirects/invalidates the
+                // address prefetched at the preceding frame's state 15.
+                if( normal_end_match ) begin
+                    c0_rom_prefetch_armed_i[cur_ch] <= 1'b0;
+                end
+`endif
                 if( cur_ch == 4'd3 ) begin
                     dbg_focus_cfg_i <= cfg_en;
                     dbg_focus_delta_i <= delta;
@@ -2410,7 +2638,15 @@ always @(posedge clk) begin
                 end
             end
             end
-            8: if( !cfg_en[0] ) begin
+            8: begin
+               if( !cfg_en[0]
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+`ifndef MEGAVGMDRIVE_SEGAPCM_USE_C0_LAB_BACKEND
+                   && !cpu_current_write_for_cur
+                   && !cpu_control_disable_for_cur
+`endif
+`endif
+                 ) begin
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_TEST
 	                if( cur_ch == SMOKE_CH && smoke_c0_current_seed_active ) begin
@@ -2521,6 +2757,31 @@ always @(posedge clk) begin
 	                    end else begin
 `endif
 `endif
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+`ifdef MEGAVGMDRIVE_SEGAPCM_USE_C0_LAB_BACKEND
+                // One deterministic request per selected LAB slot.  There is
+                // no state-15 lookahead, generation retag or retry source.
+                rom_addr <= c0_live_rom_addr;
+                rom_cs <= 1'b1;
+`else
+                // In steady state, state 15 of the preceding frame already
+                // requested this exact channel/address.  Preserve that tag
+                // and avoid issuing a duplicate.  Initial/retriggered scans
+                // request here and wait at state 12 for the matching byte.
+                rom_addr <= c0_live_rom_addr;
+                if( c0_rom_prefetch_armed_i[cur_ch] &&
+                    (c0_rom_prefetch_addr_i[cur_ch] == c0_live_rom_addr) &&
+                    !c0_rom_prefetch_cpu_invalid_i[cur_ch] &&
+                    !cpu_current_write_for_cur &&
+                    !cpu_control_write_for_cur ) begin
+                    rom_cs <= 1'b0;
+                end else begin
+                    rom_cs <= 1'b1;
+                    c0_rom_prefetch_armed_i[cur_ch] <= 1'b1;
+                    c0_rom_prefetch_addr_i[cur_ch] <= c0_live_rom_addr;
+                end
+`endif
+`else
 	                rom_cs   <= 1;
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
                 rom_addr <= (cur_ch == SMOKE_CH && smoke_forced_play_enable) ?
@@ -2528,6 +2789,7 @@ always @(posedge clk) begin
                             { bank, cur_addr[23:8] };
 `else
                 rom_addr <= { bank, cur_addr[23:8] };
+`endif
 `endif
                 if( cur_ch == 4'd1 && !dbg_ch1_rom_seen_i ) begin
                     dbg_ch1_rom_seen_i <= 1'b1;
@@ -2738,7 +3000,7 @@ always @(posedge clk) begin
                         dbg_update_reason_i <= 8'b0010_0000; // advance
                         dbg_writer_bits_i <= dbg_writer_bits_i | 8'b0010_0000;
 	                    end
-	                    cur_addr <= next_cur_addr;
+                    cur_addr <= next_cur_addr;
 `ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
                         // The normal JT path computes the value in state 8.
                         // Hold it, with its channel owner, across all three
@@ -2770,6 +3032,7 @@ always @(posedge clk) begin
                 end
 `endif
 `endif
+                end
             end
 
             9: begin
@@ -3022,6 +3285,14 @@ always @(posedge clk) begin
 `endif
             end
             12: begin
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+                // rom_ok is asserted only for the current channel/address/
+                // generation.  Clearing here makes the following state-15
+                // look-ahead request the sole owner of the next sample.
+                if( !cfg_en[0] && c0_effective_rom_ok ) begin
+                    c0_rom_prefetch_armed_i[cur_ch] <= 1'b0;
+                end
+`endif
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
                 if( smoke_forced_play_enable ) begin
                     vol_left <=
@@ -3131,6 +3402,27 @@ always @(posedge clk) begin
 `endif
             end
             15: begin
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+`ifndef MEGAVGMDRIVE_SEGAPCM_USE_C0_LAB_BACKEND
+                // Look ahead one complete 16-channel frame. cur_addr already
+                // contains the state-8 increment, so this is the byte that the
+                // same channel must consume on its next scan.
+                if( !cfg_en[0]
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
+                    && !smoke_forced_play_enable
+`endif
+                  ) begin
+                    rom_cs <= 1'b1;
+                    rom_addr <= c0_live_rom_addr;
+                    c0_rom_prefetch_armed_i[cur_ch] <= 1'b1;
+                    c0_rom_prefetch_addr_i[cur_ch] <= c0_live_rom_addr;
+                    dbg_last_bank <= bank;
+                    dbg_last_ch <= cur_ch;
+                    dbg_last_st <= 4'd15;
+                    dbg_last_cur_addr <= cur_addr;
+                end
+`endif
+`endif
 `ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
                 if( cur_ch == 4'd3 ) begin : st_dbg_focus_continuity
                     reg gate_now;
