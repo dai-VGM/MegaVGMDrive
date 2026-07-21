@@ -3982,10 +3982,9 @@ module mister_vgm_md_top #(
                     .SEGAPCM_CLK_HZ  (32'd8_053_974)
                 ) segapcm_sound (
                     .clk                            (clk),
-                    // A new VGM session must also reset the JT channel state.
-                    // Otherwise a channel left active by the previous file can
-                    // request ROM while the new type80 table is still filling.
-                    .reset                          (reset | mode5_sound_core_reset),
+                    // The smoke parser applies valid initial C0 writes while
+                    // mode5_sound_core_reset is active. Keep JT on global reset.
+                    .reset                          (reset),
                     .segapcm_cmd_valid              (segapcm_cmd_valid),
                     .segapcm_cmd_addr               (segapcm_cmd_addr),
                     .segapcm_cmd_data               (segapcm_cmd_data),

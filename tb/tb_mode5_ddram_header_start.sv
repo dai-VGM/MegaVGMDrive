@@ -115,6 +115,22 @@ module tb_mode5_ddram_header_start;
 
     integer i;
     integer timeout;
+    integer segapcm_global_reset_contract_checks = 0;
+
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
+    always @(posedge clk) begin
+        if (!dut.reset &&
+            dut.loaded_vgm_mode.mode5_sound_core_reset) begin
+            if (dut.loaded_vgm_mode.ym2151_sound_enabled.segapcm_sound.reset !==
+                1'b0) begin
+                $fatal(1,
+                       "SegaPCM reset followed mode5_sound_core_reset in smoke build");
+            end
+            segapcm_global_reset_contract_checks =
+                segapcm_global_reset_contract_checks + 1;
+        end
+    end
+`endif
 
     initial begin
         for (i = 0; i < 32; i = i + 1) begin
@@ -169,6 +185,13 @@ module tb_mode5_ddram_header_start;
                      vgm_header_magic_read_debug);
             $finish;
         end
+
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
+        if (segapcm_global_reset_contract_checks == 0) begin
+            $fatal(1,
+                   "SegaPCM global-reset-only contract was not exercised");
+        end
+`endif
 
         $display("PASS tb_mode5_ddram_header_start core=%04h magic=%08h",
                  vgm_player_core_debug, vgm_header_magic_read_debug);
