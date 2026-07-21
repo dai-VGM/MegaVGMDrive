@@ -214,6 +214,20 @@ module vgm_loaded_player #(
     localparam logic [31:0] SEGAPCM_SMOKE_DDR_CAPTURE_BYTES = 32'h0002_0000;
 `endif
 
+    // The normal-DDR payload tap packs bytes into 64-bit writes.  Drain the
+    // final partial word before command parsing advances past each type-80
+    // block.  The local C0 LAB backend has its own deterministic byte store
+    // and must retain its fixed-slot contract without this DDR handshake.
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_TEST
+`ifndef MEGAVGMDRIVE_SEGAPCM_USE_C0_LAB_BACKEND
+    localparam bit SEGAPCM_TAP_FLUSH_REQUIRED = 1'b1;
+`else
+    localparam bit SEGAPCM_TAP_FLUSH_REQUIRED = 1'b0;
+`endif
+`else
+    localparam bit SEGAPCM_TAP_FLUSH_REQUIRED = 1'b0;
+`endif
+
 `ifdef MEGAVGMDRIVE_SEGAPCM_COPY_DISABLE
     localparam bit SEGAPCM_COPY_ENABLED = 1'b0;
 `else
@@ -298,7 +312,8 @@ module vgm_loaded_player #(
         ST_WAIT_SAMPLES,
         ST_DONE,
         ST_ERROR,
-        ST_SEGAPCM_TAP_PAYLOAD
+        ST_SEGAPCM_TAP_PAYLOAD,
+        ST_SEGAPCM_TAP_FLUSH
     } state_t;
 
     state_t state;
@@ -3369,9 +3384,13 @@ module vgm_loaded_player #(
                                 segapcm_tap_payload_remaining <= 32'd0;
                                 segapcm_tap_payload_addr <= 32'd0;
                                 segapcm_tap_payload_index <= 19'd0;
-                                pc <= block_skip_target;
-                                current_pc_debug <= block_skip_target;
-                                request_byte(block_skip_target, ST_FETCH_CMD);
+                                if (SEGAPCM_TAP_FLUSH_REQUIRED) begin
+                                    state <= ST_SEGAPCM_TAP_FLUSH;
+                                end else begin
+                                    pc <= block_skip_target;
+                                    current_pc_debug <= block_skip_target;
+                                    request_byte(block_skip_target, ST_FETCH_CMD);
+                                end
                             end else begin
                                 segapcm_tap_payload_remaining <=
                                     segapcm_tap_payload_remaining - 32'd1;
@@ -3400,9 +3419,13 @@ module vgm_loaded_player #(
                             segapcm_tap_payload_remaining <= 32'd0;
                             segapcm_tap_payload_addr <= 32'd0;
                             segapcm_tap_payload_index <= 19'd0;
-                            pc <= block_skip_target;
-                            current_pc_debug <= block_skip_target;
-                            request_byte(block_skip_target, ST_FETCH_CMD);
+                            if (SEGAPCM_TAP_FLUSH_REQUIRED) begin
+                                state <= ST_SEGAPCM_TAP_FLUSH;
+                            end else begin
+                                pc <= block_skip_target;
+                                current_pc_debug <= block_skip_target;
+                                request_byte(block_skip_target, ST_FETCH_CMD);
+                            end
                         end else begin
                             segapcm_tap_payload_remaining <=
                                 segapcm_tap_payload_remaining - 32'd1;
@@ -3446,6 +3469,15 @@ module vgm_loaded_player #(
                                 ST_SEGAPCM_TAP_PAYLOAD);
                         end
 `endif
+                    end
+
+                    ST_SEGAPCM_TAP_FLUSH: begin
+                        segapcm_copy_flush_req <= 1'b1;
+                        if (segapcm_copy_flush_done) begin
+                            pc <= block_skip_target;
+                            current_pc_debug <= block_skip_target;
+                            request_byte(block_skip_target, ST_FETCH_CMD);
+                        end
                     end
 
                     ST_SEGAPCM_ROM_SIZE0: begin

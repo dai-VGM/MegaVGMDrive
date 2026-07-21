@@ -91,7 +91,7 @@ set_global_assignment -name VERILOG_MACRO "MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR
 
 # Normal DDR backend.
 # Leave the local 0x20000-byte C0 lab backend disabled for Compatibility.
-set_global_assignment -name VERILOG_MACRO "MEGAVGMDRIVE_SEGAPCM_USE_C0_LAB_BACKEND=1"
+#set_global_assignment -name VERILOG_MACRO "MEGAVGMDRIVE_SEGAPCM_USE_C0_LAB_BACKEND=1"
 
 # Debug visibility only.
 set_global_assignment -name VERILOG_MACRO "MEGAVGMDRIVE_SEGAPCM_MIN_DEBUG_PROBE=1"

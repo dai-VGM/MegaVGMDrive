@@ -29,6 +29,7 @@ module tb_segapcm_backend_ab;
     localparam integer PAYLOAD_BYTES = `AB_PAYLOAD_BYTES;
     localparam integer EVENTS = `AB_EVENTS;
     localparam integer END_CYCLE = `AB_END_CYCLE;
+    localparam integer DDR_WORDS = (PAYLOAD_BYTES + 7) / 8;
     localparam [31:0] SEGAPCM_INTERFACE = `AB_SEGAPCM_INTERFACE;
     localparam [28:0] DDR_BASE = 29'd0;
 
@@ -83,7 +84,7 @@ module tb_segapcm_backend_ab;
     wire ddram_we;
     reg [63:0] ddram_dout = 64'd0;
     reg ddram_dout_ready = 1'b0;
-    reg [63:0] ddram_mem [0:8191];
+    reg [63:0] ddram_mem [0:DDR_WORDS-1];
     reg [28:0] ddram_read_addr = 29'd0;
     integer ddram_read_delay = 0;
 
@@ -256,10 +257,26 @@ module tb_segapcm_backend_ab;
     integer prefetch_invalidation_count = 0;
     integer request_drop_count = 0;
     integer request_coalesce_count = 0;
+    integer request_staged_count = 0;
     integer state8_write_collision_count = 0;
     integer fixed_slot_missing_count = 0;
     integer fixed_slot_wrong_channel_count = 0;
     integer fixed_slot_wrong_address_count = 0;
+    reg startup_window_active = 1'b0;
+    reg startup_start_requested = 1'b0;
+    reg [15:0] startup_fault_flags = 16'd0;
+`ifdef AB_LAB_BACKEND
+    wire startup_fixed_slot_pending = dut.lab_jt_fixed_slot_valid_i;
+`else
+    wire startup_fixed_slot_pending = 1'b0;
+`endif
+    integer startup_window_cycles = 0;
+    integer startup_first_fault_cycle = -1;
+    integer c0_decoded_count = 0;
+    integer c0_applied_count = 0;
+    integer c0_duplicate_count = 0;
+    integer c0_drop_count = 0;
+    integer c0_reorder_count = 0;
     reg [63:0] consume_hash = 64'hcbf2_9ce4_8422_2325;
     reg [63:0] output_hash = 64'hcbf2_9ce4_8422_2325;
     integer cycle_trace_start = -1;
@@ -294,7 +311,93 @@ module tb_segapcm_backend_ab;
         end
     endfunction
 
+    task automatic startup_cpu_write(
+        input [15:0] address,
+        input [7:0] data
+    );
+        begin
+            @(negedge clk);
+            cmd_addr = address;
+            cmd_data = data;
+            cmd_valid = 1'b1;
+            @(negedge clk);
+            cmd_valid = 1'b0;
+        end
+    endtask
+
     always @(posedge clk) begin
+        if (!reset && cmd_valid) begin
+            c0_decoded_count <= c0_decoded_count + 1;
+            // The wrapper unconditionally drains its pending entry before it
+            // accepts this edge, so consecutive C0 valids are legal. Ordered
+            // comparison at core_cpu_cs below detects any lost replacement.
+        end
+        if (!reset && dut.core_cpu_cs) begin
+            if (c0_applied_count >= EVENTS) begin
+                c0_duplicate_count <= c0_duplicate_count + 1;
+            end else if ((dut.latched_raw_addr !==
+                          event_mem[c0_applied_count][31:16]) ||
+                         (dut.latched_cpu_data !==
+                          event_mem[c0_applied_count][15:8])) begin
+                c0_reorder_count <= c0_reorder_count + 1;
+                $fatal(1,
+                    "C0 apply mismatch seq=%0d raw=%04h/%02h expected=%04h/%02h",
+                    c0_applied_count, dut.latched_raw_addr,
+                    dut.latched_cpu_data,
+                    event_mem[c0_applied_count][31:16],
+                    event_mem[c0_applied_count][15:8]);
+            end
+            c0_applied_count <= c0_applied_count + 1;
+        end
+        if (payload_clear) begin
+            startup_fault_flags <= 16'd0;
+            startup_window_cycles <= 0;
+            startup_first_fault_cycle <= -1;
+        end else if (startup_window_active) begin
+            startup_window_cycles <= startup_window_cycles + 1;
+            // Once the explicitly requested new-session channel reaches the
+            // active mask, the startup window is complete.  That transition
+            // is legitimate; all state observed before it belongs to reset or
+            // the previous loaded file and must remain quiescent.
+            if (startup_start_requested && dut.core_cpu_cs &&
+                (dut.latched_cpu_addr[2:0] == 3'd6) &&
+                !dut.lab_jt_cpu_data[0]) begin
+                startup_window_active <= 1'b0;
+            end else begin
+                if (dut.lab_jt_pcm_core.active != 16'd0)
+                    startup_fault_flags[0] <= 1'b1;
+                if (audio_valid)
+                    startup_fault_flags[1] <= 1'b1;
+                if (audio_valid &&
+                    ((audio_l != 16'sd0) || (audio_r != 16'sd0)))
+                    startup_fault_flags[2] <= 1'b1;
+                if (dut.lab_jt_sample_hold_valid_i != 16'd0)
+                    startup_fault_flags[3] <= 1'b1;
+                if ((dut.lab_jt_prefetch_valid_i != 16'd0) ||
+                    (dut.lab_jt_prefetch_alt_valid_i != 16'd0))
+                    startup_fault_flags[4] <= 1'b1;
+                if (dut.lab_jt_req_fifo_count_i != 0)
+                    startup_fault_flags[5] <= 1'b1;
+                if (dut.lab_jt_ddr_owner_valid_i)
+                    startup_fault_flags[6] <= 1'b1;
+                if (dut.lab_jt_raw_skid_valid_i ||
+                    dut.lab_jt_synthetic_response_pending_i ||
+                    startup_fixed_slot_pending)
+                    startup_fault_flags[7] <= 1'b1;
+                if ((startup_first_fault_cycle < 0) &&
+                    ((dut.lab_jt_pcm_core.active != 16'd0) ||
+                     audio_valid ||
+                     (dut.lab_jt_sample_hold_valid_i != 16'd0) ||
+                     (dut.lab_jt_prefetch_valid_i != 16'd0) ||
+                     (dut.lab_jt_prefetch_alt_valid_i != 16'd0) ||
+                     (dut.lab_jt_req_fifo_count_i != 0) ||
+                     dut.lab_jt_ddr_owner_valid_i ||
+                     dut.lab_jt_raw_skid_valid_i ||
+                     dut.lab_jt_synthetic_response_pending_i ||
+                     startup_fixed_slot_pending))
+                    startup_first_fault_cycle <= startup_window_cycles;
+            end
+        end
 `ifdef AB_DIAG_TRACE
         if (!reset && playback) begin
             if (dut.rom_request_event &&
@@ -331,7 +434,7 @@ module tb_segapcm_backend_ab;
             (cycle_trace_start >= 0) &&
             (play_cycle >= cycle_trace_start) &&
             (play_cycle <= cycle_trace_end)) begin
-            $display("AB_CYCLE cycle=%0d cen=%0b st=%0d ch=%0d cur=%06h cs=%0b rom=%05h event=%0b seen=%0b push=%0b fifo=%0d launch=%0b rdreq=%0b rdvalid=%0b rddata=%02h owner=%0b/%0d/%05h/%0d match=%0b p=%0b/%05h/%0d a=%0b/%05h/%0d early=%0b/%0b/%05h cpu=%0b/%02h/%02h wb=%0b/%0d/%06h slotwr=%0b/%0b cfg=%03h/%02h",
+            $display("AB_CYCLE cycle=%0d cen=%0b st=%0d ch=%0d cur=%06h cs=%0b rom=%05h event=%0b seen=%0b push=%0b fifo=%0d launch=%0b rdreq=%0b rdvalid=%0b rddata=%02h owner=%0b/%0d/%05h/%0d match=%0b p=%0b/%05h/%0d a=%0b/%05h/%0d early=%0b/%0b/%05h cpu=%0b/%02h/%02h imm=%0b arm=%0b trig=%0b live=%0d/%0d pending_ready=%0b wb=%0b/%0d/%06h slotwr=%0b/%0b cfg=%03h/%02h",
                 play_cycle, dut.segapcm_cen, dut.lab_jt_pcm_core.st,
                 dut.lab_jt_pcm_core.cur_ch, dut.lab_jt_pcm_core.cur_addr,
                 dut.lab_jt_pcm_core.rom_cs, dut.lab_jt_pcm_core.rom_addr,
@@ -360,6 +463,11 @@ module tb_segapcm_backend_ab;
                 dut.lab_jt_early_prefetch_selected_addr,
                 dut.core_cpu_cs, dut.latched_cpu_addr,
                 dut.lab_jt_cpu_data,
+                dut.lab_jt_write_prefetch_immediate_event,
+                dut.lab_jt_write_prefetch_arm,
+                dut.lab_jt_write_prefetch_trigger,
+                dut.lab_jt_live_ch, dut.lab_jt_live_st,
+                dut.lab_jt_write_prefetch_pending_ready,
                 dut.lab_jt_pcm_core.wb_cur_valid_i,
                 dut.lab_jt_pcm_core.wb_cur_ch_i,
                 dut.lab_jt_pcm_core.wb_cur_addr_i,
@@ -396,6 +504,9 @@ module tb_segapcm_backend_ab;
                     (dut.lab_jt_write_ch == dut.lab_jt_raw_req_src_ch)) ?
                        16'd1 : 16'd0))))) begin
                 request_coalesce_count <= request_coalesce_count + 1;
+            end else if (dut.lab_jt_raw_skid_capture &&
+                         !dut.lab_jt_raw_skid_overflow) begin
+                request_staged_count <= request_staged_count + 1;
             end else begin
                 request_drop_count <= request_drop_count + 1;
                 $display("AB_REQUEST_MUX_DROP cycle=%0d early=%0d/%05h/%0d raw=%0d/%05h/%0d",
@@ -411,6 +522,8 @@ module tb_segapcm_backend_ab;
 `endif
             end
         end
+        if (!reset && playback && dut.lab_jt_raw_defer_state15)
+            request_staged_count <= request_staged_count + 1;
         if (!reset && playback && dut.segapcm_cen &&
             (dut.lab_jt_pcm_core.st == 4'd8) &&
             !dut.lab_jt_pcm_core.cfg_en[0] &&
@@ -526,6 +639,8 @@ module tb_segapcm_backend_ab;
             // that is the condition which would otherwise fall back to a
             // synthetic-looking neutral byte.
             if (!dut.lab_jt_pcm_core.c0_effective_rom_ok &&
+                !dut.lab_jt_pcm_core.c0_rom_prefetch_cpu_invalid_i[
+                    dut.lab_jt_pcm_core.cur_ch] &&
                 dut.lab_jt_payload_match_valid_next)
                 unexpected_neutral_count <= unexpected_neutral_count + 1;
 `ifdef AB_LAB_BACKEND
@@ -709,7 +824,7 @@ module tb_segapcm_backend_ab;
         $fwrite(diag_fd,
             "slot,sys_cycle,channel,jt_state,current_16_8,control,generation,rom_address,state15_request,state1_early_request,request_mux_winner,request_mux_loser,fifo_push,response_valid,response_byte,response_address,response_generation,retained_exact_hit,retag_event,prefetch_valid,consume_byte,state12_stall,jt_output_valid,jt_left,jt_right\n");
 `endif
-        for (i = 0; i < 8192; i = i + 1) ddram_mem[i] = 64'd0;
+        for (i = 0; i < DDR_WORDS; i = i + 1) ddram_mem[i] = 64'd0;
         for (i = 0; i < 512; i = i + 1) interval_hist[i] = 0;
         for (i = 0; i < 8; i = i + 1) nonzero_output_by_second[i] = 0;
         for (i = 0; i < 16; i = i + 1) begin
@@ -745,7 +860,17 @@ module tb_segapcm_backend_ab;
         while (play_cycle < run_end_cycle) @(posedge clk);
         playback = 1'b0;
         repeat (1024) @(posedge clk);
-        $display("AB_SUMMARY backend=%s slots=%0d outputs=%0d interval_min=%0d interval_max=%0d interval_avg_x1000=%0d stale=%0d wrong_ch=%0d wrong_addr=%0d backlog=%0d stalls=%0d unexpected_neutral=%0d generation_writes=%0d live_invalidations=%0d request_drop=%0d request_coalesce=%0d state8_write_collision=%0d gaps=%0d/%0d",
+        if (c0_decoded_count != EVENTS || c0_applied_count != EVENTS ||
+            c0_duplicate_count != 0 || c0_drop_count != 0 ||
+            c0_reorder_count != 0)
+            $fatal(1,
+                "C0 end-to-end scoreboard decoded=%0d applied=%0d expected=%0d duplicate=%0d drop=%0d reorder=%0d",
+                c0_decoded_count, c0_applied_count, EVENTS,
+                c0_duplicate_count, c0_drop_count, c0_reorder_count);
+        $display("C0_SCOREBOARD decoded=%0d accepted=%0d applied=%0d duplicate=%0d drop=%0d reorder=%0d",
+            c0_decoded_count, c0_decoded_count, c0_applied_count,
+            c0_duplicate_count, c0_drop_count, c0_reorder_count);
+        $display("AB_SUMMARY backend=%s slots=%0d outputs=%0d interval_min=%0d interval_max=%0d interval_avg_x1000=%0d stale=%0d wrong_ch=%0d wrong_addr=%0d backlog=%0d max_backlog=%0d stalls=%0d missing=%0d unexpected_neutral=%0d generated=%0d accepted=%0d coalesced=%0d issued=%0d responses=%0d exact_hits=%0d retag_hits=%0d request_drop=%0d request_staged=%0d state8_write_collision=%0d gaps=%0d/%0d",
 `ifdef AB_LAB_BACKEND
                  "LAB",
 `else
@@ -756,10 +881,19 @@ module tb_segapcm_backend_ab;
                  dut.lab_jt_prefetch_stale_consume_count_i,
                  dut.lab_jt_prefetch_wrong_channel_count_i,
                  dut.lab_jt_prefetch_wrong_address_count_i,
-                 dut.lab_jt_req_fifo_count_i, state12_stall_count,
-                 unexpected_neutral_count, generation_write_count,
-                 prefetch_invalidation_count, request_drop_count,
-                 request_coalesce_count, state8_write_collision_count,
+                 dut.lab_jt_adapter_final_backlog_i,
+                 dut.lab_jt_adapter_max_backlog_i, state12_stall_count,
+                 dut.lab_jt_adapter_non_gap_missing_count_i,
+                 unexpected_neutral_count,
+                 dut.lab_jt_adapter_request_generated_count_i,
+                 dut.lab_jt_adapter_request_accepted_count_i,
+                 dut.lab_jt_adapter_request_coalesced_count_i,
+                 dut.lab_jt_adapter_ddr_issued_count_i,
+                 dut.lab_jt_adapter_ddr_response_count_i,
+                 dut.lab_jt_adapter_exact_cache_hit_count_i,
+                 dut.lab_jt_adapter_generation_retag_hit_count_i,
+                 request_drop_count, request_staged_count,
+                 state8_write_collision_count,
                  dut.lab_jt_gap_read_count_i,
                  dut.lab_jt_gap_response_count_i);
         $write("AB_HIST");
@@ -779,7 +913,7 @@ module tb_segapcm_backend_ab;
                 unexpected_neutral_count, fixed_slot_missing_count,
                 fixed_slot_wrong_channel_count,
                 fixed_slot_wrong_address_count, request_drop_count,
-                dut.lab_jt_req_fifo_count_i, consume_hash, output_hash);
+                dut.lab_jt_adapter_final_backlog_i, consume_hash, output_hash);
             $fclose(result_fd);
         end
 `ifdef AB_REQUIRE_CONTINUITY
@@ -787,12 +921,15 @@ module tb_segapcm_backend_ab;
             dut.lab_jt_prefetch_stale_consume_count_i != 0 ||
             dut.lab_jt_prefetch_wrong_channel_count_i != 0 ||
             dut.lab_jt_prefetch_wrong_address_count_i != 0 ||
+            dut.lab_jt_adapter_unexpected_stall_count_i != 0 ||
+            dut.lab_jt_adapter_non_gap_missing_count_i != 0 ||
+            dut.lab_jt_adapter_request_dropped_count_i != 0 ||
 `ifdef AB_LAB_BACKEND
             fixed_slot_missing_count != 0 ||
             fixed_slot_wrong_channel_count != 0 ||
             fixed_slot_wrong_address_count != 0 ||
 `endif
-            dut.lab_jt_req_fifo_count_i != 0 ||
+            dut.lab_jt_adapter_final_backlog_i != 0 ||
             request_drop_count != 0 ||
             interval_min != 256 || interval_max != 256 ||
             generation_write_count == 0 ||
@@ -810,7 +947,8 @@ module tb_segapcm_backend_ab;
 `else
                 0, 0, 0,
 `endif
-                dut.lab_jt_req_fifo_count_i, request_drop_count, interval_min,
+                dut.lab_jt_adapter_final_backlog_i, request_drop_count,
+                interval_min,
                 interval_max,
                 generation_write_count, prefetch_invalidation_count);
 
@@ -835,6 +973,45 @@ module tb_segapcm_backend_ab;
                 dut.lab_jt_early_prefetch_issued_i,
                 dut.lab_jt_prefetch_cpu_invalid_mask);
         payload_clear = 1'b0;
+`endif
+`ifdef AB_REQUIRE_STARTUP_CLEAR
+`ifndef AB_REQUIRE_CONTINUITY
+        @(negedge clk);
+        payload_clear = 1'b1;
+        @(posedge clk);
+        #1;
+        payload_clear = 1'b0;
+`endif
+        // Keep the new session command-free for more than one complete
+        // 16-channel scan, then request one explicit start.  No previous-load
+        // runtime, response, or output-valid state may be visible before that
+        // new start becomes active.
+        startup_window_active = 1'b1;
+        startup_start_requested = 1'b0;
+        repeat (512) @(posedge clk);
+        startup_cpu_write(16'h0002, 8'h20); // volume L
+        startup_cpu_write(16'h0003, 8'h20); // volume R
+        startup_cpu_write(16'h0006, 8'h40); // end
+        startup_cpu_write(16'h0007, 8'h80); // delta
+        startup_cpu_write(16'h0084, 8'h00); // current middle
+        startup_cpu_write(16'h0085, 8'h10); // current high
+        startup_start_requested = 1'b1;
+        startup_cpu_write(16'h0086, 8'h02); // enable, non-loop
+        for (i = 0; i < 1024 && startup_window_active; i = i + 1)
+            @(posedge clk);
+        if (startup_window_active)
+            $fatal(1, "startup did not apply first valid channel start");
+        $display("AB_STARTUP_WINDOW cycles=%0d faults=%04h first_fault=%0d active=%04h hold=%04h prefetch=%04h fifo=%0d owner=%0b pending=%0b/%0b/%0b",
+            startup_window_cycles, startup_fault_flags,
+            startup_first_fault_cycle, dut.lab_jt_pcm_core.active,
+            dut.lab_jt_sample_hold_valid_i, dut.lab_jt_prefetch_valid_i,
+            dut.lab_jt_req_fifo_count_i, dut.lab_jt_ddr_owner_valid_i,
+            dut.lab_jt_raw_skid_valid_i,
+            dut.lab_jt_synthetic_response_pending_i,
+            startup_fixed_slot_pending);
+        if (startup_fault_flags != 16'd0)
+            $fatal(1, "startup window exposed previous/invalid PCM state flags=%04h",
+                   startup_fault_flags);
 `endif
 `ifndef AB_FAST_DIAG
         $fclose(trace_fd);

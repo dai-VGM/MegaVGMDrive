@@ -252,6 +252,19 @@ wire        cpu_control_disable_for_cur =
     cpu_control_disable && (cpu_write_ch == cur_ch);
 wire        cpu_control_write_for_cur =
     cpu_control_write && (cpu_write_ch == cur_ch);
+// Register bytes which take part in one channel scan. Offset 0 is scratch in
+// MAME mode and is therefore not a live-slot mutation there.
+wire        cpu_slot_config_write = we &&
+    ((!cpu_addr[7] &&
+      ((cpu_addr[2:0] >= 3'd2) ||
+       (!MAME_SCRATCH_CURRENT && (cpu_addr[2:0] == 3'd0)))) ||
+     (cpu_addr[7] &&
+      ((cpu_addr[2:0] == 3'd4) || (cpu_addr[2:0] == 3'd5) ||
+       (cpu_addr[2:0] == 3'd6))));
+wire        cpu_slot_config_write_for_cur =
+    cpu_slot_config_write && (cpu_write_ch == cur_ch);
+wire        cpu_slot_config_write_for_wb =
+    cpu_slot_config_write && (cpu_write_ch == wb_cur_ch_i);
 wire        wb_cur_selected = wb_cur_valid_i && (cur_ch == wb_cur_ch_i) &&
     !cpu_current_write_for_wb;
 // The normal DDR path prefetches the next byte at state 15.  The bit remains
@@ -261,6 +274,18 @@ wire        wb_cur_selected = wb_cur_valid_i && (cur_ch == wb_cur_ch_i) &&
 reg  [15:0] c0_rom_prefetch_armed_i;
 reg  [18:0] c0_rom_prefetch_addr_i [0:15];
 reg  [15:0] c0_rom_prefetch_cpu_invalid_i;
+// CPU current/control writes accepted during an in-flight channel slot own
+// that channel's next scan.  Keep this separate from the response-cache
+// invalid bit: an end/stop writeback may retire only after a full slot with no
+// newer CPU lifecycle update.
+reg  [15:0] c0_slot_cpu_override_i;
+// The config RAM is read over states 0..9, not atomically. Any CPU update for
+// this channel after state 0 makes the in-flight image mixed. Retire that slot
+// without request, end action, current writeback, or mixer contribution; the
+// following scan will see the complete new RAM image.
+reg         c0_slot_dirty_i;
+reg  [15:0] c0_dirty_slot_count_i;
+reg  [ 3:0] c0_dirty_fault_sticky_i;
 reg  [15:0] c0_core_response_valid_i;
 reg  [ 7:0] c0_core_response_data_i [0:15];
 reg  [18:0] c0_core_response_addr_i [0:15];
@@ -268,6 +293,7 @@ integer c0_response_reset_i;
 integer c0_prefetch_reset_i;
 wire c0_rom_prefetch_reissue_clear =
     cen && (st == 4'd8) && !cfg_en[0] &&
+    !c0_slot_dirty_i && !cpu_slot_config_write_for_cur &&
     c0_rom_prefetch_cpu_invalid_i[cur_ch];
 
 // A zero-filled config RAM looks enabled because control bit 0 is active-low.
@@ -294,6 +320,44 @@ always @(posedge clk) begin
         if( (cpu_control_write || cpu_current_write ||
              (we && !cpu_addr[7] && cpu_addr[2:0] == 3'd0)) ) begin
             c0_rom_prefetch_cpu_invalid_i[cpu_write_ch] <= 1'b1;
+        end
+    end
+end
+
+always @(posedge clk) begin
+    if( rst || rom_prefetch_clear ) begin
+        c0_slot_cpu_override_i <= 16'd0;
+        c0_slot_dirty_i <= 1'b0;
+        c0_dirty_slot_count_i <= 16'd0;
+        c0_dirty_fault_sticky_i <= 4'd0;
+    end else begin
+        // State 0 snapshots this channel's config for the slot now starting.
+        // Writes before state 0 belong to this slot and must not suppress its
+        // genuine end; writes at/after state 0 belong to the following scan
+        // and must protect that newer config from this slot's deferred stop.
+        if( cen && (st == 4'd0) ) begin
+            c0_slot_cpu_override_i[cur_ch] <= 1'b0;
+            c0_slot_dirty_i <= 1'b0;
+        end
+        // CPU wins a state-0 boundary because the synchronous RAM value for
+        // the current slot was already selected on that edge.
+        if( cpu_current_write || cpu_control_write ) begin
+            c0_slot_cpu_override_i[cpu_write_ch] <= 1'b1;
+        end
+        if( cpu_slot_config_write_for_cur ) begin
+            c0_slot_dirty_i <= 1'b1;
+            c0_dirty_fault_sticky_i[0] <= 1'b1;
+            if( !c0_slot_dirty_i && c0_dirty_slot_count_i != 16'hffff ) begin
+                c0_dirty_slot_count_i <= c0_dirty_slot_count_i + 16'd1;
+            end
+        end
+        // These bits are leak detectors, not expected activity. They stay low
+        // when the dirty-slot guards below are complete.
+        if( c0_slot_dirty_i && rom_cs ) begin
+            c0_dirty_fault_sticky_i[1] <= 1'b1;
+        end
+        if( c0_slot_dirty_i && cen && cfg_we ) begin
+            c0_dirty_fault_sticky_i[3] <= 1'b1;
         end
     end
 end
@@ -633,15 +697,17 @@ wire c0_core_response_match =
     // cur_addr is incremented at state 8; rom_addr remains the address of the
     // slot being consumed and is therefore the response tag through state 15.
     (c0_core_response_addr_i[cur_ch] == rom_addr);
-wire c0_effective_rom_ok = c0_response_use_allowed &&
-    (rom_ok || c0_core_response_match);
+// rom_ok is already the wrapper's exact in-flight slot match.  A C0 write
+// updates the following scan and may invalidate the core-local fallback, but
+// must not revoke an exact response for the slot currently at state 12.
+wire c0_effective_rom_ok = rom_ok || c0_core_response_match;
 wire [7:0] c0_effective_rom_data =
-    (c0_response_use_allowed && rom_ok) ? rom_data :
+    rom_ok ? rom_data :
     (c0_core_response_match ? c0_core_response_data_i[cur_ch] : 8'h80);
 wire c0_normal_rom_wait_hold =
-    (st == 4'd12) && !cfg_en[0] && !c0_effective_rom_ok
-    && !c0_rom_prefetch_cpu_invalid_i[cur_ch]
-    ;
+    (st == 4'd12) && !cfg_en[0] && !c0_effective_rom_ok &&
+    !c0_slot_dirty_i && !cpu_slot_config_write_for_cur &&
+    !c0_rom_prefetch_cpu_invalid_i[cur_ch];
 `endif
 `endif
 // A/B 2 changes only non-loop voices. Looping voices retain the legacy
@@ -905,7 +971,7 @@ wire [7:0] pcm_source_data =
     (smoke_c0_sample_pending_i ? smoke_sample_byte_i : 8'h80) :
 `endif
 `ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
-    c0_effective_rom_data;
+    (c0_slot_dirty_i ? 8'h80 : c0_effective_rom_data);
 `else
     rom_data;
 `endif
@@ -1249,7 +1315,13 @@ jtframe_dual_ram #(.AW(9),.SIMHEXFILE(SIMHEXFILE)) u_ram(
 );
 
 always @(posedge clk) begin
-    sample <= st==0 && cur_ch==0 && cen;
+    // Do not expose an output-valid frame between loaded-file sessions.  The
+    // scanner intentionally keeps running with an empty active mask after its
+    // runtime state is cleared, but that idle scan is not a PCM sample event.
+    // The first valid pulse is therefore the first complete frame containing
+    // at least one explicitly enabled channel from the new session.
+    sample <= !rst && !rom_prefetch_clear && (|active) &&
+              st==0 && cur_ch==0 && cen;
 end
 
 function signed [WD-1:0] clipDAC( input [15:0]s );
@@ -1324,21 +1396,26 @@ always @* begin
 `ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
          8: begin
              // Only persist an internally generated end/no-loop disable.
-             cfg_we = cen && c0_ctrl_write_pending_i;
+             cfg_we = cen && c0_ctrl_write_pending_i &&
+                      !c0_slot_dirty_i &&
+                      !cpu_slot_config_write_for_cur;
              cfg_din = cfg_en;
          end
          9: begin
-             cfg_we = cen && !was_enb;
+             cfg_we = cen && !was_enb && !c0_slot_dirty_i &&
+                      !cpu_slot_config_write_for_cur;
              cfg_din = wb_cur_selected ?
                  wb_cur_addr_i[7:0] : cur_addr[7:0];
          end
         10: begin
-             cfg_we = cen && !was_enb;
+             cfg_we = cen && !was_enb && !c0_slot_dirty_i &&
+                      !cpu_slot_config_write_for_cur;
              cfg_din = wb_cur_selected ?
                  wb_cur_addr_i[15:8] : cur_addr[15:8];
          end
         11: begin
-             cfg_we = cen && !was_enb;
+             cfg_we = cen && !was_enb && !c0_slot_dirty_i &&
+                      !cpu_slot_config_write_for_cur;
              cfg_din = wb_cur_selected ?
                  wb_cur_addr_i[23:16] : cur_addr[23:16];
          end
@@ -1931,7 +2008,8 @@ always @(posedge clk) begin
             end
             // A CPU current update is the authoritative seed. Drop any
             // deferred writeback computed by an older scan of that channel.
-            if( cpu_current_write_for_wb || cpu_control_disable_for_wb ) begin
+            if( cpu_current_write_for_wb || cpu_control_disable_for_wb ||
+                cpu_slot_config_write_for_wb ) begin
                 wb_cur_valid_i <= 1'b0;
                 wb_cur_write_seen_i <= 3'd0;
             end
@@ -2528,7 +2606,8 @@ always @(posedge clk) begin
 `ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
                 // A loop reload or terminal stop redirects/invalidates the
                 // address prefetched at the preceding frame's state 15.
-                if( normal_end_match ) begin
+                if( normal_end_match && !c0_slot_dirty_i &&
+                    !cpu_slot_config_write_for_cur ) begin
                     c0_rom_prefetch_armed_i[cur_ch] <= 1'b0;
                 end
 `endif
@@ -2599,9 +2678,13 @@ always @(posedge clk) begin
 	                end else
 `endif
                 if( (!smoke_forced_play_enable || cur_ch != SMOKE_CH) &&
-                    normal_end_match ) begin
+                    !cfg_en[0] && normal_end_match &&
+                    !c0_slot_dirty_i &&
+                    !cpu_slot_config_write_for_cur ) begin
 `else
-                if( normal_end_match ) begin
+                if( !cfg_en[0] && normal_end_match &&
+                    !c0_slot_dirty_i &&
+                    !cpu_slot_config_write_for_cur ) begin
 `endif
                 if( cfg_en[1] ) begin : st_end_no_loop
                     reg [23:0] next_cur_addr;
@@ -2620,7 +2703,13 @@ always @(posedge clk) begin
 `ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
                     // Persist only the genuine end/no-loop disable. The
                     // following state-8 write is a single cen-qualified pulse.
-                    c0_ctrl_write_pending_i <= 1'b1;
+                    // A CPU current/control update owns the following scan;
+                    // never let this old slot's deferred stop overwrite it.
+                    if( !c0_slot_cpu_override_i[cur_ch] &&
+                        !cpu_current_write_for_cur &&
+                        !cpu_control_write_for_cur ) begin
+                        c0_ctrl_write_pending_i <= 1'b1;
+                    end
 `endif
                 end else begin : st_loop_reload
                     reg [23:0] next_cur_addr;
@@ -2639,13 +2728,8 @@ always @(posedge clk) begin
             end
             end
             8: begin
-               if( !cfg_en[0]
-`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
-`ifndef MEGAVGMDRIVE_SEGAPCM_USE_C0_LAB_BACKEND
-                   && !cpu_current_write_for_cur
-                   && !cpu_control_disable_for_cur
-`endif
-`endif
+               if( !cfg_en[0] && !c0_slot_dirty_i &&
+                   !cpu_slot_config_write_for_cur
                  ) begin
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_TEST
@@ -3407,7 +3491,8 @@ always @(posedge clk) begin
                 // Look ahead one complete 16-channel frame. cur_addr already
                 // contains the state-8 increment, so this is the byte that the
                 // same channel must consume on its next scan.
-                if( !cfg_en[0]
+                if( !cfg_en[0] && !c0_slot_dirty_i &&
+                    !cpu_slot_config_write_for_cur
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
                     && !smoke_forced_play_enable
 `endif
@@ -3482,9 +3567,13 @@ always @(posedge clk) begin
                     dbg_focus_last_cfg_i <= cfg_en;
                 end
 `endif
-                active[cur_ch] <= ~was_enb;
+                if( !c0_slot_dirty_i &&
+                    !cpu_slot_config_write_for_cur ) begin
+                    active[cur_ch] <= ~was_enb;
+                end
                 cur_ch <= cur_ch + 1'd1;
-                if( !cfg_en[0] ) begin
+                if( !cfg_en[0] && !c0_slot_dirty_i &&
+                    !cpu_slot_config_write_for_cur ) begin
                     if( (clipDAC(mul_data) != {WD{1'b0}}) ||
                         (buf_r != {WD{1'b0}}) ) begin
                         dbg_contrib_mask_i[cur_ch] <= 1'b1;
@@ -3522,7 +3611,9 @@ always @(posedge clk) begin
                     end
                 end
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
-                if( !cfg_en[0] && cur_ch == SMOKE_CH &&
+                if( !cfg_en[0] && !c0_slot_dirty_i &&
+                    !cpu_slot_config_write_for_cur &&
+                    cur_ch == SMOKE_CH &&
                     smoke_forced_play_enable ) begin
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_TEST
                     if( smoke_c0_current_seed_active ) begin : st_smoke_c0_tick_gate
@@ -3613,13 +3704,15 @@ always @(posedge clk) begin
                         smoke_c0_mix_r_i <= {WD{1'b0}};
                     end
 `endif
-                    if( !cfg_en[0] ) begin
+                    if( !cfg_en[0] && !c0_slot_dirty_i &&
+                        !cpu_slot_config_write_for_cur ) begin
                         acc_r <= clip_sum( acc_r, buf_r);
                         acc_l <= clip_sum( acc_l, clipDAC(mul_data));
                     end
                 end
 `else
-                if( !cfg_en[0] ) begin
+                if( !cfg_en[0] && !c0_slot_dirty_i &&
+                    !cpu_slot_config_write_for_cur ) begin
                     acc_r <= clip_sum( acc_r, buf_r);
                     acc_l <= clip_sum( acc_l, clipDAC(mul_data));
                 end

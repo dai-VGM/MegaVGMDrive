@@ -297,8 +297,12 @@ module vgm_ddram_backend #(
         smoke_ddr_pack_valid &&
         !smoke_ddr_tap_word_changed &&
         (smoke_ddr_tap_merged_be == 8'hff);
+    wire smoke_ddr_flush_requested =
+        copy_flush_active && smoke_ddr_pack_valid;
     wire smoke_ddr_tap_push_requested =
-        smoke_ddr_tap_word_changed || smoke_ddr_tap_word_full;
+        smoke_ddr_tap_word_changed ||
+        smoke_ddr_tap_word_full ||
+        smoke_ddr_flush_requested;
     wire smoke_ddr_tap_push_fire =
         !pack_flush_fire &&
         smoke_ddr_tap_push_requested &&
@@ -385,6 +389,9 @@ module vgm_ddram_backend #(
     wire copy_can_finish =
         copy_flush_active &&
         !copy_pack_valid &&
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_TEST
+        !smoke_ddr_pack_valid &&
+`endif
         fifo_empty &&
         !write_pending &&
         !write_pop &&
@@ -501,11 +508,12 @@ module vgm_ddram_backend #(
         (fifo_full || pack_flush_blocked || write_waiting_for_ddram);
 
     // Report load busy only for the actual download/finalization window.
-    // Keep post-load read/write internals from perturbing mode5 session control.
+    // SegaPCM payload capture shares write_pending after load_done; those
+    // post-load writes must not reset/restart the loaded player.
     assign load_busy = ioctl_download ||
                        download_active ||
                        finish_pending ||
-                       write_pending;
+                       (write_pending && !load_done);
 
     function automatic [7:0] lane_be(input logic [2:0] lane);
         begin

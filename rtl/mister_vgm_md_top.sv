@@ -3341,7 +3341,13 @@ module mister_vgm_md_top #(
                                             !mode5_sound_core_reset &&
                                             player_busy;
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
-            assign audio_runtime_open = !reset;
+            // The smoke/Compatibility build still bypasses the normal unmute
+            // delay, but it must not bypass loaded-session ownership.  Close
+            // the final audio gate combinationally on a new download edge so
+            // the previous file cannot be visible for the clock preceding
+            // the synchronous SegaPCM runtime clear.
+            assign audio_runtime_open = mode5_audio_pre_unmute &&
+                                        !ioctl_download;
 `else
             assign audio_runtime_open = mode5_audio_pre_unmute &&
                                         mode5_audio_unmute_ready;

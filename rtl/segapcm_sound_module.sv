@@ -1411,11 +1411,46 @@ module segapcm_sound_module #(
     logic [15:0] lab_jt_early_prefetch_issued_i;
     logic [18:0] lab_jt_early_prefetch_addr_i [0:15];
     logic [15:0] lab_jt_early_prefetch_generation_i [0:15];
-    logic lab_jt_write_prefetch_pending_i;
-    logic [3:0] lab_jt_write_prefetch_ch_i;
-    logic [18:0] lab_jt_write_prefetch_addr_i;
-    logic [15:0] lab_jt_write_prefetch_generation_i;
-    wire lab_jt_ddr_request_queue_push;
+	    logic lab_jt_write_prefetch_pending_i;
+	    logic [3:0] lab_jt_write_prefetch_ch_i;
+	    logic [18:0] lab_jt_write_prefetch_addr_i;
+	    logic [15:0] lab_jt_write_prefetch_generation_i;
+	    wire lab_jt_write_prefetch_immediate_event;
+	    wire [3:0] lab_jt_write_prefetch_immediate_ch;
+	    wire [18:0] lab_jt_write_prefetch_immediate_addr;
+	    wire [15:0] lab_jt_write_prefetch_immediate_generation;
+	    // Normal-DDR request-source skid entry.  Together with the source
+	    // selected in the current cycle this forms a two-entry staging path, so
+	    // a raw state request is not lost when an early/write prefetch collides.
+	    logic lab_jt_raw_skid_valid_i;
+	    logic [3:0] lab_jt_raw_skid_ch_i;
+	    logic [3:0] lab_jt_raw_skid_st_i;
+	    logic [18:0] lab_jt_raw_skid_addr_i;
+	    logic [15:0] lab_jt_raw_skid_generation_i;
+	    logic [31:0] lab_jt_raw_skid_capture_count_i;
+	    logic [31:0] lab_jt_raw_skid_coalesce_count_i;
+	    logic [31:0] lab_jt_raw_skid_overflow_count_i;
+	    // Normal-DDR adapter accounting.  These counters are observation-only:
+	    // none of them feeds request arbitration, ownership, or JT timing.
+	    logic [31:0] lab_jt_adapter_request_generated_count_i;
+	    logic [31:0] lab_jt_adapter_request_coalesced_count_i;
+	    logic [31:0] lab_jt_adapter_ddr_response_count_i;
+	    logic [31:0] lab_jt_adapter_exact_cache_hit_count_i;
+	    logic [31:0] lab_jt_adapter_generation_retag_hit_count_i;
+	    logic [31:0] lab_jt_adapter_unexpected_stall_count_i;
+	    logic [31:0] lab_jt_adapter_non_gap_missing_count_i;
+	    logic [31:0] lab_jt_adapter_max_backlog_i;
+	    wire lab_jt_ddr_request_queue_push;
+	    wire lab_jt_ddr_request_queue_accept;
+	    wire lab_jt_selected_raw_skid;
+	    wire lab_jt_selected_early_prefetch;
+`ifndef MEGAVGMDRIVE_SEGAPCM_USE_C0_LAB_BACKEND
+	    // Generation of the config snapshot selected for each in-flight JT
+	    // channel slot.  Later CPU writes update the next scan's generation but
+	    // cannot revoke the slot already loaded by states 0..3.
+	    logic [15:0] lab_jt_slot_generation_i [0:15];
+	    integer lab_jt_slot_generation_reset_i;
+`endif
     integer lab_jt_map_loop_i;
     wire [3:0] lab_jt_live_ch = lab_jt_rv62_live_state_channel[3:0];
     wire [3:0] lab_jt_live_st = lab_jt_rv62_live_state_channel[7:4];
@@ -1441,31 +1476,60 @@ module segapcm_sound_module #(
     // Keep the existing variable-latency DDR timing unchanged.
     wire lab_jt_early_prefetch_state = lab_jt_live_st == 4'd0;
 `endif
+	// A queued CPU current/control write for this channel supersedes the
+	// state-0 speculative address.  The committed write-prefetch source will
+	// present the post-write address on the following cycle; launching the old
+	// address first would occupy the single-outstanding DDR port until state 12.
+	wire lab_jt_pending_generation_write_for_live;
     wire lab_jt_state0_prefetch_event =
         segapcm_cen && lab_jt_early_prefetch_state &&
         lab_jt_control_written_mask[lab_jt_live_ch] &&
         lab_jt_prefetch_cpu_invalid_mask[lab_jt_live_ch] &&
         !lab_jt_early_control[0] &&
-        !lab_jt_early_prefetch_issued_i[lab_jt_live_ch];
+	    !lab_jt_early_prefetch_issued_i[lab_jt_live_ch] &&
+	    !lab_jt_pending_generation_write_for_live;
 `ifdef MEGAVGMDRIVE_SEGAPCM_USE_C0_LAB_BACKEND
+    wire lab_jt_write_prefetch_pending_ready = 1'b0;
     wire lab_jt_early_prefetch_event = 1'b0;
 `else
+    // A partial current/control write for a channel that is not being scanned
+    // yet stays pending.  Launch it when that channel reaches state 1.  The
+    // extra cycle lets a C0 write already queued at the state-0 boundary
+    // replace the partial tag, while still meeting the state-12 deadline.
+    wire lab_jt_write_prefetch_pending_ready =
+        lab_jt_write_prefetch_pending_i &&
+        (lab_jt_write_prefetch_ch_i == lab_jt_live_ch) &&
+        (lab_jt_live_st == 4'd1);
     wire lab_jt_early_prefetch_event =
-        lab_jt_write_prefetch_pending_i || lab_jt_state0_prefetch_event;
+	    lab_jt_write_prefetch_immediate_event ||
+	    lab_jt_write_prefetch_pending_ready || lab_jt_state0_prefetch_event;
 `endif
     wire [3:0] lab_jt_early_prefetch_ch =
-        lab_jt_write_prefetch_pending_i ? lab_jt_write_prefetch_ch_i :
-        lab_jt_live_ch;
+	    lab_jt_write_prefetch_immediate_event ?
+	        lab_jt_write_prefetch_immediate_ch :
+	    lab_jt_write_prefetch_pending_ready ? lab_jt_write_prefetch_ch_i :
+	        lab_jt_live_ch;
     wire [18:0] lab_jt_early_prefetch_selected_addr =
-        lab_jt_write_prefetch_pending_i ? lab_jt_write_prefetch_addr_i :
-        lab_jt_early_rom_addr;
+	    lab_jt_write_prefetch_immediate_event ?
+	        lab_jt_write_prefetch_immediate_addr :
+	    lab_jt_write_prefetch_pending_ready ? lab_jt_write_prefetch_addr_i :
+	        lab_jt_early_rom_addr;
     wire [15:0] lab_jt_early_prefetch_selected_generation =
-        lab_jt_write_prefetch_pending_i ?
-        lab_jt_write_prefetch_generation_i :
-        lab_jt_channel_generation_i[lab_jt_live_ch];
-    wire [18:0] lab_jt_map_rom_addr =
-        lab_jt_early_prefetch_event ?
-        lab_jt_early_prefetch_selected_addr : lab_jt_rom_addr;
+	    lab_jt_write_prefetch_immediate_event ?
+	        lab_jt_write_prefetch_immediate_generation :
+	    lab_jt_write_prefetch_pending_ready ?
+	        lab_jt_write_prefetch_generation_i :
+	        lab_jt_channel_generation_i[lab_jt_live_ch];
+`ifdef MEGAVGMDRIVE_SEGAPCM_USE_C0_LAB_BACKEND
+	    wire [18:0] lab_jt_map_rom_addr = lab_jt_rom_addr;
+`else
+	    wire [18:0] lab_jt_map_rom_addr =
+	        lab_jt_write_prefetch_immediate_event ?
+	            lab_jt_write_prefetch_immediate_addr :
+	        lab_jt_raw_skid_valid_i ? lab_jt_raw_skid_addr_i :
+	        (lab_jt_early_prefetch_event ?
+	         lab_jt_early_prefetch_selected_addr : lab_jt_rom_addr);
+`endif
 
     always_comb begin
         lab_jt_payload_read_index_next = 19'd0;
@@ -2158,6 +2222,13 @@ module segapcm_sound_module #(
         latched_cpu_data;
     wire [3:0] lab_jt_write_ch = latched_cpu_addr[6:3];
     wire [2:0] lab_jt_write_off = latched_cpu_addr[2:0];
+	assign lab_jt_pending_generation_write_for_live =
+	    cpu_write_pending && (lab_jt_write_ch == lab_jt_live_ch) &&
+	    ((!latched_cpu_addr[7] && (lab_jt_write_off == 3'd0)) ||
+	     (latched_cpu_addr[7] &&
+	      ((lab_jt_write_off == 3'd4) ||
+	       (lab_jt_write_off == 3'd5) ||
+	       (lab_jt_write_off == 3'd6))));
     wire lab_jt_write_high = latched_cpu_addr[7];
     wire lab_jt_write_low = !latched_cpu_addr[7];
     wire lab_jt_write_cur =
@@ -2176,13 +2247,14 @@ module segapcm_sound_module #(
 	        lab_jt_write_cur || lab_jt_write_end || lab_jt_write_delta ||
 	        lab_jt_write_vol || lab_jt_write_ctrl;
 
-    // Capture a first-fetch tag as soon as a committed C0 write completes the
-    // integer current pair or enables/retriggers the channel.  This is kept
+    // Capture a first-fetch tag as soon as either integer-current byte or the
+    // control byte is committed.  C0 writes are sequentially visible to JT;
+    // either current byte can therefore be the last address-changing write
+    // before the next scan.  This is kept
     // until the common request FIFO accepts it, so backend latency cannot move
     // the later state-8 fallback relative to subsequent C0 writes.
     wire lab_jt_write_prefetch_trigger = core_cpu_cs &&
-        ((lab_jt_write_cur && (lab_jt_write_off == 3'd5)) ||
-         lab_jt_write_ctrl);
+        (lab_jt_write_cur || lab_jt_write_ctrl);
     wire [7:0] lab_jt_write_prefetch_post_ctrl =
         lab_jt_write_ctrl ? lab_jt_cpu_data :
         lab_jt_live_cfg_ctrl_i[lab_jt_write_ch];
@@ -2191,11 +2263,25 @@ module segapcm_sound_module #(
         lab_jt_cpu_data :
         lab_jt_live_cfg_cur_high_i[lab_jt_write_ch];
     wire [7:0] lab_jt_write_prefetch_post_mid =
+        (lab_jt_write_cur && (lab_jt_write_off == 3'd4)) ?
+        lab_jt_cpu_data :
         lab_jt_live_cfg_cur_mid_i[lab_jt_write_ch];
     wire lab_jt_write_prefetch_arm = lab_jt_write_prefetch_trigger &&
         !lab_jt_write_prefetch_post_ctrl[0] &&
         (lab_jt_write_ctrl ||
          lab_jt_control_written_mask[lab_jt_write_ch]);
+	assign lab_jt_write_prefetch_immediate_event =
+	    lab_jt_write_prefetch_arm &&
+	    (lab_jt_write_ch == lab_jt_live_ch) &&
+	    (lab_jt_live_st <= 4'd1);
+	assign lab_jt_write_prefetch_immediate_ch = lab_jt_write_ch;
+	assign lab_jt_write_prefetch_immediate_addr = {
+	    lab_jt_write_prefetch_post_ctrl[6:4],
+	    lab_jt_write_prefetch_post_high,
+	    lab_jt_write_prefetch_post_mid
+	};
+	assign lab_jt_write_prefetch_immediate_generation =
+	    lab_jt_channel_generation_i[lab_jt_write_ch] + 16'd1;
 
     always_ff @(posedge clk) begin
         if (reset || loaded_payload_clear) begin
@@ -2204,12 +2290,17 @@ module segapcm_sound_module #(
             lab_jt_write_prefetch_addr_i <= 19'd0;
             lab_jt_write_prefetch_generation_i <= 16'd0;
         end else begin
-            if (lab_jt_ddr_request_queue_push &&
-                lab_jt_write_prefetch_pending_i) begin
+	            if (lab_jt_ddr_request_queue_accept &&
+	                lab_jt_selected_early_prefetch &&
+	                lab_jt_write_prefetch_pending_i &&
+	                !lab_jt_write_prefetch_immediate_event) begin
                 lab_jt_write_prefetch_pending_i <= 1'b0;
             end
             if (lab_jt_write_prefetch_arm) begin
-                lab_jt_write_prefetch_pending_i <= 1'b1;
+	            lab_jt_write_prefetch_pending_i <=
+	                !(lab_jt_ddr_request_queue_accept &&
+	                  lab_jt_selected_early_prefetch &&
+	                  lab_jt_write_prefetch_immediate_event);
                 lab_jt_write_prefetch_ch_i <= lab_jt_write_ch;
                 lab_jt_write_prefetch_addr_i <= {
                     lab_jt_write_prefetch_post_ctrl[6:4],
@@ -2702,14 +2793,30 @@ module segapcm_sound_module #(
 	    };
 	    logic rom_request_event;
 	    logic ch3_rom_request_event;
-	    wire [3:0] lab_jt_raw_req_src_ch =
-	        lab_jt_dbg_bank_channel_state[7:4];
-	    wire [3:0] lab_jt_raw_req_src_st =
-	        lab_jt_dbg_bank_channel_state[3:0];
-	    wire [3:0] lab_jt_req_src_ch = lab_jt_early_prefetch_event ?
-	        lab_jt_early_prefetch_ch : lab_jt_raw_req_src_ch;
-	    wire [3:0] lab_jt_req_src_st = lab_jt_early_prefetch_event ?
-	        4'd0 : lab_jt_raw_req_src_st;
+		    wire [3:0] lab_jt_raw_req_src_ch =
+		        lab_jt_dbg_bank_channel_state[7:4];
+		    wire [3:0] lab_jt_raw_req_src_st =
+		        lab_jt_dbg_bank_channel_state[3:0];
+`ifdef MEGAVGMDRIVE_SEGAPCM_USE_C0_LAB_BACKEND
+		    assign lab_jt_selected_raw_skid = 1'b0;
+`else
+		    // A committed current/control write describes the slot already being
+		    // loaded and is urgent.  It may pass one deferred state-15 lookahead,
+		    // which remains in the skid entry and is accepted on the next cycle.
+		    assign lab_jt_selected_raw_skid =
+		        lab_jt_raw_skid_valid_i &&
+		        !lab_jt_write_prefetch_immediate_event;
+`endif
+		    assign lab_jt_selected_early_prefetch =
+		        !lab_jt_selected_raw_skid && lab_jt_early_prefetch_event;
+		    wire [3:0] lab_jt_req_src_ch =
+		        lab_jt_selected_raw_skid ? lab_jt_raw_skid_ch_i :
+		        (lab_jt_selected_early_prefetch ?
+		         lab_jt_early_prefetch_ch : lab_jt_raw_req_src_ch);
+		    wire [3:0] lab_jt_req_src_st =
+		        lab_jt_selected_raw_skid ? lab_jt_raw_skid_st_i :
+		        (lab_jt_selected_early_prefetch ? 4'd0 :
+		         lab_jt_raw_req_src_st);
 	    wire lab_jt_generation_write_event = core_cpu_cs &&
 	        ((!latched_cpu_addr[7] &&
 	          (latched_cpu_addr[2:0] == 3'd0)) ||
@@ -2717,12 +2824,22 @@ module segapcm_sound_module #(
 	          ((latched_cpu_addr[2:0] == 3'd4) ||
 	           (latched_cpu_addr[2:0] == 3'd5) ||
 	           (latched_cpu_addr[2:0] == 3'd6))));
-	    wire [15:0] lab_jt_request_generation =
-	        lab_jt_early_prefetch_event ?
-	        lab_jt_early_prefetch_selected_generation :
-	        (lab_jt_channel_generation_i[lab_jt_req_src_ch] +
-	         ((lab_jt_generation_write_event &&
-	           (lab_jt_write_ch == lab_jt_req_src_ch)) ? 16'd1 : 16'd0));
+		    wire [15:0] lab_jt_raw_request_generation =
+		        (lab_jt_raw_req_src_st == 4'd8) ?
+`ifndef MEGAVGMDRIVE_SEGAPCM_USE_C0_LAB_BACKEND
+		            lab_jt_slot_generation_i[lab_jt_raw_req_src_ch] :
+`else
+		            lab_jt_channel_generation_i[lab_jt_raw_req_src_ch] :
+`endif
+		            (lab_jt_channel_generation_i[lab_jt_raw_req_src_ch] +
+		             ((lab_jt_generation_write_event &&
+		               (lab_jt_write_ch == lab_jt_raw_req_src_ch)) ?
+		                  16'd1 : 16'd0));
+		    wire [15:0] lab_jt_request_generation =
+		        lab_jt_selected_raw_skid ? lab_jt_raw_skid_generation_i :
+		        (lab_jt_selected_early_prefetch ?
+		         lab_jt_early_prefetch_selected_generation :
+		         lab_jt_raw_request_generation);
 	    wire lab_jt_live_generation_invalidating_write =
 	        lab_jt_generation_write_event &&
 	        (lab_jt_write_ch == lab_jt_live_ch);
@@ -2793,9 +2910,7 @@ module segapcm_sound_module #(
 	                         ] == lab_jt_rom_addr) &&
 	                        (lab_jt_early_prefetch_generation_i[
 	                            lab_jt_raw_req_src_ch
-	                         ] == lab_jt_channel_generation_i[
-	                            lab_jt_raw_req_src_ch
-	                         ]);
+	                         ] == lab_jt_raw_request_generation);
 	                    // A CPU write can invalidate the generation after the
 	                    // synchronous RAM has already selected the old current
 	                    // for this scan.  If state 8 proves that the retained
@@ -2803,34 +2918,131 @@ module segapcm_sound_module #(
 	                    // JT, promote that byte to the current generation.  No
 	                    // stale address is accepted and no backend request is
 	                    // needed for an identical ROM byte.
-	                    wire lab_jt_raw_retained_exact =
-	                        rom_request_event &&
+		                    wire lab_jt_raw_retained_exact =
+		                        rom_request_event &&
 	                        ((lab_jt_prefetch_valid_i[lab_jt_raw_req_src_ch] &&
 	                          (lab_jt_prefetch_addr_i[lab_jt_raw_req_src_ch] ==
 	                           lab_jt_rom_addr)) ||
 	                         (lab_jt_prefetch_alt_valid_i[
 	                              lab_jt_raw_req_src_ch] &&
-	                          (lab_jt_prefetch_alt_addr_i[
-	                              lab_jt_raw_req_src_ch] == lab_jt_rom_addr)));
-	                `ifdef MEGAVGMDRIVE_SEGAPCM_USE_C0_LAB_BACKEND
-	                    wire lab_jt_request_seen_pulse =
-	                        smoke_c0_jt_backend &&
-	                        smoke_ddr_follow_mode &&
-	                        rom_request_event;
-	                `else
-	                    wire lab_jt_request_seen_pulse =
-	                        smoke_c0_jt_backend &&
-	                        smoke_ddr_follow_mode &&
-	                        (lab_jt_early_prefetch_event ||
-	                         (rom_request_event &&
-	                          !lab_jt_raw_duplicate_early &&
-	                          !lab_jt_raw_retained_exact));
-	                `endif
+		                          (lab_jt_prefetch_alt_addr_i[
+		                               lab_jt_raw_req_src_ch] == lab_jt_rom_addr)));
+		            wire lab_jt_raw_request_eligible =
+		                rom_request_event && !lab_jt_raw_duplicate_early &&
+		                !lab_jt_raw_retained_exact;
+		            wire lab_jt_raw_matches_selected =
+		                (lab_jt_selected_raw_skid &&
+		                 (lab_jt_raw_skid_ch_i == lab_jt_raw_req_src_ch) &&
+		                 (lab_jt_raw_skid_addr_i == lab_jt_rom_addr) &&
+		                 (lab_jt_raw_skid_generation_i ==
+		                  lab_jt_raw_request_generation)) ||
+		                (lab_jt_selected_early_prefetch &&
+		                 (lab_jt_early_prefetch_ch == lab_jt_raw_req_src_ch) &&
+		                 (lab_jt_early_prefetch_selected_addr ==
+		                  lab_jt_rom_addr) &&
+		                 (lab_jt_early_prefetch_selected_generation ==
+		                  lab_jt_raw_request_generation));
+		    wire lab_jt_raw_defer_state15 =
+		        lab_jt_raw_request_eligible &&
+		        (lab_jt_raw_req_src_st == 4'd15) &&
+		        !lab_jt_selected_raw_skid &&
+		        !lab_jt_selected_early_prefetch;
+		    wire lab_jt_raw_skid_capture =
+		        lab_jt_raw_request_eligible &&
+		        (((lab_jt_selected_raw_skid ||
+		           lab_jt_selected_early_prefetch) &&
+		          !lab_jt_raw_matches_selected) ||
+		         lab_jt_raw_defer_state15);
+	            wire lab_jt_raw_skid_coalesce =
+	                lab_jt_raw_request_eligible &&
+	                (lab_jt_selected_raw_skid ||
+	                 lab_jt_selected_early_prefetch) &&
+	                lab_jt_raw_matches_selected;
+	            // Count one coalesced source request even when an exact cached
+	            // response is also the already-issued early-prefetch response.
+	            wire lab_jt_raw_coalesced_event =
+	                lab_jt_raw_duplicate_early ||
+	                lab_jt_raw_retained_exact ||
+	                lab_jt_raw_skid_coalesce;
+		                `ifdef MEGAVGMDRIVE_SEGAPCM_USE_C0_LAB_BACKEND
+		                    wire lab_jt_request_seen_pulse =
+		                        smoke_c0_jt_backend &&
+		                        smoke_ddr_follow_mode &&
+		                        rom_request_event;
+		                `else
+		                    wire lab_jt_request_seen_pulse =
+		                        smoke_c0_jt_backend &&
+		                        smoke_ddr_follow_mode &&
+		                        (lab_jt_selected_raw_skid ||
+		                         lab_jt_selected_early_prefetch ||
+		                         (lab_jt_raw_request_eligible &&
+		                          !lab_jt_raw_defer_state15));
+		                `endif
+
+`ifndef MEGAVGMDRIVE_SEGAPCM_USE_C0_LAB_BACKEND
+	            always_ff @(posedge clk) begin
+	                if (reset || loaded_payload_clear) begin
+	                    for (lab_jt_slot_generation_reset_i = 0;
+	                         lab_jt_slot_generation_reset_i < 16;
+	                         lab_jt_slot_generation_reset_i =
+	                             lab_jt_slot_generation_reset_i + 1) begin
+	                        lab_jt_slot_generation_i[
+	                            lab_jt_slot_generation_reset_i
+	                        ] <= 16'd0;
+	                    end
+	                end else if (segapcm_cen &&
+	                             (lab_jt_live_st == 4'd0)) begin
+	                    lab_jt_slot_generation_i[lab_jt_live_ch] <=
+	                        lab_jt_channel_generation_i[lab_jt_live_ch];
+	                end
+	            end
+
+		    wire lab_jt_raw_skid_overflow =
+		        lab_jt_raw_skid_capture &&
+		        lab_jt_raw_skid_valid_i &&
+		        !(lab_jt_selected_raw_skid &&
+		          lab_jt_ddr_request_queue_accept);
+		            always_ff @(posedge clk) begin
+		                if (reset || loaded_payload_clear) begin
+		                    lab_jt_raw_skid_valid_i <= 1'b0;
+		                    lab_jt_raw_skid_ch_i <= 4'd0;
+		                    lab_jt_raw_skid_st_i <= 4'd0;
+		                    lab_jt_raw_skid_addr_i <= 19'd0;
+		                    lab_jt_raw_skid_generation_i <= 16'd0;
+		                    lab_jt_raw_skid_capture_count_i <= 32'd0;
+		                    lab_jt_raw_skid_coalesce_count_i <= 32'd0;
+		                    lab_jt_raw_skid_overflow_count_i <= 32'd0;
+		                end else begin
+		                    if (lab_jt_selected_raw_skid &&
+		                        lab_jt_ddr_request_queue_accept)
+		                        lab_jt_raw_skid_valid_i <= 1'b0;
+		                    if (lab_jt_raw_skid_capture &&
+		                        !lab_jt_raw_skid_overflow) begin
+		                        lab_jt_raw_skid_valid_i <= 1'b1;
+		                        lab_jt_raw_skid_ch_i <= lab_jt_raw_req_src_ch;
+		                        lab_jt_raw_skid_st_i <= lab_jt_raw_req_src_st;
+		                        lab_jt_raw_skid_addr_i <= lab_jt_rom_addr;
+		                        lab_jt_raw_skid_generation_i <=
+		                            lab_jt_raw_request_generation;
+		                        lab_jt_raw_skid_capture_count_i <=
+		                            lab_jt_raw_skid_capture_count_i + 32'd1;
+		                    end
+		                    if (lab_jt_raw_skid_coalesce)
+		                        lab_jt_raw_skid_coalesce_count_i <=
+		                            lab_jt_raw_skid_coalesce_count_i + 32'd1;
+		                    if (lab_jt_raw_skid_overflow)
+		                        lab_jt_raw_skid_overflow_count_i <=
+		                            lab_jt_raw_skid_overflow_count_i + 32'd1;
+		                end
+		            end
+`else
+		            wire lab_jt_raw_skid_overflow = 1'b0;
+`endif
 				    // Sparse type80 blocks leave real ROM holes. During sequential
 				    // C0 updates the chip may read a hole between two descriptors;
 				    // libvgm defines its effective null byte as 0x80.
-				    wire lab_jt_normal_gap_request =
-		        lab_jt_request_seen_pulse && !lab_c0_active_i &&
+					    wire lab_jt_normal_gap_request =
+			        lab_jt_request_seen_pulse &&
 				        smoke_playback_running &&
 				        (smoke_type80_table_count_i != 5'd0) &&
 				        !lab_jt_payload_table_hit_next &&
@@ -2883,31 +3095,53 @@ module segapcm_sound_module #(
 	    wire lab_jt_prefetch_alt_stored_match = 1'b0;
 	    wire lab_jt_prefetch_match = lab_jt_fixed_response_available;
 `else
+	    wire [15:0] lab_jt_active_slot_generation =
+	        lab_jt_slot_generation_i[lab_jt_live_ch];
+	    // SegaPCM ROM is immutable for the loaded session.  A response from an
+	    // older generation is therefore safe for the current slot only when
+	    // both its owner channel and full ROM address are exact.  Treat that as
+	    // an explicit slot handoff, never as a wildcard generation match.
+	    wire lab_jt_response_exact_slot_handoff =
+	        lab_jt_ddr_payload_return_event &&
+	        lab_jt_ddr_owner_valid_i &&
+	        (lab_jt_ddr_owner_ch_i == lab_jt_live_ch) &&
+	        (lab_jt_ddr_owner_addr_i == lab_jt_rom_addr) &&
+	        (lab_jt_ddr_owner_generation_i !=
+	         lab_jt_active_slot_generation);
 		    wire lab_jt_response_forward_match =
 		        lab_jt_ddr_payload_return_event &&
 		        lab_jt_ddr_owner_valid_i &&
 		        (lab_jt_ddr_owner_ch_i == lab_jt_live_ch) &&
 		        (lab_jt_ddr_owner_addr_i == lab_jt_rom_addr) &&
-		        ((!lab_jt_live_generation_invalidating_write &&
-		          (lab_jt_ddr_owner_generation_i ==
-		           lab_jt_channel_generation_i[lab_jt_live_ch])) ||
-		         lab_jt_lab_exact_generation_handoff);
+		        ((lab_jt_ddr_owner_generation_i ==
+		          lab_jt_active_slot_generation) ||
+		         lab_jt_response_exact_slot_handoff);
+	    wire lab_jt_prefetch_exact_slot_handoff =
+	        lab_jt_prefetch_valid_i[lab_jt_live_ch] &&
+	        (lab_jt_prefetch_addr_i[lab_jt_live_ch] ==
+	         lab_jt_rom_addr) &&
+	        (lab_jt_prefetch_generation_i[lab_jt_live_ch] !=
+	         lab_jt_active_slot_generation);
 	    wire lab_jt_prefetch_stored_match =
 		        lab_jt_prefetch_valid_i[lab_jt_live_ch] &&
 		        (lab_jt_prefetch_addr_i[lab_jt_live_ch] ==
 		         lab_jt_rom_addr) &&
-		        ((!lab_jt_live_generation_invalidating_write &&
-		          (lab_jt_prefetch_generation_i[lab_jt_live_ch] ==
-	           lab_jt_channel_generation_i[lab_jt_live_ch])) ||
-		         lab_jt_lab_exact_generation_handoff);
+		        ((lab_jt_prefetch_generation_i[lab_jt_live_ch] ==
+		          lab_jt_active_slot_generation) ||
+		         lab_jt_prefetch_exact_slot_handoff);
+	    wire lab_jt_prefetch_alt_exact_slot_handoff =
+	        lab_jt_prefetch_alt_valid_i[lab_jt_live_ch] &&
+	        (lab_jt_prefetch_alt_addr_i[lab_jt_live_ch] ==
+	         lab_jt_rom_addr) &&
+	        (lab_jt_prefetch_alt_generation_i[lab_jt_live_ch] !=
+	         lab_jt_active_slot_generation);
 	    wire lab_jt_prefetch_alt_stored_match =
 	        lab_jt_prefetch_alt_valid_i[lab_jt_live_ch] &&
 	        (lab_jt_prefetch_alt_addr_i[lab_jt_live_ch] ==
 	         lab_jt_rom_addr) &&
-	        ((!lab_jt_live_generation_invalidating_write &&
-	          (lab_jt_prefetch_alt_generation_i[lab_jt_live_ch] ==
-	           lab_jt_channel_generation_i[lab_jt_live_ch])) ||
-	         lab_jt_lab_exact_generation_handoff);
+	        ((lab_jt_prefetch_alt_generation_i[lab_jt_live_ch] ==
+	          lab_jt_active_slot_generation) ||
+	         lab_jt_prefetch_alt_exact_slot_handoff);
 			    wire lab_jt_prefetch_match =
 			        lab_jt_response_forward_match ||
 			        lab_jt_prefetch_stored_match ||
@@ -2936,8 +3170,8 @@ module segapcm_sound_module #(
 	            if (lab_jt_generation_write_event) begin
 	                lab_jt_early_prefetch_issued_i[lab_jt_write_ch] <= 1'b0;
 	            end
-	            if (lab_jt_ddr_request_queue_push &&
-	                lab_jt_early_prefetch_event) begin
+	            if (lab_jt_ddr_request_queue_accept &&
+	                lab_jt_selected_early_prefetch) begin
 	                lab_jt_early_prefetch_issued_i[
 	                    lab_jt_early_prefetch_ch
 	                ] <= 1'b1;
@@ -3024,6 +3258,102 @@ module segapcm_sound_module #(
 	    wire lab_jt_ddr_request_queue_empty;
 	    wire lab_jt_ddr_request_launch;
 	    wire lab_jt_synthetic_request_accept;
+`ifndef MEGAVGMDRIVE_SEGAPCM_USE_C0_LAB_BACKEND
+	    // FIFO entries remain present until backend acceptance; after that the
+	    // single owner represents the transaction.  The two pending source
+	    // latches complete the adapter backlog without double-counting an issued
+	    // but not-yet-accepted FIFO head.
+	    wire [31:0] lab_jt_adapter_final_backlog_i =
+	        {26'd0, lab_jt_req_fifo_count_i} +
+	        {31'd0, lab_jt_ddr_owner_valid_i} +
+	        {31'd0, lab_jt_raw_skid_valid_i} +
+	        {31'd0, lab_jt_write_prefetch_pending_i};
+	    wire [31:0] lab_jt_adapter_request_accepted_count_i =
+	        lab_jt_req_queue_push_count_i;
+	    wire [31:0] lab_jt_adapter_request_dropped_count_i =
+	        lab_jt_req_dropped_count_i + lab_jt_raw_skid_overflow_count_i;
+	    wire [31:0] lab_jt_adapter_ddr_issued_count_i =
+	        lab_jt_req_issue_count_i;
+	    wire [31:0] lab_jt_adapter_stale_reject_count_i =
+	        lab_jt_prefetch_stale_consume_count_i;
+	    wire [31:0] lab_jt_adapter_wrong_channel_reject_count_i =
+	        lab_jt_prefetch_wrong_channel_count_i;
+	    wire [31:0] lab_jt_adapter_wrong_address_reject_count_i =
+	        lab_jt_prefetch_wrong_address_count_i;
+
+	    always_ff @(posedge clk) begin
+	        if (reset || loaded_payload_clear) begin
+	            lab_jt_adapter_request_generated_count_i <= 32'd0;
+	            lab_jt_adapter_request_coalesced_count_i <= 32'd0;
+	            lab_jt_adapter_ddr_response_count_i <= 32'd0;
+	            lab_jt_adapter_exact_cache_hit_count_i <= 32'd0;
+	            lab_jt_adapter_generation_retag_hit_count_i <= 32'd0;
+	            lab_jt_adapter_unexpected_stall_count_i <= 32'd0;
+	            lab_jt_adapter_non_gap_missing_count_i <= 32'd0;
+	            lab_jt_adapter_max_backlog_i <= 32'd0;
+	        end else begin
+	            if (smoke_c0_jt_backend && smoke_ddr_follow_mode &&
+	                smoke_playback_running) begin
+	                lab_jt_adapter_request_generated_count_i <=
+	                    lab_jt_adapter_request_generated_count_i +
+	                    {31'd0, rom_request_event} +
+	                    {31'd0, lab_jt_early_prefetch_event};
+	            end
+	            lab_jt_adapter_request_coalesced_count_i <=
+	                lab_jt_adapter_request_coalesced_count_i +
+	                {31'd0, lab_jt_raw_coalesced_event};
+	            if (lab_jt_ddr_backend_return_event) begin
+	                lab_jt_adapter_ddr_response_count_i <=
+	                    lab_jt_adapter_ddr_response_count_i + 32'd1;
+	            end
+	            if (lab_jt_prefetch_consume_event &&
+	                (lab_jt_prefetch_stored_match ||
+	                 lab_jt_prefetch_alt_stored_match)) begin
+	                lab_jt_adapter_exact_cache_hit_count_i <=
+	                    lab_jt_adapter_exact_cache_hit_count_i + 32'd1;
+	            end
+	            if (lab_jt_raw_retained_exact ||
+	                (lab_jt_prefetch_consume_event &&
+	                 (lab_jt_response_exact_slot_handoff ||
+	                  lab_jt_prefetch_exact_slot_handoff ||
+	                  lab_jt_prefetch_alt_exact_slot_handoff))) begin
+	                lab_jt_adapter_generation_retag_hit_count_i <=
+	                    lab_jt_adapter_generation_retag_hit_count_i + 32'd1;
+	            end
+	            if (segapcm_cen && (lab_jt_live_st == 4'd12) &&
+	                !lab_jt_dbg_active_cfg[0] && !lab_jt_prefetch_match) begin
+	                lab_jt_adapter_unexpected_stall_count_i <=
+	                    lab_jt_adapter_unexpected_stall_count_i + 32'd1;
+	                if (lab_jt_payload_match_valid_next &&
+	                    lab_jt_payload_index_in_range_next) begin
+	                    lab_jt_adapter_non_gap_missing_count_i <=
+	                        lab_jt_adapter_non_gap_missing_count_i + 32'd1;
+	                end
+	            end
+	            if (lab_jt_adapter_final_backlog_i >
+	                lab_jt_adapter_max_backlog_i) begin
+	                lab_jt_adapter_max_backlog_i <=
+	                    lab_jt_adapter_final_backlog_i;
+	            end
+	        end
+	    end
+`else
+	    assign lab_jt_adapter_request_generated_count_i = 32'd0;
+	    assign lab_jt_adapter_request_coalesced_count_i = 32'd0;
+	    assign lab_jt_adapter_ddr_response_count_i = 32'd0;
+	    assign lab_jt_adapter_exact_cache_hit_count_i = 32'd0;
+	    assign lab_jt_adapter_generation_retag_hit_count_i = 32'd0;
+	    assign lab_jt_adapter_unexpected_stall_count_i = 32'd0;
+	    assign lab_jt_adapter_non_gap_missing_count_i = 32'd0;
+	    assign lab_jt_adapter_max_backlog_i = 32'd0;
+	    wire [31:0] lab_jt_adapter_final_backlog_i = 32'd0;
+	    wire [31:0] lab_jt_adapter_request_accepted_count_i = 32'd0;
+	    wire [31:0] lab_jt_adapter_request_dropped_count_i = 32'd0;
+	    wire [31:0] lab_jt_adapter_ddr_issued_count_i = 32'd0;
+	    wire [31:0] lab_jt_adapter_stale_reject_count_i = 32'd0;
+	    wire [31:0] lab_jt_adapter_wrong_channel_reject_count_i = 32'd0;
+	    wire [31:0] lab_jt_adapter_wrong_address_reject_count_i = 32'd0;
+`endif
 `ifdef SIMULATION
 	    // The backend is single-outstanding. These checks protect the accepted
 	    // ownership register and the one-channel-only response update.
@@ -3064,6 +3394,9 @@ module segapcm_sound_module #(
 	            if (lab_jt_req_dropped_count_i != 32'd0) begin
 	                $fatal(1, "SegaPCM DDR request dropped");
 	            end
+	            if (lab_jt_raw_skid_overflow) begin
+	                $fatal(1, "SegaPCM DDR request staging overflow");
+	            end
 	            if (lab_jt_ddr_payload_return_event &&
 	                !lab_jt_ddr_owner_valid_i) begin
 	                $fatal(1, "SegaPCM DDR ownership underflow");
@@ -3095,9 +3428,9 @@ module segapcm_sound_module #(
 	                if (lab_jt_response_forward_match) begin
 	                    if ((lab_jt_ddr_owner_ch_i != lab_jt_live_ch) ||
 	                        (lab_jt_ddr_owner_addr_i != lab_jt_rom_addr) ||
-	                        (!lab_jt_lab_exact_generation_handoff &&
-	                         (lab_jt_ddr_owner_generation_i !=
-	                          lab_jt_channel_generation_i[lab_jt_live_ch])))
+	                        ((lab_jt_ddr_owner_generation_i !=
+	                          lab_jt_active_slot_generation) &&
+	                         !lab_jt_response_exact_slot_handoff))
 	                        $fatal(1, "SegaPCM forwarded wrong response tag");
 	                end else begin
 	                    if (!lab_jt_prefetch_stored_match &&
@@ -3106,12 +3439,6 @@ module segapcm_sound_module #(
 	                end
 `endif
 	            end
-`ifndef MEGAVGMDRIVE_SEGAPCM_USE_C0_LAB_BACKEND
-	            if (lab_jt_live_generation_invalidating_write &&
-	                lab_jt_prefetch_consume_event &&
-	                !lab_jt_lab_exact_generation_handoff)
-	                $fatal(1, "SegaPCM consumed across generation change");
-`endif
 	        end
 	    end
 `endif
@@ -3312,6 +3639,7 @@ module segapcm_sound_module #(
 	    assign lab_jt_ddr_request_queue_push = 1'b0;
 	    assign lab_jt_ddr_request_queue_pop = 1'b0;
 	    assign lab_jt_ddr_request_launch = 1'b0;
+	    assign lab_jt_ddr_request_queue_accept = 1'b0;
 	`else
 	    assign lab_jt_synthetic_request_accept =
 	        smoke_c0_jt_backend && smoke_ddr_c0drive_active &&
@@ -3321,7 +3649,7 @@ module segapcm_sound_module #(
 	        !lab_jt_ddr_owner_valid_i &&
 	        !lab_jt_synthetic_response_pending_i;
 	    assign lab_jt_ddr_request_queue_push =
-	        lab_jt_request_seen_pulse && !lab_c0_active_i &&
+	        lab_jt_request_seen_pulse &&
 	        (smoke_ddr_follow_read_in_range_next ||
 	         lab_jt_normal_gap_request);
 	    assign lab_jt_ddr_request_queue_pop =
@@ -3331,6 +3659,10 @@ module segapcm_sound_module #(
 	        (lab_jt_req_fifo_count_i == LAB_JT_REQ_FIFO_DEPTH);
 	    assign lab_jt_ddr_request_queue_empty =
 	        (lab_jt_req_fifo_count_i == 6'd0);
+	    assign lab_jt_ddr_request_queue_accept =
+	        lab_jt_ddr_request_queue_push &&
+	        (!lab_jt_ddr_request_queue_full ||
+	         lab_jt_ddr_request_queue_pop);
 	    assign lab_jt_ddr_request_launch =
 	        smoke_c0_jt_backend && smoke_ddr_c0drive_active &&
 	        !loaded_ddr_rd_req && !smoke_ddr_c0_pending_i &&
@@ -13376,6 +13708,40 @@ module segapcm_sound_module #(
 	                    ];
 	                end
 	            end
+`else
+	            // The normal-DDR adapter can receive the exact byte for a slot
+	            // before a later C0 write advances the live channel generation.
+	            // State 8 is the point where JT proves which address this scan
+	            // actually selected.  Preserve that in-flight slot by retagging
+	            // only an exact channel/address cache hit; a different address
+	            // still requires its own queued request and response.
+	            if (lab_jt_raw_retained_exact) begin
+	                if (lab_jt_prefetch_valid_i[lab_jt_raw_req_src_ch] &&
+	                    (lab_jt_prefetch_addr_i[lab_jt_raw_req_src_ch] ==
+	                     lab_jt_rom_addr)) begin
+	                    lab_jt_prefetch_generation_i[
+	                        lab_jt_raw_req_src_ch
+	                    ] <= lab_jt_raw_request_generation;
+	                end
+	                if (lab_jt_prefetch_alt_valid_i[
+	                        lab_jt_raw_req_src_ch] &&
+	                    (lab_jt_prefetch_alt_addr_i[
+	                        lab_jt_raw_req_src_ch] == lab_jt_rom_addr)) begin
+	                    lab_jt_prefetch_alt_generation_i[
+	                        lab_jt_raw_req_src_ch
+	                    ] <= lab_jt_raw_request_generation;
+	                end
+	            end
+	            if (lab_jt_prefetch_consume_event) begin
+	                if (lab_jt_prefetch_exact_slot_handoff) begin
+	                    lab_jt_prefetch_generation_i[lab_jt_live_ch] <=
+	                        lab_jt_active_slot_generation;
+	                end
+	                if (lab_jt_prefetch_alt_exact_slot_handoff) begin
+	                    lab_jt_prefetch_alt_generation_i[lab_jt_live_ch] <=
+	                        lab_jt_active_slot_generation;
+	                end
+	            end
 `endif
             end
 `endif
@@ -13980,7 +14346,13 @@ module segapcm_sound_module #(
                     !lab_jt_fixed_physical_request &&
                     !lab_jt_fixed_gap_request) begin
 `else
-                if (lab_c0_active_i) begin
+                // The JT request FIFO is the timing owner for normal DDR
+                // playback.  A legacy C0 helper transfer may use the shared
+                // backend port only when no queued physical or synthetic JT
+                // request can advance this cycle.
+                if (lab_c0_active_i &&
+                    !lab_jt_ddr_request_launch &&
+                    !lab_jt_synthetic_request_accept) begin
 `endif
                     if (lab_c0_request_fire) begin
                         loaded_ddr_rd_req <= 1'b1;
