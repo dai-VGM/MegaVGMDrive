@@ -7,6 +7,8 @@ module tb_mode5_ym2203_audio_mixer;
     logic signed [15:0] existing_r = 16'sd0;
     logic signed [15:0] pcm_l = 16'sd0;
     logic signed [15:0] pcm_r = 16'sd0;
+    logic signed [15:0] md_l = 16'sd0;
+    logic signed [15:0] md_r = 16'sd0;
     logic signed [15:0] raw_l = 16'sd0;
     logic signed [15:0] raw_r = 16'sd0;
     logic raw_valid = 1'b0;
@@ -35,6 +37,8 @@ module tb_mode5_ym2203_audio_mixer;
         .existing_nonpcm_r       (existing_r),
         .segapcm_l               (pcm_l),
         .segapcm_r               (pcm_r),
+        .md_l                    (md_l),
+        .md_r                    (md_r),
         .ym2203_raw_l            (raw_l),
         .ym2203_raw_r            (raw_r),
         .ym2203_raw_sample_valid (raw_valid),
@@ -116,6 +120,15 @@ module tb_mode5_ym2203_audio_mixer;
         expect_mix("existing only", 1500, -1500, 16'sd1500,
                    -16'sd1500, 1'b0, 1'b0);
 
+        // The production MD lane joins at unity gain without changing the
+        // established final accumulator width or saturation point.
+        md_l = 16'sd250;
+        md_r = -16'sd250;
+        expect_mix("MD lane", 1750, -1750, 16'sd1750,
+                   -16'sd1750, 1'b0, 1'b0);
+        md_l = 16'sd0;
+        md_r = 16'sd0;
+
         // Existing selector outputs remain exact for absent YM2203 files.
         // PCM Only arrives with the non-PCM input already muted.
         existing_l = 16'sd0;
@@ -196,6 +209,13 @@ module tb_mode5_ym2203_audio_mixer;
         push_ym_sample(16'sd30000, -16'sd30000);
         expect_mix("three-source saturation", 90000, -90000, 16'sh7fff,
                    16'sh8000, 1'b1, 1'b1);
+
+        md_l = 16'sd30000;
+        md_r = -16'sd30000;
+        expect_mix("four-source saturation", 120000, -120000, 16'sh7fff,
+                   16'sh8000, 1'b1, 1'b1);
+        md_l = 16'sd0;
+        md_r = 16'sd0;
 
         // PCM Only: the existing selector has already muted JT51; this input
         // disables the complete YM2203 FM+SSG non-PCM lane as well.

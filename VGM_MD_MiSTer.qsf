@@ -86,6 +86,9 @@ set_global_assignment -name VERILOG_MACRO "MODE5_VGM_ADDR_WIDTH=23"
 # They are required until the functional path is moved behind a non-debug
 # compatibility guard.
 set_global_assignment -name VERILOG_MACRO "MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD=1"
+# Production audio is independent of the legacy C0/debug visibility guard:
+# keep the arcade path while also compiling and decoding the MD sound path.
+set_global_assignment -name VERILOG_MACRO "MEGAVGMDRIVE_PRODUCTION_AUDIO_BUILD=1"
 set_global_assignment -name VERILOG_MACRO "MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST=1"
 set_global_assignment -name VERILOG_MACRO "MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_TEST=1"
 

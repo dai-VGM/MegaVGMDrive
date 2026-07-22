@@ -469,6 +469,11 @@ module tb_space_harrier_ym2203_balance #(
         if (raw_xz || final_xz || pcm_xz || raw_lr_diff || final_lr_diff)
             $fatal(1, "audio integrity failure raw_xz=%0d final_xz=%0d pcm_xz=%0d raw_lr=%0d final_lr=%0d",
                 raw_xz, final_xz, pcm_xz, raw_lr_diff, final_lr_diff);
+        if (dut.loaded_vgm_mode.md_audio_session_active ||
+            dut.ym_write_requested_count != 0 ||
+            dut.loaded_vgm_mode.md_audio_l_selected != 0 ||
+            dut.loaded_vgm_mode.md_audio_r_selected != 0)
+            $fatal(1, "arcade-only VGM enabled the MD audio lane");
 
         $display("BALANCE_RAW selector=%0d count=%0d min=%0d max=%0d abs=%0d nonzero=%0d zc=%0d rail=%0d sumsq=%0d hash=%016h lr_diff=%0d xz=%0d",
             audio_select, raw_count, raw_min, raw_max, raw_abs_peak,
@@ -491,12 +496,12 @@ module tb_space_harrier_ym2203_balance #(
             audio_select, final_count, final_min, final_max, final_abs_peak,
             final_nonzero, final_zero_cross, final_sat, final_pos_sat,
             final_neg_sat, final_sumsq, final_hash, final_lr_diff, final_xz);
-        $display("BALANCE_CONTROL selector=%0d cycles=%0d measurement_cycles=%0d waits=%0d commands=%0d ym_parser=%0d ym_accept=%0d ym_complete=%0d c0_parser=%0d end_pc=%06h sample_valid=%0d",
+        $display("BALANCE_CONTROL selector=%0d cycles=%0d measurement_cycles=%0d waits=%0d commands=%0d ym_parser=%0d ym_accept=%0d ym_complete=%0d c0_parser=%0d end_pc=%06h sample_valid=%0d md_active=%0d",
             audio_select, timeout, measurement_cycles,
             dut.vgm_wait_ticks_consumed_debug,
             dut.parser_command_count_debug, parser_ym_writes, busy_accepts,
             busy_completes, parser_c0_writes, dut.mode5_done_pc_debug,
-            final_count);
+            final_count, dut.loaded_vgm_mode.md_audio_session_active);
         $display("PASS tb_space_harrier_ym2203_balance");
         $finish;
     end

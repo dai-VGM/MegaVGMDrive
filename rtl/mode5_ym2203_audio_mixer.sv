@@ -1,7 +1,7 @@
 // Final signed mixer used by the production mode-5 JT51/SegaPCM path when a
-// YM2203 is present. The two existing lanes arrive after the established OSD
+// YM2203 is present. The existing lanes arrive after the established OSD
 // selector and SegaPCM gain handling. YM2203 is sampled independently, held
-// between core sample strobes, and added at unity gain before one final clamp.
+// between core sample strobes, and all lanes are added before one final clamp.
 module mode5_ym2203_audio_mixer (
     input  logic               clk,
     input  logic               reset,
@@ -9,6 +9,8 @@ module mode5_ym2203_audio_mixer (
     input  logic signed [15:0] existing_nonpcm_r,
     input  logic signed [15:0] segapcm_l,
     input  logic signed [15:0] segapcm_r,
+    input  logic signed [15:0] md_l,
+    input  logic signed [15:0] md_r,
     input  logic signed [15:0] ym2203_raw_l,
     input  logic signed [15:0] ym2203_raw_r,
     input  logic               ym2203_raw_sample_valid,
@@ -55,9 +57,11 @@ module mode5_ym2203_audio_mixer (
         ym2203_held_r : 16'sd0;
     assign mix_sum_l = {{2{existing_nonpcm_l[15]}}, existing_nonpcm_l} +
                        {{2{segapcm_l[15]}}, segapcm_l} +
+                       {{2{md_l[15]}}, md_l} +
                        {{2{ym2203_selected_l[15]}}, ym2203_selected_l};
     assign mix_sum_r = {{2{existing_nonpcm_r[15]}}, existing_nonpcm_r} +
                        {{2{segapcm_r[15]}}, segapcm_r} +
+                       {{2{md_r[15]}}, md_r} +
                        {{2{ym2203_selected_r[15]}}, ym2203_selected_r};
     assign mix_clipped_l = !(mix_sum_l[17:15] == 3'b000 ||
                              mix_sum_l[17:15] == 3'b111);

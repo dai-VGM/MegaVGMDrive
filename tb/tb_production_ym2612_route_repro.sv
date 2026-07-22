@@ -1,8 +1,7 @@
 `timescale 1ns/1ps
 
-// Reproduces the production-QSF YM2612 routing failure at the actual mode-5
-// top.  The active C0 compatibility build selects the YM2151 parser mode and
-// the MD audio stub, so 0x52/0x53 and 0x50 never reach md_sound_module.
+// Production-QSF regression for the actual mode-5 top.  Genesis commands and
+// the MD sound core must remain active beside the arcade command/audio path.
 module tb_production_ym2612_route_repro;
     localparam integer ADDR_WIDTH = 12;
     localparam integer CLK_SYS_HZ = 20_000_000;
@@ -41,11 +40,18 @@ module tb_production_ym2612_route_repro;
     integer parser_psg_pulses = 0;
     integer md_valid_count = 0;
     integer md_nonzero_count = 0;
+    integer fm_raw_nonzero_count = 0;
+    integer psg_raw_nonzero_count = 0;
+    integer jt51_raw_nonzero_count = 0;
+    integer ym2203_raw_nonzero_count = 0;
+    integer md_selected_nonzero_count = 0;
     integer raw_valid_count = 0;
     integer raw_nonzero_count = 0;
     integer final_valid_count = 0;
     integer final_nonzero_count = 0;
     integer xz_count = 0;
+    integer fixture = 2;
+    integer audio_select = 0;
 
     always #25 clk = ~clk;
 
@@ -69,6 +75,15 @@ module tb_production_ym2612_route_repro;
         begin
             emit_byte(8'h50);
             emit_byte(data);
+        end
+    endtask
+
+    task automatic emit_ym2203(input logic [7:0] reg_addr,
+                               input logic [7:0] reg_data);
+        begin
+            emit_byte(8'h55);
+            emit_byte(reg_addr);
+            emit_byte(reg_data);
         end
     endtask
 
@@ -137,7 +152,7 @@ module tb_production_ym2612_route_repro;
         .segapcm_smoke_c0_vol_map         (3'd0),
         .segapcm_smoke_c0_drive           (2'd0),
         .segapcm_c0_pm3_audio_mask        (16'hffff),
-        .segapcm_c0_top_audio_test        (2'd0),
+        .segapcm_c0_top_audio_test        (audio_select[1:0]),
         .segapcm_c0_pm3_mix_mode          (2'd1),
         .segapcm_c0_pm3_start_policy      (3'd0),
         .segapcm_c0_jt_backend            (1'b1),
@@ -195,6 +210,20 @@ module tb_production_ym2612_route_repro;
             if (dut.loaded_vgm_mode.md_audio_sample_valid) md_valid_count++;
             if (dut.loaded_vgm_mode.md_audio_l != 0 ||
                 dut.loaded_vgm_mode.md_audio_r != 0) md_nonzero_count++;
+            if (dut.loaded_vgm_mode.sound.fm_left != 0 ||
+                dut.loaded_vgm_mode.sound.fm_right != 0)
+                fm_raw_nonzero_count++;
+            if (dut.loaded_vgm_mode.sound.psg_sound != 0)
+                psg_raw_nonzero_count++;
+            if (dut.loaded_vgm_mode.ym2151_audio_l != 0 ||
+                dut.loaded_vgm_mode.ym2151_audio_r != 0)
+                jt51_raw_nonzero_count++;
+            if (dut.loaded_vgm_mode.ym2203_raw_audio_l != 0 ||
+                dut.loaded_vgm_mode.ym2203_raw_audio_r != 0)
+                ym2203_raw_nonzero_count++;
+            if (dut.loaded_vgm_mode.md_audio_l_selected != 0 ||
+                dut.loaded_vgm_mode.md_audio_r_selected != 0)
+                md_selected_nonzero_count++;
             if (dut.raw_audio_sample_valid) raw_valid_count++;
             if (dut.raw_audio_l != 0 || dut.raw_audio_r != 0)
                 raw_nonzero_count++;
@@ -202,6 +231,8 @@ module tb_production_ym2612_route_repro;
             if (audio_l != 0 || audio_r != 0) final_nonzero_count++;
             if ((^{dut.loaded_vgm_mode.md_audio_l,
                    dut.loaded_vgm_mode.md_audio_r,
+                   dut.loaded_vgm_mode.md_audio_l_selected,
+                   dut.loaded_vgm_mode.md_audio_r_selected,
                    dut.raw_audio_l, dut.raw_audio_r,
                    audio_l, audio_r, audio_sample_valid}) === 1'bx)
                 xz_count++;
@@ -210,6 +241,14 @@ module tb_production_ym2612_route_repro;
 
     initial begin
         integer timeout;
+        integer expected_ym;
+        integer expected_psg;
+        if (!$value$plusargs("FIXTURE=%d", fixture)) fixture = 2;
+        if (!$value$plusargs("AUDIO_SELECT=%d", audio_select)) audio_select = 0;
+        if (fixture < 0 || fixture > 3)
+            $fatal(1, "invalid FIXTURE=%0d", fixture);
+        if (audio_select != 0 && audio_select != 1 && audio_select != 3)
+            $fatal(1, "invalid AUDIO_SELECT=%0d", audio_select);
         for (integer i = 0; i < (1 << ADDR_WIDTH); i = i + 1)
             vgm_mem[i] = 8'd0;
         for (integer i = 0; i < DDR_WORDS; i = i + 1)
@@ -221,28 +260,47 @@ module tb_production_ym2612_route_repro;
         vgm_mem[8'h2c] = 8'h53; vgm_mem[8'h2d] = 8'h67;
         vgm_mem[8'h2e] = 8'h7a; vgm_mem[8'h2f] = 8'h00;
         vgm_mem[8'h34] = 8'h4c;
+        if (fixture == 3) begin
+            vgm_mem[8'h44] = 8'h00;
+            vgm_mem[8'h45] = 8'h09;
+            vgm_mem[8'h46] = 8'h3d;
+            vgm_mem[8'h47] = 8'h00;
+        end
 
-        emit_ym(8'h22, 8'h00);
-        emit_ym(8'h27, 8'h00);
-        emit_ym(8'h2b, 8'h00);
-        emit_ym(8'h30, 8'h01);
-        emit_ym(8'h34, 8'h01);
-        emit_ym(8'h38, 8'h01);
-        emit_ym(8'h3c, 8'h01);
-        emit_ym(8'h40, 8'h28);
-        emit_ym(8'h44, 8'h28);
-        emit_ym(8'h48, 8'h28);
-        emit_ym(8'h4c, 8'h28);
-        emit_ym(8'h50, 8'h1f);
-        emit_ym(8'h54, 8'h1f);
-        emit_ym(8'h58, 8'h1f);
-        emit_ym(8'h5c, 8'h1f);
-        emit_ym(8'ha4, 8'h22);
-        emit_ym(8'ha0, 8'h69);
-        emit_ym(8'hb0, 8'h07);
-        emit_ym(8'hb4, 8'hc0);
-        emit_ym(8'h28, 8'hf0);
-        emit_psg(8'h80); emit_psg(8'h10); emit_psg(8'h90);
+        if (fixture != 1) begin
+            emit_ym(8'h22, 8'h00);
+            emit_ym(8'h27, 8'h00);
+            emit_ym(8'h2b, 8'h00);
+            emit_ym(8'h30, 8'h01);
+            emit_ym(8'h34, 8'h01);
+            emit_ym(8'h38, 8'h01);
+            emit_ym(8'h3c, 8'h01);
+            emit_ym(8'h40, 8'h28);
+            emit_ym(8'h44, 8'h28);
+            emit_ym(8'h48, 8'h28);
+            emit_ym(8'h4c, 8'h28);
+            emit_ym(8'h50, 8'h1f);
+            emit_ym(8'h54, 8'h1f);
+            emit_ym(8'h58, 8'h1f);
+            emit_ym(8'h5c, 8'h1f);
+            emit_ym(8'ha4, 8'h22);
+            emit_ym(8'ha0, 8'h69);
+            emit_ym(8'hb0, 8'h07);
+            emit_ym(8'hb4, 8'hc0);
+            emit_ym(8'h28, 8'hf0);
+        end
+        if (fixture != 0) begin
+            emit_psg(8'h80);
+            emit_psg(8'h10);
+            emit_psg(8'h90);
+        end
+        if (fixture == 3) begin
+            // Known-good YM2203/JT49 channel-A fixed-volume tone.
+            emit_ym2203(8'h00, 8'h20);
+            emit_ym2203(8'h01, 8'h00);
+            emit_ym2203(8'h07, 8'h3e);
+            emit_ym2203(8'h08, 8'h0f);
+        end
         emit_wait(16'd2000);
         emit_byte(8'h66);
         vgm_mem[8'h04] = (build_pc - 4) & 8'hff;
@@ -263,17 +321,49 @@ module tb_production_ym2612_route_repro;
                    timeout, player_error);
         if (dut.YM2151_EXPERIMENTAL_MODE !== 1'b1)
             $fatal(1, "production QSF did not select YM2151 mode");
-        $display("PRODUCTION_YM2612_REPRO ym_parser=%0d psg_parser=%0d md_valid=%0d md_nonzero=%0d raw_valid=%0d raw_nonzero=%0d final_valid=%0d final_nonzero=%0d dropped=%0d xz=%0d",
+        if (dut.MD_COMMANDS_ENABLED !== 1'b1)
+            $fatal(1, "production QSF did not enable MD command decode");
+        if (dut.loaded_vgm_mode.md_audio_session_active !== 1'b1)
+            $fatal(1, "MD command activity did not enable the MD audio lane");
+        expected_ym = (fixture == 1) ? 0 : 20;
+        expected_psg = (fixture == 0) ? 0 : 3;
+        $display("PRODUCTION_MD_ROUTE fixture=%0d select=%0d ym_parser=%0d psg_parser=%0d md_valid=%0d md_nonzero=%0d fm_raw_nonzero=%0d psg_raw_nonzero=%0d jt51_raw_nonzero=%0d ym2203_raw_nonzero=%0d selected_nonzero=%0d raw_valid=%0d raw_nonzero=%0d final_valid=%0d final_nonzero=%0d dropped=%0d xz=%0d",
+                 fixture, audio_select,
                  parser_ym_pulses, parser_psg_pulses, md_valid_count,
-                 md_nonzero_count, raw_valid_count, raw_nonzero_count,
+                 md_nonzero_count, fm_raw_nonzero_count,
+                 psg_raw_nonzero_count, jt51_raw_nonzero_count,
+                 ym2203_raw_nonzero_count, md_selected_nonzero_count,
+                 raw_valid_count, raw_nonzero_count,
                  final_valid_count, final_nonzero_count,
                  dut.ym_write_dropped_or_busy_count, xz_count);
-        if (parser_ym_pulses != 0 || parser_psg_pulses != 0 ||
-            md_valid_count != 0 || md_nonzero_count != 0 ||
-            raw_nonzero_count != 0 || final_nonzero_count != 0 || xz_count != 0)
-            $fatal(1, "unexpected production-route observation");
+        if (parser_ym_pulses != expected_ym ||
+            parser_psg_pulses != expected_psg ||
+            dut.ym_write_requested_count != expected_ym ||
+            dut.ym_write_accepted_count != expected_ym ||
+            dut.ym_write_dropped_or_busy_count != 0 ||
+            md_valid_count == 0 || md_nonzero_count == 0 ||
+            raw_valid_count == 0 || final_valid_count == 0 || xz_count != 0)
+            $fatal(1, "production MD route counters failed");
+        if (fixture != 1 && fm_raw_nonzero_count == 0)
+            $fatal(1, "YM2612 fixture had no raw FM activity");
+        if (fixture != 0 && psg_raw_nonzero_count == 0)
+            $fatal(1, "PSG fixture had no raw PSG activity");
+        if (fixture == 3 &&
+            (dut.loaded_vgm_mode.ym2151_write_count != 0 ||
+             dut.loaded_vgm_mode.ym2203_write_count != 4 ||
+             ym2203_raw_nonzero_count == 0))
+            $fatal(1, "combined fixture lost an arcade command/audio lane");
+        if (audio_select == 3) begin
+            if (md_selected_nonzero_count != 0 || raw_nonzero_count != 0 ||
+                final_nonzero_count != 0)
+                $fatal(1, "PCM Only did not mute the MD lane");
+        end else if (md_selected_nonzero_count == 0 ||
+                     raw_nonzero_count == 0 || final_nonzero_count == 0) begin
+            $fatal(1, "Normal/FM Only lost the MD lane");
+        end
 
-        $display("PASS tb_production_ym2612_route_repro");
+        $display("PASS tb_production_ym2612_route_repro fixture=%0d select=%0d",
+                 fixture, audio_select);
         $finish;
     end
 endmodule

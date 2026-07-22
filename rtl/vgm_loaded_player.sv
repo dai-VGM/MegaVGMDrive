@@ -10,7 +10,10 @@
 
 module vgm_loaded_player #(
     parameter int ADDR_WIDTH = 18,
-    parameter bit YM2151_MODE = 1'b0
+    parameter bit YM2151_MODE = 1'b0,
+    // Keep the legacy mutually-exclusive default, but allow production mode
+    // to accept Genesis commands alongside the arcade command set.
+    parameter bit MD_COMMANDS_ENABLED = !YM2151_MODE
 ) (
     input  logic                  clk,
     input  logic                  reset,
@@ -3149,7 +3152,7 @@ module vgm_loaded_player #(
                                         current_pc_debug <= pc + {{(ADDR_WIDTH-1){1'b0}}, 1'b1};
                                         state <= ST_WAIT_SAMPLES;
                                     end else if (cmd[7:4] == 4'h8) begin
-                                        if (YM2151_MODE) begin
+                                        if (!MD_COMMANDS_ENABLED) begin
                                             wait_remaining <= {12'd0, cmd[3:0]};
                                             pc <= pc + {{(ADDR_WIDTH-1){1'b0}}, 1'b1};
                                             current_pc_debug <= pc + {{(ADDR_WIDTH-1){1'b0}}, 1'b1};
@@ -3231,7 +3234,7 @@ module vgm_loaded_player #(
                             (cmd == 8'hC0)) begin
                             request_byte(pc + {{(ADDR_WIDTH-2){1'b0}}, 2'd2}, ST_ARG2);
                         end else if (cmd == 8'h50) begin
-                            if (YM2151_MODE) begin
+                            if (!MD_COMMANDS_ENABLED) begin
                                 skip_unsupported_command(4'd2);
                             end else begin
                                 psg_cmd_data <= read_data;
@@ -3246,7 +3249,7 @@ module vgm_loaded_player #(
 
                     ST_ARG2: begin
                         if ((cmd == 8'h52) || (cmd == 8'h53)) begin
-                            if (YM2151_MODE) begin
+                            if (!MD_COMMANDS_ENABLED) begin
                                 skip_unsupported_command(4'd3);
                             end else begin
                                 ym_cmd_port <= (cmd == 8'h53);

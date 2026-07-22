@@ -551,7 +551,11 @@ module mister_vgm_md_top #(
     output logic              ddram_we
 );
 
-`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+`ifdef MEGAVGMDRIVE_PRODUCTION_AUDIO_BUILD
+`ifndef MEGAVGMDRIVE_SEGAPCM_C0_JT51_LAB_BUILD
+`define MEGAVGMDRIVE_SEGAPCM_C0_JT51_LAB_BUILD
+`endif
+`elsif MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
 `ifndef MEGAVGMDRIVE_SEGAPCM_AUDIO_STUB_BUILD
 `define MEGAVGMDRIVE_SEGAPCM_AUDIO_STUB_BUILD
 `endif
@@ -564,12 +568,17 @@ module mister_vgm_md_top #(
 `endif
 `endif
 
-`ifdef MEGAVGMDRIVE_SEGAPCM_AUDIO_STUB_BUILD
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_JT51_LAB_BUILD
     localparam bit YM2151_EXPERIMENTAL_MODE = 1'b1;
 `elsif MEGAVGMDRIVE_YM2151_MODE_TEST
     localparam bit YM2151_EXPERIMENTAL_MODE = 1'b1;
 `else
     localparam bit YM2151_EXPERIMENTAL_MODE = 1'b0;
+`endif
+`ifdef MEGAVGMDRIVE_PRODUCTION_AUDIO_BUILD
+    localparam bit MD_COMMANDS_ENABLED = 1'b1;
+`else
+    localparam bit MD_COMMANDS_ENABLED = !YM2151_EXPERIMENTAL_MODE;
 `endif
     (* keep = "true" *) wire [31:0] segapcm_rv61_sound_signature_bus;
     (* keep = "true" *) wire [15:0] rv61_top_input_signature = 16'hB601;
@@ -1062,6 +1071,7 @@ module mister_vgm_md_top #(
             logic signed [15:0] md_audio_l;
             logic signed [15:0] md_audio_r;
             logic md_audio_sample_valid;
+            logic md_audio_session_active;
             logic signed [15:0] ym2151_audio_l;
             logic signed [15:0] ym2151_audio_r;
             logic ym2151_audio_sample_valid;
@@ -1085,6 +1095,8 @@ module mister_vgm_md_top #(
             logic signed [15:0] ym2151_segapcm_selected_l;
             logic signed [15:0] ym2151_segapcm_selected_r;
 `ifdef MEGAVGMDRIVE_SEGAPCM_C0_JT51_LAB_BUILD
+            logic signed [15:0] md_audio_l_selected;
+            logic signed [15:0] md_audio_r_selected;
             logic signed [15:0] ym2203_audio_l_held;
             logic signed [15:0] ym2203_audio_r_held;
             logic signed [15:0] ym2203_audio_l_selected;
@@ -1837,27 +1849,32 @@ module mister_vgm_md_top #(
                 !mode5_playback_armed &&
                 !mode5_playback_started;
             assign ym_write_requested_count =
-                YM2151_EXPERIMENTAL_MODE ? ym2151_write_count :
-                md_ym_write_requested_count;
+                MD_COMMANDS_ENABLED ? md_ym_write_requested_count :
+                ym2151_write_count;
             assign ym_write_accepted_count =
-                YM2151_EXPERIMENTAL_MODE ? ym2151_write_count :
-                md_ym_write_accepted_count;
+                MD_COMMANDS_ENABLED ? md_ym_write_accepted_count :
+                ym2151_write_count;
             assign ym_write_dropped_or_busy_count =
-                YM2151_EXPERIMENTAL_MODE ? ym2151_unsupported_command_count :
-                md_ym_write_dropped_or_busy_count;
+                MD_COMMANDS_ENABLED ? md_ym_write_dropped_or_busy_count :
+                ym2151_unsupported_command_count;
             assign ym_port0_count =
-                YM2151_EXPERIMENTAL_MODE ? ym2151_write_count :
-                md_ym_port0_count;
+                MD_COMMANDS_ENABLED ? md_ym_port0_count :
+                ym2151_write_count;
             assign ym_port1_count =
-                YM2151_EXPERIMENTAL_MODE ? 32'd0 :
-                md_ym_port1_count;
+                MD_COMMANDS_ENABLED ? md_ym_port1_count : 32'd0;
             assign last_ym_port =
-                YM2151_EXPERIMENTAL_MODE ? 1'b0 : md_last_ym_port;
+                MD_COMMANDS_ENABLED ? md_last_ym_port : 1'b0;
             assign last_ym_addr =
-                YM2151_EXPERIMENTAL_MODE ? ym2151_last_reg : md_last_ym_addr;
+                MD_COMMANDS_ENABLED ? md_last_ym_addr : ym2151_last_reg;
             assign last_ym_data =
-                YM2151_EXPERIMENTAL_MODE ? ym2151_last_data : md_last_ym_data;
-`ifdef MEGAVGMDRIVE_SEGAPCM_AUDIO_STUB_BUILD
+                MD_COMMANDS_ENABLED ? md_last_ym_data : ym2151_last_data;
+            always_ff @(posedge clk) begin
+                if (mode5_loaded_player_reset) begin
+                    md_audio_session_active <= 1'b0;
+                end else if (ym_cmd_valid || psg_cmd_valid) begin
+                    md_audio_session_active <= 1'b1;
+                end
+            end
 `ifdef MEGAVGMDRIVE_SEGAPCM_C0_JT51_LAB_BUILD
             assign segapcm_audio_l_gain =
                 sat_shift_left_16(
@@ -1883,6 +1900,14 @@ module mister_vgm_md_top #(
             assign lab_fm_r_selected =
                 (segapcm_c0_top_audio_test == 2'd3) ? 16'sd0 :
                 ym2151_audio_r;
+            assign md_audio_l_selected =
+                ((segapcm_c0_top_audio_test == 2'd3) ||
+                 !md_audio_session_active) ? 16'sd0 :
+                md_audio_l;
+            assign md_audio_r_selected =
+                ((segapcm_c0_top_audio_test == 2'd3) ||
+                 !md_audio_session_active) ? 16'sd0 :
+                md_audio_r;
             assign segapcm_audio_l_mix = lab_pcm_mix_l_selected;
             assign segapcm_audio_r_mix = lab_pcm_mix_r_selected;
             mode5_ym2203_audio_mixer ym2203_audio_mixer (
@@ -1892,6 +1917,8 @@ module mister_vgm_md_top #(
                 .existing_nonpcm_r         (lab_fm_r_selected),
                 .segapcm_l                 (lab_pcm_mix_l_selected),
                 .segapcm_r                 (lab_pcm_mix_r_selected),
+                .md_l                      (md_audio_l_selected),
+                .md_r                      (md_audio_r_selected),
                 .ym2203_raw_l              (ym2203_raw_audio_l),
                 .ym2203_raw_r              (ym2203_raw_audio_r),
                 .ym2203_raw_sample_valid   (ym2203_raw_sample_valid),
@@ -1913,8 +1940,10 @@ module mister_vgm_md_top #(
             assign raw_audio_l = ym2151_segapcm_selected_l;
             assign raw_audio_r = ym2151_segapcm_selected_r;
             assign raw_audio_sample_valid =
-                ym2151_audio_sample_valid || segapcm_audio_sample_valid;
-`else
+                (md_audio_session_active && md_audio_sample_valid) ||
+                ym2151_audio_sample_valid ||
+                segapcm_audio_sample_valid;
+`elsif MEGAVGMDRIVE_SEGAPCM_AUDIO_STUB_BUILD
             assign segapcm_audio_l_gain = 16'sd0;
             assign segapcm_audio_r_gain = 16'sd0;
             assign lab_pcm_mix_l_selected = 16'sd0;
@@ -1939,7 +1968,6 @@ module mister_vgm_md_top #(
             assign raw_audio_l = ym2151_segapcm_selected_l;
             assign raw_audio_r = ym2151_segapcm_selected_r;
             assign raw_audio_sample_valid = segapcm_audio_sample_valid;
-`endif
 `else
             assign segapcm_audio_l_gain = segapcm_audio_l_mix;
             assign segapcm_audio_r_gain = segapcm_audio_r_mix;
@@ -3805,8 +3833,9 @@ module mister_vgm_md_top #(
             end
 
             vgm_loaded_player #(
-                .ADDR_WIDTH   (VGM_LOAD_ADDR_WIDTH),
-                .YM2151_MODE  (YM2151_EXPERIMENTAL_MODE)
+                .ADDR_WIDTH          (VGM_LOAD_ADDR_WIDTH),
+                .YM2151_MODE         (YM2151_EXPERIMENTAL_MODE),
+                .MD_COMMANDS_ENABLED (MD_COMMANDS_ENABLED)
             ) loaded_player (
                 .clk                   (clk),
                 .reset                 (mode5_loaded_player_reset),

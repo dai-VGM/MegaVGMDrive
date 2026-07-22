@@ -15,6 +15,7 @@ defines=(
   -DMODE5_VGM_BACKEND=1
   -DMODE5_VGM_ADDR_WIDTH=23
   -DMEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD=1
+  -DMEGAVGMDRIVE_PRODUCTION_AUDIO_BUILD=1
   -DMEGAVGMDRIVE_SEGAPCM_SMOKE_TEST=1
   -DMEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_TEST=1
   -DMEGAVGMDRIVE_SEGAPCM_MIN_DEBUG_PROBE=1
@@ -60,10 +61,13 @@ iverilog -g2012 -Wall -I. "${defines[@]}" \
   "${sources[@]}" tb/tb_production_ym2612_route_repro.sv \
   >"$test_tmp/icarus-compile.log" 2>&1
 echo "ICARUS_COMPILE_PASS"
-(
-  cd "$test_tmp"
-  vvp repro.vvp
-) | tee "$test_tmp/icarus-run.log"
+for fixture_select in "0 0" "1 0" "2 0" "3 0" "3 1" "3 3"; do
+  read -r fixture audio_select <<<"$fixture_select"
+  (
+    cd "$test_tmp"
+    vvp repro.vvp +FIXTURE="$fixture" +AUDIO_SELECT="$audio_select"
+  ) | tee "$test_tmp/icarus-run-$fixture-$audio_select.log"
+done
 
 verilator --lint-only --timing -Wall -Wno-fatal -I. "${defines[@]}" \
   --top-module tb_production_ym2612_route_repro \
