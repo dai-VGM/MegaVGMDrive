@@ -75,6 +75,40 @@ parameter use_adpcm=0;
 parameter JT49_DIV=2;
 parameter mask_div=1;
 
+// The legacy YM2612 path relies on its existing startup behaviour.  Only the
+// three-channel, FM-only OPN configuration gets deterministic pipeline reset.
+localparam FM_STARTUP_RST =
+    (num_ch == 3) && (use_pcm == 0) && (use_adpcm == 0);
+
+// Raise only the three-channel YM2203 FM contribution before the PSG mix.
+// Keep the full-width shift and clamp local to this branch so YM2612 is
+// bit-identical and neither the PSG nor the final mode-5 gain is changed.
+localparam YM2203_FM_GAIN_SHIFT = 2;
+
+function signed [15:0] ym2203_saturate_22_to_16;
+    input signed [21:0] value;
+    begin
+        if( value > 22'sd32767 )
+            ym2203_saturate_22_to_16 = 16'sh7fff;
+        else if( value < -22'sd32768 )
+            ym2203_saturate_22_to_16 = 16'sh8000;
+        else
+            ym2203_saturate_22_to_16 = value[15:0];
+    end
+endfunction
+
+function signed [15:0] ym2203_saturate_18_to_16;
+    input signed [17:0] value;
+    begin
+        if( value > 18'sd32767 )
+            ym2203_saturate_18_to_16 = 16'sh7fff;
+        else if( value < -18'sd32768 )
+            ym2203_saturate_18_to_16 = 16'sh8000;
+        else
+            ym2203_saturate_18_to_16 = value[15:0];
+    end
+endfunction
+
 wire flag_A, flag_B, busy;
 
 wire write = !cs_n && !wr_n;
@@ -291,7 +325,9 @@ jt12_dout #(.use_ssg(use_ssg),.use_adpcm(use_adpcm)) u_dout(
 
 
 /* verilator tracing_on */
-jt12_mmr #(.use_ssg(use_ssg),.num_ch(num_ch),.use_pcm(use_pcm), .use_adpcm(use_adpcm), .mask_div(mask_div))
+jt12_mmr #(.use_ssg(use_ssg),.num_ch(num_ch),.use_pcm(use_pcm),
+    .use_adpcm(use_adpcm), .mask_div(mask_div),
+    .fm_startup_rst(FM_STARTUP_RST))
     u_mmr(
     .rst        ( rst       ),
     .clk        ( clk       ),
@@ -470,8 +506,19 @@ generate
             .IOB_in     ( IOB_in    ),
             .sample     (           )
         );
-        assign snd_left  = fm_snd_left  + { 1'b0, psg_snd[9:0],5'd0};
-        assign snd_right = fm_snd_right + { 1'b0, psg_snd[9:0],5'd0};
+        if( FM_STARTUP_RST ) begin : gen_ym2203_mix
+            wire signed [17:0] mix_left =
+                {{2{fm_snd_left[15]}}, fm_snd_left} +
+                {3'b000, psg_snd[9:0], 5'd0};
+            wire signed [17:0] mix_right =
+                {{2{fm_snd_right[15]}}, fm_snd_right} +
+                {3'b000, psg_snd[9:0], 5'd0};
+            assign snd_left  = ym2203_saturate_18_to_16(mix_left);
+            assign snd_right = ym2203_saturate_18_to_16(mix_right);
+        end else begin : gen_legacy_ssg_mix
+            assign snd_left  = fm_snd_left  + { 1'b0, psg_snd[9:0],5'd0};
+            assign snd_right = fm_snd_right + { 1'b0, psg_snd[9:0],5'd0};
+        end
     end else begin : gen_nossg
         assign psg_snd  = 10'd0;
         assign snd_left = fm_snd_left;
@@ -493,7 +540,7 @@ wire    [ 8:0]  op_result;
 wire    [13:0]  op_result_hd;
 `ifndef NOFM
 /* verilator tracing_on */
-jt12_pg #(.num_ch(num_ch)) u_pg(
+jt12_pg #(.num_ch(num_ch), .fm_startup_rst(FM_STARTUP_RST)) u_pg(
     .rst        ( rst           ),
     .clk        ( clk           ),
     .clk_en     ( clk_en        ),
@@ -516,7 +563,7 @@ jt12_pg #(.num_ch(num_ch)) u_pg(
 
 wire [9:0] eg_V;
 
-jt12_eg #(.num_ch(num_ch)) u_eg(
+jt12_eg #(.num_ch(num_ch), .fm_startup_rst(FM_STARTUP_RST)) u_eg(
     .rst            ( rst           ),
     .clk            ( clk           ),
     .clk_en         ( clk_en        ),
@@ -545,14 +592,26 @@ jt12_eg #(.num_ch(num_ch)) u_eg(
     .pg_rst_II      ( pg_rst_II     )
 );
 
-jt12_sh #(.width(10),.stages(4)) u_egpad(
-    .clk    ( clk       ),
-    .clk_en ( clk_en    ),
-    .din    ( eg_V      ),
-    .drop   ( eg_IX     )
-);
+generate
+if( FM_STARTUP_RST ) begin : gen_egpad_rst
+    jt12_sh_rst #(.width(10),.stages(4),.rstval(1'b1)) u_egpad(
+        .rst    ( rst       ),
+        .clk    ( clk       ),
+        .clk_en ( clk_en    ),
+        .din    ( eg_V      ),
+        .drop   ( eg_IX     )
+    );
+end else begin : gen_egpad_legacy
+    jt12_sh #(.width(10),.stages(4)) u_egpad(
+        .clk    ( clk       ),
+        .clk_en ( clk_en    ),
+        .din    ( eg_V      ),
+        .drop   ( eg_IX     )
+    );
+end
+endgenerate
 
-jt12_op #(.num_ch(num_ch)) u_op(
+jt12_op #(.num_ch(num_ch), .fm_startup_rst(FM_STARTUP_RST)) u_op(
     .rst            ( rst           ),
     .clk            ( clk           ),
     .clk_en         ( clk_en        ),
@@ -582,14 +641,15 @@ assign op_result_hd = 'd0;
 
 /* verilator tracing_on */
 genvar i;
-wire signed [15:0] accum_r[7];
-wire signed [15:0] accum_l[7];
-
-assign fm_snd_left = accum_l[0] + accum_l[1] + accum_l[2] + accum_l[4] + accum_l[5] + accum_l[6];
-assign fm_snd_right = accum_r[0] + accum_r[1] + accum_r[2] + accum_r[4] + accum_r[5] + accum_r[6];
 
 generate
     if( use_pcm==1 ) begin: gen_pcm_acc // YM2612 accumulator
+        wire signed [15:0] accum_r[7];
+        wire signed [15:0] accum_l[7];
+
+        assign fm_snd_left = accum_l[0] + accum_l[1] + accum_l[2] + accum_l[4] + accum_l[5] + accum_l[6];
+        assign fm_snd_right = accum_r[0] + accum_r[1] + accum_r[2] + accum_r[4] + accum_r[5] + accum_r[6];
+
         // assign fm_snd_right[3:0] = 4'd0;
         // assign fm_snd_left [3:0] = 4'd0;
         assign snd_sample        = zero;
@@ -665,8 +725,14 @@ generate
     end
     if( use_pcm==0 && use_adpcm==0 ) begin : gen_2203_acc // YM2203 accumulator
         wire signed [15:0] mono_snd;
-        assign fm_snd_left  = mono_snd;
-        assign fm_snd_right = mono_snd;
+        wire signed [21:0] mono_snd_extended =
+            {{6{mono_snd[15]}}, mono_snd};
+        wire signed [21:0] mono_snd_scaled =
+            mono_snd_extended <<< YM2203_FM_GAIN_SHIFT;
+        wire signed [15:0] mono_snd_scaled_sat =
+            ym2203_saturate_22_to_16(mono_snd_scaled);
+        assign fm_snd_left  = mono_snd_scaled_sat;
+        assign fm_snd_right = mono_snd_scaled_sat;
         assign snd_sample   = zero;
         jt03_acc u_acc(
             .rst        ( rst       ),

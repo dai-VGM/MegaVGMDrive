@@ -25,8 +25,10 @@
 //altera message_off 10030
 
 module jt12_logsin
+#(parameter fm_startup_rst=0)
 (
     input [7:0] addr,
+    input rst,
     input clk, 
     input clk_en,
     output reg [11:0] logsin
@@ -292,7 +294,18 @@ initial begin
 	sinelut[8'd255] = 12'h859;
 end
 
+generate
+if( fm_startup_rst ) begin : gen_output_rst
+    always @ (posedge clk) begin
+        if( rst )
+            logsin <= 12'd0;
+        else if( clk_en )
+            logsin <= sinelut[addr];
+    end
+end else begin : gen_output_legacy
     always @ (posedge clk) if(clk_en)
         logsin <= sinelut[addr];
+end
+endgenerate
 
 endmodule

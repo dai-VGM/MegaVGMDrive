@@ -1016,11 +1016,41 @@ module mister_vgm_md_top #(
             logic [31:0] ym2151_write_count;
             logic [7:0] ym2151_last_reg;
             logic [7:0] ym2151_last_data;
+            logic ym2203_cmd_valid;
+            logic ym2203_cmd_ready;
+            logic [7:0] ym2203_cmd_reg;
+            logic [7:0] ym2203_cmd_data;
+            logic [31:0] ym2203_write_count;
+            logic [7:0] ym2203_last_reg;
+            logic [7:0] ym2203_last_data;
+            logic [31:0] ym2203_header_clock;
+            logic ym2203_header_clock_load;
+            logic [31:0] ym2203_clock_raw_debug;
+            logic [31:0] ym2203_effective_clock_debug;
+            logic ym2203_clock_present_debug;
+            logic ym2203_chip_cen_debug;
+            logic ym2203_write_accepted;
+            logic ym2203_write_completed;
+            logic [31:0] ym2203_write_accepted_count;
+            logic [31:0] ym2203_write_completed_count;
+            logic ym2203_transport_busy;
+            logic ym2203_core_busy;
+            logic signed [15:0] ym2203_raw_audio_l;
+            logic signed [15:0] ym2203_raw_audio_r;
+            logic signed [15:0] ym2203_raw_fm_audio;
+            logic [9:0] ym2203_raw_psg_audio;
+            logic ym2203_raw_sample_valid;
             logic [31:0] ym2151_unsupported_command_count;
             logic segapcm_cmd_valid;
             logic [15:0] segapcm_cmd_addr;
             logic [7:0] segapcm_cmd_data;
+            logic [31:0] segapcm_header_clock;
+            logic segapcm_header_clock_commit;
+            logic segapcm_clock_session_reset;
             logic [31:0] segapcm_interface;
+            logic [31:0] segapcm_header_clock_raw_debug;
+            logic [31:0] segapcm_effective_clock_debug;
+            logic [31:0] segapcm_fsm_enable_hz_debug;
             logic [31:0] md_ym_write_requested_count;
             logic [31:0] md_ym_write_accepted_count;
             logic [31:0] md_ym_write_dropped_or_busy_count;
@@ -1046,12 +1076,24 @@ module mister_vgm_md_top #(
             logic signed [15:0] lab_pcm_mix_r_selected;
             logic signed [15:0] lab_fm_l_selected;
             logic signed [15:0] lab_fm_r_selected;
+`ifndef MEGAVGMDRIVE_SEGAPCM_C0_JT51_LAB_BUILD
             logic signed [16:0] ym2151_segapcm_l_sum;
             logic signed [16:0] ym2151_segapcm_r_sum;
+`endif
             logic signed [15:0] ym2151_segapcm_audio_l;
             logic signed [15:0] ym2151_segapcm_audio_r;
             logic signed [15:0] ym2151_segapcm_selected_l;
             logic signed [15:0] ym2151_segapcm_selected_r;
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_JT51_LAB_BUILD
+            logic signed [15:0] ym2203_audio_l_held;
+            logic signed [15:0] ym2203_audio_r_held;
+            logic signed [15:0] ym2203_audio_l_selected;
+            logic signed [15:0] ym2203_audio_r_selected;
+            logic signed [17:0] mode5_audio_l_sum;
+            logic signed [17:0] mode5_audio_r_sum;
+            logic mode5_audio_l_clipped;
+            logic mode5_audio_r_clipped;
+`endif
             logic [15:0] lab_mix_clip_count_i = 16'd0;
             logic [15:0] lab_pcm_gain_clip_count_i = 16'd0;
             logic [15:0] lab_ym_abs_peak_i = 16'd0;
@@ -1084,9 +1126,14 @@ module mister_vgm_md_top #(
             assign pcm_path_probe_value_i[3] = segapcm_audio_r_mix;
             assign pcm_path_probe_value_i[4] = lab_pcm_mix_l_selected;
             assign pcm_path_probe_value_i[5] = lab_pcm_mix_r_selected;
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_JT51_LAB_BUILD
+            wire lab_mix_clip = mode5_audio_l_clipped ||
+                                mode5_audio_r_clipped;
+`else
             wire lab_mix_clip =
                 (ym2151_segapcm_l_sum[16] != ym2151_segapcm_l_sum[15]) ||
                 (ym2151_segapcm_r_sum[16] != ym2151_segapcm_r_sum[15]);
+`endif
             wire [15:0] lab_ym_abs_now_l = abs16_top(ym2151_audio_l);
             wire [15:0] lab_ym_abs_now_r = abs16_top(ym2151_audio_r);
             wire [15:0] lab_pcm_abs_now_l = abs16_top(segapcm_audio_l);
@@ -1838,20 +1885,29 @@ module mister_vgm_md_top #(
                 ym2151_audio_r;
             assign segapcm_audio_l_mix = lab_pcm_mix_l_selected;
             assign segapcm_audio_r_mix = lab_pcm_mix_r_selected;
-            assign ym2151_segapcm_l_sum =
-                {lab_fm_l_selected[15], lab_fm_l_selected} +
-                {lab_pcm_mix_l_selected[15], lab_pcm_mix_l_selected};
-            assign ym2151_segapcm_r_sum =
-                {lab_fm_r_selected[15], lab_fm_r_selected} +
-                {lab_pcm_mix_r_selected[15], lab_pcm_mix_r_selected};
-            assign ym2151_segapcm_audio_l =
-                (ym2151_segapcm_l_sum[16] != ym2151_segapcm_l_sum[15]) ?
-                (ym2151_segapcm_l_sum[16] ? 16'sh8000 : 16'sh7fff) :
-                ym2151_segapcm_l_sum[15:0];
-            assign ym2151_segapcm_audio_r =
-                (ym2151_segapcm_r_sum[16] != ym2151_segapcm_r_sum[15]) ?
-                (ym2151_segapcm_r_sum[16] ? 16'sh8000 : 16'sh7fff) :
-                ym2151_segapcm_r_sum[15:0];
+            mode5_ym2203_audio_mixer ym2203_audio_mixer (
+                .clk                       (clk),
+                .reset                     (reset),
+                .existing_nonpcm_l         (lab_fm_l_selected),
+                .existing_nonpcm_r         (lab_fm_r_selected),
+                .segapcm_l                 (lab_pcm_mix_l_selected),
+                .segapcm_r                 (lab_pcm_mix_r_selected),
+                .ym2203_raw_l              (ym2203_raw_audio_l),
+                .ym2203_raw_r              (ym2203_raw_audio_r),
+                .ym2203_raw_sample_valid   (ym2203_raw_sample_valid),
+                .ym2203_chip_present       (ym2203_clock_present_debug),
+                .ym2203_lane_enable        (segapcm_c0_top_audio_test != 2'd3),
+                .ym2203_held_l             (ym2203_audio_l_held),
+                .ym2203_held_r             (ym2203_audio_r_held),
+                .ym2203_selected_l         (ym2203_audio_l_selected),
+                .ym2203_selected_r         (ym2203_audio_r_selected),
+                .mix_sum_l                 (mode5_audio_l_sum),
+                .mix_sum_r                 (mode5_audio_r_sum),
+                .mix_clipped_l             (mode5_audio_l_clipped),
+                .mix_clipped_r             (mode5_audio_r_clipped),
+                .audio_l                   (ym2151_segapcm_audio_l),
+                .audio_r                   (ym2151_segapcm_audio_r)
+            );
             assign ym2151_segapcm_selected_l = ym2151_segapcm_audio_l;
             assign ym2151_segapcm_selected_r = ym2151_segapcm_audio_r;
             assign raw_audio_l = ym2151_segapcm_selected_l;
@@ -3790,10 +3846,19 @@ module mister_vgm_md_top #(
                 .ym2151_cmd_valid      (ym2151_cmd_valid),
                 .ym2151_cmd_reg        (ym2151_cmd_reg),
                 .ym2151_cmd_data       (ym2151_cmd_data),
+                .ym2203_cmd_ready      (ym2203_cmd_ready),
+                .ym2203_cmd_valid      (ym2203_cmd_valid),
+                .ym2203_cmd_reg        (ym2203_cmd_reg),
+                .ym2203_cmd_data       (ym2203_cmd_data),
                 .busy                  (loaded_player_busy),
                 .done                  (loaded_player_done),
                 .header_valid          (vgm_header_valid),
+                .segapcm_clock         (segapcm_header_clock),
+                .segapcm_clock_commit  (segapcm_header_clock_commit),
+                .segapcm_clock_session_reset(segapcm_clock_session_reset),
                 .segapcm_interface     (segapcm_interface),
+                .ym2203_clock          (ym2203_header_clock),
+                .ym2203_clock_load     (ym2203_header_clock_load),
                 .player_error          (vgm_player_error),
                 .unsupported_opcode    (vgm_unsupported_opcode),
                 .unsupported_pc        (vgm_unsupported_pc),
@@ -3898,6 +3963,9 @@ module mister_vgm_md_top #(
                 .ym2151_write_count    (ym2151_write_count),
                 .ym2151_last_reg       (ym2151_last_reg),
                 .ym2151_last_data      (ym2151_last_data),
+                .ym2203_write_count    (ym2203_write_count),
+                .ym2203_last_reg       (ym2203_last_reg),
+                .ym2203_last_data      (ym2203_last_data),
                 .unsupported_command_count(ym2151_unsupported_command_count),
                 .segapcm_cmd_valid     (segapcm_cmd_valid),
                 .segapcm_cmd_addr      (segapcm_cmd_addr),
@@ -3933,6 +4001,36 @@ module mister_vgm_md_top #(
                 .done_cmd_debug        (player_done_cmd_debug),
                 .pc_debug              (player_pc_debug),
                 .last_cmd_debug        (player_last_cmd_debug)
+            );
+
+            ym2203_sound_module #(
+                .CLK_SYS_HZ (CLK_SYS_HZ)
+            ) ym2203_sound (
+                .clk                        (clk),
+                // Architectural startup reset only. File-load and mode5
+                // sound-core resets must not reset this JT12/JT49 instance.
+                .reset                      (reset),
+                .ym2203_clock               (ym2203_header_clock),
+                .ym2203_clock_load          (ym2203_header_clock_load),
+                .clock_raw_debug            (ym2203_clock_raw_debug),
+                .effective_clock_hz_debug   (ym2203_effective_clock_debug),
+                .clock_present_debug        (ym2203_clock_present_debug),
+                .chip_cen_debug             (ym2203_chip_cen_debug),
+                .write_valid                (ym2203_cmd_valid),
+                .write_reg                  (ym2203_cmd_reg),
+                .write_data                 (ym2203_cmd_data),
+                .write_ready                (ym2203_cmd_ready),
+                .write_accepted             (ym2203_write_accepted),
+                .write_completed            (ym2203_write_completed),
+                .write_accepted_count       (ym2203_write_accepted_count),
+                .write_completed_count      (ym2203_write_completed_count),
+                .transport_busy             (ym2203_transport_busy),
+                .core_busy                  (ym2203_core_busy),
+                .raw_audio_l                (ym2203_raw_audio_l),
+                .raw_audio_r                (ym2203_raw_audio_r),
+                .raw_fm_audio               (ym2203_raw_fm_audio),
+                .raw_psg_audio              (ym2203_raw_psg_audio),
+                .raw_sample_valid           (ym2203_raw_sample_valid)
             );
 
             if (YM2151_EXPERIMENTAL_MODE) begin : ym2151_sound_enabled
@@ -3989,6 +4087,10 @@ module mister_vgm_md_top #(
                     .segapcm_cmd_addr               (segapcm_cmd_addr),
                     .segapcm_cmd_data               (segapcm_cmd_data),
                     .segapcm_interface              (segapcm_interface),
+                    .segapcm_header_clock           (segapcm_header_clock),
+                    .segapcm_header_clock_commit    (segapcm_header_clock_commit),
+                    .segapcm_clock_session_reset    (segapcm_clock_session_reset |
+                                                      ioctl_download),
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
                     .smoke_variant                  (segapcm_smoke_variant),
                     .smoke_variant_valid            (segapcm_smoke_variant_valid),
@@ -4228,7 +4330,10 @@ module mister_vgm_md_top #(
                     .block6_probe_r6_debug          (),
                     .block6_probe_h6_debug          (),
                     .block6_probe_c6_debug          (),
-                    .block6_probe_m6_debug          ()
+                    .block6_probe_m6_debug          (),
+                    .segapcm_header_clock_raw_debug (segapcm_header_clock_raw_debug),
+                    .segapcm_effective_clock_debug  (segapcm_effective_clock_debug),
+                    .segapcm_fsm_enable_hz_debug    (segapcm_fsm_enable_hz_debug)
                 );
                 assign segapcm_rv61_signature_bus = {
                     segapcm_rv61_sound_signature_bus,

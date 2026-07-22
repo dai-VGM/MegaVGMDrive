@@ -315,8 +315,12 @@ localparam bit MD_AUDIO_LPF_TEST_BUILD = 1'b0;
 `endif
 `endif
 
+`ifdef MEGAVGMDRIVE_DEV_OSD
 `ifdef MODE5_DEBUG_OVERLAY_ALWAYS_ON
 localparam bit MODE5_DEBUG_OVERLAY_FORCED = 1'b1;
+`else
+localparam bit MODE5_DEBUG_OVERLAY_FORCED = 1'b0;
+`endif
 `else
 localparam bit MODE5_DEBUG_OVERLAY_FORCED = 1'b0;
 `endif
@@ -701,10 +705,11 @@ module emu
         "MegaVGMDrive;;",
         "F1,VGM,Load VGM;",
         "O1,Audio Gain,Normal,Boost;",
+        "O78,SegaPCM Audio,Normal,PCM Only,FM Only;",
+`ifdef MEGAVGMDRIVE_DEV_OSD
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_TEST
 `ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
-        "O78,SegaPCM Audio,Normal,PCM Only,FM Only;",
         "O6,SegaPCM Polarity,Normal,Invert;",
         "O9A,SegaPCM Feed,Fresh,Hold;",
 `else
@@ -715,6 +720,7 @@ module emu
         "O89,SegaPCM C0 Drive,Off,Seed,Seed+LoopEnd,Reserved;",
         "OA,SegaPCM Debug View,Follow,C0;",
         "OBC,SegaPCM C0 Sample,U8C,S8,InvU8,Raw;",
+`endif
 `endif
 `endif
 `endif
@@ -1435,7 +1441,12 @@ module emu
     wire [2:0] segapcm_smoke_c0_sample_mode = 3'd3;
     wire [1:0] segapcm_smoke_c0_delta_speed = 2'd2;
     wire [2:0] segapcm_smoke_c0_hit_window = 3'd0;
+`ifdef MEGAVGMDRIVE_DEV_OSD
     wire [1:0] segapcm_smoke_c0_format = {1'b0, status[6]};
+`else
+    // Release keeps the clean-boot Normal path: unsigned sample minus 128.
+    wire [1:0] segapcm_smoke_c0_format = 2'd0;
+`endif
     wire [2:0] segapcm_smoke_c0_mame_tick_div = 3'd0;
 `else
     wire [2:0] segapcm_smoke_c0_sample_mode = {1'b0, status[12:11]};
@@ -1453,8 +1464,13 @@ module emu
         (status[8:7] == 2'd1) ? 2'd3 :
         (status[8:7] == 2'd2) ? 2'd1 :
         2'd0;
+`ifdef MEGAVGMDRIVE_DEV_OSD
     wire [1:0] segapcm_c0_pm3_mix_mode =
         (status[10:9] == 2'd1) ? 2'd1 : 2'd0;
+`else
+    // Internal enum 0 is the known-good Hold path. Ignore hidden status bits.
+    wire [1:0] segapcm_c0_pm3_mix_mode = 2'd0;
+`endif
     wire [2:0] segapcm_c0_pm3_start_policy = 3'd0;
     wire       segapcm_c0_jt_backend = 1'b1;
 `else
@@ -3974,8 +3990,7 @@ module emu
     wire [7:0] video_blue  = blue;
 `else
     // Keep the normal player screen quiet; the OSD is overlaid later in sys_top.
-    // MODE5_DEBUG_OVERLAY_ALWAYS_ON is a special debug build escape hatch that
-    // lets the text overlay reach video without restoring public OSD controls.
+    // The text overlay reaches video only in an explicit development OSD build.
     wire [7:0] video_red   = mode5_debug_pixel ? 8'hff :
                              mode5_dbg_back ? 8'h00 : 8'h00;
     wire [7:0] video_green = mode5_debug_pixel ? 8'hff :

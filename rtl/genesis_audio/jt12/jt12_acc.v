@@ -90,6 +90,7 @@ wire signed [8:0] acc_input = ~channel_en ? 9'd0 : (use_pcm ? pcm_data : op_resu
 wire signed [8:0] acc_out;
 // jt12_single_acc #(.win(9),.wout(12)) u_left(
 jt12_single_acc #(.win(9),.wout(9)) u_acc(
+    .rst        ( 1'b0          ),
     .clk        ( clk            ),
     .clk_en     ( clk_en         ),
     .op_result  ( acc_input      ),

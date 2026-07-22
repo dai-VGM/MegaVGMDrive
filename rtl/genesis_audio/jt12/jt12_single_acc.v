@@ -26,8 +26,10 @@
 
 module jt12_single_acc #(parameter 
         win=14, // input data width 
-        wout=16 // output data width
+        wout=16, // output data width
+        use_rst=0
 )(
+    input                 rst,
     input                 clk,
     input                 clk_en /* synthesis direct_enable */,
     input [win-1:0]       op_result,
@@ -56,9 +58,14 @@ always @(*) begin
         (acc[wout-1]!=next[wout-1]);
 end
 
-always @(posedge clk) if( clk_en ) begin
-    acc <= overflow ? (acc[wout-1] ? minus_inf : plus_inf) : next;
-    if(zero) snd <= acc;
+always @(posedge clk) begin
+    if( use_rst && rst ) begin
+        acc <= {wout{1'b0}};
+        snd <= {wout{1'b0}};
+    end else if( clk_en ) begin
+        acc <= overflow ? (acc[wout-1] ? minus_inf : plus_inf) : next;
+        if(zero) snd <= acc;
+    end
 end
 
 endmodule // jt12_single_acc

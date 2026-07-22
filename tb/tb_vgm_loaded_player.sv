@@ -282,7 +282,8 @@ module tb_vgm_loaded_player;
         file_size = 9'h07d;
         pulse_load_done();
 
-        repeat (80) @(posedge clk);
+        // Header parsing now includes the four-byte SegaPCM clock field.
+        repeat (120) @(posedge clk);
         if (!header_valid || done || wait_ticks_consumed_debug != 32'd0) begin
             $display("FAIL wait_no_clk_decrement header=%0b done=%0b ticks=%0d",
                      header_valid, done, wait_ticks_consumed_debug);
@@ -342,7 +343,7 @@ module tb_vgm_loaded_player;
         file_size = 9'h051;
         pulse_load_done();
 
-        repeat (120) @(posedge clk);
+        repeat (160) @(posedge clk);
         if (!header_valid || data_start_debug != 8'h44 || psg_count != 1 || psg_cmd_data != 8'h9f) begin
             $display("FAIL data_block_skip header=%0b data_start=%02h psg_count=%0d psg=%02h",
                      header_valid, data_start_debug, psg_count, psg_cmd_data);
@@ -535,7 +536,8 @@ module tb_vgm_loaded_player;
         file_size = 9'h041;
         pulse_load_done();
 
-        repeat (80) @(posedge clk);
+        // Allow the additional four atomic SegaPCM clock header reads.
+        repeat (120) @(posedge clk);
         if (!done || !end_command_seen || loop_taken_debug || loop_valid_debug || player_error) begin
             $display("FAIL end_no_loop done=%0b end=%0b loop_taken=%0b loop_valid=%0b error=%0b",
                      done, end_command_seen, loop_taken_debug, loop_valid_debug, player_error);
@@ -627,7 +629,8 @@ module tb_vgm_loaded_player;
         file_size = 9'h042;
         pulse_load_done();
 
-        repeat (80) @(posedge clk);
+        // Allow the additional four atomic SegaPCM clock header reads.
+        repeat (120) @(posedge clk);
         if (!player_error || unsupported_opcode != 8'h99 || unsupported_pc != 8'h40 ||
             player_error_code != 8'd4 || ym_count != 0 || psg_count != 0) begin
             $display("FAIL unsupported_debug error=%0b opcode=%02h pc=%02h code=%0d ym=%0d psg=%0d",

@@ -51,6 +51,7 @@ module jt12_op(
 );
 
 parameter num_ch = 6;
+parameter fm_startup_rst = 0;
 
 /*  enters  exits
     S1      S2
@@ -83,29 +84,54 @@ always @(*)
         prev2_din     = s1_enters ? op_result_internal : prev2;
     end
 
-jt12_sh #( .width(14), .stages(num_ch)) prev1_buffer(
-//  .rst    ( rst       ),
-    .clk    ( clk       ),
-    .clk_en ( clk_en    ),
-    .din    ( prev1_din ),
-    .drop   ( prev1     )
-);
+generate
+if( fm_startup_rst ) begin : gen_feedback_rst
+    jt12_sh_rst #( .width(14), .stages(num_ch), .rstval(1'b0)) prev1_buffer(
+        .rst    ( rst       ),
+        .clk    ( clk       ),
+        .clk_en ( clk_en    ),
+        .din    ( prev1_din ),
+        .drop   ( prev1     )
+    );
 
-jt12_sh #( .width(14), .stages(num_ch)) prevprev1_buffer(
-//  .rst    ( rst           ),
-    .clk    ( clk           ),
-    .clk_en ( clk_en        ),
-    .din    ( prevprev1_din ),
-    .drop   ( prevprev1     )
-);
+    jt12_sh_rst #( .width(14), .stages(num_ch), .rstval(1'b0)) prevprev1_buffer(
+        .rst    ( rst           ),
+        .clk    ( clk           ),
+        .clk_en ( clk_en        ),
+        .din    ( prevprev1_din ),
+        .drop   ( prevprev1     )
+    );
 
-jt12_sh #( .width(14), .stages(num_ch)) prev2_buffer(
-//  .rst    ( rst       ),
-    .clk    ( clk       ),
-    .clk_en ( clk_en    ),
-    .din    ( prev2_din ),
-    .drop   ( prev2     )
-);
+    jt12_sh_rst #( .width(14), .stages(num_ch), .rstval(1'b0)) prev2_buffer(
+        .rst    ( rst       ),
+        .clk    ( clk       ),
+        .clk_en ( clk_en    ),
+        .din    ( prev2_din ),
+        .drop   ( prev2     )
+    );
+end else begin : gen_feedback_legacy
+    jt12_sh #( .width(14), .stages(num_ch)) prev1_buffer(
+        .clk    ( clk       ),
+        .clk_en ( clk_en    ),
+        .din    ( prev1_din ),
+        .drop   ( prev1     )
+    );
+
+    jt12_sh #( .width(14), .stages(num_ch)) prevprev1_buffer(
+        .clk    ( clk           ),
+        .clk_en ( clk_en        ),
+        .din    ( prevprev1_din ),
+        .drop   ( prevprev1     )
+    );
+
+    jt12_sh #( .width(14), .stages(num_ch)) prev2_buffer(
+        .clk    ( clk       ),
+        .clk_en ( clk_en    ),
+        .din    ( prev2_din ),
+        .drop   ( prev2     )
+    );
+end
+endgenerate
 
 
 reg [10:0]  subtresult;
@@ -154,10 +180,24 @@ always @(*) begin
     ys = { y[13], y }; // sign-extend
 end
 
-always @(posedge clk) if( clk_en ) begin
-    pm_preshift_II <= xs + ys; // carry is discarded
-    s1_II <= s1_enters;
+generate
+if( fm_startup_rst ) begin : gen_pm_input_rst
+    always @(posedge clk) begin
+        if( rst ) begin
+            pm_preshift_II <= 15'd0;
+            s1_II          <= 1'b0;
+        end else if( clk_en ) begin
+            pm_preshift_II <= xs + ys; // carry is discarded
+            s1_II <= s1_enters;
+        end
+    end
+end else begin : gen_pm_input_legacy
+    always @(posedge clk) if( clk_en ) begin
+        pm_preshift_II <= xs + ys; // carry is discarded
+        s1_II <= s1_enters;
+    end
 end
+endgenerate
 
 /* REGISTER/CYCLE 2-7 (also YM2612 extra cycles 1-6)
    Shifting of FM feedback signal, adding phase from PG to FM phase
@@ -192,18 +232,24 @@ always @(*) begin
 end
 
 // REGISTER/CYCLE 2-7
-//generate
-//    if( num_ch==6 )
-        jt12_sh #( .width(10), .stages(6)) phasemod_sh(
-            .clk    ( clk   ),
-            .clk_en ( clk_en),
-            .din    ( phasemod_II ),
-            .drop   ( phasemod_VIII )
-        );
-//     else begin
-//         assign phasemod_VIII = phasemod_II;
-//     end
-// endgenerate
+generate
+if( fm_startup_rst ) begin : gen_phasemod_rst
+    jt12_sh_rst #( .width(10), .stages(6), .rstval(1'b0)) phasemod_sh(
+        .rst    ( rst   ),
+        .clk    ( clk   ),
+        .clk_en ( clk_en),
+        .din    ( phasemod_II ),
+        .drop   ( phasemod_VIII )
+    );
+end else begin : gen_phasemod_legacy
+    jt12_sh #( .width(10), .stages(6)) phasemod_sh(
+        .clk    ( clk   ),
+        .clk_en ( clk_en),
+        .din    ( phasemod_II ),
+        .drop   ( phasemod_VIII )
+    );
+end
+endgenerate
 
 // REGISTER/CYCLE 8
 reg [ 9:0]  phase;
@@ -219,13 +265,24 @@ always @(*) begin
     aux_VIII= phase[7:0] ^ {8{~phase[8]}};
 end
 
-always @(posedge clk) if( clk_en ) begin    
-    signbit_IX <= phase[9];     
+generate
+if( fm_startup_rst ) begin : gen_signbit_rst
+    always @(posedge clk) begin
+        if( rst )
+            signbit_IX <= 1'b0;
+        else if( clk_en )
+            signbit_IX <= phase[9];
+    end
+end else begin : gen_signbit_legacy
+    always @(posedge clk) if( clk_en )
+        signbit_IX <= phase[9];
 end
+endgenerate
 
 wire [11:0]  logsin_IX;
 
-jt12_logsin u_logsin (
+jt12_logsin #(.fm_startup_rst(fm_startup_rst)) u_logsin (
+    .rst    ( rst       ),
     .clk    ( clk       ),
     .clk_en ( clk_en    ),
     .addr   ( aux_VIII[7:0] ),
@@ -246,23 +303,50 @@ wire [9:0] mantissa_X;
 reg  [9:0] mantissa_XI;
 reg  [3:0] exponent_X, exponent_XI;
 
-jt12_exprom u_exprom(
+jt12_exprom #(.fm_startup_rst(fm_startup_rst)) u_exprom(
+    .rst    ( rst       ),
     .clk    ( clk       ),
     .clk_en ( clk_en    ),
     .addr   ( atten_internal_IX[7:0] ),
     .exp    ( mantissa_X )
 );
 
-always @(posedge clk) if( clk_en ) begin
-    exponent_X <= atten_internal_IX[11:8];    
-    signbit_X  <= signbit_IX;    
-end
+generate
+if( fm_startup_rst ) begin : gen_float_pipeline_rst
+    always @(posedge clk) begin
+        if( rst ) begin
+            exponent_X <= 4'd0;
+            signbit_X  <= 1'b0;
+        end else if( clk_en ) begin
+            exponent_X <= atten_internal_IX[11:8];
+            signbit_X  <= signbit_IX;
+        end
+    end
 
-always @(posedge clk) if( clk_en ) begin
-    mantissa_XI <= mantissa_X;
-    exponent_XI <= exponent_X;
-    signbit_XI  <= signbit_X;     
+    always @(posedge clk) begin
+        if( rst ) begin
+            mantissa_XI <= 10'd0;
+            exponent_XI <= 4'd0;
+            signbit_XI  <= 1'b0;
+        end else if( clk_en ) begin
+            mantissa_XI <= mantissa_X;
+            exponent_XI <= exponent_X;
+            signbit_XI  <= signbit_X;
+        end
+    end
+end else begin : gen_float_pipeline_legacy
+    always @(posedge clk) if( clk_en ) begin
+        exponent_X <= atten_internal_IX[11:8];
+        signbit_X  <= signbit_IX;
+    end
+
+    always @(posedge clk) if( clk_en ) begin
+        mantissa_XI <= mantissa_X;
+        exponent_XI <= exponent_X;
+        signbit_XI  <= signbit_X;
+    end
 end
+endgenerate
 
 // REGISTER/CYCLE 11
 // Introduce test bit as MSB, 2's complement & Carry-out discarded
@@ -285,13 +369,30 @@ always @(*) begin
     endcase
 end
 
-always @(posedge clk) if( clk_en ) begin
-    // REGISTER CYCLE 11
-    op_XII <= ({ test_214, shifter_3 } ^ {14{signbit_XI}}) + {13'd0,signbit_XI};               
-    // REGISTER CYCLE 12
-    // Extra register, take output after here
-    op_result_internal <= op_XII;   
+generate
+if( fm_startup_rst ) begin : gen_output_rst
+    always @(posedge clk) begin
+        if( rst ) begin
+            op_XII             <= 14'd0;
+            op_result_internal <= 14'd0;
+        end else if( clk_en ) begin
+            // REGISTER CYCLE 11
+            op_XII <= ({ test_214, shifter_3 } ^ {14{signbit_XI}}) + {13'd0,signbit_XI};
+            // REGISTER CYCLE 12
+            // Extra register, take output after here
+            op_result_internal <= op_XII;
+        end
+    end
+end else begin : gen_output_legacy
+    always @(posedge clk) if( clk_en ) begin
+        // REGISTER CYCLE 11
+        op_XII <= ({ test_214, shifter_3 } ^ {14{signbit_XI}}) + {13'd0,signbit_XI};
+        // REGISTER CYCLE 12
+        // Extra register, take output after here
+        op_result_internal <= op_XII;
+    end
 end
+endgenerate
 
 `ifdef SIMULATION
 reg signed [13:0] op_sep2_0;
