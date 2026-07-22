@@ -36,9 +36,24 @@ module tb_jt12_startup_equiv #(
     bit strict_compare = 1'b0;
     integer compared_cycles = 0;
     integer compared_samples = 0;
+    integer gain_compare_samples = 0;
     integer write_count = 0;
     logic [63:0] hash_p = 64'hcbf29ce484222325;
     logic [63:0] hash_o = 64'hcbf29ce484222325;
+
+    function automatic logic signed [15:0] ym2203_gain_x4;
+        input logic signed [15:0] value;
+        logic signed [21:0] widened;
+        begin
+            widened = {{6{value[15]}}, value} <<< 2;
+            if (widened > 22'sd32767)
+                ym2203_gain_x4 = 16'sh7fff;
+            else if (widened < -22'sd32768)
+                ym2203_gain_x4 = 16'sh8000;
+            else
+                ym2203_gain_x4 = widened[15:0];
+        end
+    endfunction
 
     always #(HALF_PS) clk = ~clk;
 
@@ -235,10 +250,19 @@ module tb_jt12_startup_equiv #(
         if (strict_compare) begin
             compared_cycles = compared_cycles + 1;
             if ({dut_p.cur_ch,dut_p.cur_op,dut_p.zero,dut_p.op_result_hd,
-                 acc_probe_p,snd_probe_p,fm_l_p,fm_r_p,snd_sample_p} !==
+                 acc_probe_p,snd_probe_p,snd_sample_p} !==
                 {dut_o.cur_ch,dut_o.cur_op,dut_o.zero,dut_o.op_result_hd,
-                 acc_probe_o,snd_probe_o,fm_l_o,fm_r_o,snd_sample_o})
+                 acc_probe_o,snd_probe_o,snd_sample_o})
                 fail_now("cycle comparison mismatch");
+            if (NUM_CH == 6 &&
+                {fm_l_p,fm_r_p,snd_l_p,snd_r_p} !==
+                {fm_l_o,fm_r_o,snd_l_o,snd_r_o})
+                fail_now("YM2612 output comparison mismatch");
+            if (NUM_CH == 3 &&
+                ({fm_l_p,fm_r_p,snd_l_p,snd_r_p} !==
+                 {ym2203_gain_x4(fm_l_o),ym2203_gain_x4(fm_r_o),
+                  ym2203_gain_x4(snd_l_o),ym2203_gain_x4(snd_r_o)}))
+                fail_now("YM2203 gain-only output comparison mismatch");
             if ((^{dut_p.cur_ch,dut_p.cur_op,dut_p.zero,dut_p.op_result_hd,
                    acc_probe_p,snd_probe_p,fm_l_p,fm_r_p,snd_sample_p}) === 1'bx)
                 fail_now("patched comparison signal became X/Z");
@@ -247,8 +271,19 @@ module tb_jt12_startup_equiv #(
                 fail_now("original comparison signal became X/Z");
             if (dut_p.clk_en && dut_p.zero) begin
                 compared_samples = compared_samples + 1;
-                hash_p = (hash_p ^ {fm_l_p,fm_r_p}) * 64'h00000100000001b3;
-                hash_o = (hash_o ^ {fm_l_o,fm_r_o}) * 64'h00000100000001b3;
+                if (NUM_CH == 3) begin
+                    hash_p = (hash_p ^ {46'd0,snd_probe_p}) *
+                             64'h00000100000001b3;
+                    hash_o = (hash_o ^ {46'd0,snd_probe_o}) *
+                             64'h00000100000001b3;
+                    if (fm_l_o != 16'sd0)
+                        gain_compare_samples = gain_compare_samples + 1;
+                end else begin
+                    hash_p = (hash_p ^ {fm_l_p,fm_r_p}) *
+                             64'h00000100000001b3;
+                    hash_o = (hash_o ^ {fm_l_o,fm_r_o}) *
+                             64'h00000100000001b3;
+                end
             end
         end
     end
@@ -292,13 +327,13 @@ module tb_jt12_startup_equiv #(
             common_timeout = common_timeout + 1;
             if (dut_p.clk_en) begin
                 if ((^{dut_p.cur_ch,dut_p.cur_op,dut_p.zero,dut_p.op_result_hd,
-                       acc_probe_p,snd_probe_p,fm_l_p,fm_r_p,
+                       acc_probe_p,snd_probe_p,
                        dut_o.cur_ch,dut_o.cur_op,dut_o.zero,dut_o.op_result_hd,
-                       acc_probe_o,snd_probe_o,fm_l_o,fm_r_o}) !== 1'bx &&
+                       acc_probe_o,snd_probe_o}) !== 1'bx &&
                     {dut_p.cur_ch,dut_p.cur_op,dut_p.zero,dut_p.op_result_hd,
-                     acc_probe_p,snd_probe_p,fm_l_p,fm_r_p} ===
+                     acc_probe_p,snd_probe_p} ===
                     {dut_o.cur_ch,dut_o.cur_op,dut_o.zero,dut_o.op_result_hd,
-                     acc_probe_o,snd_probe_o,fm_l_o,fm_r_o})
+                     acc_probe_o,snd_probe_o})
                     common_valid_count = common_valid_count + 1;
                 else
                     common_valid_count = 0;
@@ -339,6 +374,8 @@ module tb_jt12_startup_equiv #(
             fail_now("long-run audio hash mismatch");
         if (compared_samples < 1000)
             fail_now("insufficient compared samples");
+        if (NUM_CH == 3 && gain_compare_samples == 0)
+            fail_now("YM2203 gain relation was never exercised");
         $display("PASS_EQUIV NUM_CH=%0d cycles=%0d samples=%0d writes=%0d hash=%016h",
                  NUM_CH, compared_cycles, compared_samples, write_count, hash_p);
         $finish;

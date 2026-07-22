@@ -80,6 +80,35 @@ parameter mask_div=1;
 localparam FM_STARTUP_RST =
     (num_ch == 3) && (use_pcm == 0) && (use_adpcm == 0);
 
+// Raise only the three-channel YM2203 FM contribution before the PSG mix.
+// Keep the full-width shift and clamp local to this branch so YM2612 is
+// bit-identical and neither the PSG nor the final mode-5 gain is changed.
+localparam YM2203_FM_GAIN_SHIFT = 2;
+
+function signed [15:0] ym2203_saturate_22_to_16;
+    input signed [21:0] value;
+    begin
+        if( value > 22'sd32767 )
+            ym2203_saturate_22_to_16 = 16'sh7fff;
+        else if( value < -22'sd32768 )
+            ym2203_saturate_22_to_16 = 16'sh8000;
+        else
+            ym2203_saturate_22_to_16 = value[15:0];
+    end
+endfunction
+
+function signed [15:0] ym2203_saturate_18_to_16;
+    input signed [17:0] value;
+    begin
+        if( value > 18'sd32767 )
+            ym2203_saturate_18_to_16 = 16'sh7fff;
+        else if( value < -18'sd32768 )
+            ym2203_saturate_18_to_16 = 16'sh8000;
+        else
+            ym2203_saturate_18_to_16 = value[15:0];
+    end
+endfunction
+
 wire flag_A, flag_B, busy;
 
 wire write = !cs_n && !wr_n;
@@ -477,8 +506,19 @@ generate
             .IOB_in     ( IOB_in    ),
             .sample     (           )
         );
-        assign snd_left  = fm_snd_left  + { 1'b0, psg_snd[9:0],5'd0};
-        assign snd_right = fm_snd_right + { 1'b0, psg_snd[9:0],5'd0};
+        if( FM_STARTUP_RST ) begin : gen_ym2203_mix
+            wire signed [17:0] mix_left =
+                {{2{fm_snd_left[15]}}, fm_snd_left} +
+                {3'b000, psg_snd[9:0], 5'd0};
+            wire signed [17:0] mix_right =
+                {{2{fm_snd_right[15]}}, fm_snd_right} +
+                {3'b000, psg_snd[9:0], 5'd0};
+            assign snd_left  = ym2203_saturate_18_to_16(mix_left);
+            assign snd_right = ym2203_saturate_18_to_16(mix_right);
+        end else begin : gen_legacy_ssg_mix
+            assign snd_left  = fm_snd_left  + { 1'b0, psg_snd[9:0],5'd0};
+            assign snd_right = fm_snd_right + { 1'b0, psg_snd[9:0],5'd0};
+        end
     end else begin : gen_nossg
         assign psg_snd  = 10'd0;
         assign snd_left = fm_snd_left;
@@ -685,8 +725,14 @@ generate
     end
     if( use_pcm==0 && use_adpcm==0 ) begin : gen_2203_acc // YM2203 accumulator
         wire signed [15:0] mono_snd;
-        assign fm_snd_left  = mono_snd;
-        assign fm_snd_right = mono_snd;
+        wire signed [21:0] mono_snd_extended =
+            {{6{mono_snd[15]}}, mono_snd};
+        wire signed [21:0] mono_snd_scaled =
+            mono_snd_extended <<< YM2203_FM_GAIN_SHIFT;
+        wire signed [15:0] mono_snd_scaled_sat =
+            ym2203_saturate_22_to_16(mono_snd_scaled);
+        assign fm_snd_left  = mono_snd_scaled_sat;
+        assign fm_snd_right = mono_snd_scaled_sat;
         assign snd_sample   = zero;
         jt03_acc u_acc(
             .rst        ( rst       ),
