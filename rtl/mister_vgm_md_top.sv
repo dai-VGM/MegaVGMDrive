@@ -1016,6 +1016,30 @@ module mister_vgm_md_top #(
             logic [31:0] ym2151_write_count;
             logic [7:0] ym2151_last_reg;
             logic [7:0] ym2151_last_data;
+            logic ym2203_cmd_valid;
+            logic ym2203_cmd_ready;
+            logic [7:0] ym2203_cmd_reg;
+            logic [7:0] ym2203_cmd_data;
+            logic [31:0] ym2203_write_count;
+            logic [7:0] ym2203_last_reg;
+            logic [7:0] ym2203_last_data;
+            logic [31:0] ym2203_header_clock;
+            logic ym2203_header_clock_load;
+            logic [31:0] ym2203_clock_raw_debug;
+            logic [31:0] ym2203_effective_clock_debug;
+            logic ym2203_clock_present_debug;
+            logic ym2203_chip_cen_debug;
+            logic ym2203_write_accepted;
+            logic ym2203_write_completed;
+            logic [31:0] ym2203_write_accepted_count;
+            logic [31:0] ym2203_write_completed_count;
+            logic ym2203_transport_busy;
+            logic ym2203_core_busy;
+            logic signed [15:0] ym2203_raw_audio_l;
+            logic signed [15:0] ym2203_raw_audio_r;
+            logic signed [15:0] ym2203_raw_fm_audio;
+            logic [9:0] ym2203_raw_psg_audio;
+            logic ym2203_raw_sample_valid;
             logic [31:0] ym2151_unsupported_command_count;
             logic segapcm_cmd_valid;
             logic [15:0] segapcm_cmd_addr;
@@ -3796,6 +3820,10 @@ module mister_vgm_md_top #(
                 .ym2151_cmd_valid      (ym2151_cmd_valid),
                 .ym2151_cmd_reg        (ym2151_cmd_reg),
                 .ym2151_cmd_data       (ym2151_cmd_data),
+                .ym2203_cmd_ready      (ym2203_cmd_ready),
+                .ym2203_cmd_valid      (ym2203_cmd_valid),
+                .ym2203_cmd_reg        (ym2203_cmd_reg),
+                .ym2203_cmd_data       (ym2203_cmd_data),
                 .busy                  (loaded_player_busy),
                 .done                  (loaded_player_done),
                 .header_valid          (vgm_header_valid),
@@ -3803,6 +3831,8 @@ module mister_vgm_md_top #(
                 .segapcm_clock_commit  (segapcm_header_clock_commit),
                 .segapcm_clock_session_reset(segapcm_clock_session_reset),
                 .segapcm_interface     (segapcm_interface),
+                .ym2203_clock          (ym2203_header_clock),
+                .ym2203_clock_load     (ym2203_header_clock_load),
                 .player_error          (vgm_player_error),
                 .unsupported_opcode    (vgm_unsupported_opcode),
                 .unsupported_pc        (vgm_unsupported_pc),
@@ -3907,6 +3937,9 @@ module mister_vgm_md_top #(
                 .ym2151_write_count    (ym2151_write_count),
                 .ym2151_last_reg       (ym2151_last_reg),
                 .ym2151_last_data      (ym2151_last_data),
+                .ym2203_write_count    (ym2203_write_count),
+                .ym2203_last_reg       (ym2203_last_reg),
+                .ym2203_last_data      (ym2203_last_data),
                 .unsupported_command_count(ym2151_unsupported_command_count),
                 .segapcm_cmd_valid     (segapcm_cmd_valid),
                 .segapcm_cmd_addr      (segapcm_cmd_addr),
@@ -3942,6 +3975,36 @@ module mister_vgm_md_top #(
                 .done_cmd_debug        (player_done_cmd_debug),
                 .pc_debug              (player_pc_debug),
                 .last_cmd_debug        (player_last_cmd_debug)
+            );
+
+            ym2203_sound_module #(
+                .CLK_SYS_HZ (CLK_SYS_HZ)
+            ) ym2203_sound (
+                .clk                        (clk),
+                // Architectural startup reset only. File-load and mode5
+                // sound-core resets must not reset this JT12/JT49 instance.
+                .reset                      (reset),
+                .ym2203_clock               (ym2203_header_clock),
+                .ym2203_clock_load          (ym2203_header_clock_load),
+                .clock_raw_debug            (ym2203_clock_raw_debug),
+                .effective_clock_hz_debug   (ym2203_effective_clock_debug),
+                .clock_present_debug        (ym2203_clock_present_debug),
+                .chip_cen_debug             (ym2203_chip_cen_debug),
+                .write_valid                (ym2203_cmd_valid),
+                .write_reg                  (ym2203_cmd_reg),
+                .write_data                 (ym2203_cmd_data),
+                .write_ready                (ym2203_cmd_ready),
+                .write_accepted             (ym2203_write_accepted),
+                .write_completed            (ym2203_write_completed),
+                .write_accepted_count       (ym2203_write_accepted_count),
+                .write_completed_count      (ym2203_write_completed_count),
+                .transport_busy             (ym2203_transport_busy),
+                .core_busy                  (ym2203_core_busy),
+                .raw_audio_l                (ym2203_raw_audio_l),
+                .raw_audio_r                (ym2203_raw_audio_r),
+                .raw_fm_audio               (ym2203_raw_fm_audio),
+                .raw_psg_audio              (ym2203_raw_psg_audio),
+                .raw_sample_valid           (ym2203_raw_sample_valid)
             );
 
             if (YM2151_EXPERIMENTAL_MODE) begin : ym2151_sound_enabled

@@ -53,6 +53,10 @@ module vgm_loaded_player #(
     output logic                  ym2151_cmd_valid,
     output logic [7:0]            ym2151_cmd_reg,
     output logic [7:0]            ym2151_cmd_data,
+    input  logic                  ym2203_cmd_ready,
+    output logic                  ym2203_cmd_valid,
+    output logic [7:0]            ym2203_cmd_reg,
+    output logic [7:0]            ym2203_cmd_data,
 
     output logic                  busy,
     output logic                  done,
@@ -61,6 +65,8 @@ module vgm_loaded_player #(
     output logic                  segapcm_clock_commit,
     output logic                  segapcm_clock_session_reset,
     output logic [31:0]           segapcm_interface,
+    output logic [31:0]           ym2203_clock,
+    output logic                  ym2203_clock_load,
     output logic                  player_error,
     output logic [7:0]            unsupported_opcode,
     output logic [ADDR_WIDTH-1:0] unsupported_pc,
@@ -165,6 +171,9 @@ module vgm_loaded_player #(
     output logic [31:0]           ym2151_write_count,
     output logic [7:0]            ym2151_last_reg,
     output logic [7:0]            ym2151_last_data,
+    output logic [31:0]           ym2203_write_count,
+    output logic [7:0]            ym2203_last_reg,
+    output logic [7:0]            ym2203_last_data,
     output logic [31:0]           unsupported_command_count,
     output logic                  segapcm_cmd_valid,
     output logic [15:0]           segapcm_cmd_addr,
@@ -279,6 +288,8 @@ module vgm_loaded_player #(
         ST_YM_PULSE,
         ST_YM2151_WAIT_READY,
         ST_YM2151_PULSE,
+        ST_YM2203_WAIT_READY,
+        ST_YM2203_PULSE,
         ST_SEGAPCM_DATA,
         ST_SEGAPCM_ROM_SIZE0,
         ST_SEGAPCM_ROM_SIZE1,
@@ -320,7 +331,12 @@ module vgm_loaded_player #(
         ST_READ_SEGAPCM_CLOCK0,
         ST_READ_SEGAPCM_CLOCK1,
         ST_READ_SEGAPCM_CLOCK2,
-        ST_READ_SEGAPCM_CLOCK3
+        ST_READ_SEGAPCM_CLOCK3,
+        ST_READ_YM2203_CLOCK0,
+        ST_READ_YM2203_CLOCK1,
+        ST_READ_YM2203_CLOCK2,
+        ST_READ_YM2203_CLOCK3,
+        ST_START_PLAYBACK
     } state_t;
 
     state_t state;
@@ -336,6 +352,8 @@ module vgm_loaded_player #(
     logic [31:0] data_offset;
     logic [31:0] loop_offset;
     logic [31:0] segapcm_clock_work;
+    logic [31:0] ym2203_clock_work;
+    logic [ADDR_WIDTH-1:0] selected_data_start_latched;
     logic [ADDR_WIDTH-1:0] loop_pc;
     logic loop_valid;
     logic [31:0] pcm_data_start;
@@ -1239,6 +1257,10 @@ module vgm_loaded_player #(
             segapcm_clock_commit <= 1'b0;
             segapcm_clock_session_reset <= 1'b0;
             segapcm_interface <= 32'd0;
+            ym2203_clock_work <= 32'd0;
+            ym2203_clock <= 32'd0;
+            ym2203_clock_load <= 1'b0;
+            selected_data_start_latched <= '0;
             loop_pc <= '0;
             loop_valid <= 1'b0;
             block_size <= 32'd0;
@@ -1368,6 +1390,9 @@ module vgm_loaded_player #(
             ym2151_cmd_valid <= 1'b0;
             ym2151_cmd_reg <= 8'd0;
             ym2151_cmd_data <= 8'd0;
+            ym2203_cmd_valid <= 1'b0;
+            ym2203_cmd_reg <= 8'd0;
+            ym2203_cmd_data <= 8'd0;
             segapcm_cmd_valid <= 1'b0;
             segapcm_cmd_addr <= 16'd0;
             segapcm_cmd_data <= 8'd0;
@@ -1400,6 +1425,9 @@ module vgm_loaded_player #(
             ym2151_write_count <= 32'd0;
             ym2151_last_reg <= 8'd0;
             ym2151_last_data <= 8'd0;
+            ym2203_write_count <= 32'd0;
+            ym2203_last_reg <= 8'd0;
+            ym2203_last_data <= 8'd0;
             unsupported_command_count <= 32'd0;
             segapcm_write_count <= 32'd0;
             segapcm_last_addr <= 16'd0;
@@ -1466,9 +1494,11 @@ module vgm_loaded_player #(
             start_d <= start;
             segapcm_clock_commit <= 1'b0;
             segapcm_clock_session_reset <= 1'b0;
+            ym2203_clock_load <= 1'b0;
             ym_cmd_valid <= 1'b0;
             psg_cmd_valid <= 1'b0;
             ym2151_cmd_valid <= 1'b0;
+            ym2203_cmd_valid <= 1'b0;
             segapcm_cmd_valid <= 1'b0;
             segapcm_copy_wr_req <= 1'b0;
             segapcm_copy_flush_req <= 1'b0;
@@ -1929,6 +1959,9 @@ module vgm_loaded_player #(
                             segapcm_clock <= 32'd0;
                             segapcm_clock_session_reset <= 1'b1;
                             segapcm_interface <= 32'd0;
+                            ym2203_clock_work <= 32'd0;
+                            ym2203_clock <= 32'd0;
+                            selected_data_start_latched <= '0;
                             loop_pc <= '0;
                             loop_valid <= 1'b0;
                             loop_pc_debug <= '0;
@@ -1949,6 +1982,9 @@ module vgm_loaded_player #(
                             ym2151_write_count <= 32'd0;
                             ym2151_last_reg <= 8'd0;
                             ym2151_last_data <= 8'd0;
+                            ym2203_write_count <= 32'd0;
+                            ym2203_last_reg <= 8'd0;
+                            ym2203_last_data <= 8'd0;
                             unsupported_command_count <= 32'd0;
                             segapcm_write_count <= 32'd0;
                             segapcm_last_addr <= 16'd0;
@@ -2226,6 +2262,31 @@ module vgm_loaded_player #(
                                      ST_READ_OFF0);
                     end
 
+                    ST_READ_YM2203_CLOCK0: begin
+                        ym2203_clock_work[7:0] <= read_data;
+                        request_byte({{(ADDR_WIDTH-7){1'b0}}, 7'h45},
+                                     ST_READ_YM2203_CLOCK1);
+                    end
+
+                    ST_READ_YM2203_CLOCK1: begin
+                        ym2203_clock_work[15:8] <= read_data;
+                        request_byte({{(ADDR_WIDTH-7){1'b0}}, 7'h46},
+                                     ST_READ_YM2203_CLOCK2);
+                    end
+
+                    ST_READ_YM2203_CLOCK2: begin
+                        ym2203_clock_work[23:16] <= read_data;
+                        request_byte({{(ADDR_WIDTH-7){1'b0}}, 7'h47},
+                                     ST_READ_YM2203_CLOCK3);
+                    end
+
+                    ST_READ_YM2203_CLOCK3: begin
+                        ym2203_clock_work[31:24] <= read_data;
+                        ym2203_clock <= {read_data, ym2203_clock_work[23:0]};
+                        ym2203_clock_load <= 1'b1;
+                        state <= ST_START_PLAYBACK;
+                    end
+
                     ST_READ_OFF0: begin
                         data_offset[7:0] <= read_data;
                         request_byte({{(ADDR_WIDTH-6){1'b0}}, 6'h35}, ST_READ_OFF1);
@@ -2246,28 +2307,44 @@ module vgm_loaded_player #(
                         if (!selected_data_start_in_range) begin
                             enter_error(ERR_BAD_DATA_START);
                         end else begin
-                            pc <= selected_data_start[ADDR_WIDTH-1:0];
-                            data_start_debug <= selected_data_start[ADDR_WIDTH-1:0];
-                            current_pc_debug <= selected_data_start[ADDR_WIDTH-1:0];
-                            restarted_from_data_start <= 1'b1;
-                            header_valid <= 1'b1;
-                            header_valid_seen_debug <= 1'b1;
-                            if (YM2151_MODE && !SEGAPCM_FM_ONLY_RESTORE) begin
-                                segapcm_rom_scan_busy <= 1'b1;
-                                segapcm_rom_scan_done <= 1'b0;
-                                scan_started_seen_debug <= 1'b1;
-                                pc <= selected_data_start[ADDR_WIDTH-1:0];
-                                request_byte(selected_data_start[ADDR_WIDTH-1:0],
-                                             ST_SCAN_FETCH_CMD);
+                            selected_data_start_latched <=
+                                selected_data_start[ADDR_WIDTH-1:0];
+                            if (selected_data_start > 32'h0000_0047) begin
+                                request_byte({{(ADDR_WIDTH-7){1'b0}}, 7'h44},
+                                             ST_READ_YM2203_CLOCK0);
                             end else begin
-                                if (YM2151_MODE) begin
-                                    segapcm_rom_scan_busy <= 1'b0;
-                                    segapcm_rom_scan_done <= 1'b1;
-                                    playback_started_after_scan_debug <= 1'b1;
-                                end
-                                request_byte(selected_data_start[ADDR_WIDTH-1:0],
-                                             ST_FETCH_CMD);
+                                // Data begins before the YM2203 field, so the
+                                // field is absent even when the file is long.
+                                ym2203_clock_work <= 32'd0;
+                                ym2203_clock <= 32'd0;
+                                ym2203_clock_load <= 1'b1;
+                                state <= ST_START_PLAYBACK;
                             end
+                        end
+                    end
+
+                    ST_START_PLAYBACK: begin
+                        pc <= selected_data_start_latched;
+                        data_start_debug <= selected_data_start_latched;
+                        current_pc_debug <= selected_data_start_latched;
+                        restarted_from_data_start <= 1'b1;
+                        header_valid <= 1'b1;
+                        header_valid_seen_debug <= 1'b1;
+                        if (YM2151_MODE && !SEGAPCM_FM_ONLY_RESTORE) begin
+                            segapcm_rom_scan_busy <= 1'b1;
+                            segapcm_rom_scan_done <= 1'b0;
+                            scan_started_seen_debug <= 1'b1;
+                            pc <= selected_data_start_latched;
+                            request_byte(selected_data_start_latched,
+                                         ST_SCAN_FETCH_CMD);
+                        end else begin
+                            if (YM2151_MODE) begin
+                                segapcm_rom_scan_busy <= 1'b0;
+                                segapcm_rom_scan_done <= 1'b1;
+                                playback_started_after_scan_debug <= 1'b1;
+                            end
+                            request_byte(selected_data_start_latched,
+                                         ST_FETCH_CMD);
                         end
                     end
 
@@ -3004,7 +3081,8 @@ module vgm_loaded_player #(
                             enter_error(ERR_PC_RANGE);
                         end else begin
                             case (cmd)
-                                8'h52, 8'h53, 8'h50, 8'h4F, 8'h54, 8'h61: begin
+                                8'h52, 8'h53, 8'h50, 8'h4F, 8'h54, 8'h55,
+                                8'h61: begin
                                     request_byte(pc + {{(ADDR_WIDTH-1){1'b0}}, 1'b1}, ST_ARG1);
                                 end
 
@@ -3148,7 +3226,8 @@ module vgm_loaded_player #(
                     ST_ARG1: begin
                         arg1 <= read_data;
                         if ((cmd == 8'h52) || (cmd == 8'h53) ||
-                            (cmd == 8'h54) || (cmd == 8'h61) ||
+                            (cmd == 8'h54) || (cmd == 8'h55) ||
+                            (cmd == 8'h61) ||
                             (cmd == 8'hC0)) begin
                             request_byte(pc + {{(ADDR_WIDTH-2){1'b0}}, 2'd2}, ST_ARG2);
                         end else if (cmd == 8'h50) begin
@@ -3188,6 +3267,15 @@ module vgm_loaded_player #(
                             end else begin
                                 enter_unsupported_error();
                             end
+                        end else if (cmd == 8'h55) begin
+                            ym2203_cmd_reg <= arg1;
+                            ym2203_cmd_data <= read_data;
+                            ym2203_last_reg <= arg1;
+                            ym2203_last_data <= read_data;
+                            if (ym2203_write_count != 32'hffff_ffff) begin
+                                ym2203_write_count <= ym2203_write_count + 32'd1;
+                            end
+                            state <= ST_YM2203_WAIT_READY;
                         end else if (cmd == 8'hC0) begin
                             if (YM2151_MODE) begin
                                 segapcm_pending_addr <= {read_data, arg1};
@@ -3650,6 +3738,19 @@ module vgm_loaded_player #(
                     end
 
                     ST_YM2151_PULSE: begin
+                        pc <= pc + {{(ADDR_WIDTH-2){1'b0}}, 2'd3};
+                        current_pc_debug <= pc + {{(ADDR_WIDTH-2){1'b0}}, 2'd3};
+                        request_byte(pc + {{(ADDR_WIDTH-2){1'b0}}, 2'd3}, ST_FETCH_CMD);
+                    end
+
+                    ST_YM2203_WAIT_READY: begin
+                        if (ym2203_cmd_ready) begin
+                            ym2203_cmd_valid <= 1'b1;
+                            state <= ST_YM2203_PULSE;
+                        end
+                    end
+
+                    ST_YM2203_PULSE: begin
                         pc <= pc + {{(ADDR_WIDTH-2){1'b0}}, 2'd3};
                         current_pc_debug <= pc + {{(ADDR_WIDTH-2){1'b0}}, 2'd3};
                         request_byte(pc + {{(ADDR_WIDTH-2){1'b0}}, 2'd3}, ST_FETCH_CMD);
