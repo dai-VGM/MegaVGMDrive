@@ -58,3 +58,46 @@ upstream JT12. Their original license headers are unchanged.
     output widths/scaling, and post-reset sample timing are unchanged
   - `jt49_bus.v` and `jt49_div.v` remain byte-identical to their upstream
     base blobs above
+
+## YM2203 deterministic FM startup reset
+
+The FM pipeline is based on JT12 commit
+`6d51e0b6f64728c73408079b2f5ffe911bfd88a9`.  The local Genesis fork now
+enables an architectural startup reset only when `num_ch == 3`,
+`use_pcm == 0`, and `use_adpcm == 0`; `use_ssg` is intentionally not part of
+the condition.  The reset uses the existing active-high `rst` and does not
+require chip-CEN priming while reset is asserted.
+
+Modified upstream-derived files and their JT12 base blobs:
+
+- `jt12/jt12_top.v`: `c1a0c3377e6822c1db4a35319721a9cc79d5a8ed`
+- `jt12/jt12_mmr.v`: `9f3642949aebd508c4f4ea4daa71568109ce091b`
+- `jt12/jt12_reg.v`: `89b2017c42c72655c331cf3cbda3af9a149c9782`
+- `jt12/jt12_kon.v`: `db4b82cbb266ed906e0cde90ef44fa1b533068e6`
+- `jt12/jt12_pg.v`: `913a7398105a3620bf7811f3acb2016481a60e0f`
+- `jt12/jt12_eg.v`: `fbf10640de335d243112568afe0ada9b0fa5151a`
+- `jt12/jt12_op.v`: `d0d29816219c851c5969ac2b98ba26705d5d0bdf`
+- `jt12/jt12_logsin.v`: `897437544d5e7d52bb8f1744886aac0f1f67ac07`
+- `jt12/jt12_exprom.v`: `beca296362fe2af78fc51e931cd811334fcc9c50`
+
+Before this reset change, the Genesis-fork baseline blobs at local commit
+`24c4a0cdb8b0ae1940593fd26ec547c16bd9a8cf` differed from the JT12 base for
+`jt12_top.v` (`37dc34c41b8deebc33750365bb260d23418f30b7`), `jt12_mmr.v`
+(`90b70b2284aea427c7cb390bb421697765dc2108`), `jt12_reg.v`
+(`857fd95bfbaa3d12ed4ebce4d3aee06f9c2b941e`), `jt12_kon.v`
+(`3a0328d017ceb779d00fac0dcd49dfc8b79d99a2`), and `jt12_op.v`
+(`060b215c896f3e985c21e5d77dbff6e69f79d26d`).  These files are therefore
+not byte-identical to the JT12 base even before the startup reset change.
+
+The YM2203-only reset covers the three-channel sequencer and feedback/key-on
+pipeline, PG keycode/detune/increment registers, EG rate/step/attack/SSG and
+inactive-envelope pipeline, resetless EG counter delay, operator feedback,
+phase-modulation, mantissa/exponent and result pipeline, and the registered
+log-sine/exponential outputs.  Reset values are zero except for the inactive
+envelope and its top-level delay, which use `10'h3ff` to match the existing
+envelope-state reset convention.
+
+The ROM tables, FM arithmetic, widths, slot scheduling, feedback calculation,
+scaling, and pipeline stage count are unchanged.  The compile-time reset
+branch is disabled for the existing six-channel YM2612 configuration, so its
+startup and normal audio path retain the pre-existing implementation.

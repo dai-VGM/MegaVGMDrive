@@ -127,6 +127,7 @@ module jt12_mmr(
 );
 
 parameter use_ssg=0, num_ch=6, use_pcm=1, use_adpcm=0, mask_div=1;
+parameter fm_startup_rst=0;
 
 jt12_div #(.use_ssg(use_ssg)) u_div (
     .rst            ( rst             ),
@@ -441,7 +442,7 @@ always @(posedge clk, posedge rst)
         end
     end
 /* verilator tracing_on */
-jt12_reg #(.num_ch(num_ch)) u_reg(
+jt12_reg #(.num_ch(num_ch), .fm_startup_rst(fm_startup_rst)) u_reg(
     .rst        ( rst       ),
     .clk        ( clk       ),      // P1
     .clk_en     ( clk_en    ),

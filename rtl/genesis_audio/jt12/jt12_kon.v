@@ -39,6 +39,7 @@ module jt12_kon(
 );
 
 parameter num_ch=6;
+parameter fm_startup_rst=0;
 
 wire csr_out;
 
@@ -151,8 +152,17 @@ else begin // 3 channels
         din = keyon_ch[1:0]==next_ch[1:0] && up_keyon ? |(keyon_op&next_op_hot) : csr_out;
     end
 
-    always @(posedge clk) if( clk_en )
-        keyon_I <= csr_out; // No CSM for YM2203
+    if( fm_startup_rst ) begin : gen_keyon_rst
+        always @(posedge clk) begin
+            if( rst )
+                keyon_I <= 1'b0;
+            else if( clk_en )
+                keyon_I <= csr_out; // No CSM for YM2203
+        end
+    end else begin : gen_keyon_legacy
+        always @(posedge clk) if( clk_en )
+            keyon_I <= csr_out; // No CSM for YM2203
+    end
 
     jt12_sh_rst #(.width(1),.stages(12),.rstval(1'b0)) u_konch1(
         .clk    ( clk       ),

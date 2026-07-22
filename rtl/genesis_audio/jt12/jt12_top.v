@@ -75,6 +75,11 @@ parameter use_adpcm=0;
 parameter JT49_DIV=2;
 parameter mask_div=1;
 
+// The legacy YM2612 path relies on its existing startup behaviour.  Only the
+// three-channel, FM-only OPN configuration gets deterministic pipeline reset.
+localparam FM_STARTUP_RST =
+    (num_ch == 3) && (use_pcm == 0) && (use_adpcm == 0);
+
 wire flag_A, flag_B, busy;
 
 wire write = !cs_n && !wr_n;
@@ -291,7 +296,9 @@ jt12_dout #(.use_ssg(use_ssg),.use_adpcm(use_adpcm)) u_dout(
 
 
 /* verilator tracing_on */
-jt12_mmr #(.use_ssg(use_ssg),.num_ch(num_ch),.use_pcm(use_pcm), .use_adpcm(use_adpcm), .mask_div(mask_div))
+jt12_mmr #(.use_ssg(use_ssg),.num_ch(num_ch),.use_pcm(use_pcm),
+    .use_adpcm(use_adpcm), .mask_div(mask_div),
+    .fm_startup_rst(FM_STARTUP_RST))
     u_mmr(
     .rst        ( rst       ),
     .clk        ( clk       ),
@@ -493,7 +500,7 @@ wire    [ 8:0]  op_result;
 wire    [13:0]  op_result_hd;
 `ifndef NOFM
 /* verilator tracing_on */
-jt12_pg #(.num_ch(num_ch)) u_pg(
+jt12_pg #(.num_ch(num_ch), .fm_startup_rst(FM_STARTUP_RST)) u_pg(
     .rst        ( rst           ),
     .clk        ( clk           ),
     .clk_en     ( clk_en        ),
@@ -516,7 +523,7 @@ jt12_pg #(.num_ch(num_ch)) u_pg(
 
 wire [9:0] eg_V;
 
-jt12_eg #(.num_ch(num_ch)) u_eg(
+jt12_eg #(.num_ch(num_ch), .fm_startup_rst(FM_STARTUP_RST)) u_eg(
     .rst            ( rst           ),
     .clk            ( clk           ),
     .clk_en         ( clk_en        ),
@@ -545,14 +552,26 @@ jt12_eg #(.num_ch(num_ch)) u_eg(
     .pg_rst_II      ( pg_rst_II     )
 );
 
-jt12_sh #(.width(10),.stages(4)) u_egpad(
-    .clk    ( clk       ),
-    .clk_en ( clk_en    ),
-    .din    ( eg_V      ),
-    .drop   ( eg_IX     )
-);
+generate
+if( FM_STARTUP_RST ) begin : gen_egpad_rst
+    jt12_sh_rst #(.width(10),.stages(4),.rstval(1'b1)) u_egpad(
+        .rst    ( rst       ),
+        .clk    ( clk       ),
+        .clk_en ( clk_en    ),
+        .din    ( eg_V      ),
+        .drop   ( eg_IX     )
+    );
+end else begin : gen_egpad_legacy
+    jt12_sh #(.width(10),.stages(4)) u_egpad(
+        .clk    ( clk       ),
+        .clk_en ( clk_en    ),
+        .din    ( eg_V      ),
+        .drop   ( eg_IX     )
+    );
+end
+endgenerate
 
-jt12_op #(.num_ch(num_ch)) u_op(
+jt12_op #(.num_ch(num_ch), .fm_startup_rst(FM_STARTUP_RST)) u_op(
     .rst            ( rst           ),
     .clk            ( clk           ),
     .clk_en         ( clk_en        ),

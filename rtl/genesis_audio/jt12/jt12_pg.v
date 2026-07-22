@@ -54,6 +54,7 @@ module jt12_pg(
 );
 
 parameter num_ch=6;
+parameter fm_startup_rst=0;
 
 wire [4:0] keycode_I;
 wire signed [5:0] detune_mod_I;
@@ -63,11 +64,27 @@ reg  [16:0] phinc_II;
 wire [19:0] phase_drop, phase_in;
 wire [ 9:0] phase_II;
 
-always @(posedge clk) if(clk_en) begin
-    keycode_II      <= keycode_I;
-    detune_mod_II   <= detune_mod_I;
-    phinc_II        <= phinc_I;
+generate
+if( fm_startup_rst ) begin : gen_pipeline_rst
+    always @(posedge clk) begin
+        if( rst ) begin
+            keycode_II    <= 5'd0;
+            detune_mod_II <= 6'sd0;
+            phinc_II      <= 17'd0;
+        end else if( clk_en ) begin
+            keycode_II    <= keycode_I;
+            detune_mod_II <= detune_mod_I;
+            phinc_II      <= phinc_I;
+        end
+    end
+end else begin : gen_pipeline_legacy
+    always @(posedge clk) if(clk_en) begin
+        keycode_II    <= keycode_I;
+        detune_mod_II <= detune_mod_I;
+        phinc_II      <= phinc_I;
+    end
 end
+endgenerate
 
 jt12_pg_comb u_comb(
     .block      ( block_I       ),
@@ -110,4 +127,3 @@ jt12_sh_rst #( .width(10), .stages(6) ) u_pad(
 );
 
 endmodule
-

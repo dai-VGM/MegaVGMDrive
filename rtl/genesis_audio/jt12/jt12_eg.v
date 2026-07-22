@@ -49,6 +49,7 @@ module jt12_eg (
 );
 
 parameter num_ch=6;
+parameter fm_startup_rst=0;
 
 wire [14:0] eg_cnt;
 
@@ -139,33 +140,87 @@ jt12_eg_comb u_comb(
     .final_eg_out   ( eg_out_IV     )
 );
 
-always @(posedge clk) if(clk_en) begin
-    eg_in_II    <= eg_in_I;
-    attack_II   <= state_next_I[0];
-    base_rate_II<= base_rate_I;
-    ssg_en_II   <= ssg_en_I;
-    ssg_inv_II  <= ssg_inv_out_I;
-    pg_rst_II   <= pg_rst_I;
+generate
+if( fm_startup_rst ) begin : gen_pipeline_rst
+    always @(posedge clk) begin
+        if( rst ) begin
+            eg_in_II    <= 10'h3ff;
+            attack_II   <= 1'b0;
+            base_rate_II<= 5'd0;
+            ssg_en_II   <= 1'b0;
+            ssg_inv_II  <= 1'b0;
+            pg_rst_II   <= 1'b0;
 
-    eg_in_III   <= eg_in_II;
-    attack_III  <= attack_II;
-    rate_in_III <= rate_out_II[5:1];
-    ssg_en_III  <= ssg_en_II;
-    ssg_inv_III <= ssg_inv_II;
-    step_III    <= step_II;
-    sum_in_III  <= sum_out_II;
+            eg_in_III   <= 10'h3ff;
+            attack_III  <= 1'b0;
+            rate_in_III <= 5'd0;
+            ssg_en_III  <= 1'b0;
+            ssg_inv_III <= 1'b0;
+            step_III    <= 1'b0;
+            sum_in_III  <= 1'b0;
 
-    ssg_inv_IV  <= ssg_inv_III;
-    eg_in_IV    <= pure_eg_out_III;
-    eg_V        <= eg_out_IV;
+            ssg_inv_IV  <= 1'b0;
+            eg_in_IV    <= 10'h3ff;
+            eg_V        <= 10'h3ff;
+        end else if( clk_en ) begin
+            eg_in_II    <= eg_in_I;
+            attack_II   <= state_next_I[0];
+            base_rate_II<= base_rate_I;
+            ssg_en_II   <= ssg_en_I;
+            ssg_inv_II  <= ssg_inv_out_I;
+            pg_rst_II   <= pg_rst_I;
+
+            eg_in_III   <= eg_in_II;
+            attack_III  <= attack_II;
+            rate_in_III <= rate_out_II[5:1];
+            ssg_en_III  <= ssg_en_II;
+            ssg_inv_III <= ssg_inv_II;
+            step_III    <= step_II;
+            sum_in_III  <= sum_out_II;
+
+            ssg_inv_IV  <= ssg_inv_III;
+            eg_in_IV    <= pure_eg_out_III;
+            eg_V        <= eg_out_IV;
+        end
+    end
+
+    jt12_sh_rst #( .width(1), .stages(4*num_ch), .rstval(1'b0) ) u_cntsh(
+        .rst    ( rst       ),
+        .clk    ( clk       ),
+        .clk_en ( clk_en    ),
+        .din    ( cnt_lsb_II),
+        .drop   ( cnt_in_II )
+    );
+end else begin : gen_pipeline_legacy
+    always @(posedge clk) if(clk_en) begin
+        eg_in_II    <= eg_in_I;
+        attack_II   <= state_next_I[0];
+        base_rate_II<= base_rate_I;
+        ssg_en_II   <= ssg_en_I;
+        ssg_inv_II  <= ssg_inv_out_I;
+        pg_rst_II   <= pg_rst_I;
+
+        eg_in_III   <= eg_in_II;
+        attack_III  <= attack_II;
+        rate_in_III <= rate_out_II[5:1];
+        ssg_en_III  <= ssg_en_II;
+        ssg_inv_III <= ssg_inv_II;
+        step_III    <= step_II;
+        sum_in_III  <= sum_out_II;
+
+        ssg_inv_IV  <= ssg_inv_III;
+        eg_in_IV    <= pure_eg_out_III;
+        eg_V        <= eg_out_IV;
+    end
+
+    jt12_sh #( .width(1), .stages(4*num_ch) ) u_cntsh(
+        .clk    ( clk       ),
+        .clk_en ( clk_en    ),
+        .din    ( cnt_lsb_II),
+        .drop   ( cnt_in_II )
+    );
 end
-
-jt12_sh #( .width(1), .stages(4*num_ch) ) u_cntsh(
-    .clk    ( clk       ),
-    .clk_en ( clk_en    ),
-    .din    ( cnt_lsb_II),
-    .drop   ( cnt_in_II )
-);
+endgenerate
 
 jt12_sh_rst #( .width(10), .stages(4*num_ch-3), .rstval(1'b1) ) u_egsh(
     .clk    ( clk       ),

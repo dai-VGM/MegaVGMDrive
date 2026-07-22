@@ -27,8 +27,10 @@
 // altera message_off 10030
 
 module jt12_exprom
+#(parameter fm_startup_rst=0)
 (
     input [7:0] addr,
+    input rst,
     input clk, 
     input clk_en /* synthesis direct_enable */,
     output reg [9:0] exp
@@ -295,7 +297,18 @@ module jt12_exprom
         explut_jt51[8'd255] = 10'd0000;
     end
 
+generate
+if( fm_startup_rst ) begin : gen_output_rst
+    always @ (posedge clk) begin
+        if( rst )
+            exp <= 10'd0;
+        else if( clk_en )
+            exp <= explut_jt51[addr];
+    end
+end else begin : gen_output_legacy
     always @ (posedge clk) if(clk_en)
         exp <= explut_jt51[addr];
+end
+endgenerate
 
 endmodule

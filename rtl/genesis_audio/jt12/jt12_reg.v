@@ -105,6 +105,7 @@ module jt12_reg(
 );
 
 parameter num_ch=6; // Use only 3 (YM2203/YM2610) or 6 (YM2612/YM2608)
+parameter fm_startup_rst=0;
 
 
 reg  [1:0] next_op;
@@ -137,10 +138,24 @@ wire [4:0] cur  = {  cur_op,  cur_ch };
 
 wire [2:0] fb_I;
 
-always @(posedge clk) if( clk_en ) begin
-    fb_II <= fb_I;
-    ch6op <= next_ch==3'd6;
-end 
+generate
+if( fm_startup_rst ) begin : gen_feedback_rst
+    always @(posedge clk) begin
+        if( rst ) begin
+            fb_II <= 3'd0;
+            ch6op <= 1'b0;
+        end else if( clk_en ) begin
+            fb_II <= fb_I;
+            ch6op <= next_ch==3'd6;
+        end
+    end
+end else begin : gen_feedback_legacy
+    always @(posedge clk) if( clk_en ) begin
+        fb_II <= fb_I;
+        ch6op <= next_ch==3'd6;
+    end
+end
+endgenerate
 
 // FNUM and BLOCK
 wire    [10:0]  fnum_I_raw;
@@ -233,15 +248,30 @@ always @(*) begin
     end
 end
 
-always @(posedge clk) begin : up_counter
-    if( clk_en ) begin
-        { cur_op, cur_ch }  <= { next_op, next_ch };
-        zero    <= next == 5'd0;
+generate
+if( fm_startup_rst ) begin : gen_counter_rst
+    always @(posedge clk) begin : up_counter
+        if( rst ) begin
+            cur_op <= 2'd0;
+            cur_ch <= 3'd0;
+            zero   <= 1'b1;
+        end else if( clk_en ) begin
+            { cur_op, cur_ch } <= { next_op, next_ch };
+            zero <= next == 5'd0;
+        end
+    end
+end else begin : gen_counter_legacy
+    always @(posedge clk) begin : up_counter
+        if( clk_en ) begin
+            { cur_op, cur_ch } <= { next_op, next_ch };
+            zero <= next == 5'd0;
+        end
     end
 end
+endgenerate
 
 `ifndef NOFM
-jt12_kon #(.num_ch(num_ch)) u_kon(
+jt12_kon #(.num_ch(num_ch), .fm_startup_rst(fm_startup_rst)) u_kon(
     .rst        ( rst       ),
     .clk        ( clk       ),
     .clk_en     ( clk_en    ),
