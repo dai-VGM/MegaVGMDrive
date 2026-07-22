@@ -60,7 +60,8 @@ localparam res=18;
 wire [res-1:0] hires;
 assign snd = hires[res-1:res-16];
 
-jt12_single_acc #(.win(14),.wout(res)) u_mono(
+jt12_single_acc #(.win(14),.wout(res),.use_rst(1)) u_mono(
+    .rst        ( rst            ),
     .clk        ( clk            ),
     .clk_en     ( clk_en         ),
     .op_result  ( op_result      ),

@@ -21,14 +21,20 @@ and attribution details.
 
 ## YM2203 dependency provenance
 
-The YM2203-only dependencies are pinned to the revisions used together by
-upstream JT12. The vendored RTL files are byte-identical to these revisions;
-their original license headers are unchanged.
+The YM2203-only dependencies are based on the revisions used together by
+upstream JT12. Their original license headers are unchanged.
 
 - `jt12/jt03_acc.v`
   - repository: https://github.com/jotego/jt12
   - commit: `6d51e0b6f64728c73408079b2f5ffe911bfd88a9`
-  - Git blob: `32ace148af6e21cf430647edcef218e492a210b6`
+  - upstream base Git blob: `32ace148af6e21cf430647edcef218e492a210b6`
+  - local change: connect the existing active-high `rst` input to an opt-in
+    resettable `jt12_single_acc` so the YM2203 mono accumulator cannot retain
+    an unknown simulation value across reset
+- `jt12/jt12_single_acc.v`
+  - local change: add a default-disabled active-high reset parameter and input
+  - reset is enabled only by `jt03_acc`; the existing YM2612 accumulator keeps
+    the pre-existing arithmetic path with reset disabled
 - `jt49/`
   - repository: https://github.com/jotego/jt49
   - commit: `9d097f1eefad3530567b71f13016f6e8546a4bb5`
@@ -40,3 +46,5 @@ their original license headers are unchanged.
     - `jt49_eg.v`: `46dd62ace1f080bce6678469ca0b8b99b0c2b74e`
     - `jt49_exp.v`: `412a3f8aedb7967d24a7cfe2b1ffcf48580433fb`
     - `jt49_noise.v`: `ffc1fb978e55157d7d36ca11e2feea6b3229fd63`
+
+All seven JT49 RTL files remain byte-identical to the pinned JT49 commit.
