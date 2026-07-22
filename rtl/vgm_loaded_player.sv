@@ -57,6 +57,9 @@ module vgm_loaded_player #(
     output logic                  busy,
     output logic                  done,
     output logic                  header_valid,
+    output logic [31:0]           segapcm_clock,
+    output logic                  segapcm_clock_commit,
+    output logic                  segapcm_clock_session_reset,
     output logic [31:0]           segapcm_interface,
     output logic                  player_error,
     output logic [7:0]            unsupported_opcode,
@@ -313,7 +316,11 @@ module vgm_loaded_player #(
         ST_DONE,
         ST_ERROR,
         ST_SEGAPCM_TAP_PAYLOAD,
-        ST_SEGAPCM_TAP_FLUSH
+        ST_SEGAPCM_TAP_FLUSH,
+        ST_READ_SEGAPCM_CLOCK0,
+        ST_READ_SEGAPCM_CLOCK1,
+        ST_READ_SEGAPCM_CLOCK2,
+        ST_READ_SEGAPCM_CLOCK3
     } state_t;
 
     state_t state;
@@ -328,6 +335,7 @@ module vgm_loaded_player #(
     logic [ADDR_WIDTH-1:0] block_skip_target;
     logic [31:0] data_offset;
     logic [31:0] loop_offset;
+    logic [31:0] segapcm_clock_work;
     logic [ADDR_WIDTH-1:0] loop_pc;
     logic loop_valid;
     logic [31:0] pcm_data_start;
@@ -1226,6 +1234,10 @@ module vgm_loaded_player #(
             block_skip_target <= '0;
             data_offset <= 32'd0;
             loop_offset <= 32'd0;
+            segapcm_clock_work <= 32'd0;
+            segapcm_clock <= 32'd0;
+            segapcm_clock_commit <= 1'b0;
+            segapcm_clock_session_reset <= 1'b0;
             segapcm_interface <= 32'd0;
             loop_pc <= '0;
             loop_valid <= 1'b0;
@@ -1452,6 +1464,8 @@ module vgm_loaded_player #(
         end else begin
             vgm_wait_tick_d <= vgm_wait_tick;
             start_d <= start;
+            segapcm_clock_commit <= 1'b0;
+            segapcm_clock_session_reset <= 1'b0;
             ym_cmd_valid <= 1'b0;
             psg_cmd_valid <= 1'b0;
             ym2151_cmd_valid <= 1'b0;
@@ -1911,6 +1925,9 @@ module vgm_loaded_player #(
                             first_playback_cmd_count_debug <= 3'd0;
                             data_offset <= 32'd0;
                             loop_offset <= 32'd0;
+                            segapcm_clock_work <= 32'd0;
+                            segapcm_clock <= 32'd0;
+                            segapcm_clock_session_reset <= 1'b1;
                             segapcm_interface <= 32'd0;
                             loop_pc <= '0;
                             loop_valid <= 1'b0;
@@ -2155,6 +2172,32 @@ module vgm_loaded_player #(
                             loop_valid <= 1'b0;
                             loop_valid_debug <= 1'b0;
                         end
+                        request_byte({{(ADDR_WIDTH-6){1'b0}}, 6'h38},
+                                     ST_READ_SEGAPCM_CLOCK0);
+                    end
+
+                    ST_READ_SEGAPCM_CLOCK0: begin
+                        segapcm_clock_work[7:0] <= read_data;
+                        request_byte({{(ADDR_WIDTH-6){1'b0}}, 6'h39},
+                                     ST_READ_SEGAPCM_CLOCK1);
+                    end
+
+                    ST_READ_SEGAPCM_CLOCK1: begin
+                        segapcm_clock_work[15:8] <= read_data;
+                        request_byte({{(ADDR_WIDTH-6){1'b0}}, 6'h3a},
+                                     ST_READ_SEGAPCM_CLOCK2);
+                    end
+
+                    ST_READ_SEGAPCM_CLOCK2: begin
+                        segapcm_clock_work[23:16] <= read_data;
+                        request_byte({{(ADDR_WIDTH-6){1'b0}}, 6'h3b},
+                                     ST_READ_SEGAPCM_CLOCK3);
+                    end
+
+                    ST_READ_SEGAPCM_CLOCK3: begin
+                        segapcm_clock_work[31:24] <= read_data;
+                        segapcm_clock <= {read_data, segapcm_clock_work[23:0]};
+                        segapcm_clock_commit <= 1'b1;
                         request_byte({{(ADDR_WIDTH-6){1'b0}}, 6'h3c},
                                      ST_READ_SEGAPCM_IF0);
                     end

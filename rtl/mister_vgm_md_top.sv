@@ -1020,7 +1020,13 @@ module mister_vgm_md_top #(
             logic segapcm_cmd_valid;
             logic [15:0] segapcm_cmd_addr;
             logic [7:0] segapcm_cmd_data;
+            logic [31:0] segapcm_header_clock;
+            logic segapcm_header_clock_commit;
+            logic segapcm_clock_session_reset;
             logic [31:0] segapcm_interface;
+            logic [31:0] segapcm_header_clock_raw_debug;
+            logic [31:0] segapcm_effective_clock_debug;
+            logic [31:0] segapcm_fsm_enable_hz_debug;
             logic [31:0] md_ym_write_requested_count;
             logic [31:0] md_ym_write_accepted_count;
             logic [31:0] md_ym_write_dropped_or_busy_count;
@@ -3793,6 +3799,9 @@ module mister_vgm_md_top #(
                 .busy                  (loaded_player_busy),
                 .done                  (loaded_player_done),
                 .header_valid          (vgm_header_valid),
+                .segapcm_clock         (segapcm_header_clock),
+                .segapcm_clock_commit  (segapcm_header_clock_commit),
+                .segapcm_clock_session_reset(segapcm_clock_session_reset),
                 .segapcm_interface     (segapcm_interface),
                 .player_error          (vgm_player_error),
                 .unsupported_opcode    (vgm_unsupported_opcode),
@@ -3989,6 +3998,10 @@ module mister_vgm_md_top #(
                     .segapcm_cmd_addr               (segapcm_cmd_addr),
                     .segapcm_cmd_data               (segapcm_cmd_data),
                     .segapcm_interface              (segapcm_interface),
+                    .segapcm_header_clock           (segapcm_header_clock),
+                    .segapcm_header_clock_commit    (segapcm_header_clock_commit),
+                    .segapcm_clock_session_reset    (segapcm_clock_session_reset |
+                                                      ioctl_download),
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
                     .smoke_variant                  (segapcm_smoke_variant),
                     .smoke_variant_valid            (segapcm_smoke_variant_valid),
@@ -4228,7 +4241,10 @@ module mister_vgm_md_top #(
                     .block6_probe_r6_debug          (),
                     .block6_probe_h6_debug          (),
                     .block6_probe_c6_debug          (),
-                    .block6_probe_m6_debug          ()
+                    .block6_probe_m6_debug          (),
+                    .segapcm_header_clock_raw_debug (segapcm_header_clock_raw_debug),
+                    .segapcm_effective_clock_debug  (segapcm_effective_clock_debug),
+                    .segapcm_fsm_enable_hz_debug    (segapcm_fsm_enable_hz_debug)
                 );
                 assign segapcm_rv61_signature_bus = {
                     segapcm_rv61_sound_signature_bus,

@@ -24,6 +24,69 @@ module segapcm_fractional_cen #(
     end
 endmodule
 
+// Convert the atomically committed VGM SegaPCM input clock into the JT FSM
+// enable cadence. The JT core needs two FSM enables per SegaPCM input clock.
+// A session reset makes the previous file's header ineligible immediately;
+// the legacy Stage Clear cadence is used until the new four-byte field commits.
+module segapcm_header_clock_cen #(
+    parameter logic [31:0] CLK_SYS_HZ = 32'd20_000_000,
+    parameter logic [31:0] FALLBACK_FSM_CEN_HZ = 32'd8_053_974
+) (
+    input  logic        clk,
+    input  logic        reset,
+    input  logic        session_reset,
+    input  logic [31:0] header_clock_raw,
+    input  logic        header_clock_commit,
+    output logic        cen,
+    output logic [31:0] header_clock_raw_debug,
+    output logic [31:0] effective_header_clock_hz_debug,
+    output logic [31:0] fsm_enable_hz_debug
+);
+    logic header_clock_committed;
+    logic [31:0] accum;
+
+    always_comb begin
+        header_clock_raw_debug = header_clock_committed ?
+            header_clock_raw : 32'd0;
+        if (!header_clock_committed || (header_clock_raw == 32'd0)) begin
+            effective_header_clock_hz_debug = FALLBACK_FSM_CEN_HZ >> 1;
+        end else begin
+            // VGM clock fields reserve their upper two bits for chip flags.
+            effective_header_clock_hz_debug = {2'b00, header_clock_raw[29:0]};
+        end
+        fsm_enable_hz_debug = effective_header_clock_hz_debug << 1;
+    end
+
+    always_ff @(posedge clk) begin
+        if (reset || session_reset) begin
+            header_clock_committed <= 1'b0;
+        end else if (header_clock_commit) begin
+            header_clock_committed <= 1'b1;
+        end
+
+        if (reset || session_reset || header_clock_commit) begin
+            accum <= 32'd0;
+            cen <= 1'b0;
+        end else if (accum >= (CLK_SYS_HZ - fsm_enable_hz_debug)) begin
+            accum <= accum + fsm_enable_hz_debug - CLK_SYS_HZ;
+            cen <= 1'b1;
+        end else begin
+            accum <= accum + fsm_enable_hz_debug;
+            cen <= 1'b0;
+        end
+    end
+
+`ifdef SIMULATION
+    always_ff @(posedge clk) begin
+        if (!reset && !session_reset &&
+            (fsm_enable_hz_debug > CLK_SYS_HZ)) begin
+            $fatal(1, "SegaPCM FSM enable %0d exceeds system clock %0d",
+                   fsm_enable_hz_debug, CLK_SYS_HZ);
+        end
+    end
+`endif
+endmodule
+
 // Convert the VGM/MAME SegaPCM bank representation into JT's fixed 19-bit
 // {bank[2:0], current[23:8]} ROM address space.  The VGM interface word uses
 // MAME's set_bank encoding: low nibble is the shift and bits 23:16 extend the
@@ -79,6 +142,9 @@ module segapcm_sound_module #(
     input  logic        [15:0] segapcm_cmd_addr,
     input  logic         [7:0] segapcm_cmd_data,
     input  logic        [31:0] segapcm_interface,
+    input  logic        [31:0] segapcm_header_clock,
+    input  logic               segapcm_header_clock_commit,
+    input  logic               segapcm_clock_session_reset,
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
     input  logic         [2:0] smoke_variant,
     input  logic               smoke_variant_valid,
@@ -302,7 +368,10 @@ module segapcm_sound_module #(
     output logic        [31:0] block6_probe_r6_debug,
     output logic        [31:0] block6_probe_h6_debug,
     output logic        [31:0] block6_probe_c6_debug,
-    output logic        [31:0] block6_probe_m6_debug
+    output logic        [31:0] block6_probe_m6_debug,
+    output logic        [31:0] segapcm_header_clock_raw_debug,
+    output logic        [31:0] segapcm_effective_clock_debug,
+    output logic        [31:0] segapcm_fsm_enable_hz_debug
 );
 
 `ifdef MEGAVGMDRIVE_SEGAPCM_C0_PM3_OUTPUT_SHIFT
@@ -8807,13 +8876,19 @@ module segapcm_sound_module #(
     };
 `endif
 
-    segapcm_fractional_cen #(
-        .CLK_SYS_HZ (CLK_SYS_HZ),
-        .TARGET_HZ  (SEGAPCM_CLK_HZ)
+    segapcm_header_clock_cen #(
+        .CLK_SYS_HZ          (CLK_SYS_HZ),
+        .FALLBACK_FSM_CEN_HZ (SEGAPCM_CLK_HZ)
     ) segapcm_cen_gen (
-        .clk   (clk),
-        .reset (reset),
-        .cen   (segapcm_cen)
+        .clk                             (clk),
+        .reset                           (reset),
+        .session_reset                   (segapcm_clock_session_reset),
+        .header_clock_raw                (segapcm_header_clock),
+        .header_clock_commit             (segapcm_header_clock_commit),
+        .cen                             (segapcm_cen),
+        .header_clock_raw_debug          (segapcm_header_clock_raw_debug),
+        .effective_header_clock_hz_debug (segapcm_effective_clock_debug),
+        .fsm_enable_hz_debug             (segapcm_fsm_enable_hz_debug)
     );
 
 `ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
