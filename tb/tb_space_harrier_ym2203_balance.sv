@@ -4,6 +4,7 @@
 // state-preserving window produced by extract_ym2203_balance_window.py).
 module tb_space_harrier_ym2203_balance #(
     parameter logic [1:0] AUDIO_SELECT = 2'd0,
+    parameter logic [1:0] PM3_MIX_MODE = 2'd1,
     parameter integer MEASURE_START_SAMPLES = 88_200,
     parameter integer MEASURE_END_SAMPLES = 132_300,
     parameter integer WAIT_HZ = 44_100
@@ -195,7 +196,7 @@ module tb_space_harrier_ym2203_balance #(
         .segapcm_smoke_c0_drive           (2'd2),
         .segapcm_c0_pm3_audio_mask        (16'hffff),
         .segapcm_c0_top_audio_test        (audio_select),
-        .segapcm_c0_pm3_mix_mode          (2'd1),
+        .segapcm_c0_pm3_mix_mode          (PM3_MIX_MODE),
         .segapcm_c0_pm3_start_policy      (3'd0),
         .segapcm_c0_jt_backend            (1'b1),
         .segapcm_smoke_ddr_dest_map       (1'b1),

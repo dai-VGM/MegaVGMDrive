@@ -1468,8 +1468,9 @@ module emu
     wire [1:0] segapcm_c0_pm3_mix_mode =
         (status[10:9] == 2'd1) ? 2'd1 : 2'd0;
 `else
-    // Internal enum 0 is the known-good Hold path. Ignore hidden status bits.
-    wire [1:0] segapcm_c0_pm3_mix_mode = 2'd0;
+    // The public OSD encoded Hold as status value 1. Keep that known-good
+    // production feed while ignoring the now-hidden status bits.
+    wire [1:0] segapcm_c0_pm3_mix_mode = 2'd1;
 `endif
     wire [2:0] segapcm_c0_pm3_start_policy = 3'd0;
     wire       segapcm_c0_jt_backend = 1'b1;
