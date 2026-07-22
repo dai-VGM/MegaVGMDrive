@@ -1076,12 +1076,24 @@ module mister_vgm_md_top #(
             logic signed [15:0] lab_pcm_mix_r_selected;
             logic signed [15:0] lab_fm_l_selected;
             logic signed [15:0] lab_fm_r_selected;
+`ifndef MEGAVGMDRIVE_SEGAPCM_C0_JT51_LAB_BUILD
             logic signed [16:0] ym2151_segapcm_l_sum;
             logic signed [16:0] ym2151_segapcm_r_sum;
+`endif
             logic signed [15:0] ym2151_segapcm_audio_l;
             logic signed [15:0] ym2151_segapcm_audio_r;
             logic signed [15:0] ym2151_segapcm_selected_l;
             logic signed [15:0] ym2151_segapcm_selected_r;
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_JT51_LAB_BUILD
+            logic signed [15:0] ym2203_audio_l_held;
+            logic signed [15:0] ym2203_audio_r_held;
+            logic signed [15:0] ym2203_audio_l_selected;
+            logic signed [15:0] ym2203_audio_r_selected;
+            logic signed [17:0] mode5_audio_l_sum;
+            logic signed [17:0] mode5_audio_r_sum;
+            logic mode5_audio_l_clipped;
+            logic mode5_audio_r_clipped;
+`endif
             logic [15:0] lab_mix_clip_count_i = 16'd0;
             logic [15:0] lab_pcm_gain_clip_count_i = 16'd0;
             logic [15:0] lab_ym_abs_peak_i = 16'd0;
@@ -1114,9 +1126,14 @@ module mister_vgm_md_top #(
             assign pcm_path_probe_value_i[3] = segapcm_audio_r_mix;
             assign pcm_path_probe_value_i[4] = lab_pcm_mix_l_selected;
             assign pcm_path_probe_value_i[5] = lab_pcm_mix_r_selected;
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_JT51_LAB_BUILD
+            wire lab_mix_clip = mode5_audio_l_clipped ||
+                                mode5_audio_r_clipped;
+`else
             wire lab_mix_clip =
                 (ym2151_segapcm_l_sum[16] != ym2151_segapcm_l_sum[15]) ||
                 (ym2151_segapcm_r_sum[16] != ym2151_segapcm_r_sum[15]);
+`endif
             wire [15:0] lab_ym_abs_now_l = abs16_top(ym2151_audio_l);
             wire [15:0] lab_ym_abs_now_r = abs16_top(ym2151_audio_r);
             wire [15:0] lab_pcm_abs_now_l = abs16_top(segapcm_audio_l);
@@ -1868,20 +1885,29 @@ module mister_vgm_md_top #(
                 ym2151_audio_r;
             assign segapcm_audio_l_mix = lab_pcm_mix_l_selected;
             assign segapcm_audio_r_mix = lab_pcm_mix_r_selected;
-            assign ym2151_segapcm_l_sum =
-                {lab_fm_l_selected[15], lab_fm_l_selected} +
-                {lab_pcm_mix_l_selected[15], lab_pcm_mix_l_selected};
-            assign ym2151_segapcm_r_sum =
-                {lab_fm_r_selected[15], lab_fm_r_selected} +
-                {lab_pcm_mix_r_selected[15], lab_pcm_mix_r_selected};
-            assign ym2151_segapcm_audio_l =
-                (ym2151_segapcm_l_sum[16] != ym2151_segapcm_l_sum[15]) ?
-                (ym2151_segapcm_l_sum[16] ? 16'sh8000 : 16'sh7fff) :
-                ym2151_segapcm_l_sum[15:0];
-            assign ym2151_segapcm_audio_r =
-                (ym2151_segapcm_r_sum[16] != ym2151_segapcm_r_sum[15]) ?
-                (ym2151_segapcm_r_sum[16] ? 16'sh8000 : 16'sh7fff) :
-                ym2151_segapcm_r_sum[15:0];
+            mode5_ym2203_audio_mixer ym2203_audio_mixer (
+                .clk                       (clk),
+                .reset                     (reset),
+                .existing_nonpcm_l         (lab_fm_l_selected),
+                .existing_nonpcm_r         (lab_fm_r_selected),
+                .segapcm_l                 (lab_pcm_mix_l_selected),
+                .segapcm_r                 (lab_pcm_mix_r_selected),
+                .ym2203_raw_l              (ym2203_raw_audio_l),
+                .ym2203_raw_r              (ym2203_raw_audio_r),
+                .ym2203_raw_sample_valid   (ym2203_raw_sample_valid),
+                .ym2203_chip_present       (ym2203_clock_present_debug),
+                .ym2203_lane_enable        (segapcm_c0_top_audio_test != 2'd3),
+                .ym2203_held_l             (ym2203_audio_l_held),
+                .ym2203_held_r             (ym2203_audio_r_held),
+                .ym2203_selected_l         (ym2203_audio_l_selected),
+                .ym2203_selected_r         (ym2203_audio_r_selected),
+                .mix_sum_l                 (mode5_audio_l_sum),
+                .mix_sum_r                 (mode5_audio_r_sum),
+                .mix_clipped_l             (mode5_audio_l_clipped),
+                .mix_clipped_r             (mode5_audio_r_clipped),
+                .audio_l                   (ym2151_segapcm_audio_l),
+                .audio_r                   (ym2151_segapcm_audio_r)
+            );
             assign ym2151_segapcm_selected_l = ym2151_segapcm_audio_l;
             assign ym2151_segapcm_selected_r = ym2151_segapcm_audio_r;
             assign raw_audio_l = ym2151_segapcm_selected_l;
