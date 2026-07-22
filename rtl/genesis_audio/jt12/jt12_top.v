@@ -582,14 +582,15 @@ assign op_result_hd = 'd0;
 
 /* verilator tracing_on */
 genvar i;
-wire signed [15:0] accum_r[7];
-wire signed [15:0] accum_l[7];
-
-assign fm_snd_left = accum_l[0] + accum_l[1] + accum_l[2] + accum_l[4] + accum_l[5] + accum_l[6];
-assign fm_snd_right = accum_r[0] + accum_r[1] + accum_r[2] + accum_r[4] + accum_r[5] + accum_r[6];
 
 generate
     if( use_pcm==1 ) begin: gen_pcm_acc // YM2612 accumulator
+        wire signed [15:0] accum_r[7];
+        wire signed [15:0] accum_l[7];
+
+        assign fm_snd_left = accum_l[0] + accum_l[1] + accum_l[2] + accum_l[4] + accum_l[5] + accum_l[6];
+        assign fm_snd_right = accum_r[0] + accum_r[1] + accum_r[2] + accum_r[4] + accum_r[5] + accum_r[6];
+
         // assign fm_snd_right[3:0] = 4'd0;
         // assign fm_snd_left [3:0] = 4'd0;
         assign snd_sample        = zero;
