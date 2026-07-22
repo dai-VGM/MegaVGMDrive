@@ -133,10 +133,13 @@ set_global_assignment -name VERILOG_MACRO "MEGAVGMDRIVE_DIRECT_PLAYER_START_DEBU
 #set_global_assignment -name VERILOG_MACRO "MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_RAM_DEPTH_LOG2=9"
 #set_global_assignment -name VERILOG_MACRO "MEGAVGMDRIVE_SEGAPCM_COPY_DISABLE=1"
 
-# C0-only debug build stubs MD/JT12/JT89/JT51 audio in RTL. Keep these
-# public-build audio tuning macros off for the current Stage Clear probe burn.
-#set_global_assignment -name VERILOG_MACRO "MD_JT12_CEN_NTSC_TEST=1"
+# Restore the proven 20 MHz production MD timing contract. This define was
+# active before the SegaPCM C0-only bring-up profile replaced the MD path;
+# fractional CEN gives JT12 the 7.670454 MHz NTSC chip clock.
+set_global_assignment -name VERILOG_MACRO "MD_JT12_CEN_NTSC_TEST=1"
 #set_global_assignment -name VERILOG_MACRO "MD_JT12_HIFI_PCM_TEST=1"
+# Keep the integrated final-output shift unchanged: enabling the old MD-only
+# shift-0 profile here would also raise JT51, YM2203, and SegaPCM by 4x.
 #set_global_assignment -name VERILOG_MACRO "MD_AUDIO_OUTPUT_SHIFT_0_TEST=1"
 #set_global_assignment -name VERILOG_MACRO "MD_AUDIO_GENMIX_OUTPUT_GAIN_2X_TEST=1"
 #set_global_assignment -name VERILOG_MACRO "MD_AUDIO_GAIN_OSD_TEST=1"

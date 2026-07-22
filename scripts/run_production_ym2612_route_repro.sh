@@ -8,6 +8,9 @@ cd "$repo_dir"
 
 # Active VERILOG_MACRO assignments in VGM_MD_MiSTer.qsf. Keep this explicit so
 # the reproduction cannot silently fall back to the non-production MD build.
+# MD_ROUTE_PROFILE=regressed intentionally omits the restored MD CEN define
+# and is only for reproducing the 3195202 hardware regression.
+profile="${MD_ROUTE_PROFILE:-hardware}"
 defines=(
   -DSIMULATION
   -DMISTER_FB=1
@@ -27,6 +30,14 @@ defines=(
   -DMEGAVGMDRIVE_START_HOLD_NO_BUSY_CLEAR=1
   -DMEGAVGMDRIVE_DIRECT_PLAYER_START_DEBUG=1
 )
+if [[ "$profile" == "hardware" ]]; then
+  defines+=(
+    -DMD_JT12_CEN_NTSC_TEST=1
+  )
+elif [[ "$profile" != "regressed" ]]; then
+  echo "Unknown MD_ROUTE_PROFILE=$profile" >&2
+  exit 2
+fi
 
 sources=(
   rtl/mister_vgm_md_top.sv
@@ -61,7 +72,9 @@ iverilog -g2012 -Wall -I. "${defines[@]}" \
   "${sources[@]}" tb/tb_production_ym2612_route_repro.sv \
   >"$test_tmp/icarus-compile.log" 2>&1
 echo "ICARUS_COMPILE_PASS"
-for fixture_select in "0 0" "1 0" "2 0" "3 0" "3 1" "3 3"; do
+fixture_matrix="${MD_ROUTE_FIXTURES:-0:0 1:0 2:0 3:0 3:1 3:3 4:0}"
+for fixture_select in $fixture_matrix; do
+  fixture_select="${fixture_select/:/ }"
   read -r fixture audio_select <<<"$fixture_select"
   (
     cd "$test_tmp"
@@ -69,9 +82,11 @@ for fixture_select in "0 0" "1 0" "2 0" "3 0" "3 1" "3 3"; do
   ) | tee "$test_tmp/icarus-run-$fixture-$audio_select.log"
 done
 
-verilator --lint-only --timing -Wall -Wno-fatal -I. "${defines[@]}" \
-  --top-module tb_production_ym2612_route_repro \
-  tb/tb_production_ym2612_route_repro.sv "${sources[@]}" \
-  >"$test_tmp/verilator.log" 2>&1
-warning_count="$(grep -c '^%Warning' "$test_tmp/verilator.log" || true)"
-echo "VERILATOR_PASS warnings=$warning_count"
+if [[ "${MD_ROUTE_SKIP_LINT:-0}" != "1" ]]; then
+  verilator --lint-only --timing -Wall -Wno-fatal -I. "${defines[@]}" \
+    --top-module tb_production_ym2612_route_repro \
+    tb/tb_production_ym2612_route_repro.sv "${sources[@]}" \
+    >"$test_tmp/verilator.log" 2>&1
+  warning_count="$(grep -c '^%Warning' "$test_tmp/verilator.log" || true)"
+  echo "VERILATOR_PASS warnings=$warning_count"
+fi

@@ -2,6 +2,8 @@
 
 // Production-QSF regression for the actual mode-5 top.  Genesis commands and
 // the MD sound core must remain active beside the arcade command/audio path.
+/* verilator lint_off PROCASSINIT */
+/* verilator lint_off BLKSEQ */
 module tb_production_ym2612_route_repro;
     localparam integer ADDR_WIDTH = 12;
     localparam integer CLK_SYS_HZ = 20_000_000;
@@ -9,6 +11,37 @@ module tb_production_ym2612_route_repro;
     localparam integer DATA_START = 8'h80;
     localparam logic [28:0] DDR_BASE = {4'b0011, 25'd0};
     localparam integer DDR_WORDS = 1024;
+
+`ifdef MEGAVGMDRIVE_PRODUCTION_AUDIO_BUILD
+    localparam integer PROFILE_PRODUCTION = 1;
+`else
+    localparam integer PROFILE_PRODUCTION = 0;
+`endif
+`ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
+    localparam integer PROFILE_C0_LAB = 1;
+`else
+    localparam integer PROFILE_C0_LAB = 0;
+`endif
+`ifdef MEGAVGMDRIVE_SEGAPCM_AUDIO_STUB_BUILD
+    localparam integer PROFILE_MD_AUDIO_STUB = 1;
+`else
+    localparam integer PROFILE_MD_AUDIO_STUB = 0;
+`endif
+`ifdef MEGAVGMDRIVE_DEV_OSD
+    localparam integer PROFILE_DEV_OSD = 1;
+`else
+    localparam integer PROFILE_DEV_OSD = 0;
+`endif
+`ifdef MD_JT12_CEN_NTSC_TEST
+    localparam integer PROFILE_JT12_NTSC_CEN = 1;
+`else
+    localparam integer PROFILE_JT12_NTSC_CEN = 0;
+`endif
+`ifdef MD_AUDIO_OUTPUT_SHIFT_0_TEST
+    localparam integer PROFILE_OUTPUT_SHIFT = 0;
+`else
+    localparam integer PROFILE_OUTPUT_SHIFT = 2;
+`endif
 
     logic clk = 1'b0;
     logic reset_n = 1'b0;
@@ -45,11 +78,26 @@ module tb_production_ym2612_route_repro;
     integer jt51_raw_nonzero_count = 0;
     integer ym2203_raw_nonzero_count = 0;
     integer md_selected_nonzero_count = 0;
+    integer jt51_valid_count = 0;
+    integer ym2203_valid_count = 0;
+    integer segapcm_valid_count = 0;
+    integer fm_cen_count = 0;
+    integer psg_cen_count = 0;
+    integer wait_tick_count = 0;
     integer raw_valid_count = 0;
     integer raw_nonzero_count = 0;
     integer final_valid_count = 0;
     integer final_nonzero_count = 0;
     integer xz_count = 0;
+    integer md_raw_value_mismatch_count = 0;
+    integer final_raw_value_mismatch_count = 0;
+    longint unsigned system_cycle = 0;
+    longint unsigned first_ym_cycle = 0;
+    longint unsigned last_ym_cycle = 0;
+    longint unsigned done_cycle = 0;
+    logic [63:0] md_sample_hash = 64'hcbf29ce484222325;
+    logic [63:0] raw_on_md_valid_hash = 64'hcbf29ce484222325;
+    logic [63:0] final_on_md_valid_hash = 64'hcbf29ce484222325;
     integer fixture = 2;
     integer audio_select = 0;
 
@@ -92,6 +140,37 @@ module tb_production_ym2612_route_repro;
             emit_byte(8'h61);
             emit_byte(samples[7:0]);
             emit_byte(samples[15:8]);
+        end
+    endtask
+
+    task automatic emit_u32(input integer value);
+        begin
+            emit_byte(value[7:0]);
+            emit_byte(value[15:8]);
+            emit_byte(value[23:16]);
+            emit_byte(value[31:24]);
+        end
+    endtask
+
+    task automatic emit_dac_stream_fixture;
+        integer sample_count;
+        logic [7:0] sample_value;
+        begin
+            sample_count = 64;
+            sample_value = 8'h20;
+            emit_ym(8'h2b, 8'h80);
+            emit_byte(8'h67);
+            emit_byte(8'h66);
+            emit_byte(8'h00);
+            emit_u32(sample_count);
+            for (integer i = 0; i < sample_count; i = i + 1) begin
+                emit_byte(sample_value);
+                sample_value = sample_value + 8'h05;
+            end
+            emit_byte(8'he0);
+            emit_u32(0);
+            for (integer i = 0; i < sample_count; i = i + 1)
+                emit_byte(8'h80);
         end
     endtask
 
@@ -180,6 +259,7 @@ module tb_production_ym2612_route_repro;
     );
 
     always @(posedge clk) begin
+        system_cycle <= system_cycle + 1;
         ddram_dout_ready <= 1'b0;
         if (ddram_we) begin
             if (ddram_addr < DDR_BASE || ddram_addr >= DDR_BASE + DDR_WORDS)
@@ -203,11 +283,24 @@ module tb_production_ym2612_route_repro;
         end
 
         if (reset_n && player_busy) begin
-            if (dut.loaded_vgm_mode.ym_cmd_valid) parser_ym_pulses++;
+            if (dut.loaded_vgm_mode.ym_cmd_valid) begin
+                parser_ym_pulses++;
+                if (first_ym_cycle == 0) first_ym_cycle = system_cycle;
+                last_ym_cycle = system_cycle;
+            end
             if (dut.loaded_vgm_mode.psg_cmd_valid) parser_psg_pulses++;
         end
         if (reset_n && dut.audio_runtime_open) begin
+            if (dut.loaded_vgm_mode.sound.fm_clken) fm_cen_count++;
+            if (dut.loaded_vgm_mode.sound.psg_clken) psg_cen_count++;
+            if (dut.vgm_wait_tick) wait_tick_count++;
             if (dut.loaded_vgm_mode.md_audio_sample_valid) md_valid_count++;
+            if (dut.loaded_vgm_mode.ym2151_audio_sample_valid)
+                jt51_valid_count++;
+            if (dut.loaded_vgm_mode.ym2203_raw_sample_valid)
+                ym2203_valid_count++;
+            if (dut.loaded_vgm_mode.segapcm_audio_sample_valid)
+                segapcm_valid_count++;
             if (dut.loaded_vgm_mode.md_audio_l != 0 ||
                 dut.loaded_vgm_mode.md_audio_r != 0) md_nonzero_count++;
             if (dut.loaded_vgm_mode.sound.fm_left != 0 ||
@@ -229,6 +322,27 @@ module tb_production_ym2612_route_repro;
                 raw_nonzero_count++;
             if (audio_sample_valid) final_valid_count++;
             if (audio_l != 0 || audio_r != 0) final_nonzero_count++;
+            if (dut.loaded_vgm_mode.md_audio_session_active &&
+                audio_select != 3 &&
+                ({dut.raw_audio_l, dut.raw_audio_r} !==
+                 {dut.loaded_vgm_mode.md_audio_l,
+                  dut.loaded_vgm_mode.md_audio_r}))
+                md_raw_value_mismatch_count++;
+            if ({audio_l, audio_r} !== {dut.raw_audio_l, dut.raw_audio_r})
+                final_raw_value_mismatch_count++;
+            if (dut.loaded_vgm_mode.md_audio_sample_valid) begin
+                md_sample_hash <=
+                    (md_sample_hash ^
+                     {32'd0, dut.loaded_vgm_mode.md_audio_l,
+                      dut.loaded_vgm_mode.md_audio_r}) * 64'h00000100000001b3;
+                raw_on_md_valid_hash <=
+                    (raw_on_md_valid_hash ^
+                     {32'd0, dut.raw_audio_l, dut.raw_audio_r}) *
+                    64'h00000100000001b3;
+                final_on_md_valid_hash <=
+                    (final_on_md_valid_hash ^ {32'd0, audio_l, audio_r}) *
+                    64'h00000100000001b3;
+            end
             if ((^{dut.loaded_vgm_mode.md_audio_l,
                    dut.loaded_vgm_mode.md_audio_r,
                    dut.loaded_vgm_mode.md_audio_l_selected,
@@ -245,7 +359,7 @@ module tb_production_ym2612_route_repro;
         integer expected_psg;
         if (!$value$plusargs("FIXTURE=%d", fixture)) fixture = 2;
         if (!$value$plusargs("AUDIO_SELECT=%d", audio_select)) audio_select = 0;
-        if (fixture < 0 || fixture > 3)
+        if (fixture < 0 || fixture > 4)
             $fatal(1, "invalid FIXTURE=%0d", fixture);
         if (audio_select != 0 && audio_select != 1 && audio_select != 3)
             $fatal(1, "invalid AUDIO_SELECT=%0d", audio_select);
@@ -267,7 +381,7 @@ module tb_production_ym2612_route_repro;
             vgm_mem[8'h47] = 8'h00;
         end
 
-        if (fixture != 1) begin
+        if (fixture != 1 && fixture != 4) begin
             emit_ym(8'h22, 8'h00);
             emit_ym(8'h27, 8'h00);
             emit_ym(8'h2b, 8'h00);
@@ -289,7 +403,7 @@ module tb_production_ym2612_route_repro;
             emit_ym(8'hb4, 8'hc0);
             emit_ym(8'h28, 8'hf0);
         end
-        if (fixture != 0) begin
+        if (fixture == 1 || fixture == 2 || fixture == 3) begin
             emit_psg(8'h80);
             emit_psg(8'h10);
             emit_psg(8'h90);
@@ -301,7 +415,9 @@ module tb_production_ym2612_route_repro;
             emit_ym2203(8'h07, 8'h3e);
             emit_ym2203(8'h08, 8'h0f);
         end
-        emit_wait(16'd2000);
+        if (fixture == 4)
+            emit_dac_stream_fixture();
+        emit_wait((fixture == 4) ? 64 : 2000);
         emit_byte(8'h66);
         vgm_mem[8'h04] = (build_pc - 4) & 8'hff;
         vgm_mem[8'h05] = ((build_pc - 4) >> 8) & 8'hff;
@@ -319,14 +435,39 @@ module tb_production_ym2612_route_repro;
         if (!player_done || player_error)
             $fatal(1, "production parser did not reach END timeout=%0d error=%0b",
                    timeout, player_error);
+        done_cycle = system_cycle;
         if (dut.YM2151_EXPERIMENTAL_MODE !== 1'b1)
             $fatal(1, "production QSF did not select YM2151 mode");
         if (dut.MD_COMMANDS_ENABLED !== 1'b1)
             $fatal(1, "production QSF did not enable MD command decode");
         if (dut.loaded_vgm_mode.md_audio_session_active !== 1'b1)
             $fatal(1, "MD command activity did not enable the MD audio lane");
-        expected_ym = (fixture == 1) ? 0 : 20;
-        expected_psg = (fixture == 0) ? 0 : 3;
+        expected_ym = (fixture == 1) ? 0 :
+                      (fixture == 4) ? 65 : 20;
+        expected_psg = (fixture == 1 || fixture == 2 || fixture == 3) ? 3 : 0;
+        $display("BUILD_PROFILE production=%0d PSG=%0d YM2612=%0d JT51=%0d YM2203=%0d SEGAPCM=%0d MD_COMMANDS_ENABLED=%0d MD_AUDIO_STUB=%0d YM2151_EXPERIMENTAL_MODE=%0d C0_LAB=%0d DEV_OSD=%0d JT12_NTSC_CEN=%0d OUTPUT_SHIFT=%0d",
+                 PROFILE_PRODUCTION, dut.MD_COMMANDS_ENABLED,
+                 dut.MD_COMMANDS_ENABLED, dut.YM2151_EXPERIMENTAL_MODE,
+                 dut.YM2151_EXPERIMENTAL_MODE,
+                 dut.YM2151_EXPERIMENTAL_MODE, dut.MD_COMMANDS_ENABLED,
+                 PROFILE_MD_AUDIO_STUB, dut.YM2151_EXPERIMENTAL_MODE,
+                 PROFILE_C0_LAB, PROFILE_DEV_OSD,
+                 PROFILE_JT12_NTSC_CEN, PROFILE_OUTPUT_SHIFT);
+        $display("PRODUCTION_MD_TIMING fixture=%0d cycles=%0d first_ym=%0d last_ym=%0d done=%0d fm_cen=%0d psg_cen=%0d wait_ticks=%0d cen_i1=%0d cen_i2=%0d cen_i3=%0d cen_i4=%0d cen_ige5=%0d cen_min=%0d cen_max=%0d jt51_valid=%0d ym2203_valid=%0d segapcm_valid=%0d md_valid=%0d raw_valid=%0d valid_extra=%0d value_mismatch=%0d final_mismatch=%0d md_hash=%016h raw_hash=%016h final_hash=%016h",
+                 fixture, system_cycle, first_ym_cycle, last_ym_cycle,
+                 done_cycle, fm_cen_count, psg_cen_count, wait_tick_count,
+                 dut.jt12_cen_interval_1_count,
+                 dut.jt12_cen_interval_2_count,
+                 dut.jt12_cen_interval_3_count,
+                 dut.jt12_cen_interval_4_count,
+                 dut.jt12_cen_interval_ge5_count,
+                 dut.jt12_cen_interval_min, dut.jt12_cen_interval_max,
+                 jt51_valid_count, ym2203_valid_count, segapcm_valid_count,
+                 md_valid_count, raw_valid_count,
+                 raw_valid_count - md_valid_count,
+                 md_raw_value_mismatch_count,
+                 final_raw_value_mismatch_count, md_sample_hash,
+                 raw_on_md_valid_hash, final_on_md_valid_hash);
         $display("PRODUCTION_MD_ROUTE fixture=%0d select=%0d ym_parser=%0d psg_parser=%0d md_valid=%0d md_nonzero=%0d fm_raw_nonzero=%0d psg_raw_nonzero=%0d jt51_raw_nonzero=%0d ym2203_raw_nonzero=%0d selected_nonzero=%0d raw_valid=%0d raw_nonzero=%0d final_valid=%0d final_nonzero=%0d dropped=%0d xz=%0d",
                  fixture, audio_select,
                  parser_ym_pulses, parser_psg_pulses, md_valid_count,
@@ -336,6 +477,14 @@ module tb_production_ym2612_route_repro;
                  raw_valid_count, raw_nonzero_count,
                  final_valid_count, final_nonzero_count,
                  dut.ym_write_dropped_or_busy_count, xz_count);
+        if (fixture == 4)
+            $display("PRODUCTION_MD_DAC_STREAM commands=%0d wait_samples=%0d cycles=%0d overhead=%0d max_cycles=%0d wait0=%0d",
+                     dut.dac_stream_cmd_count,
+                     dut.dac_stream_wait_samples_total,
+                     dut.dac_stream_clk_cycles_total,
+                     dut.dac_stream_overhead_cycles_total,
+                     dut.max_dac_stream_cmd_cycles,
+                     dut.count_wait0_dac_stream_cmd);
         if (parser_ym_pulses != expected_ym ||
             parser_psg_pulses != expected_psg ||
             dut.ym_write_requested_count != expected_ym ||
@@ -346,8 +495,13 @@ module tb_production_ym2612_route_repro;
             $fatal(1, "production MD route counters failed");
         if (fixture != 1 && fm_raw_nonzero_count == 0)
             $fatal(1, "YM2612 fixture had no raw FM activity");
-        if (fixture != 0 && psg_raw_nonzero_count == 0)
+        if (expected_psg != 0 && psg_raw_nonzero_count == 0)
             $fatal(1, "PSG fixture had no raw PSG activity");
+        if (fixture == 4 &&
+            (dut.dac_stream_cmd_count != 64 ||
+             dut.dac_stream_wait_samples_total != 0 ||
+             dut.count_wait0_dac_stream_cmd != 64))
+            $fatal(1, "YM2612 DAC stream accounting failed");
         if (fixture == 3 &&
             (dut.loaded_vgm_mode.ym2151_write_count != 0 ||
              dut.loaded_vgm_mode.ym2203_write_count != 4 ||
@@ -361,9 +515,17 @@ module tb_production_ym2612_route_repro;
                      raw_nonzero_count == 0 || final_nonzero_count == 0) begin
             $fatal(1, "Normal/FM Only lost the MD lane");
         end
+        if (fixture != 3 && audio_select != 3 &&
+            (md_raw_value_mismatch_count != 0 ||
+             final_raw_value_mismatch_count != 0 ||
+             md_sample_hash != raw_on_md_valid_hash ||
+             raw_on_md_valid_hash != final_on_md_valid_hash))
+            $fatal(1, "MD-only value route is not bit-identical");
 
         $display("PASS tb_production_ym2612_route_repro fixture=%0d select=%0d",
                  fixture, audio_select);
         $finish;
     end
 endmodule
+/* verilator lint_on BLKSEQ */
+/* verilator lint_on PROCASSINIT */
