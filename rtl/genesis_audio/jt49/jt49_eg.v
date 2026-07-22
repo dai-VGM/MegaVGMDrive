@@ -42,16 +42,18 @@ wire HOLD = ctrl[0];
 
 wire will_hold = !CONT || HOLD;
 
-always @(posedge clk)
-    if( cen ) env <= inv ? ~gain : gain;
+always @(posedge clk, negedge rst_n)
+    if( !rst_n ) env <= 5'h1F;
+    else if( cen ) env <= inv ? ~gain : gain;
 
 reg  last_step;
 wire step_edge = (step && !last_step) || null_period;
 wire will_invert = (!CONT&&ATT) || (CONT&&ALT);
 reg  rst_latch, rst_clr;
 
-always @(posedge clk) begin
-    if( restart ) rst_latch <= 1;
+always @(posedge clk, negedge rst_n) begin
+    if( !rst_n ) rst_latch <= 0;
+    else if( restart ) rst_latch <= 1;
     else if(rst_clr ) rst_latch <= 0;
 end
 
@@ -61,6 +63,7 @@ always @( posedge clk, negedge rst_n )
         inv     <= 0;
         stop    <= 0;
         rst_clr <= 0;
+        last_step <= 0;
     end
     else if( cen ) begin
         last_step <= step;

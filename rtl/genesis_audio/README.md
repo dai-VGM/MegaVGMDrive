@@ -38,7 +38,7 @@ upstream JT12. Their original license headers are unchanged.
 - `jt49/`
   - repository: https://github.com/jotego/jt49
   - commit: `9d097f1eefad3530567b71f13016f6e8546a4bb5`
-  - Git blobs:
+  - upstream base Git blobs:
     - `jt49.v`: `d91dbf6a075a5923a65d8d9977706244af7da994`
     - `jt49_bus.v`: `b7639d9fc121e43ee691336edb3c39802d9b8b4f`
     - `jt49_div.v`: `ac4564ce9add8056387d35c6ee7cf4643459ef11`
@@ -46,5 +46,15 @@ upstream JT12. Their original license headers are unchanged.
     - `jt49_eg.v`: `46dd62ace1f080bce6678469ca0b8b99b0c2b74e`
     - `jt49_exp.v`: `412a3f8aedb7967d24a7cfe2b1ffcf48580433fb`
     - `jt49_noise.v`: `ffc1fb978e55157d7d36ca11e2feea6b3229fd63`
-
-All seven JT49 RTL files remain byte-identical to the pinned JT49 commit.
+  - local reset-only changes for deterministic startup without requiring
+    `clk_en` pulses while reset is asserted:
+    - `jt49.v`: reset `Amix`, `Bmix`, `Cmix`, `logA`, `logB`, `logC`, and
+      `log`
+    - `jt49_cen.v`: reset `cen16` and `cen256`
+    - `jt49_eg.v`: reset `env`, `last_step`, and `rst_latch`
+    - `jt49_exp.v`: add and connect `rst_n`, and reset the LUT output `dout`
+    - `jt49_noise.v`: reset `noise` and `last_en`
+  - the LUT contents, divider ratios, mixer arithmetic/order, volume model,
+    output widths/scaling, and post-reset sample timing are unchanged
+  - `jt49_bus.v` and `jt49_div.v` remain byte-identical to their upstream
+    base blobs above

@@ -136,10 +136,11 @@ reg  [4:0] logA, logB, logC, log;
 wire [7:0] lin;
 
 jt49_exp u_exp(
-    .clk    ( clk  ),
-    .comp   ( comp ),
-    .din    ( log  ),
-    .dout   ( lin  )
+    .rst_n  ( rst_n ),
+    .clk    ( clk   ),
+    .comp   ( comp  ),
+    .din    ( log   ),
+    .dout   ( lin   )
 );
 
 wire [4:0] volA = { regarray[ 8][3:0], regarray[ 8][3] };
@@ -154,14 +155,23 @@ wire use_noC  = regarray[ 7][5];
 
 reg [3:0] acc_st;
 
-always @(posedge clk) if( clk_en ) begin
-    Amix <= (noise|use_noA) & (bitA|regarray[7][0]);
-    Bmix <= (noise|use_noB) & (bitB|regarray[7][1]);
-    Cmix <= (noise|use_noC) & (bitC|regarray[7][2]);
+always @(posedge clk, negedge rst_n) begin
+    if( !rst_n ) begin
+        Amix <= 1'b0;
+        Bmix <= 1'b0;
+        Cmix <= 1'b0;
+        logA <= 5'd0;
+        logB <= 5'd0;
+        logC <= 5'd0;
+    end else if( clk_en ) begin
+        Amix <= (noise|use_noA) & (bitA|regarray[7][0]);
+        Bmix <= (noise|use_noB) & (bitB|regarray[7][1]);
+        Cmix <= (noise|use_noC) & (bitC|regarray[7][2]);
 
-    logA <= !Amix ? 5'd0 : (use_envA ? envelope : volA );
-    logB <= !Bmix ? 5'd0 : (use_envB ? envelope : volB );
-    logC <= !Cmix ? 5'd0 : (use_envC ? envelope : volC );
+        logA <= !Amix ? 5'd0 : (use_envA ? envelope : volA );
+        logB <= !Bmix ? 5'd0 : (use_envB ? envelope : volB );
+        logC <= !Cmix ? 5'd0 : (use_envC ? envelope : volC );
+    end
 end
 
 reg [9:0] acc;
@@ -174,6 +184,7 @@ always @(posedge clk, negedge rst_n) begin
         B      <= 8'd0;
         C      <= 8'd0;
         sound  <= 10'd0;
+        log    <= 5'd0;
     end else if(clk_en) begin
         acc_st <= { acc_st[2:0], acc_st[3] };
         acc <= acc + {2'b0,lin};

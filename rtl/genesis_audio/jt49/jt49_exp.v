@@ -29,6 +29,7 @@
 // 3 -> 13.4
 
 module jt49_exp(
+    input            rst_n,
     input            clk,
     input      [1:0] comp,  // compression
     input      [4:0] din,
@@ -37,8 +38,9 @@ module jt49_exp(
 
 reg [7:0] lut[0:127];
 
-always @(posedge clk)
-    dout <= lut[ {comp,din} ];
+always @(posedge clk, negedge rst_n)
+    if( !rst_n ) dout <= 8'd0;
+    else         dout <= lut[ {comp,din} ];
 
 initial begin
     lut[0] = 8'd0;

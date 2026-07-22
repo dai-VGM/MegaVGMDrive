@@ -46,9 +46,14 @@ always @(posedge clk, negedge rst_n) begin
     end
 end
 
-always @(posedge clk) begin
-    cen16  <= cen & toggle16;
-    cen256 <= cen & toggle256;
+always @(posedge clk, negedge rst_n) begin
+    if(!rst_n) begin
+        cen16  <= 1'b0;
+        cen256 <= 1'b0;
+    end else begin
+        cen16  <= cen & toggle16;
+        cen256 <= cen & toggle256;
+    end
 end
 
 

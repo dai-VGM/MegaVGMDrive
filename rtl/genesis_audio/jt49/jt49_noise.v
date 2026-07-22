@@ -38,13 +38,16 @@ reg last_en;
 
 wire noise_up = noise_en && !last_en;
 
-always @(posedge clk ) if(cen) begin
-    noise <= ~poly17[0];
+always @(posedge clk, negedge rst_n ) begin
+    if( !rst_n ) noise <= 1'b1;
+    else if(cen) noise <= ~poly17[0];
 end
 
 always @( posedge clk, negedge rst_n )
-  if( !rst_n ) 
+  if( !rst_n ) begin
     poly17 <= 17'd0;
+    last_en <= 1'b0;
+  end
   else if( cen ) begin
     last_en <= noise_en;
     if( noise_up )
