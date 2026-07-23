@@ -21,6 +21,29 @@ MegaVGMDriveは、VGM command streamをDDRAMへロードし、FPGA上の音源co
 
 このreleaseでは、YM2203/JT49とSegaPCMをproduction経路へ追加し、YM2612/PSGとの同時動作を復旧しました。Mega Drive familyとarcade familyの公開音量は、familyごとに独立して正規化しています。
 
+## FPGA build status
+
+2026-07-23の実機確認済みproduction buildにおけるQuartus結果は次のとおりです。
+
+| 項目 | 値 |
+| --- | --- |
+| Flow Status | Successful |
+| Build time | Thu Jul 23 11:04:36 2026 |
+| Quartus Prime Version | 17.0.0 Build 595 04/25/2017 SJ Lite Edition |
+| Revision | `VGM_MD_MiSTer` |
+| Top-level entity | `sys_top` |
+| Family | Cyclone V |
+| Device | `5CSEBA6U23I7` |
+| Timing Models | Final |
+| Logic utilization | 32,614 / 41,910 ALMs (78%) |
+| Total registers | 54,435 |
+| Total pins | 145 / 314 (46%) |
+| Total block memory bits | 372,593 / 5,662,720 (7%) |
+| Total DSP Blocks | 37 / 112 (33%) |
+| Total PLLs | 3 / 6 (50%) |
+
+現在もっとも厳しいresourceはlogic utilizationであり、block memoryとDSPにはまだ余裕があります。
+
 ## 主な機能
 
 - MODE5 OSDからの非圧縮`.vgm`ロード

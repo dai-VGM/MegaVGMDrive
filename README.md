@@ -21,6 +21,29 @@ The current hardware-validated release is [MegaVGMDrive – YM2203 and SegaPCM R
 
 This release adds production YM2203/JT49 and SegaPCM playback, restores concurrent YM2612/PSG operation, and normalizes the Mega Drive and arcade audio families independently.
 
+## FPGA Build Status
+
+The hardware-validated production build from 2026-07-23 has the following Quartus results:
+
+| Item | Value |
+| --- | --- |
+| Flow Status | Successful |
+| Build time | Thu Jul 23 11:04:36 2026 |
+| Quartus Prime Version | 17.0.0 Build 595 04/25/2017 SJ Lite Edition |
+| Revision | `VGM_MD_MiSTer` |
+| Top-level entity | `sys_top` |
+| Family | Cyclone V |
+| Device | `5CSEBA6U23I7` |
+| Timing Models | Final |
+| Logic utilization | 32,614 / 41,910 ALMs (78%) |
+| Total registers | 54,435 |
+| Total pins | 145 / 314 (46%) |
+| Total block memory bits | 372,593 / 5,662,720 (7%) |
+| Total DSP Blocks | 37 / 112 (33%) |
+| Total PLLs | 3 / 6 (50%) |
+
+Logic utilization is currently the tightest resource; block memory and DSP capacity still have headroom.
+
 ## Features
 
 - MODE5 OSD loading of uncompressed `.vgm` files
