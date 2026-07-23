@@ -37,7 +37,9 @@ module tb_production_ym2612_route_repro;
 `else
     localparam integer PROFILE_JT12_NTSC_CEN = 0;
 `endif
-`ifdef MD_AUDIO_OUTPUT_SHIFT_0_TEST
+`ifdef MEGAVGMDRIVE_PRODUCTION_AUDIO_BUILD
+    localparam integer PROFILE_OUTPUT_SHIFT = 0;
+`elsif MD_AUDIO_OUTPUT_SHIFT_0_TEST
     localparam integer PROFILE_OUTPUT_SHIFT = 0;
 `else
     localparam integer PROFILE_OUTPUT_SHIFT = 2;
@@ -91,6 +93,10 @@ module tb_production_ym2612_route_repro;
     integer xz_count = 0;
     integer md_raw_value_mismatch_count = 0;
     integer final_raw_value_mismatch_count = 0;
+    integer arcade_normalization_mismatch_count = 0;
+    integer family_sum_mismatch_count = 0;
+    integer family_output_mismatch_count = 0;
+    integer family_clip_count = 0;
     longint unsigned system_cycle = 0;
     longint unsigned first_ym_cycle = 0;
     longint unsigned last_ym_cycle = 0;
@@ -100,6 +106,15 @@ module tb_production_ym2612_route_repro;
     logic [63:0] final_on_md_valid_hash = 64'hcbf29ce484222325;
     integer fixture = 2;
     integer audio_select = 0;
+
+    function automatic logic signed [15:0] sat17(
+        input logic signed [16:0] value
+    );
+        begin
+            sat17 = (value[16] == value[15]) ? value[15:0] :
+                    (value[16] ? 16'sh8000 : 16'sh7fff);
+        end
+    endfunction
 
     always #25 clk = ~clk;
 
@@ -330,6 +345,30 @@ module tb_production_ym2612_route_repro;
                 md_raw_value_mismatch_count++;
             if ({audio_l, audio_r} !== {dut.raw_audio_l, dut.raw_audio_r})
                 final_raw_value_mismatch_count++;
+            if ({dut.loaded_vgm_mode.arcade_audio_l_normalized,
+                 dut.loaded_vgm_mode.arcade_audio_r_normalized} !==
+                {$signed(dut.loaded_vgm_mode.ym2151_segapcm_audio_l) >>> 2,
+                 $signed(dut.loaded_vgm_mode.ym2151_segapcm_audio_r) >>> 2})
+                arcade_normalization_mismatch_count++;
+            if (dut.loaded_vgm_mode.production_family_audio_l_sum !==
+                    ($signed({dut.loaded_vgm_mode.md_audio_l_selected[15],
+                              dut.loaded_vgm_mode.md_audio_l_selected}) +
+                     $signed({dut.loaded_vgm_mode.arcade_audio_l_normalized[15],
+                              dut.loaded_vgm_mode.arcade_audio_l_normalized})) ||
+                dut.loaded_vgm_mode.production_family_audio_r_sum !==
+                    ($signed({dut.loaded_vgm_mode.md_audio_r_selected[15],
+                              dut.loaded_vgm_mode.md_audio_r_selected}) +
+                     $signed({dut.loaded_vgm_mode.arcade_audio_r_normalized[15],
+                              dut.loaded_vgm_mode.arcade_audio_r_normalized})))
+                family_sum_mismatch_count++;
+            if (dut.raw_audio_l !==
+                    sat17(dut.loaded_vgm_mode.production_family_audio_l_sum) ||
+                dut.raw_audio_r !==
+                    sat17(dut.loaded_vgm_mode.production_family_audio_r_sum))
+                family_output_mismatch_count++;
+            if (dut.loaded_vgm_mode.production_family_audio_l_clipped ||
+                dut.loaded_vgm_mode.production_family_audio_r_clipped)
+                family_clip_count++;
             if (dut.loaded_vgm_mode.md_audio_sample_valid) begin
                 md_sample_hash <=
                     (md_sample_hash ^
@@ -477,6 +516,11 @@ module tb_production_ym2612_route_repro;
                  raw_valid_count, raw_nonzero_count,
                  final_valid_count, final_nonzero_count,
                  dut.ym_write_dropped_or_busy_count, xz_count);
+        $display("PRODUCTION_FAMILY_NORMALIZATION fixture=%0d select=%0d arcade_mismatch=%0d sum_mismatch=%0d output_mismatch=%0d clips=%0d",
+                 fixture, audio_select,
+                 arcade_normalization_mismatch_count,
+                 family_sum_mismatch_count, family_output_mismatch_count,
+                 family_clip_count);
         if (fixture == 4)
             $display("PRODUCTION_MD_DAC_STREAM commands=%0d wait_samples=%0d cycles=%0d overhead=%0d max_cycles=%0d wait0=%0d",
                      dut.dac_stream_cmd_count,
@@ -491,7 +535,10 @@ module tb_production_ym2612_route_repro;
             dut.ym_write_accepted_count != expected_ym ||
             dut.ym_write_dropped_or_busy_count != 0 ||
             md_valid_count == 0 || md_nonzero_count == 0 ||
-            raw_valid_count == 0 || final_valid_count == 0 || xz_count != 0)
+            raw_valid_count == 0 || final_valid_count == 0 || xz_count != 0 ||
+            arcade_normalization_mismatch_count != 0 ||
+            family_sum_mismatch_count != 0 ||
+            family_output_mismatch_count != 0)
             $fatal(1, "production MD route counters failed");
         if (fixture != 1 && fm_raw_nonzero_count == 0)
             $fatal(1, "YM2612 fixture had no raw FM activity");

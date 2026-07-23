@@ -87,6 +87,15 @@ module md_sound_module
 	    output logic       [15:0] final_audio_abs_peak
 	);
 
+`ifdef MEGAVGMDRIVE_PRODUCTION_AUDIO_BUILD
+    // The public integrated build keeps the last hardware-verified MD-only
+    // postmix profile.  Output normalization is handled at the family mixer;
+    // this flag affects only the YM2612/PSG lane internals below.
+    localparam bit MD_PRODUCTION_HISTORICAL_AUDIO_BUILD = 1'b1;
+`else
+    localparam bit MD_PRODUCTION_HISTORICAL_AUDIO_BUILD = 1'b0;
+`endif
+
 `ifdef MD_YM_WRITE_SLOW_TEST
     localparam bit MD_YM_WRITE_SLOW_BUILD = 1'b1;
     localparam logic [7:0] YM_EXTRA_WRITE_GAP_CYCLES = 8'd32;
@@ -299,7 +308,15 @@ module md_sound_module
 `ifdef MD_AUDIO_PSG_ATTEN_075_TEST
     localparam bit MD_AUDIO_PSG_ATTEN_075_BUILD = 1'b1;
 `else
-    localparam bit MD_AUDIO_PSG_ATTEN_075_BUILD = 1'b0;
+    localparam bit MD_AUDIO_PSG_ATTEN_075_BUILD =
+        MD_PRODUCTION_HISTORICAL_AUDIO_BUILD;
+`endif
+
+`ifdef MD_AUDIO_PSG_LEVEL_OSD_TEST
+    localparam bit MD_AUDIO_PSG_LEVEL_OSD_BUILD = 1'b1;
+`else
+    localparam bit MD_AUDIO_PSG_LEVEL_OSD_BUILD =
+        MD_PRODUCTION_HISTORICAL_AUDIO_BUILD;
 `endif
 
 `ifdef MD_AUDIO_GENMIX_NO_PSG_TEST
@@ -311,7 +328,8 @@ module md_sound_module
 `ifdef MD_AUDIO_GENMIX_NO_UPRATE_TEST
     localparam bit MD_AUDIO_GENMIX_NO_UPRATE_BUILD = 1'b1;
 `else
-    localparam bit MD_AUDIO_GENMIX_NO_UPRATE_BUILD = 1'b0;
+    localparam bit MD_AUDIO_GENMIX_NO_UPRATE_BUILD =
+        MD_PRODUCTION_HISTORICAL_AUDIO_BUILD;
 `endif
 
 `ifdef MD_PSG_CEN_LEGACY_DIV15_TEST
@@ -395,7 +413,8 @@ module md_sound_module
 `ifdef MD_JT12_HIFI_PCM_TEST
     localparam bit MD_JT12_HIFI_PCM_BUILD = 1'b1;
 `else
-    localparam bit MD_JT12_HIFI_PCM_BUILD = 1'b0;
+    localparam bit MD_JT12_HIFI_PCM_BUILD =
+        MD_PRODUCTION_HISTORICAL_AUDIO_BUILD;
 `endif
 
 `ifdef MD_AUDIO_DAC_LEVEL_2X_TEST
@@ -1202,15 +1221,13 @@ module md_sound_module
 	        MD_AUDIO_PRE_GENMIX_FM_LPF_BUILD ? fm_pre_genmix_lpf_selected_r : fm_adjust_r;
 
 	    wire signed [10:0] psg_adjust =
-`ifdef MD_AUDIO_PSG_LEVEL_OSD_TEST
-	        (audio_psg_level == 2'd0) ? (psg_pre - (psg_pre >>> 2)) :
-	        (audio_psg_level == 2'd2) ? (psg_pre + (psg_pre >>> 1)) :
-	                                    (psg_pre - (psg_pre >>> 5));
-`else
+	        MD_AUDIO_PSG_LEVEL_OSD_BUILD ?
+	            ((audio_psg_level == 2'd0) ? (psg_pre - (psg_pre >>> 2)) :
+	             (audio_psg_level == 2'd2) ? (psg_pre + (psg_pre >>> 1)) :
+	                                          (psg_pre - (psg_pre >>> 5))) :
 	        MD_AUDIO_PSG_ATTEN_075_BUILD ? (psg_pre - (psg_pre >>> 2)) :
 	        MD_AUDIO_PSG_MEGADRIVE_GAIN_BUILD ? (psg_pre + (psg_pre >>> 1)) :
 	                                            (psg_pre - (psg_pre >>> 5));
-`endif
 
 	    wire fm_path_enabled =
 	        !MD_AUDIO_PSG_ONLY_BUILD && !MD_AUDIO_FM_FORCE_MUTE_BUILD;
@@ -1431,9 +1448,10 @@ module md_sound_module
     assign pre_lpf_gain_8x_r =
         md_audio_sat21({{5{pre_lpf_postmix_r[15]}}, pre_lpf_postmix_r} <<< 3);
     assign pre_lpf_selected_l =
+        MD_PRODUCTION_HISTORICAL_AUDIO_BUILD ?
+            (audio_gain_boost ? pre_lpf_gain_2x_l : pre_lpf_postmix_l) :
 `ifdef MD_AUDIO_GAIN_OSD_TEST
-        audio_gain_boost ? pre_lpf_gain_2x_l :
-                           pre_lpf_gain_1p5x_l;
+        (audio_gain_boost ? pre_lpf_gain_2x_l : pre_lpf_gain_1p5x_l);
 `else
         MD_AUDIO_GENMIX_OUTPUT_GAIN_8X_BUILD ? pre_lpf_gain_8x_l :
         MD_AUDIO_GENMIX_OUTPUT_GAIN_6X_BUILD ? pre_lpf_gain_6x_l :
@@ -1442,9 +1460,10 @@ module md_sound_module
                                                pre_lpf_postmix_l;
 `endif
     assign pre_lpf_selected_r =
+        MD_PRODUCTION_HISTORICAL_AUDIO_BUILD ?
+            (audio_gain_boost ? pre_lpf_gain_2x_r : pre_lpf_postmix_r) :
 `ifdef MD_AUDIO_GAIN_OSD_TEST
-        audio_gain_boost ? pre_lpf_gain_2x_r :
-                           pre_lpf_gain_1p5x_r;
+        (audio_gain_boost ? pre_lpf_gain_2x_r : pre_lpf_gain_1p5x_r);
 `else
         MD_AUDIO_GENMIX_OUTPUT_GAIN_8X_BUILD ? pre_lpf_gain_8x_r :
         MD_AUDIO_GENMIX_OUTPUT_GAIN_6X_BUILD ? pre_lpf_gain_6x_r :

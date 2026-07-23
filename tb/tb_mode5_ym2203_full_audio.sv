@@ -325,9 +325,17 @@ module tb_mode5_ym2203_full_audio #(
                 if (AUDIO_SELECT != 2'd3 &&
                     dut.loaded_vgm_mode.lab_fm_l_selected == 16'sd0 &&
                     dut.loaded_vgm_mode.lab_pcm_mix_l_selected == 16'sd0) begin
-                    if (audio_l !== dut.loaded_vgm_mode.ym2203_audio_l_selected ||
-                        audio_r !== dut.loaded_vgm_mode.ym2203_audio_r_selected)
-                        fail_now("YM2203 hold did not reach final output at unity");
+                    if (audio_l !==
+                            ($signed(dut.loaded_vgm_mode.
+                                ym2203_audio_l_selected) >>> 2) ||
+                        audio_r !==
+                            ($signed(dut.loaded_vgm_mode.
+                                ym2203_audio_r_selected) >>> 2) ||
+                        audio_l !== dut.loaded_vgm_mode.
+                            arcade_audio_l_normalized ||
+                        audio_r !== dut.loaded_vgm_mode.
+                            arcade_audio_r_normalized)
+                        fail_now("YM2203 hold did not reach normalized arcade lane");
                     sign_relation_checks = sign_relation_checks + 1;
                 end
                 if (audio_l !== audio_r)

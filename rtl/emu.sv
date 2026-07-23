@@ -10,7 +10,15 @@ localparam bit FIXED_REAL_PHRASE_MODE  = (`FIXED_REGION_MODE == 3);
 localparam bit FIXED_TIMING_CAL_MODE   = (`FIXED_REGION_MODE == 4);
 localparam bit LOADED_VGM_MODE         = (`FIXED_REGION_MODE == 5);
 
-`ifdef MD_AUDIO_OUTPUT_SHIFT_0_TEST
+`ifdef MEGAVGMDRIVE_PRODUCTION_AUDIO_BUILD
+// Production mode-5 audio is normalized per source family in
+// mister_vgm_md_top: historical MD shift-0 plus the established arcade >>>2.
+// Applying another shift here would attenuate both normalized families.
+localparam bit MD_AUDIO_OUTPUT_SHIFT_0_BUILD = 1'b1;
+localparam bit MD_AUDIO_OUTPUT_SHIFT_1_BUILD = 1'b0;
+localparam bit MD_AUDIO_ATTENUATE_6DB_BUILD = 1'b0;
+localparam int MD_AUDIO_OUTPUT_SHIFT = 0;
+`elsif MD_AUDIO_OUTPUT_SHIFT_0_TEST
 localparam bit MD_AUDIO_OUTPUT_SHIFT_0_BUILD = 1'b1;
 localparam bit MD_AUDIO_OUTPUT_SHIFT_1_BUILD = 1'b0;
 localparam bit MD_AUDIO_ATTENUATE_6DB_BUILD = 1'b0;

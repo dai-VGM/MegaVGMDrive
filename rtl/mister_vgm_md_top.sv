@@ -617,6 +617,18 @@ module mister_vgm_md_top #(
                 (scaled > 20'sd32767) || (scaled < -20'sd32768);
         end
     endfunction
+
+    function automatic logic signed [15:0] saturate_17_to_16(
+        input logic signed [16:0] value
+    );
+        begin
+            if (value[16] == value[15]) begin
+                saturate_17_to_16 = value[15:0];
+            end else begin
+                saturate_17_to_16 = value[16] ? 16'sh8000 : 16'sh7fff;
+            end
+        end
+    endfunction
 `ifdef MEGAVGMDRIVE_START_HOLD_NO_BUSY_CLEAR
     localparam bit START_HOLD_NO_BUSY_CLEAR = 1'b1;
 `else
@@ -1105,6 +1117,12 @@ module mister_vgm_md_top #(
             logic signed [17:0] mode5_audio_r_sum;
             logic mode5_audio_l_clipped;
             logic mode5_audio_r_clipped;
+            logic signed [15:0] arcade_audio_l_normalized;
+            logic signed [15:0] arcade_audio_r_normalized;
+            logic signed [16:0] production_family_audio_l_sum;
+            logic signed [16:0] production_family_audio_r_sum;
+            logic production_family_audio_l_clipped;
+            logic production_family_audio_r_clipped;
 `endif
             logic [15:0] lab_mix_clip_count_i = 16'd0;
             logic [15:0] lab_pcm_gain_clip_count_i = 16'd0;
@@ -1140,7 +1158,9 @@ module mister_vgm_md_top #(
             assign pcm_path_probe_value_i[5] = lab_pcm_mix_r_selected;
 `ifdef MEGAVGMDRIVE_SEGAPCM_C0_JT51_LAB_BUILD
             wire lab_mix_clip = mode5_audio_l_clipped ||
-                                mode5_audio_r_clipped;
+                                mode5_audio_r_clipped ||
+                                production_family_audio_l_clipped ||
+                                production_family_audio_r_clipped;
 `else
             wire lab_mix_clip =
                 (ym2151_segapcm_l_sum[16] != ym2151_segapcm_l_sum[15]) ||
@@ -1917,8 +1937,16 @@ module mister_vgm_md_top #(
                 .existing_nonpcm_r         (lab_fm_r_selected),
                 .segapcm_l                 (lab_pcm_mix_l_selected),
                 .segapcm_r                 (lab_pcm_mix_r_selected),
+`ifdef MEGAVGMDRIVE_PRODUCTION_AUDIO_BUILD
+                // Production normalizes the arcade and MD families after the
+                // established arcade saturation boundary.  Keep MD out of
+                // this first-stage arcade mixer.
+                .md_l                      (16'sd0),
+                .md_r                      (16'sd0),
+`else
                 .md_l                      (md_audio_l_selected),
                 .md_r                      (md_audio_r_selected),
+`endif
                 .ym2203_raw_l              (ym2203_raw_audio_l),
                 .ym2203_raw_r              (ym2203_raw_audio_r),
                 .ym2203_raw_sample_valid   (ym2203_raw_sample_valid),
@@ -1935,8 +1963,37 @@ module mister_vgm_md_top #(
                 .audio_l                   (ym2151_segapcm_audio_l),
                 .audio_r                   (ym2151_segapcm_audio_r)
             );
+`ifdef MEGAVGMDRIVE_PRODUCTION_AUDIO_BUILD
+            // Preserve the public arcade level formerly produced by emu's
+            // global >>>2, while the historical MD lane remains shift-0.
+            assign arcade_audio_l_normalized = ym2151_segapcm_audio_l >>> 2;
+            assign arcade_audio_r_normalized = ym2151_segapcm_audio_r >>> 2;
+            assign production_family_audio_l_sum =
+                {md_audio_l_selected[15], md_audio_l_selected} +
+                {arcade_audio_l_normalized[15], arcade_audio_l_normalized};
+            assign production_family_audio_r_sum =
+                {md_audio_r_selected[15], md_audio_r_selected} +
+                {arcade_audio_r_normalized[15], arcade_audio_r_normalized};
+            assign production_family_audio_l_clipped =
+                production_family_audio_l_sum[16] !=
+                production_family_audio_l_sum[15];
+            assign production_family_audio_r_clipped =
+                production_family_audio_r_sum[16] !=
+                production_family_audio_r_sum[15];
+            assign ym2151_segapcm_selected_l =
+                saturate_17_to_16(production_family_audio_l_sum);
+            assign ym2151_segapcm_selected_r =
+                saturate_17_to_16(production_family_audio_r_sum);
+`else
+            assign arcade_audio_l_normalized = 16'sd0;
+            assign arcade_audio_r_normalized = 16'sd0;
+            assign production_family_audio_l_sum = 17'sd0;
+            assign production_family_audio_r_sum = 17'sd0;
+            assign production_family_audio_l_clipped = 1'b0;
+            assign production_family_audio_r_clipped = 1'b0;
             assign ym2151_segapcm_selected_l = ym2151_segapcm_audio_l;
             assign ym2151_segapcm_selected_r = ym2151_segapcm_audio_r;
+`endif
             assign raw_audio_l = ym2151_segapcm_selected_l;
             assign raw_audio_r = ym2151_segapcm_selected_r;
             assign raw_audio_sample_valid =

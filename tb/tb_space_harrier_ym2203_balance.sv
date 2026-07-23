@@ -31,6 +31,15 @@ module tb_space_harrier_ym2203_balance #(
     wire audio_sample_valid;
     wire signed [15:0] audio_l;
     wire signed [15:0] audio_r;
+`ifdef ARCADE_BASELINE_PUBLIC_SHIFT2
+    // Baseline 111cfa6 applies this shift one level later in emu.sv. This
+    // switch compares the exact samples presented at the public audio pins.
+    wire signed [15:0] measured_audio_l = audio_l >>> 2;
+    wire signed [15:0] measured_audio_r = audio_r >>> 2;
+`else
+    wire signed [15:0] measured_audio_l = audio_l;
+    wire signed [15:0] measured_audio_r = audio_r;
+`endif
     wire [28:0] ddram_addr;
     reg [63:0] ddram_dout = 64'd0;
     reg ddram_dout_ready = 1'b0;
@@ -348,10 +357,10 @@ module tb_space_harrier_ym2203_balance #(
 
             if (audio_sample_valid) begin
                 final_count <= final_count + 1;
-                if ((^{audio_l, audio_r}) === 1'bx) begin
+                if ((^{measured_audio_l, measured_audio_r}) === 1'bx) begin
                     final_xz <= final_xz + 1;
                 end else begin
-                    value = $signed(audio_l);
+                    value = $signed(measured_audio_l);
                     magnitude = abs16(value);
                     if (value < final_min) final_min <= value;
                     if (value > final_max) final_max <= value;
@@ -365,14 +374,16 @@ module tb_space_harrier_ym2203_balance #(
                     final_previous_valid <= 1'b1;
                     square_value = value;
                     final_sumsq <= final_sumsq + square_value * square_value;
-                    final_hash <= hash_word(hash_word(final_hash, audio_l), audio_r);
-                    if (audio_l !== audio_r)
+                    final_hash <= hash_word(
+                        hash_word(final_hash, measured_audio_l),
+                        measured_audio_r);
+                    if (measured_audio_l !== measured_audio_r)
                         final_lr_diff <= final_lr_diff + 1;
                     if (dut.loaded_vgm_mode.mode5_audio_l_clipped) begin
                         final_sat <= final_sat + 1;
-                        if (audio_l == 32767)
+                        if (measured_audio_l == 32767)
                             final_pos_sat <= final_pos_sat + 1;
-                        if (audio_l == -32768)
+                        if (measured_audio_l == -32768)
                             final_neg_sat <= final_neg_sat + 1;
                     end
                 end
