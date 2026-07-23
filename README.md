@@ -1,194 +1,192 @@
 # MegaVGMDrive
 
-A standalone VGM player core for MiSTer FPGA
+A standalone, hardware VGM player core for MiSTer FPGA.
 
 Japanese README: [README.ja.md](README.ja.md)
 
-MegaVGMDrive is an experimental MiSTer FPGA core for playing VGM command streams directly on hardware. The current focus is Mega Drive / Genesis style VGM playback using a JT12/YM2612-compatible FM path together with PSG output.
+MegaVGMDrive loads VGM command streams into DDRAM and plays them directly through FPGA sound cores. It is a music player, not a complete game-console implementation. The production build enables the supported Mega Drive and arcade sound devices together, so mixed-device VGM files can use every implemented path in one build.
 
-The core is not a full game console implementation. It loads VGM data, replays register writes and waits, and drives the sound hardware as a standalone VGM player.
+> **Development note:** Almost all of this project was built by OpenAI Codex. I mainly listened to the sound, reported the debug numbers, compiled the FPGA build, and tested it on real hardware.
 
-## Project Overview
+## Current Release
 
-- MiSTer FPGA VGM playback core
-- YM2612/JT12 FM plus PSG audio
-- MODE5 OSD file loading path
+The current hardware-validated release is [MegaVGMDrive – YM2203 and SegaPCM Release](https://github.com/dai-VGM/MegaVGMDrive/releases/tag/audio-gold-ym2203-segapcm).
+
+| Item | Value |
+| --- | --- |
+| Tag | `audio-gold-ym2203-segapcm` |
+| Source checkpoint | `23763eab487d3eeea7430047d4785c45839c1b56` |
+| Hardware-tested RBF | `MegaVGMdrive_MiSTer_20260723.rbf` |
+| Build environment | Quartus on Windows |
+
+This release adds production YM2203/JT49 and SegaPCM playback, restores concurrent YM2612/PSG operation, and normalizes the Mega Drive and arcade audio families independently.
+
+## Features
+
+- MODE5 OSD loading of uncompressed `.vgm` files
 - DDRAM-backed VGM storage
-- Plain `.vgm` playback target
-- Import helper for `.zip` / `.vgz` / `.vgm` file preparation
+- Concurrent production support for all sound devices listed below
+- VGM header clock tracking for YM2203 and SegaPCM
+- Fractional clock-enable generation for header-selected chip rates
+- Busy-aware YM2203 register transport
+- SegaPCM playback through the normal DDR data path
+- Separate Mega Drive-family and arcade-family audio normalization
+- Signed widened final mixing with 16-bit saturation
+- Host/MiSTer import helper for `.vgm`, `.vgz`, and `.zip` sources
 
-## Current Status
+## Supported Sound Devices
 
-The current gold state uses the MODE5 loader with a DDRAM backend.
+| Device | Implementation | Production status |
+| --- | --- | --- |
+| YM2612 | JT12-based FM and DAC path | Enabled |
+| SN76489 PSG | JT89-based PSG path | Enabled |
+| YM2151 | JT51 | Enabled |
+| YM2203 FM | Compatible three-channel JT12/JT03 configuration | Enabled |
+| YM2203 SSG | JT49 | Enabled |
+| SegaPCM | JT-based core using the normal DDR path | Enabled |
 
-- DDRAM backend stable
-- 4 MiB+ VGM playback verified
-- 1.1 MB, 3.9 MB, and 4.3 MB VGM playback verified on MiSTer hardware
-- MODE5 file loading through the MiSTer OSD
-- Importer available for preparing cached `.vgm` files
-- `ioctl_wait` / `play_ready` load-complete gating implemented
-- DDRAM address window follows the MiSTer-style `0x30000000` range
-- PSG clock set to the Mega Drive rate, 3.579545 MHz
+Production releases enable these devices concurrently. Development or chip bring-up builds may intentionally disable completed devices, but lab-only audio stubs are not used in release builds.
 
-## Audio Gold
+## Implemented VGM Commands
 
-Current preferred audio configuration:
+The production parser includes the following device writes:
 
-- `audio-gold-no-uprate-psgfix`
-- FM/PCM bypass of the `jt12_fm_uprate` interpolation chain
-- PSG preserved
-- PSG level 0.75
-- LPF disabled by default
+| Command | Function |
+| --- | --- |
+| `0x50 dd` | SN76489 PSG write |
+| `0x52 aa dd` | YM2612 port 0 write |
+| `0x53 aa dd` | YM2612 port 1 write |
+| `0x54 aa dd` | YM2151 write |
+| `0x55 aa dd` | YM2203 write |
+| `0xC0 ll hh dd` | SegaPCM write to a 16-bit address |
 
-This configuration keeps the PSG path active while avoiding the Genesis-oriented FM/PCM interpolation chain for the VGM player path. Current testing indicates that this path is cleaner for the verified VGM playback cases.
+The player also implements the wait, end/loop, data-block, PCM-seek, and YM2612 DAC-stream commands used by the supported playback paths, including `0x61`–`0x63`, `0x66`, `0x67`, `0x70`–`0x7F`, `0x80`–`0x8F`, and `0xE0`.
 
-Validation examples:
+YM2203 uses the VGM header clock at offsets `0x44`–`0x47`. SegaPCM uses the clock at `0x38`–`0x3B` and reads its interface field at `0x3C`–`0x3F`. Fractional accumulators derive the required enables from these header values; the test or top level does not add the YM2203 FM `/6` or SSG `/4` divisions because JT12/JT49 handle them internally.
 
-- Hang-On
-- Thunder Force IV
-- Streets of Rage
-- Gunstar Heroes
+## Installation and Use
 
-## VGM Import Workflow
+1. Download the hardware-tested RBF from the [current release](https://github.com/dai-VGM/MegaVGMDrive/releases/tag/audio-gold-ym2203-segapcm).
+2. Copy the RBF to the MiSTer core location used by your setup.
+3. Copy one or more uncompressed `.vgm` files to storage accessible from MiSTer's file picker.
+4. Start MegaVGMDrive, open the OSD, choose **Load VGM**, and select a file.
 
-The core loads uncompressed `.vgm` files. `.vgz` and `.zip` files should be prepared outside the FPGA before playback.
-
-`scripts/vgm_md_import.sh` prepares playback-ready `.vgm` files for the MODE5 OSD loader. It copies plain `.vgm` files, expands `.vgz` files with `gzip`, and extracts `.vgm` / `.vgz` entries from `.zip` archives.
+The FPGA loader does not decompress `.vgz` or `.zip` files. The optional [VGM import helper](scripts/vgm_md_import.sh) copies `.vgm` files and expands `.vgz` or supported archive entries before playback:
 
 ```sh
 scripts/vgm_md_import.sh [SRC] [DST_DIR]
 ```
 
-Example runs:
-
-```sh
-scripts/vgm_md_import.sh /path/Hang-On ./vgm_cache
-scripts/vgm_md_import.sh "/path/Thunder Force IV.zip" ./vgm_cache
-scripts/vgm_md_import.sh /path/song.vgm ./vgm_cache
-```
-
-Default MiSTer-side paths:
+Its MiSTer-side defaults are:
 
 ```text
-SRC=/media/fat/games/MegaVGMDrive/inbox
-DST_DIR=/media/fat/games/MegaVGMDrive/vgm_cache
+SRC=/media/fat/VGM_MD/inbox
+DST_DIR=/media/fat/VGM_MD/vgm_cache
 ```
 
-Typical Samba workflow:
+The destination can be changed to match a local SD-card layout.
+
+## Release OSD
+
+The normal release build presents only:
 
 ```text
-\\mister\sdcard\games\MegaVGMDrive\inbox
-\\mister\sdcard\games\MegaVGMDrive\vgm_cache
+Load VGM
+Audio Gain:     Normal / Boost
+SegaPCM Audio:  Normal / PCM Only / FM Only
+Reset
 ```
 
-The importer writes cache output into collection subdirectories instead of placing all files directly under `vgm_cache`.
+- **Audio Gain** affects the Mega Drive family only: YM2612 plus SN76489 PSG. `Normal` preserves the historical level and `Boost` applies the established 2× MD-family gain.
+- **SegaPCM Audio** selects the arcade-family contributions: `Normal` mixes FM and PCM, `PCM Only` mutes the FM lanes, and `FM Only` mutes SegaPCM.
+- Release builds keep the hidden SegaPCM feed at **Hold** and polarity at **Normal** (`sample_byte - 128`).
+- Bring-up controls and the debug overlay remain available only in development builds.
 
-Input and output examples:
+## Audio Architecture
+
+The public production output is assembled as two independently normalized families:
 
 ```text
-Input:  /path/Hang-On/
-Output: vgm_cache/Hang-On/*.vgm
+YM2612 + SN76489 PSG
+  -> historical MD postmix/gain profile
+  -> signed MD lane
 
-Input:  /path/Thunder Force IV.zip
-Output: vgm_cache/Thunder Force IV/*.vgm
+YM2151/JT51 + YM2203/JT49 + SegaPCM
+  -> arcade mixer and saturation
+  -> existing arcade public level (arithmetic >>> 2)
+  -> signed arcade lane
 
-Input:  /path/song.vgm
-Output: vgm_cache/song/song.vgm
+MD lane + arcade lane
+  -> widened signed addition
+  -> 16-bit saturation
+  -> public stereo output
 ```
 
-After importing, copy the resulting `vgm_cache/<collection>/...` directories to the MiSTer SD card, for example under `/media/fat/games/MegaVGMDrive/vgm_cache`. Start MegaVGMDrive on MiSTer, open the OSD, choose `Load VGM`, and select one of the imported `.vgm` files.
+The historical Mega Drive audio profile preserves its established PSG balance, no-uprate postmix path, and MD-only Audio Gain behavior. The arcade family retains its previously validated public level. YM2203 FM is scaled 4× inside the YM2203 branch before its SSG mix, preserving the validated FM/SSG balance without changing the other devices.
 
-## MiSTer Usage
+## Hardware Validation
 
-Place the MegaVGMDrive RBF in `/media/fat/_Computer/` or the MiSTer core folder used by your local setup.
+The release RBF was built on Windows and tested on MiSTer-compatible hardware. Confirmed release checks include:
 
-Place VGM files under:
+- YM2612 FM, SN76489 PSG, and YM2612 DAC playback
+- `Audio Gain` in both `Normal` and `Boost`
+- YM2151/JT51 playback
+- YM2203 FM and JT49 SSG playback
+- SegaPCM playback through normal DDR
+- `Normal`, `FM Only`, and `PCM Only` selector modes
+- Concurrent Mega Drive-family and arcade-family output
 
-```text
-/media/fat/games/MegaVGMDrive/
-```
+Hardware checks included material from Space Harrier, Fantasy Zone, After Burner, and the OutRun family. These checks demonstrate the tested paths; they are not a guarantee that every VGM rip is compatible.
 
-Example:
+Icarus simulation and Verilator lint/regression work were used throughout the release bring-up. No Quartus build was performed on macOS; the attached release asset is the Windows-built, hardware-tested binary.
 
-```text
-/media/fat/games/MegaVGMDrive/YM2151_SMOKE.VGM
-```
+## Known Issues
 
-The current safe OSD loader entry is `F1,VGM,Load VGM;`. If your MiSTer setup filters file names case-sensitively, use uppercase `.VGM` file extensions.
+- The first playback of “Maximum Power” immediately after loading a fresh RBF may contain a buzzing artifact.
+- Some early YM2151 VGM files, including Quartet, may produce load-dependent sound differences; investigation is ongoing.
+- Mega CD / RF5C164 is not supported.
+- 32X PWM is not supported.
 
-### YM2151/JT51 Smoke Test
+## Other Limitations
 
-YM2151/JT51 playback is experimental. Build a YM2151 test RBF with:
+- MegaVGMDrive is a standalone VGM player, not a full Mega Drive, System 16, or System 18 implementation.
+- Native FPGA-side `.vgz`/`.zip` decompression is not implemented.
+- Files using commands or devices outside the implemented subset may be skipped or may not play as intended.
 
-```tcl
-set_global_assignment -name VERILOG_MACRO "MEGAVGMDRIVE_YM2151_MODE_TEST=1"
-```
+## Build Workflow
 
-Generate the synthetic non-commercial smoke VGM:
+The macOS checkout is the canonical source tree and QSF. The release workflow is:
 
-```sh
-python3 tools/generate_ym2151_smoke_vgm.py
-```
+1. Make source and project-file changes on macOS.
+2. Copy the project, including the canonical [`VGM_MD_MiSTer.qsf`](VGM_MD_MiSTer.qsf), to the Windows build environment.
+3. Compile the RBF with Quartus on Windows.
+4. Copy the Windows-built RBF to MiSTer-compatible hardware and validate it there.
+5. Publish only a binary that matches the hardware-tested build.
 
-By default this writes:
-
-```text
-testdata/YM2151_SMOKE.VGM
-```
-
-Copy it to the MiSTer SD card as:
-
-```text
-/media/fat/games/MegaVGMDrive/YM2151_SMOKE.VGM
-```
-
-In the YM2151 test build, load it from the OSD with `Load VGM`. The expected hardware result is a looping `pi-po` smoke tone.
+Do not maintain a separate edited QSF on Windows, and do not use a macOS Quartus build as the release binary.
 
 ## Repository Layout
 
-- `rtl/` - synthesis-visible core RTL, VGM loader/player logic, DDRAM backend, audio integration
-- `sys/` - MiSTer framework support modules
-- `tb/` - SystemVerilog testbenches for loader, player, timing, and mode behavior
-- `tools/` - VGM generation/extraction helpers used for test and bring-up data
-- `scripts/` - MiSTer-side and host-side utility scripts
-- `docs/` - bring-up notes, audio notes, and backend planning notes
-- `testdata/` - small VGM probes and generated test inputs
-
-## Notes
-
-- The main target is currently Mega Drive / Genesis style VGM data.
-- YM2151/JT51 playback is experimental and is enabled only in debug builds with `MEGAVGMDRIVE_YM2151_MODE_TEST=1`.
-- Native FPGA-side `.vgz` gzip decompression is not implemented.
-- Large VGM playback uses the DDRAM-backed MODE5 path.
-- Quartus builds are expected to be performed on Windows.
-- Quartus compile and TimeQuest checks are not normally run on macOS for this project.
-
-## Gold Checkpoint
-
-```text
-tag: audio-gold-no-uprate-psgfix
-commit: 91193848fa85e8f2e7964628a5f792890dac4300
-```
-
-This checkpoint preserves the FM/PCM `jt12_fm_uprate` bypass path with PSG restored.
+- `rtl/` — synthesis-visible RTL, VGM parser/player, DDR backend, and audio integration
+- `sys/` — MiSTer framework support
+- `tb/` — SystemVerilog testbenches
+- `scripts/` — regression and import helpers
+- `tools/` — VGM analysis and generated-test utilities
+- `testdata/` — synthetic and extracted regression inputs
+- `docs/` — bring-up and implementation notes
 
 ## Credits
 
-This project is built for the MiSTer FPGA platform.
+MegaVGMDrive is built for the [MiSTer FPGA platform](https://github.com/MiSTer-devel/Main_MiSTer) and incorporates or derives integration work from these projects:
 
-Third-party open-source components and references used by this project include:
+- [Genesis_MiSTer](https://github.com/MiSTer-devel/Genesis_MiSTer)
+- [JT12](https://github.com/jotego/jt12), [JT49](https://github.com/jotego/jt49), [JT51](https://github.com/jotego/jt51), and related JT cores by José Tejada Gómez (Jotego)
+- JT SegaPCM work derived from the corresponding Jotego arcade-core implementation
 
-- MiSTer FPGA project
-- Genesis_MiSTer project
-- JT12 FM core by Jose Tejada Gomez (Jotego)
-- JT51 FM core by Jose Tejada Gomez (Jotego)
+See [Genesis audio provenance](rtl/genesis_audio/README.md) for the pinned source revisions and local integration notes. Original copyright notices and source headers are preserved.
 
-JT12 and JT51 are used under their original open-source licenses. Original copyright notices and license headers for third-party code are preserved.
+## License
 
-This repository contains original work together with modifications and integrations based on the above projects.
+Third-party components remain under their upstream licenses. See the included [JT51 license](third_party/jt51/LICENSE), [JT cores license](third_party/jtcores/LICENSE), component READMEs, and individual source headers.
 
-Links:
-- https://github.com/MiSTer-devel/Main_MiSTer
-- https://github.com/MiSTer-devel/Genesis_MiSTer
-- https://github.com/jotego/jt12
-- https://github.com/jotego/jt51
+This repository currently has no separate top-level `LICENSE` file. Do not infer a single license for every file; review the applicable component license and source notice before redistribution.
