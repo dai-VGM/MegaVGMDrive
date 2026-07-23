@@ -4,7 +4,7 @@ A standalone, hardware VGM player core for MiSTer FPGA.
 
 Japanese README: [README.ja.md](README.ja.md)
 
-MegaVGMDrive loads VGM command streams into DDRAM and plays them directly through FPGA sound cores. It is a music player, not a complete game-console implementation. The production build enables the supported Mega Drive and arcade sound devices together, so mixed-device VGM files can use every implemented path in one build.
+MegaVGMDrive loads VGM command streams into DDRAM and plays them directly through FPGA sound cores. It can play VGM music from Sega Mega Drive / Genesis games and supported Sega arcade systems. It is a music player, not a complete game-console implementation. The production build enables the supported Mega Drive and arcade sound devices together, so mixed-device VGM files can use every implemented path in one build.
 
 > **Development note:** Almost all of this project was implemented and debugged by OpenAI Codex and GPT. I only listened to the sound, ran the Quartus builds, and sent the debug values back to Codex.
 
@@ -136,7 +136,17 @@ The release RBF was built on Windows and tested on MiSTer-compatible hardware. C
 - `Normal`, `FM Only`, and `PCM Only` selector modes
 - Concurrent Mega Drive-family and arcade-family output
 
-Hardware checks included material from Space Harrier, Fantasy Zone, After Burner, and the OutRun family. These checks demonstrate the tested paths; they are not a guarantee that every VGM rip is compatible.
+Hardware-tested playback examples include:
+
+- After Burner
+- Out Run
+- Galaxy Force II
+- Thunder Blade
+- Power Drift
+- Space Harrier
+- Multiple Sega Mega Drive / Genesis titles
+
+These are hardware-tested examples, not a claim of complete title coverage or compatibility with every VGM rip.
 
 Icarus simulation and Verilator lint/regression work were used throughout the release bring-up. No Quartus build was performed on macOS; the attached release asset is the Windows-built, hardware-tested binary.
 

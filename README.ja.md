@@ -4,7 +4,7 @@ MiSTer FPGA向けのハードウェアVGMプレイヤーコア
 
 English README: [README.md](README.md)
 
-MegaVGMDriveは、VGM command streamをDDRAMへロードし、FPGA上の音源coreで直接再生します。ゲーム機本体を再現するconsole coreではなく、単体のmusic playerです。公開production buildでは、対応済みのMega Drive系音源とarcade系音源を同時に有効化し、複数音源を含むVGMを1つのbuildで再生できます。
+MegaVGMDriveは、VGM command streamをDDRAMへロードし、FPGA上の音源coreで直接再生します。Sega Mega Drive / Genesisのゲームや、対応済みSega arcade systemのVGMを再生できます。ゲーム機本体を再現するconsole coreではなく、単体のmusic playerです。公開production buildでは、対応済みのMega Drive系音源とarcade系音源を同時に有効化し、複数音源を含むVGMを1つのbuildで再生できます。
 
 > **Development note:** Almost all of this project was implemented and debugged by OpenAI Codex and GPT. I only listened to the sound, ran the Quartus builds, and sent the debug values back to Codex.
 
@@ -136,7 +136,17 @@ Release RBFはWindowsでbuildし、MiSTer-compatible hardwareで確認してい�
 - `Normal`／`FM Only`／`PCM Only`
 - Mega Drive familyとarcade familyの同時出力
 
-実機確認にはSpace Harrier、Fantasy Zone、After Burner、OutRun系の素材を含みます。これは確認した経路を示すもので、すべてのVGM ripとの互換性を保証するものではありません。
+実機再生を確認した例:
+
+- After Burner
+- Out Run
+- Galaxy Force II
+- Thunder Blade
+- Power Drift
+- Space Harrier
+- 複数のSega Mega Drive / Genesis title
+
+これらは実機確認例であり、全titleへの対応や、すべてのVGM ripとの互換性を保証するものではありません。
 
 Release bring-upではIcarus simulationとVerilator lint／regressionを使用しました。macOSではQuartus buildを行っていません。Release添付assetはWindows build・実機確認済みのbinaryです。
 
