@@ -6,9 +6,7 @@ English README: [README.md](README.md)
 
 MegaVGMDriveは、VGM command streamをDDRAMへロードし、FPGA上の音源coreで直接再生します。ゲーム機本体を再現するconsole coreではなく、単体のmusic playerです。公開production buildでは、対応済みのMega Drive系音源とarcade系音源を同時に有効化し、複数音源を含むVGMを1つのbuildで再生できます。
 
-> **Development note:** Almost all of this project was implemented and debugged by OpenAI Codex and GPT. I mainly listened to the hardware output, reported debug values, ran Quartus builds, and tested the results on real hardware.
->
-> The other thing I contributed was persistence. I did not give up. If you keep testing and feeding the real results back, Codex and GPT can eventually figure out a surprising amount—at least when the problem is code.
+> **Development note:** Almost all of this project was implemented and debugged by OpenAI Codex and GPT. I only listened to the sound, ran the Quartus builds, and sent the debug values back to Codex.
 
 ## 現行リリース
 

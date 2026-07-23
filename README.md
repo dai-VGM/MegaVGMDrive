@@ -6,9 +6,7 @@ Japanese README: [README.ja.md](README.ja.md)
 
 MegaVGMDrive loads VGM command streams into DDRAM and plays them directly through FPGA sound cores. It is a music player, not a complete game-console implementation. The production build enables the supported Mega Drive and arcade sound devices together, so mixed-device VGM files can use every implemented path in one build.
 
-> **Development note:** Almost all of this project was implemented and debugged by OpenAI Codex and GPT. I mainly listened to the hardware output, reported debug values, ran Quartus builds, and tested the results on real hardware.
->
-> The other thing I contributed was persistence. I did not give up. If you keep testing and feeding the real results back, Codex and GPT can eventually figure out a surprising amount—at least when the problem is code.
+> **Development note:** Almost all of this project was implemented and debugged by OpenAI Codex and GPT. I only listened to the sound, ran the Quartus builds, and sent the debug values back to Codex.
 
 ## Current Release
 
