@@ -1319,6 +1319,12 @@ function [4:0] vgm_status_font_row;
 			8'h55: case (row) 3'd0: vgm_status_font_row = 5'b10001; 3'd1: vgm_status_font_row = 5'b10001; 3'd2: vgm_status_font_row = 5'b10001; 3'd3: vgm_status_font_row = 5'b10001; 3'd4: vgm_status_font_row = 5'b10001; 3'd5: vgm_status_font_row = 5'b10001; 3'd6: vgm_status_font_row = 5'b01110; default: vgm_status_font_row = 5'b00000; endcase
 			8'h56: case (row) 3'd0: vgm_status_font_row = 5'b10001; 3'd1: vgm_status_font_row = 5'b10001; 3'd2: vgm_status_font_row = 5'b10001; 3'd3: vgm_status_font_row = 5'b10001; 3'd4: vgm_status_font_row = 5'b10001; 3'd5: vgm_status_font_row = 5'b01010; 3'd6: vgm_status_font_row = 5'b00100; default: vgm_status_font_row = 5'b00000; endcase
 			8'h59: case (row) 3'd0: vgm_status_font_row = 5'b10001; 3'd1: vgm_status_font_row = 5'b10001; 3'd2: vgm_status_font_row = 5'b01010; 3'd3: vgm_status_font_row = 5'b00100; 3'd4: vgm_status_font_row = 5'b00100; 3'd5: vgm_status_font_row = 5'b00100; 3'd6: vgm_status_font_row = 5'b00100; default: vgm_status_font_row = 5'b00000; endcase
+			8'h61: case (row) 3'd0: vgm_status_font_row = 5'b00000; 3'd1: vgm_status_font_row = 5'b00000; 3'd2: vgm_status_font_row = 5'b01110; 3'd3: vgm_status_font_row = 5'b00001; 3'd4: vgm_status_font_row = 5'b01111; 3'd5: vgm_status_font_row = 5'b10001; 3'd6: vgm_status_font_row = 5'b01111; default: vgm_status_font_row = 5'b00000; endcase
+			8'h65: case (row) 3'd0: vgm_status_font_row = 5'b00000; 3'd1: vgm_status_font_row = 5'b00000; 3'd2: vgm_status_font_row = 5'b01110; 3'd3: vgm_status_font_row = 5'b10001; 3'd4: vgm_status_font_row = 5'b11111; 3'd5: vgm_status_font_row = 5'b10000; 3'd6: vgm_status_font_row = 5'b01110; default: vgm_status_font_row = 5'b00000; endcase
+			8'h67: case (row) 3'd0: vgm_status_font_row = 5'b00000; 3'd1: vgm_status_font_row = 5'b01111; 3'd2: vgm_status_font_row = 5'b10001; 3'd3: vgm_status_font_row = 5'b01111; 3'd4: vgm_status_font_row = 5'b00001; 3'd5: vgm_status_font_row = 5'b10001; 3'd6: vgm_status_font_row = 5'b01110; default: vgm_status_font_row = 5'b00000; endcase
+			8'h6C: case (row) 3'd0: vgm_status_font_row = 5'b01100; 3'd1: vgm_status_font_row = 5'b00100; 3'd2: vgm_status_font_row = 5'b00100; 3'd3: vgm_status_font_row = 5'b00100; 3'd4: vgm_status_font_row = 5'b00100; 3'd5: vgm_status_font_row = 5'b00100; 3'd6: vgm_status_font_row = 5'b01110; default: vgm_status_font_row = 5'b00000; endcase
+			8'h72: case (row) 3'd0: vgm_status_font_row = 5'b00000; 3'd1: vgm_status_font_row = 5'b00000; 3'd2: vgm_status_font_row = 5'b10110; 3'd3: vgm_status_font_row = 5'b11001; 3'd4: vgm_status_font_row = 5'b10000; 3'd5: vgm_status_font_row = 5'b10000; 3'd6: vgm_status_font_row = 5'b10000; default: vgm_status_font_row = 5'b00000; endcase
+			8'h79: case (row) 3'd0: vgm_status_font_row = 5'b00000; 3'd1: vgm_status_font_row = 5'b00000; 3'd2: vgm_status_font_row = 5'b10001; 3'd3: vgm_status_font_row = 5'b10001; 3'd4: vgm_status_font_row = 5'b01111; 3'd5: vgm_status_font_row = 5'b00001; 3'd6: vgm_status_font_row = 5'b01110; default: vgm_status_font_row = 5'b00000; endcase
 			8'h3A: case (row) 3'd0: vgm_status_font_row = 5'b00000; 3'd1: vgm_status_font_row = 5'b00100; 3'd2: vgm_status_font_row = 5'b00100; 3'd3: vgm_status_font_row = 5'b00000; 3'd4: vgm_status_font_row = 5'b00100; 3'd5: vgm_status_font_row = 5'b00100; 3'd6: vgm_status_font_row = 5'b00000; default: vgm_status_font_row = 5'b00000; endcase
 			default: vgm_status_font_row = 5'b00000;
 		endcase
@@ -1333,9 +1339,11 @@ function [7:0] vgm_status_char;
 		vgm_status_char = 8'h20;
 		case (line)
 			2'd0: case (idx)
-				5'd0: vgm_status_char = "V"; 5'd1: vgm_status_char = "G"; 5'd2: vgm_status_char = "M";
-				5'd4: vgm_status_char = "P"; 5'd5: vgm_status_char = "L"; 5'd6: vgm_status_char = "A";
-				5'd7: vgm_status_char = "Y"; 5'd8: vgm_status_char = "E"; 5'd9: vgm_status_char = "R";
+				5'd0: vgm_status_char = "M"; 5'd1: vgm_status_char = "e"; 5'd2: vgm_status_char = "g";
+				5'd3: vgm_status_char = "a"; 5'd4: vgm_status_char = "V"; 5'd5: vgm_status_char = "G";
+				5'd6: vgm_status_char = "M"; 5'd7: vgm_status_char = "P"; 5'd8: vgm_status_char = "l";
+				5'd9: vgm_status_char = "a"; 5'd10: vgm_status_char = "y"; 5'd11: vgm_status_char = "e";
+				5'd12: vgm_status_char = "r";
 				default: vgm_status_char = 8'h20;
 			endcase
 			2'd1: case (idx)
