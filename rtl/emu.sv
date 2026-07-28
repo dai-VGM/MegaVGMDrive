@@ -2162,7 +2162,8 @@ module emu
     );
 
     wire       raw_ce_pix;
-    wire [8:0] h_count;
+    wire [9:0] raster_h_count;
+    wire [8:0] h_count = raster_h_count[8:0];
     wire [8:0] v_count;
     wire       hblank;
     wire       vblank;
@@ -2175,7 +2176,7 @@ module emu
         .clk_video   (clk_video),
         .reset       (video_reset),
         .ce_pix      (raw_ce_pix),
-        .h_count     (h_count),
+        .h_count     (raster_h_count),
         .v_count     (v_count),
         .hblank      (hblank),
         .vblank      (vblank),
@@ -4247,10 +4248,15 @@ module emu
     // forced_scandoubler is intentionally ignored until a small non-HQ2x line
     // doubler is added after native 15 kHz hardware validation.
     assign gamma_bus[21] = 1'b0;
+    // The Template DE window is 529 x 240. Keep the existing 320 x 240
+    // player drawing at its upper-left and drive the remaining pixels black.
+    wire drawing_active =
+        active && (raster_h_count < 10'd320) && (v_count < 9'd240);
+
     assign CE_PIXEL = raw_ce_pix;
-    assign VGA_R = active ? video_red : 8'd0;
-    assign VGA_G = active ? video_green : 8'd0;
-    assign VGA_B = active ? video_blue : 8'd0;
+    assign VGA_R = drawing_active ? video_red : 8'd0;
+    assign VGA_G = drawing_active ? video_green : 8'd0;
+    assign VGA_B = drawing_active ? video_blue : 8'd0;
     assign VGA_HS = raw_hsync;
     assign VGA_VS = raw_vsync;
     assign VGA_DE = active;
