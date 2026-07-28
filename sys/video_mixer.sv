@@ -20,7 +20,8 @@ module video_mixer
 #(
 	parameter LINE_LENGTH  = 768,
 	parameter HALF_DEPTH   = 0,
-	parameter GAMMA        = 0
+	parameter GAMMA        = 0,
+	parameter DWIDTH       = HALF_DEPTH ? 3 : 7
 )
 (
 	input            CLK_VIDEO, // should be multiple by (ce_pix*4)
@@ -59,7 +60,6 @@ module video_mixer
 	output reg       VGA_DE
 );
 
-localparam DWIDTH = HALF_DEPTH ? 3 : 7;
 localparam DWIDTH_SD = GAMMA ? 7 : DWIDTH;
 localparam HALF_DEPTH_SD = GAMMA ? 0 : HALF_DEPTH;
 
@@ -88,15 +88,19 @@ always @(posedge CLK_VIDEO) begin
 	frz  <= frz1;
 end
 
+wire [DWIDTH_SD:0] R_in;
+wire [DWIDTH_SD:0] G_in;
+wire [DWIDTH_SD:0] B_in;
+
 generate
-	if(GAMMA && HALF_DEPTH) begin
-		wire [7:0] R_in  = frz ? 8'd0 : {R,R};
-		wire [7:0] G_in  = frz ? 8'd0 : {G,G};
-		wire [7:0] B_in  = frz ? 8'd0 : {B,B};
-	end else begin
-		wire [DWIDTH:0] R_in = frz ? 1'd0 : R;
-		wire [DWIDTH:0] G_in = frz ? 1'd0 : G;
-		wire [DWIDTH:0] B_in = frz ? 1'd0 : B;
+	if(GAMMA && HALF_DEPTH) begin : gen_gamma_half_input
+		assign R_in = frz ? 8'd0 : {R,R};
+		assign G_in = frz ? 8'd0 : {G,G};
+		assign B_in = frz ? 8'd0 : {B,B};
+	end else begin : gen_direct_input
+		assign R_in = frz ? '0 : R;
+		assign G_in = frz ? '0 : G;
+		assign B_in = frz ? '0 : B;
 	end
 endgenerate
 
@@ -105,7 +109,7 @@ wire hb_g, vb_g;
 wire [DWIDTH_SD:0] R_gamma, G_gamma, B_gamma;
 
 generate
-	if(GAMMA) begin
+	if(GAMMA) begin : gen_gamma
 		assign gamma_bus[21] = 1;
 		gamma_corr gamma(
 			.clk_sys(gamma_bus[20]),
@@ -129,7 +133,7 @@ generate
 			.VBlank_out(vb_g),
 			.RGB_out({R_gamma,G_gamma,B_gamma})
 		);
-	end else begin
+	end else begin : gen_no_gamma
 		assign gamma_bus[21] = 0;
 		assign {R_gamma,G_gamma,B_gamma} = {R_in,G_in,B_in};
 		assign {hs_g, vs_g, hb_g, vb_g} = {frz_hs, frz_vs, frz_hbl, frz_vbl};
@@ -168,6 +172,21 @@ scandoubler #(.LENGTH(LINE_LENGTH), .HALF_DEPTH(HALF_DEPTH_SD)) sd
 wire [DWIDTH_SD:0] rt = (scandoubler ? R_sd : R_gamma);
 wire [DWIDTH_SD:0] gt = (scandoubler ? G_sd : G_gamma);
 wire [DWIDTH_SD:0] bt = (scandoubler ? B_sd : B_gamma);
+wire [7:0] rt8;
+wire [7:0] gt8;
+wire [7:0] bt8;
+
+generate
+	if(!GAMMA && HALF_DEPTH) begin : gen_output_expand
+		assign rt8 = {rt,rt};
+		assign gt8 = {gt,gt};
+		assign bt8 = {bt,bt};
+	end else begin : gen_output_direct
+		assign rt8 = rt;
+		assign gt8 = gt;
+		assign bt8 = bt;
+	end
+endgenerate
 
 always @(posedge CLK_VIDEO) begin
 	reg [7:0] r,g,b;
@@ -187,16 +206,9 @@ always @(posedge CLK_VIDEO) begin
 
 	CE_PIXEL <= scandoubler ? ce_pix_sd : fs_osc ? (~old_ce & ce_pix) : ce_pix;
 
-	if(!GAMMA && HALF_DEPTH) begin
-		r <= {rt,rt};
-		g <= {gt,gt};
-		b <= {bt,bt};
-	end
-	else begin
-		r <= rt;
-		g <= gt;
-		b <= bt;
-	end
+	r <= rt8;
+	g <= gt8;
+	b <= bt8;
 
 	hde <= scandoubler ? ~hb_sd : ~hb_g;
 	vde <= scandoubler ? ~vb_sd : ~vb_g;

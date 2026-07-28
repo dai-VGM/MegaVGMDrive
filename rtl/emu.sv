@@ -333,6 +333,12 @@ localparam bit MODE5_DEBUG_OVERLAY_FORCED = 1'b0;
 localparam bit MODE5_DEBUG_OVERLAY_FORCED = 1'b0;
 `endif
 
+`ifdef MEGAVGMDRIVE_DEV_OSD
+`define MEGAVGMDRIVE_VIDEO_DEBUG_CDC
+`elsif MISTER_VGM_DEBUG_VIDEO_ENABLE
+`define MEGAVGMDRIVE_VIDEO_DEBUG_CDC
+`endif
+
 // Compile-time SegaPCM compatibility signature.  No runtime state is used:
 //   [15:8] prefetch/consume contract revision
 //   [7] START_HOLD, [6] DIRECT_START, [5] TICK_SLOW, [4] PARSER_RUN
@@ -518,6 +524,22 @@ module emu
     input         OSD_STATUS
 );
 
+    // Declared before the existing default/audio logic that consumes them.
+    // Their drivers and reset equation remain in the clock section below.
+    wire clk_sys;
+    wire pll_locked;
+    wire reset;
+    wire ioctl_download;
+    wire vgm_load_busy;
+    wire audio_sample_valid;
+    wire segapcm_rom_scan_busy;
+    wire [15:0] vgm_scan_term_be_debug;
+    wire [15:0] vgm_scan_sticky_guard_debug;
+    wire player_busy;
+    wire audio_gate_open;
+    wire audio_muted;
+    wire vgm_player_error;
+
     ///////// Default values for ports not used in this baseline /////////
 
     assign ADC_BUS  = 'Z;
@@ -581,8 +603,6 @@ module emu
 
     wire signed [15:0] md_audio_l;
     wire signed [15:0] md_audio_r;
-    wire               audio_gate_open;
-    wire               audio_muted;
     wire signed [15:0] audio_l_safe = md_audio_l >>> MD_AUDIO_OUTPUT_SHIFT;
     wire signed [15:0] audio_r_safe = md_audio_r >>> MD_AUDIO_OUTPUT_SHIFT;
     wire signed [15:0] audio_l_gated =
@@ -740,22 +760,18 @@ module emu
     wire [31:0] status;
     wire  [1:0] buttons;
     wire        forced_scandoubler;
-    wire        video_rotated;
     wire        direct_video;
     wire [21:0] gamma_bus;
 
-    wire        ioctl_download;
     wire        ioctl_wr;
     wire [26:0] ioctl_addr;
     wire  [7:0] ioctl_dout;
     wire [15:0] ioctl_index;
     wire        ioctl_wait;
-    wire        vgm_load_busy;
     wire        vgm_load_done;
     wire        vgm_load_error;
     wire        vgm_load_overflow;
     wire        vgm_header_valid;
-    wire        vgm_player_error;
     wire  [7:0] vgm_unsupported_opcode;
     wire [17:0] vgm_unsupported_pc;
     wire  [7:0] vgm_player_error_code;
@@ -861,9 +877,7 @@ module emu
     wire [15:0] vgm_scan_term_rm_debug;
     wire [15:0] vgm_scan_term_cc_debug;
     wire [15:0] vgm_scan_term_nx_debug;
-    wire [15:0] vgm_scan_term_be_debug;
     wire [15:0] vgm_scan_guard_debug;
-    wire [15:0] vgm_scan_sticky_guard_debug;
     wire [15:0] vgm_scan_payload_qg_debug;
     wire [15:0] vgm_scan_payload_sf_debug;
     wire [15:0] mode5_backend_copy_accept_count_debug;
@@ -1160,7 +1174,6 @@ module emu
     wire [31:0] segapcm_last_rom_size;
     wire [31:0] segapcm_last_rom_start;
     wire [31:0] pcm_ram_write_skip_count;
-    wire        segapcm_rom_scan_busy;
     wire        segapcm_rom_scan_done;
     wire        segapcm_rom_scan_overflow;
     wire [31:0] segapcm_rom_scan_block_count;
@@ -1277,8 +1290,10 @@ module emu
         .status(status),
         .status_menumask({direct_video}),
         .forced_scandoubler(forced_scandoubler),
-        .video_rotated(video_rotated),
+        .video_rotated(1'b0),
+        .new_vmode(1'b0),
         .direct_video(direct_video),
+        .gamma_bus(gamma_bus),
 
         .ioctl_download(ioctl_download),
         .ioctl_wr(ioctl_wr),
@@ -1331,8 +1346,8 @@ module emu
 
     ////////////////////   CLOCKS   ///////////////////
 
-    wire clk_sys;
-    wire pll_locked;
+    wire clk_video;
+    wire video_pll_locked;
 
     pll pll (
         .refclk(CLK_50M),
@@ -1341,20 +1356,18 @@ module emu
         .locked(pll_locked)
     );
 
-    ///////////////////   CLOCK DIVIDER   ////////////////////
-
-    wire ce_pix;
-    wire ce_2;
-
-    jtframe_cen24 divider (
-        .clk(clk_sys),
-        .cen6(ce_pix),
-        .cen2(ce_2)
+    // The validated parser/audio domain remains on the original 20 MHz PLL.
+    // A separate PLL prevents video timing or lock from changing that domain.
+    megavgm_video_pll video_pll (
+        .refclk(CLK_50M),
+        .rst(1'b0),
+        .outclk_0(clk_video),
+        .locked(video_pll_locked)
     );
 
     ///////////////////   VIDEO   ////////////////////
 
-    wire reset = RESET | status[0] | !pll_locked;
+    assign reset = RESET | status[0] | !pll_locked;
     wire vgm_reset_req = RESET | status[0] | !pll_locked;
     reg [23:0] vgm_reset_hold_count = 24'd0;
     reg        vgm_reset_hold_active = 1'b1;
@@ -1373,6 +1386,18 @@ module emu
     end
 
     wire vgm_reset = vgm_reset_req | vgm_reset_hold_active;
+
+    reg video_reset_meta = 1'b1;
+    reg video_reset = 1'b1;
+    reg forced_scandoubler_meta = 1'b0;
+    reg forced_scandoubler_video = 1'b0;
+
+    always @(posedge clk_video) begin
+        video_reset_meta <= reset | !video_pll_locked;
+        video_reset <= video_reset_meta;
+        forced_scandoubler_meta <= forced_scandoubler;
+        forced_scandoubler_video <= forced_scandoubler_meta;
+    end
     wire vgm_reset_n = !vgm_reset;
     // Public OSD keeps only the user-facing gain switch. The gold audio path
     // stays fixed at no LPF and PSG 0.75 unless a development build overrides
@@ -1380,7 +1405,6 @@ module emu
     wire [1:0] audio_lpf_mode = 2'd3;
     wire       audio_gain_boost = status[1];
     wire [1:0] audio_psg_level = 2'd0;
-    wire               player_busy;
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_TEST
     // SegaPCM experimental OSD/status map:
@@ -1668,7 +1692,6 @@ module emu
     wire signed [8:0] segapcm_lab_sample_centered9_debug =
         $signed({1'b0, segapcm_core_jt_smoke_sample_byte[7:0]}) - 9'sd128;
 
-    wire               audio_sample_valid;
     wire               player_done;
     wire         [9:0] player_pc_debug;
     wire         [7:0] player_last_cmd_debug;
@@ -2156,33 +2179,34 @@ module emu
         .ddram_we             (vgm_ddram_we)
     );
 
-    reg [8:0] h_count;
-    reg [8:0] v_count;
-    reg [7:0] frame_count;
+    wire       raw_ce_pix;
+    wire [8:0] h_count;
+    wire [8:0] v_count;
+    wire       hblank;
+    wire       vblank;
+    wire       raw_hsync;
+    wire       raw_vsync;
+    wire       active;
+    wire       video_vblank_start;
+
+    megavgm_video_timing video_timing (
+        .clk_video   (clk_video),
+        .reset       (video_reset),
+        .ce_pix      (raw_ce_pix),
+        .h_count     (h_count),
+        .v_count     (v_count),
+        .hblank      (hblank),
+        .vblank      (vblank),
+        .hsync       (raw_hsync),
+        .vsync       (raw_vsync),
+        .de          (active),
+        .vblank_start(video_vblank_start)
+    );
+
     reg       done_latched;
     reg       audio_seen_latched;
 
     always @(posedge clk_sys) begin
-        if (reset) begin
-            h_count <= 9'd0;
-            v_count <= 9'd0;
-            frame_count <= 8'd0;
-        end else if (ce_pix) begin
-            if (h_count == 9'd383) begin
-                h_count <= 9'd0;
-                if (v_count == 9'd263) begin
-                    v_count <= 9'd0;
-                    if (frame_count != 8'hff) begin
-                        frame_count <= frame_count + 8'd1;
-                    end
-                end else begin
-                    v_count <= v_count + 9'd1;
-                end
-            end else begin
-                h_count <= h_count + 9'd1;
-            end
-        end
-
         if (reset || startup_reset_active) begin
             done_latched <= 1'b0;
             audio_seen_latched <= 1'b0;
@@ -2207,9 +2231,6 @@ module emu
         end
     end
 
-    wire hblank = (h_count >= 9'd320);
-    wire vblank = (v_count >= 9'd240);
-    wire active = !hblank && !vblank;
     wire [15:0] md_audio_abs_peak =
         (md_audio_l_abs_peak > md_audio_r_abs_peak) ?
         md_audio_l_abs_peak : md_audio_r_abs_peak;
@@ -2220,6 +2241,107 @@ module emu
         (md_audio_l_rail_count != 16'd0) || (md_audio_r_rail_count != 16'd0);
     wire emu_audio_rail_seen =
         (emu_audio_l_rail_count != 16'd0) || (emu_audio_r_rail_count != 16'd0);
+
+`ifdef MEGAVGMDRIVE_VIDEO_DEBUG_CDC
+    reg video_snapshot_req = 1'b0;
+    reg video_snapshot_req_meta = 1'b0;
+    reg video_snapshot_req_sys = 1'b0;
+    reg video_snapshot_ack_sys = 1'b0;
+    reg video_snapshot_ack_meta = 1'b0;
+    reg video_snapshot_ack = 1'b0;
+    reg video_snapshot_ack_seen = 1'b0;
+    reg video_snapshot_capture_active = 1'b0;
+    reg [4:0] video_snapshot_capture_row = 5'd0;
+    reg [3:0] video_snapshot_capture_col = 4'd0;
+    reg [8:0] video_snapshot_capture_index = 9'd0;
+    reg video_snapshot_copy_active = 1'b0;
+    reg [8:0] video_snapshot_copy_index = 9'd0;
+    reg video_snapshot_valid = 1'b0;
+
+    reg [7:0] debug_char_snapshot_sys [0:479];
+    reg [7:0] debug_char_snapshot_video [0:479];
+    reg [15:0] meter_snapshot_sys [0:8];
+    reg [15:0] meter_snapshot_video [0:8];
+    reg [15:0] state_snapshot_sys = 16'd0;
+    reg [15:0] state_snapshot_video = 16'd0;
+
+    wire [15:0] display_fm_raw_abs_peak =
+        video_snapshot_valid ? meter_snapshot_video[0] : 16'd0;
+    wire [15:0] display_fm_adjust_abs_peak =
+        video_snapshot_valid ? meter_snapshot_video[1] : 16'd0;
+    wire [15:0] display_fm_lpf_abs_peak =
+        video_snapshot_valid ? meter_snapshot_video[2] : 16'd0;
+    wire [15:0] display_genmix_abs_peak =
+        video_snapshot_valid ? meter_snapshot_video[3] : 16'd0;
+    wire [15:0] display_md_final_audio_abs_peak =
+        video_snapshot_valid ? meter_snapshot_video[4] : 16'd0;
+    wire [15:0] display_md_audio_abs_peak =
+        video_snapshot_valid ? meter_snapshot_video[5] : 16'd0;
+    wire [15:0] display_emu_audio_abs_peak =
+        video_snapshot_valid ? meter_snapshot_video[6] : 16'd0;
+    wire [15:0] display_md_audio_abs_avg =
+        video_snapshot_valid ? meter_snapshot_video[7] : 16'd0;
+    wire [15:0] display_emu_audio_abs_avg =
+        video_snapshot_valid ? meter_snapshot_video[8] : 16'd0;
+    wire display_startup_reset_active =
+        video_snapshot_valid && state_snapshot_video[0];
+    wire display_mode5_sound_reset_active =
+        video_snapshot_valid && state_snapshot_video[1];
+    wire display_mode5_player_start_pulse =
+        video_snapshot_valid && state_snapshot_video[2];
+    wire display_vgm_load_error =
+        video_snapshot_valid && state_snapshot_video[3];
+    wire display_vgm_load_overflow =
+        video_snapshot_valid && state_snapshot_video[4];
+    wire display_vgm_player_error =
+        video_snapshot_valid && state_snapshot_video[5];
+    wire display_vgm_header_valid =
+        video_snapshot_valid && state_snapshot_video[6];
+    wire display_player_busy =
+        video_snapshot_valid && state_snapshot_video[7];
+    wire display_vgm_load_busy =
+        video_snapshot_valid && state_snapshot_video[8];
+    wire display_vgm_load_done =
+        video_snapshot_valid && state_snapshot_video[9];
+    wire display_done_latched =
+        video_snapshot_valid && state_snapshot_video[10];
+    wire display_startup_waiting =
+        video_snapshot_valid && state_snapshot_video[11];
+    wire display_audio_gate_open =
+        video_snapshot_valid && state_snapshot_video[12];
+    wire display_audio_seen_latched =
+        video_snapshot_valid && state_snapshot_video[13];
+    wire display_md_audio_rail_seen =
+        video_snapshot_valid && state_snapshot_video[14];
+    wire display_emu_audio_rail_seen =
+        video_snapshot_valid && state_snapshot_video[15];
+`else
+    wire [15:0] display_fm_raw_abs_peak = 16'd0;
+    wire [15:0] display_fm_adjust_abs_peak = 16'd0;
+    wire [15:0] display_fm_lpf_abs_peak = 16'd0;
+    wire [15:0] display_genmix_abs_peak = 16'd0;
+    wire [15:0] display_md_final_audio_abs_peak = 16'd0;
+    wire [15:0] display_md_audio_abs_peak = 16'd0;
+    wire [15:0] display_emu_audio_abs_peak = 16'd0;
+    wire [15:0] display_md_audio_abs_avg = 16'd0;
+    wire [15:0] display_emu_audio_abs_avg = 16'd0;
+    wire display_startup_reset_active = 1'b0;
+    wire display_mode5_sound_reset_active = 1'b0;
+    wire display_mode5_player_start_pulse = 1'b0;
+    wire display_vgm_load_error = 1'b0;
+    wire display_vgm_load_overflow = 1'b0;
+    wire display_vgm_player_error = 1'b0;
+    wire display_vgm_header_valid = 1'b0;
+    wire display_player_busy = 1'b0;
+    wire display_vgm_load_busy = 1'b0;
+    wire display_vgm_load_done = 1'b0;
+    wire display_done_latched = 1'b0;
+    wire display_startup_waiting = 1'b0;
+    wire display_audio_gate_open = 1'b0;
+    wire display_audio_seen_latched = 1'b0;
+    wire display_md_audio_rail_seen = 1'b0;
+    wire display_emu_audio_rail_seen = 1'b0;
+`endif
 
     wire [15:0] meter_x_level = h_count * 16'd102;
     wire meter_x_active = (h_count < 9'd320);
@@ -2245,15 +2367,15 @@ module emu
     wire emu_meter_pixel = emu_meter_row && meter_x_active;
     wire md_avg_meter_pixel = md_avg_meter_row && meter_x_active;
     wire emu_avg_meter_pixel = emu_avg_meter_row && meter_x_active;
-    wire stage_fm_raw_fill = fm_raw_abs_peak >= meter_x_level;
-    wire stage_fm_adjust_fill = fm_adjust_abs_peak >= meter_x_level;
-    wire stage_fm_lpf_fill = fm_lpf_abs_peak >= meter_x_level;
-    wire stage_genmix_fill = genmix_abs_peak >= meter_x_level;
-    wire stage_final_fill = md_final_audio_abs_peak >= meter_x_level;
-    wire md_meter_fill = md_audio_abs_peak >= meter_x_level;
-    wire emu_meter_fill = emu_audio_abs_peak >= meter_x_level;
-    wire md_avg_meter_fill = md_audio_abs_avg >= meter_x_level;
-    wire emu_avg_meter_fill = emu_audio_abs_avg >= meter_x_level;
+    wire stage_fm_raw_fill = display_fm_raw_abs_peak >= meter_x_level;
+    wire stage_fm_adjust_fill = display_fm_adjust_abs_peak >= meter_x_level;
+    wire stage_fm_lpf_fill = display_fm_lpf_abs_peak >= meter_x_level;
+    wire stage_genmix_fill = display_genmix_abs_peak >= meter_x_level;
+    wire stage_final_fill = display_md_final_audio_abs_peak >= meter_x_level;
+    wire md_meter_fill = display_md_audio_abs_peak >= meter_x_level;
+    wire emu_meter_fill = display_emu_audio_abs_peak >= meter_x_level;
+    wire md_avg_meter_fill = display_md_audio_abs_avg >= meter_x_level;
+    wire emu_avg_meter_fill = display_emu_audio_abs_avg >= meter_x_level;
     wire [23:0] stage_meter_rgb =
         meter_reference_marker ? 24'hffffff :
         stage_fm_raw_row ? (stage_fm_raw_fill ? 24'h00c8ff : 24'h081018) :
@@ -2263,12 +2385,12 @@ module emu
         stage_final_fill ? 24'hc0c0c0 :
                            24'h101010;
     wire [23:0] md_meter_rgb =
-        (meter_rail_block && md_audio_rail_seen) ? 24'hff0000 :
+        (meter_rail_block && display_md_audio_rail_seen) ? 24'hff0000 :
         meter_reference_marker ? 24'hffffff :
         md_meter_fill ? 24'h2040ff :
                         24'h101018;
     wire [23:0] emu_meter_rgb =
-        (meter_rail_block && emu_audio_rail_seen) ? 24'hff0000 :
+        (meter_rail_block && display_emu_audio_rail_seen) ? 24'hff0000 :
         meter_reference_marker ? 24'hffffff :
         emu_meter_fill ? 24'h00d060 :
                          24'h101810;
@@ -3709,6 +3831,123 @@ module emu
         end
     endfunction
 
+`ifdef MEGAVGMDRIVE_VIDEO_DEBUG_CDC
+    // Debug text and meter values originate in the validated 20 MHz domain.
+    // At the start of VBlank the video domain requests one bundled snapshot.
+    // The source bank then remains stable until the following frame request.
+    integer debug_snapshot_video_i;
+    always @(posedge clk_sys) begin
+        video_snapshot_req_meta <= video_snapshot_req;
+        video_snapshot_req_sys <= video_snapshot_req_meta;
+
+        if (reset) begin
+            video_snapshot_ack_sys <= 1'b0;
+            video_snapshot_capture_active <= 1'b0;
+            video_snapshot_capture_row <= 5'd0;
+            video_snapshot_capture_col <= 4'd0;
+            video_snapshot_capture_index <= 9'd0;
+            state_snapshot_sys <= 16'd0;
+        end else if (!video_snapshot_capture_active &&
+                     (video_snapshot_req_sys != video_snapshot_ack_sys)) begin
+            video_snapshot_capture_active <= 1'b1;
+            video_snapshot_capture_row <= 5'd0;
+            video_snapshot_capture_col <= 4'd0;
+            video_snapshot_capture_index <= 9'd0;
+            meter_snapshot_sys[0] <= fm_raw_abs_peak;
+            meter_snapshot_sys[1] <= fm_adjust_abs_peak;
+            meter_snapshot_sys[2] <= fm_lpf_abs_peak;
+            meter_snapshot_sys[3] <= genmix_abs_peak;
+            meter_snapshot_sys[4] <= md_final_audio_abs_peak;
+            meter_snapshot_sys[5] <= md_audio_abs_peak;
+            meter_snapshot_sys[6] <= emu_audio_abs_peak;
+            meter_snapshot_sys[7] <= md_audio_abs_avg;
+            meter_snapshot_sys[8] <= emu_audio_abs_avg;
+            state_snapshot_sys <= {
+                emu_audio_rail_seen,
+                md_audio_rail_seen,
+                audio_seen_latched,
+                audio_gate_open,
+                startup_waiting,
+                done_latched,
+                vgm_load_done,
+                vgm_load_busy,
+                player_busy,
+                vgm_header_valid,
+                vgm_player_error,
+                vgm_load_overflow,
+                vgm_load_error,
+                mode5_player_start_pulse_debug,
+                mode5_sound_reset_active,
+                startup_reset_active
+            };
+        end else if (video_snapshot_capture_active) begin
+            debug_char_snapshot_sys[video_snapshot_capture_index] <=
+                mode5_debug_char(video_snapshot_capture_row,
+                                 video_snapshot_capture_col);
+            if ((video_snapshot_capture_row == 5'd31) &&
+                (video_snapshot_capture_col == 4'd14)) begin
+                video_snapshot_capture_active <= 1'b0;
+                video_snapshot_ack_sys <= video_snapshot_req_sys;
+            end else begin
+                video_snapshot_capture_index <=
+                    video_snapshot_capture_index + 9'd1;
+                if (video_snapshot_capture_col == 4'd14) begin
+                    video_snapshot_capture_col <= 4'd0;
+                    video_snapshot_capture_row <=
+                        video_snapshot_capture_row + 5'd1;
+                end else begin
+                    video_snapshot_capture_col <=
+                        video_snapshot_capture_col + 4'd1;
+                end
+            end
+        end
+    end
+
+    always @(posedge clk_video) begin
+        video_snapshot_ack_meta <= video_snapshot_ack_sys;
+        video_snapshot_ack <= video_snapshot_ack_meta;
+
+        if (video_reset) begin
+            video_snapshot_req <= 1'b0;
+            video_snapshot_ack_seen <= 1'b0;
+            video_snapshot_copy_active <= 1'b0;
+            video_snapshot_copy_index <= 9'd0;
+            video_snapshot_valid <= 1'b0;
+            state_snapshot_video <= 16'd0;
+            for (debug_snapshot_video_i = 0; debug_snapshot_video_i < 9;
+                 debug_snapshot_video_i = debug_snapshot_video_i + 1) begin
+                meter_snapshot_video[debug_snapshot_video_i] <= 16'd0;
+            end
+        end else begin
+            if (video_vblank_start) begin
+                video_snapshot_req <= ~video_snapshot_req;
+            end
+            if (!video_snapshot_copy_active &&
+                (video_snapshot_ack != video_snapshot_ack_seen)) begin
+                video_snapshot_copy_active <= 1'b1;
+                video_snapshot_copy_index <= 9'd0;
+                for (debug_snapshot_video_i = 0; debug_snapshot_video_i < 9;
+                     debug_snapshot_video_i = debug_snapshot_video_i + 1) begin
+                    meter_snapshot_video[debug_snapshot_video_i] <=
+                        meter_snapshot_sys[debug_snapshot_video_i];
+                end
+                state_snapshot_video <= state_snapshot_sys;
+            end else if (video_snapshot_copy_active) begin
+                debug_char_snapshot_video[video_snapshot_copy_index] <=
+                    debug_char_snapshot_sys[video_snapshot_copy_index];
+                if (video_snapshot_copy_index == 9'd479) begin
+                    video_snapshot_copy_active <= 1'b0;
+                    video_snapshot_valid <= 1'b1;
+                    video_snapshot_ack_seen <= video_snapshot_ack;
+                end else begin
+                    video_snapshot_copy_index <=
+                        video_snapshot_copy_index + 9'd1;
+                end
+            end
+        end
+    end
+`endif
+
     wire [8:0] mode5_dbg_x = h_count - 9'd8;
     wire [8:0] mode5_dbg_y = v_count - 9'd8;
     wire [4:0] mode5_dbg_row = mode5_dbg_y[7:3];
@@ -3728,15 +3967,20 @@ module emu
         (mode5_dbg_col <= (mode5_dbg_wide_row ? 4'd14 : 4'd6)) &&
         (mode5_dbg_char_x < 3'd5) &&
         (mode5_dbg_char_y < 3'd7);
+    wire [8:0] mode5_dbg_char_index =
+        (mode5_dbg_row * 5'd15) + mode5_dbg_col;
+`ifdef MEGAVGMDRIVE_VIDEO_DEBUG_CDC
+    wire [7:0] mode5_dbg_display_char =
+        video_snapshot_valid ?
+        debug_char_snapshot_video[mode5_dbg_char_index] : 8'h20;
+`else
+    wire [7:0] mode5_dbg_display_char = 8'h20;
+`endif
     wire mode5_debug_pixel =
         mode5_dbg_region &&
-        font5x7_pixel(mode5_debug_char(mode5_dbg_row,
-                                       mode5_dbg_col),
+        font5x7_pixel(mode5_dbg_display_char,
                       mode5_dbg_char_x,
                       mode5_dbg_char_y);
-
-    wire hsync = ~((h_count >= 9'd336) && (h_count < 9'd368));
-    wire vsync = ~((v_count >= 9'd244) && (v_count < 9'd248));
 
     // State colors:
     // idle/running background : green
@@ -3833,21 +4077,25 @@ module emu
         raw_jt12_sample_latch_build_marker ? (h_count[4] ? 8'h00 : 8'hff) :
         raw_jt12_fm_build_marker ? (h_count[4] ? 8'hff : 8'h00) :
         lpf_test_build_marker ? (h_count[4] ? 8'h00 : 8'h00) :
-        startup_reset_active ? 8'hff :
-        mode5_sound_reset_active ? 8'hff :
-        mode5_player_start_pulse_debug ? 8'hff :
-        (vgm_load_error || vgm_load_overflow || vgm_player_error) ? 8'hff :
-        (LOADED_VGM_MODE && vgm_header_valid && player_busy) ? 8'h00 :
-        vgm_load_busy     ? 8'h00 :
-        vgm_load_done     ? 8'h00 :
-        done_latched       ? 8'h00 :
-        startup_waiting    ? 8'hff :
-        (audio_gate_open && FIXED_TIMING_CAL_MODE)   ? 8'h80 :
-        (audio_gate_open && FIXED_REAL_PHRASE_MODE)  ? 8'hff :
-        (audio_gate_open && FIXED_REAL_SNIPPET_MODE) ? 8'hc0 :
-        audio_gate_open    ? 8'hff :
-        audio_seen_latched ? 8'h00 :
-        player_busy        ? 8'hd0 :
+        display_startup_reset_active ? 8'hff :
+        display_mode5_sound_reset_active ? 8'hff :
+        display_mode5_player_start_pulse ? 8'hff :
+        (display_vgm_load_error ||
+         display_vgm_load_overflow ||
+         display_vgm_player_error) ? 8'hff :
+        (LOADED_VGM_MODE &&
+         display_vgm_header_valid &&
+         display_player_busy) ? 8'h00 :
+        display_vgm_load_busy ? 8'h00 :
+        display_vgm_load_done ? 8'h00 :
+        display_done_latched ? 8'h00 :
+        display_startup_waiting ? 8'hff :
+        (display_audio_gate_open && FIXED_TIMING_CAL_MODE)   ? 8'h80 :
+        (display_audio_gate_open && FIXED_REAL_PHRASE_MODE)  ? 8'hff :
+        (display_audio_gate_open && FIXED_REAL_SNIPPET_MODE) ? 8'hc0 :
+        display_audio_gate_open ? 8'hff :
+        display_audio_seen_latched ? 8'h00 :
+        display_player_busy ? 8'hd0 :
                              8'h00;
 
     wire [7:0] green =
@@ -3902,21 +4150,25 @@ module emu
         raw_jt12_sample_latch_build_marker ? (h_count[4] ? 8'h00 : 8'hff) :
         raw_jt12_fm_build_marker ? (h_count[4] ? 8'hff : 8'h00) :
         lpf_test_build_marker ? (h_count[4] ? 8'hff : 8'h60) :
-        startup_reset_active ? 8'hff :
-        mode5_sound_reset_active ? 8'hff :
-        mode5_player_start_pulse_debug ? 8'hff :
-        (vgm_load_error || vgm_load_overflow || vgm_player_error) ? 8'h00 :
-        (LOADED_VGM_MODE && vgm_header_valid && player_busy) ? 8'hc0 :
-        vgm_load_busy     ? 8'h40 :
-        vgm_load_done     ? 8'hff :
-        done_latched       ? 8'hd0 :
-        startup_waiting    ? 8'h00 :
-        (audio_gate_open && FIXED_TIMING_CAL_MODE)   ? 8'hff :
-        (audio_gate_open && FIXED_REAL_PHRASE_MODE)  ? 8'h80 :
-        (audio_gate_open && FIXED_REAL_SNIPPET_MODE) ? 8'h00 :
-        audio_gate_open    ? 8'hff :
-        audio_seen_latched ? 8'hff :
-        player_busy        ? 8'h00 :
+        display_startup_reset_active ? 8'hff :
+        display_mode5_sound_reset_active ? 8'hff :
+        display_mode5_player_start_pulse ? 8'hff :
+        (display_vgm_load_error ||
+         display_vgm_load_overflow ||
+         display_vgm_player_error) ? 8'h00 :
+        (LOADED_VGM_MODE &&
+         display_vgm_header_valid &&
+         display_player_busy) ? 8'hc0 :
+        display_vgm_load_busy ? 8'h40 :
+        display_vgm_load_done ? 8'hff :
+        display_done_latched ? 8'hd0 :
+        display_startup_waiting ? 8'h00 :
+        (display_audio_gate_open && FIXED_TIMING_CAL_MODE)   ? 8'hff :
+        (display_audio_gate_open && FIXED_REAL_PHRASE_MODE)  ? 8'h80 :
+        (display_audio_gate_open && FIXED_REAL_SNIPPET_MODE) ? 8'h00 :
+        display_audio_gate_open ? 8'hff :
+        display_audio_seen_latched ? 8'hff :
+        display_player_busy ? 8'h00 :
                              8'hb0;
 
     wire [7:0] blue =
@@ -3971,28 +4223,28 @@ module emu
         raw_jt12_sample_latch_build_marker ? 8'hff :
         raw_jt12_fm_build_marker ? 8'hff :
         lpf_test_build_marker ? 8'h00 :
-        startup_reset_active ? 8'h00 :
-        mode5_sound_reset_active ? 8'h00 :
-        mode5_player_start_pulse_debug ? 8'hff :
-        (vgm_load_error || vgm_load_overflow || vgm_player_error) ? 8'h00 :
-        (LOADED_VGM_MODE && vgm_header_valid && player_busy) ? 8'hff :
-        vgm_load_busy     ? 8'hff :
-        vgm_load_done     ? 8'hff :
-        done_latched       ? 8'h00 :
-        startup_waiting    ? 8'hff :
-        (audio_gate_open && FIXED_TIMING_CAL_MODE)   ? 8'h00 :
-        (audio_gate_open && FIXED_REAL_PHRASE_MODE)  ? 8'h00 :
-        (audio_gate_open && FIXED_REAL_SNIPPET_MODE) ? 8'hff :
-        audio_gate_open    ? 8'hff :
-        audio_seen_latched ? 8'hff :
-        player_busy        ? 8'h00 :
+        display_startup_reset_active ? 8'h00 :
+        display_mode5_sound_reset_active ? 8'h00 :
+        display_mode5_player_start_pulse ? 8'hff :
+        (display_vgm_load_error ||
+         display_vgm_load_overflow ||
+         display_vgm_player_error) ? 8'h00 :
+        (LOADED_VGM_MODE &&
+         display_vgm_header_valid &&
+         display_player_busy) ? 8'hff :
+        display_vgm_load_busy ? 8'hff :
+        display_vgm_load_done ? 8'hff :
+        display_done_latched ? 8'h00 :
+        display_startup_waiting ? 8'hff :
+        (display_audio_gate_open && FIXED_TIMING_CAL_MODE)   ? 8'h00 :
+        (display_audio_gate_open && FIXED_REAL_PHRASE_MODE)  ? 8'h00 :
+        (display_audio_gate_open && FIXED_REAL_SNIPPET_MODE) ? 8'hff :
+        display_audio_gate_open ? 8'hff :
+        display_audio_seen_latched ? 8'hff :
+        display_player_busy ? 8'h00 :
                              8'h40;
 
-    assign CLK_VIDEO = clk_sys;
-    assign CE_PIXEL = ce_pix;
-    assign VGA_DE = active;
-    assign VGA_HS = hsync;
-    assign VGA_VS = vsync;
+    assign CLK_VIDEO = clk_video;
 `ifdef MISTER_VGM_DEBUG_VIDEO_ENABLE
     wire [7:0] video_red   = red;
     wire [7:0] video_green = green;
@@ -4007,9 +4259,37 @@ module emu
     wire [7:0] video_blue  = mode5_debug_pixel ? 8'hff :
                              mode5_dbg_back ? 8'h00 : 8'h18;
 `endif
-    assign VGA_R = active ? video_red : 8'd0;
-    assign VGA_G = active ? video_green : 8'd0;
-    assign VGA_B = active ? video_blue : 8'd0;
+
+    // MiSTer's standard mixer owns the public video outputs. Raw sync pulses
+    // are positive here; sys_top performs its existing polarity normalization.
+    wire video_freeze_sync;
+    video_mixer #(
+        .LINE_LENGTH(324),
+        .HALF_DEPTH(0),
+        .GAMMA(1)
+    ) video_mixer (
+        .CLK_VIDEO (clk_video),
+        .CE_PIXEL  (CE_PIXEL),
+        .ce_pix    (raw_ce_pix),
+        .scandoubler(forced_scandoubler_video),
+        .hq2x      (1'b0),
+        .gamma_bus (gamma_bus),
+        .R         (active ? video_red   : 8'd0),
+        .G         (active ? video_green : 8'd0),
+        .B         (active ? video_blue  : 8'd0),
+        .HSync     (raw_hsync),
+        .VSync     (raw_vsync),
+        .HBlank    (hblank),
+        .VBlank    (vblank),
+        .HDMI_FREEZE(HDMI_FREEZE),
+        .freeze_sync(video_freeze_sync),
+        .VGA_R     (VGA_R),
+        .VGA_G     (VGA_G),
+        .VGA_B     (VGA_B),
+        .VGA_VS    (VGA_VS),
+        .VGA_HS    (VGA_HS),
+        .VGA_DE    (VGA_DE)
+    );
 
     reg [26:0] act_cnt;
     always @(posedge clk_sys) begin
@@ -4019,9 +4299,6 @@ module emu
     assign LED_USER = player_busy | done_latched | audio_seen_latched | act_cnt[25];
 
     wire unused_inputs = ^{
-        forced_scandoubler,
-        video_rotated,
-        gamma_bus,
         vgm_load_overflow,
         vgm_load_size,
         vgm_load_magic,
@@ -4035,6 +4312,9 @@ module emu
         vgm_pcm_oob,
         vgm_pcm_oob_count,
         vgm_wait_ticks_consumed_debug,
+        video_vblank_start,
+        mode5_dbg_char_index,
+        video_freeze_sync,
         dac_stream_wait_samples_total,
         max_dac_stream_cmd_cycles,
         count_wait0_overhead_nonzero,
@@ -4175,7 +4455,6 @@ module emu
         ps2_mouse,
         ps2_mouse_ext,
         timestamp,
-        ce_2,
         player_pc_debug,
         player_last_cmd_debug,
         HDMI_WIDTH,
@@ -4192,5 +4471,9 @@ module emu
         USER_IN,
         OSD_STATUS
     };
+
+`ifdef MEGAVGMDRIVE_VIDEO_DEBUG_CDC
+`undef MEGAVGMDRIVE_VIDEO_DEBUG_CDC
+`endif
 
 endmodule
