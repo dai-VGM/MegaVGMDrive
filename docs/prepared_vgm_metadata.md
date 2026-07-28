@@ -37,6 +37,19 @@ All integers are little-endian. The trailer is exactly 128 bytes.
 Flag bit 0 indicates a non-empty directory. Flag bit 1 indicates a non-empty
 basename. All other flag bits are zero.
 
+## Binary construction
+
+The helper writes binary header bytes directly to a temporary file with the
+shell `printf` builtin and writes zero-filled regions with `dd`. Binary data is
+never stored in a shell variable and never passes through `awk`, command
+substitution, or another text-oriented utility. Only printable octal digits
+used to select one output byte are held in a shell variable.
+
+This is required for compatibility with awk implementations that discard a
+NUL produced by `printf("%c", 0)`. Directory and basename conversion may use
+awk because those intermediate files contain printable ASCII only; their NUL
+padding is added afterward with `dd`.
+
 ## Name conversion
 
 Names are limited to printable ASCII bytes `0x20..0x7e`. Decimal digits,
@@ -81,6 +94,14 @@ Generated cache files are reused only when they are newer than their source
 and already have a valid version 1 trailer. Older cache files without metadata
 are regenerated even if their timestamps would previously have caused a
 cache hit.
+
+Every newly generated file is validated before publication. The helper checks
+the physical size, 128-byte trailer position, magic, version, flags, field
+lengths, little-endian original-size field, and every reserved or padding byte.
+Conversion takes place in a destination-side temporary file. The temporary
+file is atomically renamed to the final destination only after validation
+passes. On failure, the temporary file is removed and any older destination
+file is left unchanged.
 
 The current prepared-file limit is 4 MiB (`4,194,304` bytes), including the
 128-byte trailer. Inputs that would exceed this physical size are rejected.

@@ -132,6 +132,23 @@ file_size_bytes() {
 	printf '%d\n' "$((fsb_size + 0))"
 }
 
+read_file_region() {
+	rfr_file=$1
+	rfr_offset=$2
+	rfr_count=$3
+	rfr_block_size=4096
+	rfr_block=$((rfr_offset / rfr_block_size))
+	rfr_inner_offset=$((rfr_offset % rfr_block_size))
+	rfr_block_count=$(((rfr_inner_offset + rfr_count + rfr_block_size - 1) /
+		rfr_block_size))
+
+	# Avoid byte-sized skipping through an entire multi-megabyte VGM. The
+	# first dd seeks in 4 KiB blocks; the second trims at most two blocks.
+	dd if="$rfr_file" bs="$rfr_block_size" skip="$rfr_block" \
+		count="$rfr_block_count" 2>/dev/null |
+		dd bs=1 skip="$rfr_inner_offset" count="$rfr_count" 2>/dev/null
+}
+
 metadata_trailer_valid() {
 	mtv_file=$1
 	mtv_file_size=$(file_size_bytes "$mtv_file") || return 1
@@ -142,8 +159,7 @@ metadata_trailer_valid() {
 	mtv_offset=$((mtv_file_size - METADATA_TRAILER_SIZE))
 	# Read the fixed header through od so this works on both macOS and the
 	# BusyBox-style MiSTer userspace without stat-specific options.
-	set -- $(dd if="$mtv_file" bs=1 skip="$mtv_offset" count=20 2>/dev/null |
-		od -An -v -tu1)
+	set -- $(read_file_region "$mtv_file" "$mtv_offset" 20 | od -An -v -tu1)
 	if [ "$#" -ne 20 ]; then
 		return 1
 	fi
@@ -248,6 +264,84 @@ pad_file_with_zeros() {
 	fi
 }
 
+append_binary_byte() {
+	abb_file=$1
+	abb_value=$2
+
+	# The command substitution contains only three printable octal digits.
+	# The byte itself is written directly to the file by printf, so a NUL byte
+	# is never stored in a shell variable or passed through awk.
+	abb_octal=$(printf '%03o' "$abb_value") || return 1
+	printf "\\$abb_octal" >> "$abb_file"
+}
+
+append_u32_le() {
+	au32_file=$1
+	au32_value=$2
+
+	append_binary_byte "$au32_file" $((au32_value % 256)) &&
+	append_binary_byte "$au32_file" $(((au32_value / 256) % 256)) &&
+	append_binary_byte "$au32_file" $(((au32_value / 65536) % 256)) &&
+	append_binary_byte "$au32_file" $(((au32_value / 16777216) % 256))
+}
+
+file_region_is_zero() {
+	frz_file=$1
+	frz_offset=$2
+	frz_count=$3
+
+	if [ "$frz_count" -eq 0 ]; then
+		return 0
+	fi
+
+	set -- $(read_file_region "$frz_file" "$frz_offset" "$frz_count" |
+		od -An -v -tu1)
+	if [ "$#" -ne "$frz_count" ]; then
+		return 1
+	fi
+	for frz_byte do
+		if [ "$frz_byte" -ne 0 ]; then
+			return 1
+		fi
+	done
+}
+
+prepared_file_valid() {
+	pfv_file=$1
+	metadata_trailer_valid "$pfv_file" || return 1
+
+	pfv_size=$(file_size_bytes "$pfv_file") || return 1
+	pfv_trailer_offset=$((pfv_size - METADATA_TRAILER_SIZE))
+	set -- $(read_file_region "$pfv_file" $((pfv_trailer_offset + 8)) 4 |
+		od -An -v -tu1)
+	if [ "$#" -ne 4 ]; then
+		return 1
+	fi
+	pfv_flags=$2
+	pfv_directory_length=$3
+	pfv_basename_length=$4
+	pfv_expected_flags=0
+	if [ "$pfv_directory_length" -ne 0 ]; then
+		pfv_expected_flags=$((pfv_expected_flags | 1))
+	fi
+	if [ "$pfv_basename_length" -ne 0 ]; then
+		pfv_expected_flags=$((pfv_expected_flags | 2))
+	fi
+	if [ "$pfv_flags" -ne "$pfv_expected_flags" ]; then
+		return 1
+	fi
+
+	file_region_is_zero "$pfv_file" $((pfv_trailer_offset + 14)) 2 &&
+	file_region_is_zero "$pfv_file" $((pfv_trailer_offset + 20)) 12 &&
+	file_region_is_zero "$pfv_file" \
+		$((pfv_trailer_offset + 32 + pfv_directory_length)) \
+		$((32 - pfv_directory_length)) &&
+	file_region_is_zero "$pfv_file" \
+		$((pfv_trailer_offset + 64 + pfv_basename_length)) \
+		$((48 - pfv_basename_length)) &&
+	file_region_is_zero "$pfv_file" $((pfv_trailer_offset + 112)) 16
+}
+
 append_display_metadata() {
 	adm_file=$1
 	adm_dst_file=$2
@@ -256,7 +350,7 @@ append_display_metadata() {
 	adm_directory_file=$adm_file.directory.$$
 	adm_basename_file=$adm_file.basename.$$
 
-	if metadata_trailer_valid "$adm_file"; then
+	if prepared_file_valid "$adm_file"; then
 		adm_file_size=$(file_size_bytes "$adm_file") || return 1
 		adm_body_size=$((adm_file_size - METADATA_TRAILER_SIZE))
 		if ! copy_file_prefix "$adm_file" "$adm_body_file" "$adm_body_size"; then
@@ -313,25 +407,21 @@ append_display_metadata() {
 		return 1
 	fi
 
-	awk -v flags="$adm_flags" \
-		-v directory_length="$adm_directory_length" \
-		-v basename_length="$adm_basename_length" \
-		-v original_size="$adm_original_size" '
-		BEGIN {
-			printf "MVGMTTL%c", 0
-			printf "%c%c%c%c", 1, flags, directory_length, basename_length
-			printf "%c%c%c%c", 128, 0, 0, 0
-			printf "%c%c%c%c",
-				original_size % 256,
-				int(original_size / 256) % 256,
-				int(original_size / 65536) % 256,
-				int(original_size / 16777216) % 256
-			for (i = 0; i < 12; i++) printf "%c", 0
-		}
-	' > "$adm_trailer_file" || {
+	# Build the binary header directly in a file. Some BusyBox awk variants
+	# discard printf("%c", 0), which previously shortened this block by every
+	# NUL byte. Shell variables contain only names, lengths, and octal text.
+	if ! printf 'MVGMTTL\000' > "$adm_trailer_file" ||
+	   ! append_binary_byte "$adm_trailer_file" 1 ||
+	   ! append_binary_byte "$adm_trailer_file" "$adm_flags" ||
+	   ! append_binary_byte "$adm_trailer_file" "$adm_directory_length" ||
+	   ! append_binary_byte "$adm_trailer_file" "$adm_basename_length" ||
+	   ! append_binary_byte "$adm_trailer_file" 128 ||
+	   ! pad_file_with_zeros "$adm_trailer_file" 3 ||
+	   ! append_u32_le "$adm_trailer_file" "$adm_original_size" ||
+	   ! pad_file_with_zeros "$adm_trailer_file" 12; then
 		rm -f "$adm_directory_file" "$adm_basename_file" "$adm_trailer_file"
 		return 1
-	}
+	fi
 
 	cat "$adm_directory_file" "$adm_basename_file" >> "$adm_trailer_file" || {
 		rm -f "$adm_directory_file" "$adm_basename_file" "$adm_trailer_file"
@@ -350,6 +440,13 @@ append_display_metadata() {
 	fi
 
 	if ! cat "$adm_trailer_file" >> "$adm_file"; then
+		rm -f "$adm_directory_file" "$adm_basename_file" "$adm_trailer_file"
+		return 1
+	fi
+	adm_final_size=$(file_size_bytes "$adm_file") || return 1
+	if [ "$adm_final_size" -ne "$adm_prepared_size" ] ||
+	   ! prepared_file_valid "$adm_file"; then
+		echo "generated metadata trailer failed binary validation: $adm_dst_file" >&2
 		rm -f "$adm_directory_file" "$adm_basename_file" "$adm_trailer_file"
 		return 1
 	fi

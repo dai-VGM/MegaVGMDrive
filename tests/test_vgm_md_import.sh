@@ -104,6 +104,9 @@ assert_prepared() {
 	ap_body_size=$(file_size "$ap_body")
 	ap_output_size=$(file_size "$ap_output")
 	ap_trailer_offset=$((ap_output_size - TRAILER_SIZE))
+	ap_actual_trailer_size=$((ap_output_size - ap_body_size))
+	assert_eq "$TRAILER_SIZE" "$ap_actual_trailer_size" \
+		"$ap_label actual trailer size"
 	assert_eq "$((ap_body_size + TRAILER_SIZE))" "$ap_output_size" \
 		"$ap_label physical size"
 	assert_eq "$ap_body_size" "$ap_trailer_offset" "$ap_label trailer offset"
@@ -151,18 +154,10 @@ assert_prepared() {
 	dd if="$ap_output" of="$ap_prefix" bs=1 count="$ap_body_size" 2>/dev/null
 	cmp -s "$ap_body" "$ap_prefix" ||
 		fail "$ap_label changed bytes before the trailer"
+	assert_eq "$(sha256_file "$ap_body")" "$(sha256_file "$ap_prefix")" \
+		"$ap_label body SHA-256"
 	rm -f "$ap_prefix"
 	pass "$ap_label"
-}
-
-run_helper() {
-	rh_source=$1
-	rh_destination=$2
-	rh_log=$TEST_ROOT/helper.log
-	if ! sh "$HELPER" "$rh_source" "$rh_destination" >"$rh_log" 2>&1; then
-		sed 's/^/  /' "$rh_log" >&2
-		fail "helper failed for $rh_source"
-	fi
 }
 
 sha256_file() {
@@ -173,10 +168,84 @@ sha256_file() {
 	fi
 }
 
-for test_tool in awk cmp dd gzip mkdir mv od rm sed touch unzip wc zip; do
+write_output_manifest() {
+	wom_directory=$1
+	wom_output=$2
+
+	: > "$wom_output"
+	if [ ! -d "$wom_directory" ]; then
+		return 0
+	fi
+	find "$wom_directory" -type f -print |
+		LC_ALL=C sort |
+		while IFS= read -r wom_file; do
+			printf '%s|%s|%s\n' \
+				"$wom_file" \
+				"$(file_size "$wom_file")" \
+				"$(sha256_file "$wom_file")"
+		done > "$wom_output"
+}
+
+run_helper() {
+	rh_source=$1
+	rh_destination=$2
+	rh_awk_path=${3:-}
+	rh_log=$TEST_ROOT/helper.log
+	rh_before=$TEST_ROOT/helper.before.$$
+	rh_after=$TEST_ROOT/helper.after.$$
+
+	if [ -n "$rh_awk_path" ]; then
+		if PATH="$rh_awk_path:$PATH" sh "$HELPER" \
+			"$rh_source" "$rh_destination" >"$rh_log" 2>&1; then
+			rh_status=0
+		else
+			rh_status=$?
+		fi
+	else
+		if sh "$HELPER" "$rh_source" "$rh_destination" >"$rh_log" 2>&1; then
+			rh_status=0
+		else
+			rh_status=$?
+		fi
+	fi
+	if [ "$rh_status" -ne 0 ]; then
+		sed 's/^/  /' "$rh_log" >&2
+		fail "helper failed for $rh_source"
+	fi
+
+	write_output_manifest "$rh_destination" "$rh_before"
+	if [ -n "$rh_awk_path" ]; then
+		if PATH="$rh_awk_path:$PATH" sh "$HELPER" \
+			"$rh_source" "$rh_destination" >"$rh_log" 2>&1; then
+			rh_status=0
+		else
+			rh_status=$?
+		fi
+	else
+		if sh "$HELPER" "$rh_source" "$rh_destination" >"$rh_log" 2>&1; then
+			rh_status=0
+		else
+			rh_status=$?
+		fi
+	fi
+	if [ "$rh_status" -ne 0 ]; then
+		sed 's/^/  /' "$rh_log" >&2
+		fail "second helper run failed for $rh_source"
+	fi
+	write_output_manifest "$rh_destination" "$rh_after"
+	cmp -s "$rh_before" "$rh_after" ||
+		fail "second helper run changed output size or SHA-256 for $rh_source"
+	rm -f "$rh_before" "$rh_after"
+}
+
+for test_tool in awk cmp dd find grep gzip mkdir mv od rm sed sort touch tr unzip wc zip; do
 	command -v "$test_tool" >/dev/null 2>&1 ||
 		fail "required test tool not found: $test_tool"
 done
+if ! command -v shasum >/dev/null 2>&1 &&
+   ! command -v sha256sum >/dev/null 2>&1; then
+	fail "shasum or sha256sum is required"
+fi
 
 mkdir -p "$TEST_ROOT"
 
@@ -337,6 +406,41 @@ assert_prepared "UTF-8 replacement" \
 	"$case_root/out/Gáme 音/01_曲_Tün.vgm" \
 	"$non_ascii_source" "G?me ?" "01_?_T?n"
 
+# Reproduce the utility behavior that caused 110/111-byte trailers in real
+# use. This wrapper removes every NUL emitted by awk. Metadata generation must
+# still work because binary bytes must never pass through awk.
+nul_drop_bin=$TEST_ROOT/nul_drop_bin
+mkdir -p "$nul_drop_bin"
+REAL_AWK_FOR_METADATA_TEST=$(command -v awk)
+export REAL_AWK_FOR_METADATA_TEST
+printf '%s\n' \
+	'#!/bin/sh' \
+	'"$REAL_AWK_FOR_METADATA_TEST" "$@" | tr -d "\\000"' \
+	> "$nul_drop_bin/awk"
+chmod +x "$nul_drop_bin/awk"
+
+# A 260-byte original-size field contains two NUL bytes. Together with the
+# fixed zero fields, the old awk path lost 18 bytes and produced 110.
+case_root=$TEST_ROOT/nul_drop_110
+mkdir -p "$case_root/inbox/Nul Drop Short"
+nul_drop_110_body=$case_root/inbox/Nul\ Drop\ Short/short_case.vgm
+make_body "$nul_drop_110_body" 260
+run_helper "$case_root/inbox" "$case_root/out" "$nul_drop_bin"
+assert_prepared "110-byte NUL-drop regression" \
+	"$case_root/out/Nul Drop Short/short_case.vgm" \
+	"$nul_drop_110_body" "Nul Drop Short" "short_case"
+
+# A 70,000-byte original-size field contains one NUL byte. The old path lost
+# 17 bytes in total and produced 111.
+case_root=$TEST_ROOT/nul_drop_111
+mkdir -p "$case_root/inbox/Nul Drop Longer"
+nul_drop_111_body=$case_root/inbox/Nul\ Drop\ Longer/long_case.vgm
+make_body "$nul_drop_111_body" 70000
+run_helper "$case_root/inbox" "$case_root/out" "$nul_drop_bin"
+assert_prepared "111-byte NUL-drop regression" \
+	"$case_root/out/Nul Drop Longer/long_case.vgm" \
+	"$nul_drop_111_body" "Nul Drop Longer" "long_case"
+
 # The physical 4 MiB limit includes the trailer.
 case_root=$TEST_ROOT/size_limit
 mkdir -p "$case_root/inbox/Limit Game"
@@ -361,5 +465,21 @@ fi
 [ ! -e "$case_root/oversize_out/Too Large/Too Large.vgm" ] ||
 	fail "oversize helper left a final output"
 pass "physical-size overflow rejection"
+
+mkdir -p "$case_root/oversize_out/Too Large"
+oversize_existing=$case_root/oversize_out/Too\ Large/Too\ Large.vgm
+printf 'existing destination remains intact\n' > "$oversize_existing"
+oversize_existing_hash=$(sha256_file "$oversize_existing")
+if sh "$HELPER" "$oversize_source" "$case_root/oversize_out" \
+	>"$TEST_ROOT/oversize_existing.log" 2>&1; then
+	fail "oversize input with an existing destination unexpectedly succeeded"
+fi
+assert_eq "$oversize_existing_hash" "$(sha256_file "$oversize_existing")" \
+	"failed conversion preserves existing destination"
+if find "$case_root/oversize_out" -type f -name '*.tmp.*' -print |
+	grep . >/dev/null 2>&1; then
+	fail "failed conversion left a destination-side temporary file"
+fi
+pass "atomic failure preserves existing output"
 
 echo "All $tests_run helper metadata tests passed."
