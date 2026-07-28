@@ -6,7 +6,6 @@
 
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/emu.sv
 set_global_assignment -name QIP_FILE sys/sys.qip
-set_global_assignment -name SYSTEMVERILOG_FILE rtl/megavgm_video_pll.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/megavgm_video_timing.sv
 
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/mister_vgm_md_top.sv

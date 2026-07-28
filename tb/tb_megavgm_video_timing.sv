@@ -2,7 +2,7 @@
 
 /* verilator lint_off BLKSEQ */
 module tb_megavgm_video_timing;
-    localparam realtime VIDEO_HALF_PERIOD_NS = 19.8609731877;
+    localparam realtime VIDEO_HALF_PERIOD_NS = 25.0;
 
     logic clk_video;
     logic reset = 1'b1;
@@ -59,6 +59,7 @@ module tb_megavgm_video_timing;
         integer line_count;
         integer vblank_start_count;
         integer xz_count;
+        integer clocks_since_ce;
         logic previous_ce;
         realtime frame_start;
         realtime frame_end;
@@ -76,10 +77,12 @@ module tb_megavgm_video_timing;
             line_count = 1;
             vblank_start_count = 0;
             xz_count = 0;
+            clocks_since_ce = 0;
             previous_ce = 1'b0;
 
             forever begin
                 @(posedge clk_video);
+                clocks_since_ce = clocks_since_ce + 1;
                 if ((^{
                     raw_ce_pix, h_count, v_count, raw_hblank, raw_vblank,
                     raw_hsync, raw_vsync, raw_de, public_ce_pixel,
@@ -101,6 +104,12 @@ module tb_megavgm_video_timing;
                 if (raw_ce_pix && previous_ce) begin
                     $fatal(1, "raw CE_PIXEL wider than one video clock");
                 end
+                if (raw_ce_pix && (clocks_since_ce != 3)) begin
+                    $fatal(1, "raw CE_PIXEL interval %0d clocks",
+                           clocks_since_ce);
+                end
+                if (raw_ce_pix)
+                    clocks_since_ce = 0;
                 previous_ce = raw_ce_pix;
 
                 if (raw_ce_pix &&
@@ -125,7 +134,7 @@ module tb_megavgm_video_timing;
             horizontal_hz = frame_hz * line_count;
             ce_hz = ce_count * frame_hz;
 
-            if (ce_count != 400 * 262)
+            if (ce_count != 424 * 262)
                 $fatal(1, "raw frame CE count %0d", ce_count);
             if (de_count != 320 * 240)
                 $fatal(1, "raw active count %0d", de_count);
@@ -136,17 +145,17 @@ module tb_megavgm_video_timing;
                        vblank_start_count);
             if (hsync_count != 32 * 262)
                 $fatal(1, "raw HSync width/count %0d", hsync_count);
-            if (vsync_count != 3 * 400)
+            if (vsync_count != 3 * 424)
                 $fatal(1, "raw VSync width/count %0d", vsync_count);
             if (xz_count != 0)
                 $fatal(1, "raw timing X/Z count %0d", xz_count);
-            if ((horizontal_hz < 15733.0) || (horizontal_hz > 15736.0))
+            if ((horizontal_hz < 15722.0) || (horizontal_hz > 15725.0))
                 $fatal(1, "raw horizontal rate %0f", horizontal_hz);
-            if ((frame_hz < 60.04) || (frame_hz > 60.07))
+            if ((frame_hz < 60.00) || (frame_hz > 60.03))
                 $fatal(1, "raw frame rate %0f", frame_hz);
 
             $display(
-                "RAW PASS master_hz=25175000 ce_hz=%0.3f active=320x240 total=400x262 hsync=32 positive vsync=3 positive h_hz=%0.6f v_hz=%0.6f xz=%0d",
+                "RAW PASS master_hz=20000000 ce_hz=%0.3f interval=3 active=320x240 total=424x262 hsync=32 positive vsync=3 positive h_hz=%0.6f v_hz=%0.6f xz=%0d",
                 ce_hz, horizontal_hz, frame_hz, xz_count
             );
         end

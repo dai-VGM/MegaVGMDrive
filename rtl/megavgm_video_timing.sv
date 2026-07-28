@@ -2,14 +2,14 @@
 
 // Fixed MiSTer-native 240p timing for the MegaVGMDrive status screen.
 //
-// The 25.175 MHz video master is exactly four times the 6.29375 MHz raw
-// pixel-enable rate.  The 400 x 262 raster is 15.734375 kHz / 60.055 Hz.
-// HSync and VSync are positive pulses, as required by video_mixer.
+// The shared 20 MHz system/video clock produces one pixel enable every three
+// clocks. The 424 x 262 raster is 15.723270 kHz / 60.012483 Hz. HSync and
+// VSync remain positive for sys_top's existing sync_fix contract.
 module megavgm_video_timing #(
     parameter logic [8:0] H_ACTIVE = 9'd320,
     parameter logic [8:0] H_FRONT  = 9'd16,
     parameter logic [8:0] H_SYNC   = 9'd32,
-    parameter logic [8:0] H_BACK   = 9'd32,
+    parameter logic [8:0] H_BACK   = 9'd56,
     parameter logic [8:0] V_ACTIVE = 9'd240,
     parameter logic [8:0] V_FRONT  = 9'd3,
     parameter logic [8:0] V_SYNC   = 9'd3,
@@ -42,8 +42,8 @@ module megavgm_video_timing #(
             h_count   <= 9'd0;
             v_count   <= 9'd0;
         end else begin
-            pixel_div <= pixel_div + 2'd1;
-            if (pixel_div == 2'd3) begin
+            if (pixel_div == 2'd2) begin
+                pixel_div <= 2'd0;
                 if (h_count == H_TOTAL - 9'd1) begin
                     h_count <= 9'd0;
                     if (v_count == V_TOTAL - 9'd1) begin
@@ -54,12 +54,14 @@ module megavgm_video_timing #(
                 end else begin
                     h_count <= h_count + 9'd1;
                 end
+            end else begin
+                pixel_div <= pixel_div + 2'd1;
             end
         end
     end
 
     always_comb begin
-        ce_pix       = !reset && (pixel_div == 2'd3);
+        ce_pix       = !reset && (pixel_div == 2'd2);
         hblank       = (h_count >= H_ACTIVE);
         vblank       = (v_count >= V_ACTIVE);
         hsync        = (h_count >= H_SYNC_START) &&
@@ -74,7 +76,7 @@ module megavgm_video_timing #(
 
 `ifndef SYNTHESIS
     initial begin
-        if (H_TOTAL != 9'd400) $fatal(1, "MegaVGMDrive H_TOTAL must be 400");
+        if (H_TOTAL != 9'd424) $fatal(1, "MegaVGMDrive H_TOTAL must be 424");
         if (V_TOTAL != 9'd262) $fatal(1, "MegaVGMDrive V_TOTAL must be 262");
     end
 `endif

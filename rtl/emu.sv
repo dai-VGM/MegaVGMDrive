@@ -1346,23 +1346,13 @@ module emu
 
     ////////////////////   CLOCKS   ///////////////////
 
-    wire clk_video;
-    wire video_pll_locked;
+    wire clk_video = clk_sys;
 
     pll pll (
         .refclk(CLK_50M),
         .rst(1'b0),
         .outclk_0(clk_sys),
         .locked(pll_locked)
-    );
-
-    // The validated parser/audio domain remains on the original 20 MHz PLL.
-    // A separate PLL prevents video timing or lock from changing that domain.
-    megavgm_video_pll video_pll (
-        .refclk(CLK_50M),
-        .rst(1'b0),
-        .outclk_0(clk_video),
-        .locked(video_pll_locked)
     );
 
     ///////////////////   VIDEO   ////////////////////
@@ -1387,13 +1377,9 @@ module emu
 
     wire vgm_reset = vgm_reset_req | vgm_reset_hold_active;
 
-    reg video_reset_meta = 1'b1;
-    reg video_reset = 1'b1;
-
-    always @(posedge clk_video) begin
-        video_reset_meta <= reset | !video_pll_locked;
-        video_reset <= video_reset_meta;
-    end
+    // Video now shares the validated 20 MHz system clock. No independent PLL
+    // lock or reset synchronizer is required in this clock domain.
+    wire video_reset = reset;
     wire vgm_reset_n = !vgm_reset;
     // Public OSD keeps only the user-facing gain switch. The gold audio path
     // stays fixed at no LPF and PSG 0.75 unless a development build overrides
