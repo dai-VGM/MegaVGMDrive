@@ -1389,14 +1389,10 @@ module emu
 
     reg video_reset_meta = 1'b1;
     reg video_reset = 1'b1;
-    reg forced_scandoubler_meta = 1'b0;
-    reg forced_scandoubler_video = 1'b0;
 
     always @(posedge clk_video) begin
         video_reset_meta <= reset | !video_pll_locked;
         video_reset <= video_reset_meta;
-        forced_scandoubler_meta <= forced_scandoubler;
-        forced_scandoubler_video <= forced_scandoubler_meta;
     end
     wire vgm_reset_n = !vgm_reset;
     // Public OSD keeps only the user-facing gain switch. The gold audio path
@@ -4260,36 +4256,18 @@ module emu
                              mode5_dbg_back ? 8'h00 : 8'h18;
 `endif
 
-    // MiSTer's standard mixer owns the public video outputs. Raw sync pulses
-    // are positive here; sys_top performs its existing polarity normalization.
-    wire video_freeze_sync;
-    video_mixer #(
-        .LINE_LENGTH(324),
-        .HALF_DEPTH(0),
-        .GAMMA(1)
-    ) video_mixer (
-        .CLK_VIDEO (clk_video),
-        .CE_PIXEL  (CE_PIXEL),
-        .ce_pix    (raw_ce_pix),
-        .scandoubler(forced_scandoubler_video),
-        .hq2x      (1'b0),
-        .gamma_bus (gamma_bus),
-        .R         (active ? video_red   : 8'd0),
-        .G         (active ? video_green : 8'd0),
-        .B         (active ? video_blue  : 8'd0),
-        .HSync     (raw_hsync),
-        .VSync     (raw_vsync),
-        .HBlank    (hblank),
-        .VBlank    (vblank),
-        .HDMI_FREEZE(HDMI_FREEZE),
-        .freeze_sync(video_freeze_sync),
-        .VGA_R     (VGA_R),
-        .VGA_G     (VGA_G),
-        .VGA_B     (VGA_B),
-        .VGA_VS    (VGA_VS),
-        .VGA_HS    (VGA_HS),
-        .VGA_DE    (VGA_DE)
-    );
+    // Lightweight native-only release path. MiSTer's sys_top still owns the
+    // framework OSD, HDMI scaler, analog/YPbPr, and Direct Video processing.
+    // forced_scandoubler is intentionally ignored until a small non-HQ2x line
+    // doubler is added after native 15 kHz hardware validation.
+    assign gamma_bus[21] = 1'b0;
+    assign CE_PIXEL = raw_ce_pix;
+    assign VGA_R = active ? video_red : 8'd0;
+    assign VGA_G = active ? video_green : 8'd0;
+    assign VGA_B = active ? video_blue : 8'd0;
+    assign VGA_HS = raw_hsync;
+    assign VGA_VS = raw_vsync;
+    assign VGA_DE = active;
 
     reg [26:0] act_cnt;
     always @(posedge clk_sys) begin
@@ -4312,9 +4290,10 @@ module emu
         vgm_pcm_oob,
         vgm_pcm_oob_count,
         vgm_wait_ticks_consumed_debug,
+        forced_scandoubler,
+        gamma_bus[20:0],
         video_vblank_start,
         mode5_dbg_char_index,
-        video_freeze_sync,
         dac_stream_wait_samples_total,
         max_dac_stream_cmd_cycles,
         count_wait0_overhead_nonzero,

@@ -20,17 +20,18 @@ module gamma_corr
 );
 
 (* ramstyle="no_rw_check" *) reg [7:0] gamma_curve[768];
-reg [9:0] gamma_index;
-reg [7:0] gamma_q;
-reg [1:0] ctr = 2'd0;
 
 always @(posedge clk_sys) if (gamma_wr) gamma_curve[gamma_wr_addr] <= gamma_value;
-always @(posedge clk_vid) gamma_q <= gamma_curve[gamma_index];
+always @(posedge clk_vid) gamma <= gamma_curve[gamma_index];
+
+reg [9:0] gamma_index;
+reg [7:0] gamma;
 
 always @(posedge clk_vid) begin
 	reg [7:0] R_in, G_in, B_in;
 	reg [7:0] R_gamma, G_gamma;
 	reg       hs,vs,hb,vb;
+	reg [1:0] ctr = 0;
 	reg       old_ce;
 
 	old_ce <= ce_pix;
@@ -39,7 +40,7 @@ always @(posedge clk_vid) begin
 		hs <= HSync; vs <= VSync;
 		hb <= HBlank; vb <= VBlank;
 
-		RGB_out  <= gamma_en ? {R_gamma,G_gamma,gamma_q} : {R_in,G_in,B_in};
+		RGB_out  <= gamma_en ? {R_gamma,G_gamma,gamma} : {R_in,G_in,B_in};
 		HSync_out <= hs; VSync_out <= vs;
 		HBlank_out <= hb; VBlank_out <= vb;
 
@@ -51,8 +52,8 @@ always @(posedge clk_vid) begin
 
 	case(ctr)
 		1: begin                   gamma_index <= {2'b01,G_in}; end
-		2: begin R_gamma <= gamma_q; gamma_index <= {2'b10,B_in}; end
-		3: begin G_gamma <= gamma_q; end
+		2: begin R_gamma <= gamma; gamma_index <= {2'b10,B_in}; end
+		3: begin G_gamma <= gamma; end
 	endcase
 end
 
