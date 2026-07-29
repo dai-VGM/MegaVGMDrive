@@ -100,25 +100,23 @@ module tb_megavgm_title_renderer;
 	initial begin
 		load_example_names();
 
-		// The 320x48 filled panel is horizontally centered in the Template's
-		// 529x240 active picture. It has no outline and no fixed heading.
-		set_pixel(104, 8);
+		// The historical 320x240 player surface is horizontally centered in the
+		// Template's 529x240 active picture. It has no outline or fixed heading.
+		set_pixel(104, 0);
 		check_result(panel_pixel === 1'b1, "panel top-left");
 		check_result(panel_rgb === 24'h000818, "panel navy RGB");
-		set_pixel(423, 55);
+		set_pixel(423, 239);
 		check_result(panel_pixel === 1'b1, "panel bottom-right");
 		check_result(panel_rgb === 24'h000818, "panel bottom-right RGB");
 		set_pixel(200, 30);
 		check_result(panel_pixel === 1'b1, "panel interior is filled");
 		check_result(panel_rgb === 24'h000818, "filled interior navy RGB");
-		set_pixel(103, 8);
+		set_pixel(103, 0);
 		check_result(panel_pixel === 1'b0, "left outside panel unchanged");
 		check_result(panel_rgb === 24'h000000, "left outside panel black");
-		set_pixel(424, 55);
+		set_pixel(424, 239);
 		check_result(panel_pixel === 1'b0, "right outside panel unchanged");
-		set_pixel(104, 7);
-		check_result(panel_pixel === 1'b0, "above panel unchanged");
-		set_pixel(423, 56);
+		set_pixel(423, 240);
 		check_result(panel_pixel === 1'b0, "below panel unchanged");
 		set_pixel(120, 12);
 		check_result(text_pixel === 1'b0, "fixed player heading removed");
@@ -170,7 +168,7 @@ module tb_megavgm_title_renderer;
 		drawing_active = 1;
 
 		// Check the full centered 320x240 player surface and the remaining
-		// Template active width. The panel is a solid fill, never the removed
+		// Template active width. The surface is a solid fill, never the removed
 		// 0x2040c0 outline, and text exists only on its two metadata rows.
 		panel_pixel_count = 0;
 		blue_outline_pixel_count = 0;
@@ -185,7 +183,7 @@ module tb_megavgm_title_renderer;
 				             "native panel X/Z-free");
 				check_result(panel_pixel ===
 				             (((x >= 104) && (x <= 423) &&
-				               (y >= 8) && (y <= 55)) ? 1'b1 : 1'b0),
+				               (y <= 239)) ? 1'b1 : 1'b0),
 				             "filled panel predicate matches exact geometry");
 				check_result(panel_rgb ===
 				             (panel_pixel ? 24'h000818 : 24'h000000),
@@ -203,7 +201,7 @@ module tb_megavgm_title_renderer;
 					text_outside_panel_count = text_outside_panel_count + 1;
 			end
 		end
-		check_result(panel_pixel_count == (320 * 48), "filled panel area");
+		check_result(panel_pixel_count == (320 * 240), "filled player surface area");
 		check_result(blue_outline_pixel_count == 0, "blue outline pixel count");
 		check_result(heading_pixel_count == 0, "fixed heading pixel count");
 		check_result(text_outside_panel_count == 0,

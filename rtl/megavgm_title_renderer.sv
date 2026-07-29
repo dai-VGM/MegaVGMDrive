@@ -22,13 +22,11 @@ module megavgm_title_renderer (
 	output logic [23:0] panel_rgb
 );
 
-	// Center the historical 320-pixel player surface in the Template's
-	// 529-pixel active width. The 48-pixel panel ends before the sys_top
-	// STATUS/BACKEND rows and gives the 288-pixel basename 16-pixel margins.
+	// Center the historical 320x240 player surface in the Template's
+	// 529x240 active picture. The 288-pixel basename has 16-pixel margins.
 	localparam logic [9:0] PANEL_LEFT = 10'd104;
 	localparam logic [9:0] PANEL_RIGHT = 10'd423;
-	localparam logic [8:0] PANEL_TOP = 9'd8;
-	localparam logic [8:0] PANEL_BOTTOM = 9'd55;
+	localparam logic [8:0] PANEL_BOTTOM = 9'd239;
 	localparam logic [9:0] TEXT_X = 10'd120;
 	localparam logic [8:0] DIRECTORY_Y = 9'd24;
 	localparam logic [8:0] BASENAME_Y = 9'd34;
@@ -61,7 +59,7 @@ module megavgm_title_renderer (
 		panel_pixel =
 			drawing_active &&
 			(h_count >= PANEL_LEFT) && (h_count <= PANEL_RIGHT) &&
-			(v_count >= PANEL_TOP) && (v_count <= PANEL_BOTTOM);
+			(v_count <= PANEL_BOTTOM);
 		panel_rgb = panel_pixel ? 24'h000818 : 24'h000000;
 
 		if(panel_pixel && (h_count >= TEXT_X)) begin
