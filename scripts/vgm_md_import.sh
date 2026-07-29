@@ -14,7 +14,7 @@
 #   Copy zip/vgz/vgm files to:
 #     \\mister\sdcard\MegaVGMDrive\inbox
 #   Then run on MiSTer:
-#     sh /media/fat/MegaVGMDrive/vgm_md_import.sh
+#     /media/fat/Scripts/vgm_md_import.sh
 #
 # The FPGA core loads plain .vgm files from the cache. It does not natively
 # load .vgz/.zip and does not do gzip decompression in hardware.
