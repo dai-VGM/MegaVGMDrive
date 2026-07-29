@@ -10,7 +10,8 @@ REPO_ROOT=$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd)
 HELPER=$REPO_ROOT/scripts/vgm_md_import.sh
 TEST_ROOT=${TMPDIR:-/tmp}/vgm_md_import_test.$$
 TRAILER_SIZE=128
-MAX_PREPARED_SIZE=4194304
+MAX_PREPARED_SIZE=8388608
+MAX_ORIGINAL_SIZE=$((MAX_PREPARED_SIZE - TRAILER_SIZE))
 tests_run=0
 
 cleanup() {
@@ -40,6 +41,13 @@ make_body() {
 		printf "Vgm "
 		for (i = 4; i < size; i++) printf "%c", (i % 251)
 	}' > "$mb_file"
+}
+
+make_sized_body() {
+	msb_file=$1
+	msb_size=$2
+	dd if=/dev/zero of="$msb_file" bs=1 count="$msb_size" 2>/dev/null
+	printf 'Vgm ' | dd of="$msb_file" bs=1 conv=notrunc 2>/dev/null
 }
 
 read_decimal_bytes() {
@@ -441,42 +449,103 @@ assert_prepared "111-byte NUL-drop regression" \
 	"$case_root/out/Nul Drop Longer/long_case.vgm" \
 	"$nul_drop_111_body" "Nul Drop Longer" "long_case"
 
-# The physical 4 MiB limit includes the trailer.
-case_root=$TEST_ROOT/size_limit
+# The production 23-bit byte-address contract accepts an exact 8 MiB
+# physical prepared file. The 128-byte trailer is included in that limit.
+case_root=$TEST_ROOT/size_boundaries
 mkdir -p "$case_root/inbox/Limit Game"
-limit_source=$case_root/inbox/Limit\ Game/Exact.vgm
-dd if=/dev/zero of="$limit_source" bs=1 \
-	count=$((MAX_PREPARED_SIZE - TRAILER_SIZE)) 2>/dev/null
-run_helper "$case_root/inbox" "$case_root/out"
-assert_prepared "exact 4 MiB prepared limit" \
-	"$case_root/out/Limit Game/Exact.vgm" \
-	"$limit_source" "Limit Game" "Exact"
-assert_eq "$MAX_PREPARED_SIZE" \
-	"$(file_size "$case_root/out/Limit Game/Exact.vgm")" \
-	"exact maximum physical size"
 
-oversize_source=$case_root/inbox/Limit\ Game/Too\ Large.vgm
-dd if=/dev/zero of="$oversize_source" bs=1 \
-	count=$((MAX_PREPARED_SIZE - TRAILER_SIZE + 1)) 2>/dev/null
-if sh "$HELPER" "$oversize_source" "$case_root/oversize_out" \
-	>"$TEST_ROOT/oversize.log" 2>&1; then
-	fail "oversize input unexpectedly succeeded"
+below_4m_source=$case_root/inbox/Limit\ Game/Below\ 4MiB.vgm
+make_sized_body "$below_4m_source" $((4194304 - TRAILER_SIZE - 1))
+run_helper "$below_4m_source" "$case_root/below_4m_out"
+below_4m_output=$case_root/below_4m_out/Below\ 4MiB/Below\ 4MiB.vgm
+assert_prepared "prepared file below 4 MiB" "$below_4m_output" \
+	"$below_4m_source" "Below 4MiB" "Below 4MiB"
+
+original_4m_source=$case_root/inbox/Limit\ Game/Original\ 4MiB.vgm
+make_sized_body "$original_4m_source" 4194304
+run_helper "$original_4m_source" "$case_root/original_4m_out"
+original_4m_output=$case_root/original_4m_out/Original\ 4MiB/Original\ 4MiB.vgm
+assert_prepared "exact 4 MiB original body" "$original_4m_output" \
+	"$original_4m_source" "Original 4MiB" "Original 4MiB"
+assert_eq "4194432" "$(file_size "$original_4m_output")" \
+	"4 MiB body prepared physical size"
+
+splash_size=4613734
+splash_source=$case_root/inbox/Limit\ Game/02\ -\ Splash\ Wave.vgm
+make_sized_body "$splash_source" "$splash_size"
+run_helper "$splash_source" "$case_root/splash_out"
+splash_output=$case_root/splash_out/02\ -\ Splash\ Wave/02\ -\ Splash\ Wave.vgm
+assert_prepared "4.4 MB Splash Wave equivalent" "$splash_output" \
+	"$splash_source" "02 - Splash Wave" "02 - Splash Wave"
+assert_eq "$((splash_size + TRAILER_SIZE))" "$(file_size "$splash_output")" \
+	"Splash Wave equivalent physical size"
+
+max_source=$case_root/inbox/Limit\ Game/Maximum.vgm
+make_sized_body "$max_source" "$MAX_ORIGINAL_SIZE"
+run_helper "$max_source" "$case_root/max_out"
+max_output=$case_root/max_out/Maximum/Maximum.vgm
+assert_prepared "maximum original body" "$max_output" \
+	"$max_source" "Maximum" "Maximum"
+assert_eq "$MAX_PREPARED_SIZE" "$(file_size "$max_output")" \
+	"exact maximum prepared physical size"
+pass "exact 8 MiB prepared limit"
+
+# A valid near-limit trailer is stripped and replaced without growing the
+# file. The helper's own second-run check also proves size/hash idempotency.
+near_trailer_root=$TEST_ROOT/near_limit_existing_trailer
+mkdir -p "$near_trailer_root/inbox/Near Limit"
+near_trailer_source=$near_trailer_root/inbox/Near\ Limit/Maximum.vgm
+cp "$max_output" "$near_trailer_source"
+near_input_size=$(file_size "$near_trailer_source")
+run_helper "$near_trailer_root/inbox" "$near_trailer_root/out"
+near_trailer_output=$near_trailer_root/out/Near\ Limit/Maximum.vgm
+assert_prepared "near-limit valid trailer replacement" \
+	"$near_trailer_output" "$max_source" "Near Limit" "Maximum"
+assert_eq "$near_input_size" "$(file_size "$near_trailer_output")" \
+	"near-limit replacement size"
+near_hash_before=$(sha256_file "$near_trailer_output")
+run_helper "$near_trailer_root/inbox" "$near_trailer_root/out"
+assert_eq "$near_hash_before" "$(sha256_file "$near_trailer_output")" \
+	"near-limit repeated conversion SHA-256"
+pass "near-limit repeated conversion is size/hash idempotent"
+
+oversize_one_source=$case_root/inbox/Limit\ Game/Too\ Large\ By\ One.vgm
+make_sized_body "$oversize_one_source" $((MAX_ORIGINAL_SIZE + 1))
+if sh "$HELPER" "$oversize_one_source" "$case_root/oversize_one_out" \
+	>"$TEST_ROOT/oversize_one.log" 2>&1; then
+	fail "one-byte-over input unexpectedly succeeded"
 fi
-[ ! -e "$case_root/oversize_out/Too Large/Too Large.vgm" ] ||
-	fail "oversize helper left a final output"
-pass "physical-size overflow rejection"
+grep -F "prepared VGM size $((MAX_PREPARED_SIZE + 1)) bytes exceeds maximum supported size $MAX_PREPARED_SIZE bytes" \
+	"$TEST_ROOT/oversize_one.log" >/dev/null ||
+	fail "one-byte-over error does not report actual and maximum sizes"
+[ ! -e "$case_root/oversize_one_out/Too Large By One/Too Large By One.vgm" ] ||
+	fail "one-byte-over helper left a final output"
+pass "one-byte physical-size overflow rejection"
 
-mkdir -p "$case_root/oversize_out/Too Large"
-oversize_existing=$case_root/oversize_out/Too\ Large/Too\ Large.vgm
+oversize_128_source=$case_root/inbox/Limit\ Game/Too\ Large\ By\ 128.vgm
+make_sized_body "$oversize_128_source" $((MAX_ORIGINAL_SIZE + 128))
+if sh "$HELPER" "$oversize_128_source" "$case_root/oversize_128_out" \
+	>"$TEST_ROOT/oversize_128.log" 2>&1; then
+	fail "128-byte-over input unexpectedly succeeded"
+fi
+grep -F "prepared VGM size $((MAX_PREPARED_SIZE + 128)) bytes exceeds maximum supported size $MAX_PREPARED_SIZE bytes" \
+	"$TEST_ROOT/oversize_128.log" >/dev/null ||
+	fail "128-byte-over error does not report actual and maximum sizes"
+[ ! -e "$case_root/oversize_128_out/Too Large By 128/Too Large By 128.vgm" ] ||
+	fail "128-byte-over helper left a final output"
+pass "128-byte physical-size overflow rejection"
+
+mkdir -p "$case_root/oversize_one_out/Too Large By One"
+oversize_existing=$case_root/oversize_one_out/Too\ Large\ By\ One/Too\ Large\ By\ One.vgm
 printf 'existing destination remains intact\n' > "$oversize_existing"
 oversize_existing_hash=$(sha256_file "$oversize_existing")
-if sh "$HELPER" "$oversize_source" "$case_root/oversize_out" \
+if sh "$HELPER" "$oversize_one_source" "$case_root/oversize_one_out" \
 	>"$TEST_ROOT/oversize_existing.log" 2>&1; then
 	fail "oversize input with an existing destination unexpectedly succeeded"
 fi
 assert_eq "$oversize_existing_hash" "$(sha256_file "$oversize_existing")" \
 	"failed conversion preserves existing destination"
-if find "$case_root/oversize_out" -type f -name '*.tmp.*' -print |
+if find "$case_root/oversize_one_out" -type f -name '*.tmp.*' -print |
 	grep . >/dev/null 2>&1; then
 	fail "failed conversion left a destination-side temporary file"
 fi

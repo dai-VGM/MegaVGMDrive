@@ -8,13 +8,16 @@ export LC_ALL
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname "$0")" && pwd)
 REPO_ROOT=$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd)
 TEST_ROOT=${TMPDIR:-/tmp}/megavgm_title_integration.$$
+MAX_PREPARED_SIZE=8388608
+TRAILER_SIZE=128
+MAX_ORIGINAL_SIZE=$((MAX_PREPARED_SIZE - TRAILER_SIZE))
 
 cleanup() {
 	rm -rf "$TEST_ROOT"
 }
 trap cleanup EXIT HUP INT TERM
 
-for tool in awk gzip iverilog mkdir od rm vvp wc; do
+for tool in awk dd gzip iverilog mkdir od rm vvp wc; do
 	command -v "$tool" >/dev/null 2>&1 || {
 		echo "required tool not found: $tool" >&2
 		exit 1
@@ -26,6 +29,10 @@ SOURCE_VGM=$TEST_ROOT/inbox/Out\ Run/01_Magical\ Sound\ Shower.vgm
 PREPARED_VGM=$TEST_ROOT/out/Out\ Run/01_Magical\ Sound\ Shower.vgm
 MEMORY_HEX=$TEST_ROOT/prepared.hex
 SIMULATION=$TEST_ROOT/title_integration.vvp
+LIMIT_SOURCE=$TEST_ROOT/inbox/Maximum/Maximum.vgm
+LIMIT_PREPARED=$TEST_ROOT/out/Maximum/Maximum.vgm
+LIMIT_TRAILER=$TEST_ROOT/limit_trailer.hex
+LIMIT_SIMULATION=$TEST_ROOT/title_limit_integration.vvp
 
 awk 'BEGIN {
 	printf "Vgm "
@@ -57,3 +64,34 @@ iverilog -g2012 \
 vvp "$SIMULATION" \
 	"+MEMORY_FILE=$MEMORY_HEX" \
 	"+PREPARED_SIZE=$PREPARED_SIZE"
+
+mkdir -p "$TEST_ROOT/inbox/Maximum"
+dd if=/dev/zero of="$LIMIT_SOURCE" bs=1 count="$MAX_ORIGINAL_SIZE" 2>/dev/null
+printf 'Vgm ' | dd of="$LIMIT_SOURCE" bs=1 conv=notrunc 2>/dev/null
+sh "$REPO_ROOT/scripts/vgm_md_import.sh" \
+	"$LIMIT_SOURCE" "$TEST_ROOT/out" >/dev/null
+
+[ -f "$LIMIT_PREPARED" ] || {
+	echo "near-limit prepared VGM was not generated" >&2
+	exit 1
+}
+LIMIT_PREPARED_SIZE=$(wc -c < "$LIMIT_PREPARED")
+LIMIT_PREPARED_SIZE=$((LIMIT_PREPARED_SIZE + 0))
+[ "$LIMIT_PREPARED_SIZE" -eq "$MAX_PREPARED_SIZE" ] || {
+	echo "expected $MAX_PREPARED_SIZE-byte prepared VGM, got $LIMIT_PREPARED_SIZE" >&2
+	exit 1
+}
+
+dd if="$LIMIT_PREPARED" bs=1 skip="$MAX_ORIGINAL_SIZE" \
+	count="$TRAILER_SIZE" 2>/dev/null |
+	od -An -v -tx1 > "$LIMIT_TRAILER"
+
+iverilog -g2012 \
+	-s tb_megavgm_title_helper_limit_integration \
+	-o "$LIMIT_SIMULATION" \
+	"$REPO_ROOT/rtl/megavgm_title_receiver.sv" \
+	"$REPO_ROOT/tb/tb_megavgm_title_helper_limit_integration.sv"
+
+vvp "$LIMIT_SIMULATION" \
+	"+TRAILER_FILE=$LIMIT_TRAILER" \
+	"+PREPARED_SIZE=$LIMIT_PREPARED_SIZE"

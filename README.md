@@ -173,6 +173,8 @@ The immediate parent directory becomes the upper line and the VGM basename witho
 
 Prepared VGM files end with a MegaVGMDrive-specific 128-byte `MVGMTTL` trailer. The trailer holds a directory field of up to 32 characters and a basename field of up to 48 characters.
 
+The helper supports VGM bodies larger than 4 MiB. Under the current MegaVGMDrive production 23-bit byte-address contract, the maximum prepared physical file is exactly 8 MiB (`8,388,608` bytes), including the 128-byte `MVGMTTL` trailer. The maximum original VGM body accepted by the helper is therefore `8,388,480` bytes. Ordinary unmodified VGM playback compatibility is unchanged.
+
 The helper preserves printable ASCII `0x20`–`0x7E`, converts each valid non-ASCII UTF-8 code point to one `?`, converts malformed UTF-8 bytes safely to `?`, and truncates the converted directory and basename to their fixed field limits. The FPGA font supports printable ASCII only; arbitrary Unicode text is not displayed directly.
 
 During an `ioctl_index=1` VGM download, the FPGA receiver passively observes the transfer without stalling playback, DDR, or the parser. It validates the final 128 bytes, including the `MVGMTTL` magic, version, flags, trailer and original sizes, string lengths, and reserved fields. Metadata is published atomically only after complete validation. A new load clears the previous title. Missing, malformed, or interrupted metadata displays no directory or basename, while the ordinary VGM data remains playable.

@@ -103,5 +103,7 @@ file is atomically renamed to the final destination only after validation
 passes. On failure, the temporary file is removed and any older destination
 file is left unchanged.
 
-The current prepared-file limit is 4 MiB (`4,194,304` bytes), including the
-128-byte trailer. Inputs that would exceed this physical size are rejected.
+The current production 23-bit byte-address contract accepts an exact 8 MiB
+(`8,388,608` bytes) prepared physical file, including the 128-byte trailer.
+The largest original VGM body accepted by the helper is therefore `8,388,480`
+bytes. Inputs whose prepared physical size would exceed 8 MiB are rejected.

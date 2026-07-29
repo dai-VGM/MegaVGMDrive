@@ -28,7 +28,10 @@ ROOT=/media/fat/MegaVGMDrive
 SRC=${1:-"$ROOT/inbox"}
 DST_DIR=${2:-"$ROOT/vgm_cache"}
 METADATA_TRAILER_SIZE=128
-MAX_PREPARED_VGM_SIZE=4194304
+# Production uses a 23-bit byte address. Addresses 0x000000..0x7fffff
+# therefore hold an exact 8 MiB physical file, including the trailer.
+MAX_PREPARED_VGM_SIZE=8388608
+MAX_ORIGINAL_VGM_SIZE=$((MAX_PREPARED_VGM_SIZE - METADATA_TRAILER_SIZE))
 
 # Work byte-by-byte regardless of the host locale. UTF-8 decoding is handled
 # explicitly by normalize_name_ascii below.
@@ -368,7 +371,7 @@ append_display_metadata() {
 	adm_original_size=$(file_size_bytes "$adm_file") || return 1
 	adm_prepared_size=$((adm_original_size + METADATA_TRAILER_SIZE))
 	if [ "$adm_prepared_size" -gt "$MAX_PREPARED_VGM_SIZE" ]; then
-		echo "prepared VGM exceeds ${MAX_PREPARED_VGM_SIZE} bytes: $adm_dst_file" >&2
+		echo "prepared VGM size ${adm_prepared_size} bytes exceeds maximum supported size ${MAX_PREPARED_VGM_SIZE} bytes (maximum original body ${MAX_ORIGINAL_VGM_SIZE} bytes): $adm_dst_file" >&2
 		return 1
 	fi
 

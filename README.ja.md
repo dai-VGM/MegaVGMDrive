@@ -173,6 +173,8 @@ Super Hang-On
 
 Prepared VGMの物理末尾には、MegaVGMDrive専用128-byte `MVGMTTL` trailerを追加します。Directory fieldは最大32文字、basename fieldは最大48文字です。
 
+Helperは4 MiBを超えるVGM bodyにも対応します。現在のMegaVGMDrive production 23-bit byte-address契約では、prepared physical fileの最大値は128-byte `MVGMTTL` trailerを含むexactly 8 MiB（`8,388,608` bytes）です。したがってhelperが受け付けるoriginal VGM bodyの最大値は`8,388,480` bytesです。通常の未加工VGM再生との互換性は変わりません。
+
 Helperはprintable ASCII `0x20`–`0x7E`を保持し、有効な非ASCII UTF-8 code point 1個を`?` 1個へ変換します。不正UTF-8 byteも安全に`?`へ変換し、変換後のdirectory／basenameを固定field長でtruncateします。FPGA fontが対応するのはprintable ASCIIだけで、任意のUnicode文字をそのまま表示することはできません。
 
 FPGA receiverは`ioctl_index=1`のVGM downloadを受動監視し、playback、DDR、parserをstallしません。末尾128 bytesの`MVGMTTL` magic、version、flags、trailer／original size、文字列長、reserved fieldを検証し、全検証完了後だけmetadataをatomic publishします。新しいload開始時に以前のtitleをclearします。Metadataがないfile、不正trailer、中断downloadではdirectory／basenameを表示しませんが、通常VGM dataは従来どおり再生できます。
