@@ -4296,48 +4296,47 @@ module emu
     // forced_scandoubler is intentionally ignored until a small non-HQ2x line
     // doubler is added after native 15 kHz hardware validation.
     assign gamma_bus[21] = 1'b0;
-    // The Template DE window is 529 x 240. Keep the existing 320 x 240
-    // player drawing at its upper-left and drive the remaining pixels black.
-    wire drawing_active =
-        active && (raster_h_count < 10'd320) && (v_count < 9'd240);
 
     wire title_text_pixel;
-    wire player_frame_pixel;
+    wire title_panel_pixel;
+    wire [23:0] title_panel_rgb;
     megavgm_title_renderer title_renderer (
         .h_count(raster_h_count),
         .v_count(v_count),
-        .drawing_active(drawing_active),
+        .drawing_active(active),
         .title_valid(title_valid),
         .directory_length(title_directory_length),
         .basename_length(title_basename_length),
         .title_read_addr(title_read_addr),
         .title_read_data(title_read_data),
         .text_pixel(title_text_pixel),
-        .frame_pixel(player_frame_pixel)
+        .panel_pixel(title_panel_pixel),
+        .panel_rgb(title_panel_rgb)
     );
 
 `ifdef MISTER_VGM_DEBUG_VIDEO_ENABLE
-    // Preserve the historical full-screen state colors in explicit video
-    // debug builds.
-    wire release_frame_pixel = 1'b0;
+    // Preserve the old 320x240 full-screen state colors in explicit video
+    // debug builds; the centered panel is the release presentation.
+    wire video_output_active =
+        active && (raster_h_count < 10'd320) && (v_count < 9'd240);
+    wire [23:0] video_rgb =
+        title_text_pixel ? 24'he8f0ff :
+                           {base_video_red, base_video_green, base_video_blue};
 `else
-    // The development text bank owns its black backing area.  Keep the release
-    // frame behind it so enabling the diagnostic OSD retains the old overlay.
-    wire release_frame_pixel = player_frame_pixel && !mode5_dbg_back;
+    // The development text bank retains priority over the release panel.
+    // Outside both regions the Template active picture remains black.
+    wire video_output_active = active;
+    wire [23:0] video_rgb =
+        title_text_pixel ? 24'he8f0ff :
+        mode5_dbg_back   ? {base_video_red, base_video_green, base_video_blue} :
+        title_panel_pixel ? title_panel_rgb :
+                            24'h000000;
 `endif
-    // Text stays above the restored c879a46 player-screen navy.  The frame uses
-    // only native pixel coordinates, so every MiSTer output path sees it.
-    wire [7:0] video_red   = title_text_pixel    ? 8'he8 :
-                             release_frame_pixel ? 8'h20 : base_video_red;
-    wire [7:0] video_green = title_text_pixel    ? 8'hf0 :
-                             release_frame_pixel ? 8'h40 : base_video_green;
-    wire [7:0] video_blue  = title_text_pixel    ? 8'hff :
-                             release_frame_pixel ? 8'hc0 : base_video_blue;
 
     assign CE_PIXEL = raw_ce_pix;
-    assign VGA_R = drawing_active ? video_red : 8'd0;
-    assign VGA_G = drawing_active ? video_green : 8'd0;
-    assign VGA_B = drawing_active ? video_blue : 8'd0;
+    assign VGA_R = video_output_active ? video_rgb[23:16] : 8'd0;
+    assign VGA_G = video_output_active ? video_rgb[15:8] : 8'd0;
+    assign VGA_B = video_output_active ? video_rgb[7:0] : 8'd0;
     assign VGA_HS = raw_hsync;
     assign VGA_VS = raw_vsync;
     assign VGA_DE = active;

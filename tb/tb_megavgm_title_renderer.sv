@@ -11,15 +11,18 @@ module tb_megavgm_title_renderer;
 	logic [6:0] title_read_addr;
 	logic [7:0] title_read_data;
 	logic text_pixel;
-	logic frame_pixel;
+	logic panel_pixel;
+	logic [23:0] panel_rgb;
 	byte unsigned title_bytes [0:79];
 	integer checks = 0;
 	integer failures = 0;
 	integer x;
 	integer y;
 	integer ch;
-	integer frame_pixel_count;
-	integer text_frame_collision_count;
+	integer panel_pixel_count;
+	integer blue_outline_pixel_count;
+	integer heading_pixel_count;
+	integer text_outside_panel_count;
 
 	always_comb title_read_data = title_bytes[title_read_addr];
 
@@ -33,7 +36,8 @@ module tb_megavgm_title_renderer;
 		.title_read_addr(title_read_addr),
 		.title_read_data(title_read_data),
 		.text_pixel(text_pixel),
-		.frame_pixel(frame_pixel)
+		.panel_pixel(panel_pixel),
+		.panel_rgb(panel_rgb)
 	);
 
 	task automatic check_result(input logic condition, input string message);
@@ -96,133 +100,119 @@ module tb_megavgm_title_renderer;
 	initial begin
 		load_example_names();
 
-		// Static heading is present at exactly x=16, y=12.
-		set_pixel(16, 12);
-		check_result(text_pixel === 1'b1, "MegaVGMPlayer first M pixel");
-		set_pixel(15, 12);
-		check_result(text_pixel === 1'b0, "heading left boundary");
-		set_pixel(16, 19);
-		check_result(text_pixel === 1'b0, "heading seven-pixel height");
-		set_pixel(94, 12);
-		check_result(text_pixel === 1'b0, "heading right boundary");
+		// The 320x48 filled panel is horizontally centered in the Template's
+		// 529x240 active picture. It has no outline and no fixed heading.
+		set_pixel(104, 8);
+		check_result(panel_pixel === 1'b1, "panel top-left");
+		check_result(panel_rgb === 24'h000818, "panel navy RGB");
+		set_pixel(423, 55);
+		check_result(panel_pixel === 1'b1, "panel bottom-right");
+		check_result(panel_rgb === 24'h000818, "panel bottom-right RGB");
+		set_pixel(200, 30);
+		check_result(panel_pixel === 1'b1, "panel interior is filled");
+		check_result(panel_rgb === 24'h000818, "filled interior navy RGB");
+		set_pixel(103, 8);
+		check_result(panel_pixel === 1'b0, "left outside panel unchanged");
+		check_result(panel_rgb === 24'h000000, "left outside panel black");
+		set_pixel(424, 55);
+		check_result(panel_pixel === 1'b0, "right outside panel unchanged");
+		set_pixel(104, 7);
+		check_result(panel_pixel === 1'b0, "above panel unchanged");
+		set_pixel(423, 56);
+		check_result(panel_pixel === 1'b0, "below panel unchanged");
+		set_pixel(120, 12);
+		check_result(text_pixel === 1'b0, "fixed player heading removed");
 
 		// Directory and basename use the public title-memory read port.
-		set_pixel(17, 24);
+		set_pixel(121, 24);
 		check_result(text_pixel === 1'b1, "Out Run directory rendered");
 		check_result(title_read_addr == 0, "directory address starts at zero");
-		set_pixel(17, 34);
+		set_pixel(121, 34);
 		check_result(text_pixel === 1'b1, "basename rendered");
 		check_result(title_read_addr == 32, "basename address starts at 32");
 
-		// Invalid metadata hides both dynamic lines but not the heading.
+		// Invalid metadata hides both dynamic lines while retaining the panel.
 		title_valid = 0;
-		set_pixel(17, 24);
+		set_pixel(121, 24);
 		check_result(text_pixel === 1'b0, "invalid directory blank");
-		set_pixel(17, 34);
+		set_pixel(121, 34);
 		check_result(text_pixel === 1'b0, "invalid basename blank");
-		set_pixel(16, 12);
-		check_result(text_pixel === 1'b1, "heading independent of metadata");
+		check_result(panel_pixel === 1'b1, "invalid metadata retains panel");
 		title_valid = 1;
 
-		// Maximum lengths fit inside 320 active pixels with no scrolling.
+		// Maximum lengths fit with 16-pixel left/right panel padding.
 		directory_length = 32;
 		basename_length = 48;
 		for(x = 0; x < 32; x = x + 1)
 			title_bytes[x] = "W";
 		for(x = 0; x < 48; x = x + 1)
 			title_bytes[32 + x] = "W";
-		set_pixel(202, 24);
-		check_result(text_pixel === 1'b1, "32nd directory character begins at x202");
-		set_pixel(208, 24);
+		set_pixel(306, 24);
+		check_result(text_pixel === 1'b1, "32nd directory character begins at x306");
+		set_pixel(312, 24);
 		check_result(text_pixel === 1'b0, "directory stops after 32 characters");
-		set_pixel(298, 34);
-		check_result(text_pixel === 1'b1, "48th basename character begins at x298");
-		set_pixel(304, 34);
-		check_result(text_pixel === 1'b0, "basename stops before x304");
+		set_pixel(402, 34);
+		check_result(text_pixel === 1'b1, "48th basename character begins at x402");
+		set_pixel(408, 34);
+		check_result(text_pixel === 1'b0, "basename stops before right padding");
 
 		// One blank column follows every 5x7 glyph.
-		set_pixel(21, 24);
+		set_pixel(125, 24);
 		check_result(text_pixel === 1'b0, "sixth cell column blank");
 
 		// Drawing-active is a hard clip.
 		drawing_active = 0;
-		set_pixel(16, 12);
+		set_pixel(121, 24);
 		check_result(text_pixel === 1'b0, "drawing inactive clips text");
-		set_pixel(8, 8);
-		check_result(frame_pixel === 1'b0, "drawing inactive clips frame");
+		set_pixel(104, 8);
+		check_result(panel_pixel === 1'b0, "drawing inactive clips panel");
+		check_result(panel_rgb === 24'h000000, "drawing inactive clears panel RGB");
 		drawing_active = 1;
 
-		// Restore the historical navy screen frame on all four sides.  It is
-		// two pixels wide and inset eight pixels from the 320x240 drawing edge.
-		set_pixel(8, 120);
-		check_result(frame_pixel === 1'b1, "left frame outer pixel");
-		set_pixel(9, 120);
-		check_result(frame_pixel === 1'b1, "left frame inner pixel");
-		set_pixel(10, 120);
-		check_result(frame_pixel === 1'b0, "left frame stops after two pixels");
-		set_pixel(311, 120);
-		check_result(frame_pixel === 1'b1, "right frame outer pixel");
-		set_pixel(310, 120);
-		check_result(frame_pixel === 1'b1, "right frame inner pixel");
-		set_pixel(309, 120);
-		check_result(frame_pixel === 1'b0, "right frame stops after two pixels");
-		set_pixel(160, 8);
-		check_result(frame_pixel === 1'b1, "top frame outer pixel");
-		set_pixel(160, 9);
-		check_result(frame_pixel === 1'b1, "top frame inner pixel");
-		set_pixel(160, 10);
-		check_result(frame_pixel === 1'b0, "top frame stops after two pixels");
-		set_pixel(160, 231);
-		check_result(frame_pixel === 1'b1, "bottom frame outer pixel");
-		set_pixel(160, 230);
-		check_result(frame_pixel === 1'b1, "bottom frame inner pixel");
-		set_pixel(160, 229);
-		check_result(frame_pixel === 1'b0, "bottom frame stops after two pixels");
-		set_pixel(8, 8);
-		check_result(frame_pixel === 1'b1, "top-left frame corner");
-		set_pixel(311, 231);
-		check_result(frame_pixel === 1'b1, "bottom-right frame corner");
-		set_pixel(7, 8);
-		check_result(frame_pixel === 1'b0, "pixel left of frame unchanged");
-		set_pixel(312, 231);
-		check_result(frame_pixel === 1'b0, "pixel right of frame unchanged");
-		set_pixel(8, 7);
-		check_result(frame_pixel === 1'b0, "pixel above frame unchanged");
-		set_pixel(311, 232);
-		check_result(frame_pixel === 1'b0, "pixel below frame unchanged");
-
-		// Full 320x240 coverage proves exact border geometry, no changes outside
-		// the four sides, no text collision at maximum metadata lengths, and
-		// X/Z-free renderer outputs.
-		frame_pixel_count = 0;
-		text_frame_collision_count = 0;
+		// Check the full centered 320x240 player surface and the remaining
+		// Template active width. The panel is a solid fill, never the removed
+		// 0x2040c0 outline, and text exists only on its two metadata rows.
+		panel_pixel_count = 0;
+		blue_outline_pixel_count = 0;
+		heading_pixel_count = 0;
+		text_outside_panel_count = 0;
 		for(y = 0; y < 240; y = y + 1) begin
-			for(x = 0; x < 320; x = x + 1) begin
+			for(x = 0; x < 529; x = x + 1) begin
 				set_pixel(x, y);
 				check_result((text_pixel === 1'b0) || (text_pixel === 1'b1),
 				             "native renderer X/Z-free");
-				check_result((frame_pixel === 1'b0) || (frame_pixel === 1'b1),
-				             "native frame X/Z-free");
-				check_result(frame_pixel ===
-				             (((x >= 8) && (x <= 311) &&
-				               (y >= 8) && (y <= 231) &&
-				               ((x < 10) || (x > 309) ||
-				                (y < 10) || (y > 229))) ? 1'b1 : 1'b0),
-				             "frame predicate matches exact geometry");
-				if(frame_pixel)
-					frame_pixel_count = frame_pixel_count + 1;
-				if(frame_pixel && text_pixel)
-					text_frame_collision_count = text_frame_collision_count + 1;
+				check_result((panel_pixel === 1'b0) || (panel_pixel === 1'b1),
+				             "native panel X/Z-free");
+				check_result(panel_pixel ===
+				             (((x >= 104) && (x <= 423) &&
+				               (y >= 8) && (y <= 55)) ? 1'b1 : 1'b0),
+				             "filled panel predicate matches exact geometry");
+				check_result(panel_rgb ===
+				             (panel_pixel ? 24'h000818 : 24'h000000),
+				             "panel RGB is navy inside and black outside");
+				if(panel_pixel)
+					panel_pixel_count = panel_pixel_count + 1;
+				if(panel_rgb == 24'h2040c0)
+					blue_outline_pixel_count = blue_outline_pixel_count + 1;
+				if((y >= 12) && (y < 19) && text_pixel)
+					heading_pixel_count = heading_pixel_count + 1;
+				if(text_pixel &&
+				   (!panel_pixel ||
+				    !(((y >= 24) && (y < 31)) ||
+				      ((y >= 34) && (y < 41)))))
+					text_outside_panel_count = text_outside_panel_count + 1;
 			end
 		end
-		check_result(frame_pixel_count == 2096, "two-pixel frame area");
-		check_result(text_frame_collision_count == 0,
-		             "maximum title strings do not touch frame");
+		check_result(panel_pixel_count == (320 * 48), "filled panel area");
+		check_result(blue_outline_pixel_count == 0, "blue outline pixel count");
+		check_result(heading_pixel_count == 0, "fixed heading pixel count");
+		check_result(text_outside_panel_count == 0,
+		             "metadata text remains inside panel rows");
 		for(ch = 8'h20; ch <= 8'h7e; ch = ch + 1) begin
 			title_bytes[0] = ch;
 			directory_length = 1;
 			for(y = 24; y < 31; y = y + 1) begin
-				for(x = 16; x < 21; x = x + 1) begin
+				for(x = 120; x < 125; x = x + 1) begin
 					set_pixel(x, y);
 					check_result((text_pixel === 1'b0) || (text_pixel === 1'b1),
 					             "printable ASCII glyph X/Z-free");
