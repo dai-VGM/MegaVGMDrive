@@ -103,8 +103,9 @@ scripts/vgm_md_import.sh [SRC] [DST_DIR]
 Its MiSTer-side defaults are:
 
 ```text
-SRC=/media/fat/VGM_MD/inbox
-DST_DIR=/media/fat/VGM_MD/vgm_cache
+ROOT=/media/fat/MegaVGMDrive
+SRC="$ROOT/inbox"
+DST_DIR="$ROOT/vgm_cache"
 ```
 
 The destination can be changed to match a local SD-card layout.

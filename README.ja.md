@@ -103,8 +103,9 @@ scripts/vgm_md_import.sh [SRC] [DST_DIR]
 MiSTer側のdefaultは次のとおりです。
 
 ```text
-SRC=/media/fat/VGM_MD/inbox
-DST_DIR=/media/fat/VGM_MD/vgm_cache
+ROOT=/media/fat/MegaVGMDrive
+SRC="$ROOT/inbox"
+DST_DIR="$ROOT/vgm_cache"
 ```
 
 出力先は各SD cardのlayoutに合わせて変更できます。

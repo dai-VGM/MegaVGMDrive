@@ -1,19 +1,20 @@
 #!/bin/sh
 #
-# Import loose .vgm/.vgz files and .zip archives into the VGM_MD cache.
+# Import loose .vgm/.vgz files and .zip archives into the MegaVGMDrive cache.
 #
 # Usage:
 #   scripts/vgm_md_import.sh [SRC] [DST_DIR]
 #
 # Defaults:
-#   SRC=/media/fat/VGM_MD/inbox
-#   DST_DIR=/media/fat/VGM_MD/vgm_cache
+#   ROOT=/media/fat/MegaVGMDrive
+#   SRC="$ROOT/inbox"
+#   DST_DIR="$ROOT/vgm_cache"
 #
 # Windows/Samba workflow:
 #   Copy zip/vgz/vgm files to:
-#     \\mister\sdcard\VGM_MD\inbox
+#     \\mister\sdcard\MegaVGMDrive\inbox
 #   Then run on MiSTer:
-#     sh /media/fat/Scripts/vgm_md_import.sh
+#     sh /media/fat/MegaVGMDrive/vgm_md_import.sh
 #
 # The FPGA core loads plain .vgm files from the cache. It does not natively
 # load .vgz/.zip and does not do gzip decompression in hardware.
@@ -23,8 +24,9 @@
 
 set -u
 
-SRC=${1:-/media/fat/VGM_MD/inbox}
-DST=${2:-/media/fat/VGM_MD/vgm_cache}
+ROOT=/media/fat/MegaVGMDrive
+SRC=${1:-"$ROOT/inbox"}
+DST_DIR=${2:-"$ROOT/vgm_cache"}
 METADATA_TRAILER_SIZE=128
 MAX_PREPARED_VGM_SIZE=4194304
 
@@ -55,8 +57,8 @@ for required_tool in awk od dd wc cp mv; do
 	fi
 done
 
-if ! mkdir -p "$DST"; then
-	echo "failed to create destination directory: $DST" >&2
+if ! mkdir -p "$DST_DIR"; then
+	echo "failed to create destination directory: $DST_DIR" >&2
 	exit 1
 fi
 
@@ -124,7 +126,7 @@ vgm_dst_for_rel() {
 		*) rel_no_ext=$rel ;;
 	esac
 
-	printf '%s/%s/%s.vgm\n' "$DST" "$collection" "$rel_no_ext"
+	printf '%s/%s/%s.vgm\n' "$DST_DIR" "$collection" "$rel_no_ext"
 }
 
 file_size_bytes() {
@@ -616,7 +618,7 @@ EOF
 }
 
 export SRC
-export DST
+export DST_DIR
 
 status=0
 find_list=${TMPDIR:-/tmp}/vgm_md_import_find.$$.list
