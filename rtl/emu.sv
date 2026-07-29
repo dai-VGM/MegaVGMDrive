@@ -768,6 +768,12 @@ module emu
     wire  [7:0] ioctl_dout;
     wire [15:0] ioctl_index;
     wire        ioctl_wait;
+    wire        title_valid;
+    wire  [5:0] title_directory_length;
+    wire  [5:0] title_basename_length;
+    wire  [6:0] title_read_addr;
+    wire  [7:0] title_read_data;
+    wire        title_metadata_busy;
     wire        vgm_load_done;
     wire        vgm_load_error;
     wire        vgm_load_overflow;
@@ -1342,6 +1348,26 @@ module emu
         .ps2_mouse_ext(ps2_mouse_ext),
 
         .TIMESTAMP(timestamp)
+    );
+
+    // Passive observer only: the VGM loader remains the sole owner of
+    // ioctl_wait and of every parser/DDR transport signal.
+    megavgm_title_receiver #(
+        .FILE_INDEX(16'd1)
+    ) title_receiver (
+        .clk(clk_sys),
+        .reset(reset),
+        .ioctl_download(ioctl_download),
+        .ioctl_wr(ioctl_wr),
+        .ioctl_addr(ioctl_addr),
+        .ioctl_dout(ioctl_dout),
+        .ioctl_index(ioctl_index),
+        .title_valid(title_valid),
+        .directory_length(title_directory_length),
+        .basename_length(title_basename_length),
+        .title_read_addr(title_read_addr),
+        .title_read_data(title_read_data),
+        .metadata_busy(title_metadata_busy)
     );
 
     ////////////////////   CLOCKS   ///////////////////
@@ -4229,18 +4255,18 @@ module emu
 
     assign CLK_VIDEO = clk_video;
 `ifdef MISTER_VGM_DEBUG_VIDEO_ENABLE
-    wire [7:0] video_red   = red;
-    wire [7:0] video_green = green;
-    wire [7:0] video_blue  = blue;
+    wire [7:0] base_video_red   = red;
+    wire [7:0] base_video_green = green;
+    wire [7:0] base_video_blue  = blue;
 `else
     // Keep the normal player screen quiet; the OSD is overlaid later in sys_top.
     // The text overlay reaches video only in an explicit development OSD build.
-    wire [7:0] video_red   = mode5_debug_pixel ? 8'hff :
-                             mode5_dbg_back ? 8'h00 : 8'h00;
-    wire [7:0] video_green = mode5_debug_pixel ? 8'hff :
-                             mode5_dbg_back ? 8'h00 : 8'h08;
-    wire [7:0] video_blue  = mode5_debug_pixel ? 8'hff :
-                             mode5_dbg_back ? 8'h00 : 8'h18;
+    wire [7:0] base_video_red   = mode5_debug_pixel ? 8'hff :
+                                  mode5_dbg_back ? 8'h00 : 8'h00;
+    wire [7:0] base_video_green = mode5_debug_pixel ? 8'hff :
+                                  mode5_dbg_back ? 8'h00 : 8'h08;
+    wire [7:0] base_video_blue  = mode5_debug_pixel ? 8'hff :
+                                  mode5_dbg_back ? 8'h00 : 8'h18;
 `endif
 
     // Lightweight native-only release path. MiSTer's sys_top still owns the
@@ -4252,6 +4278,23 @@ module emu
     // player drawing at its upper-left and drive the remaining pixels black.
     wire drawing_active =
         active && (raster_h_count < 10'd320) && (v_count < 9'd240);
+
+    wire title_text_pixel;
+    megavgm_title_renderer title_renderer (
+        .h_count(raster_h_count),
+        .v_count(v_count),
+        .drawing_active(drawing_active),
+        .title_valid(title_valid),
+        .directory_length(title_directory_length),
+        .basename_length(title_basename_length),
+        .title_read_addr(title_read_addr),
+        .title_read_data(title_read_data),
+        .text_pixel(title_text_pixel)
+    );
+
+    wire [7:0] video_red   = title_text_pixel ? 8'he8 : base_video_red;
+    wire [7:0] video_green = title_text_pixel ? 8'hf0 : base_video_green;
+    wire [7:0] video_blue  = title_text_pixel ? 8'hff : base_video_blue;
 
     assign CE_PIXEL = raw_ce_pix;
     assign VGA_R = drawing_active ? video_red : 8'd0;
@@ -4270,6 +4313,7 @@ module emu
 
     wire unused_inputs = ^{
         vgm_load_overflow,
+        title_metadata_busy,
         vgm_load_size,
         vgm_load_magic,
         vgm_data_start_debug,

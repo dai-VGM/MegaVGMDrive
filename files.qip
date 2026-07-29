@@ -7,6 +7,9 @@
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/emu.sv
 set_global_assignment -name QIP_FILE sys/sys.qip
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/megavgm_video_timing.sv
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/megavgm_title_receiver.sv
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/megavgm_font5x7.sv
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/megavgm_title_renderer.sv
 
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/mister_vgm_md_top.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/vgm_region_player.sv
