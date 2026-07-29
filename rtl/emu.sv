@@ -4302,6 +4302,7 @@ module emu
         active && (raster_h_count < 10'd320) && (v_count < 9'd240);
 
     wire title_text_pixel;
+    wire player_frame_pixel;
     megavgm_title_renderer title_renderer (
         .h_count(raster_h_count),
         .v_count(v_count),
@@ -4311,12 +4312,27 @@ module emu
         .basename_length(title_basename_length),
         .title_read_addr(title_read_addr),
         .title_read_data(title_read_data),
-        .text_pixel(title_text_pixel)
+        .text_pixel(title_text_pixel),
+        .frame_pixel(player_frame_pixel)
     );
 
-    wire [7:0] video_red   = title_text_pixel ? 8'he8 : base_video_red;
-    wire [7:0] video_green = title_text_pixel ? 8'hf0 : base_video_green;
-    wire [7:0] video_blue  = title_text_pixel ? 8'hff : base_video_blue;
+`ifdef MISTER_VGM_DEBUG_VIDEO_ENABLE
+    // Preserve the historical full-screen state colors in explicit video
+    // debug builds.
+    wire release_frame_pixel = 1'b0;
+`else
+    // The development text bank owns its black backing area.  Keep the release
+    // frame behind it so enabling the diagnostic OSD retains the old overlay.
+    wire release_frame_pixel = player_frame_pixel && !mode5_dbg_back;
+`endif
+    // Text stays above the restored c879a46 player-screen navy.  The frame uses
+    // only native pixel coordinates, so every MiSTer output path sees it.
+    wire [7:0] video_red   = title_text_pixel    ? 8'he8 :
+                             release_frame_pixel ? 8'h20 : base_video_red;
+    wire [7:0] video_green = title_text_pixel    ? 8'hf0 :
+                             release_frame_pixel ? 8'h40 : base_video_green;
+    wire [7:0] video_blue  = title_text_pixel    ? 8'hff :
+                             release_frame_pixel ? 8'hc0 : base_video_blue;
 
     assign CE_PIXEL = raw_ce_pix;
     assign VGA_R = drawing_active ? video_red : 8'd0;

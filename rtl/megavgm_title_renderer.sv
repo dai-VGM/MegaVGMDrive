@@ -17,13 +17,22 @@ module megavgm_title_renderer (
 	output logic [6:0] title_read_addr,
 	input  logic [7:0] title_read_data,
 
-	output logic       text_pixel
+	output logic       text_pixel,
+	output logic       frame_pixel
 );
 
 	localparam logic [9:0] TEXT_X = 10'd16;
 	localparam logic [8:0] TITLE_Y = 9'd12;
 	localparam logic [8:0] DIRECTORY_Y = 9'd24;
 	localparam logic [8:0] BASENAME_Y = 9'd34;
+	localparam logic [9:0] FRAME_LEFT = 10'd8;
+	localparam logic [9:0] FRAME_RIGHT = 10'd311;
+	localparam logic [8:0] FRAME_TOP = 9'd8;
+	localparam logic [8:0] FRAME_BOTTOM = 9'd231;
+	localparam logic [9:0] FRAME_LEFT_INNER = FRAME_LEFT + 10'd2;
+	localparam logic [9:0] FRAME_RIGHT_INNER = FRAME_RIGHT - 10'd2;
+	localparam logic [8:0] FRAME_TOP_INNER = FRAME_TOP + 9'd2;
+	localparam logic [8:0] FRAME_BOTTOM_INNER = FRAME_BOTTOM - 9'd2;
 
 	logic [7:0] character;
 	logic [2:0] glyph_x;
@@ -109,6 +118,14 @@ module megavgm_title_renderer (
 		end
 
 		text_pixel = cell_visible && (glyph_x < 5) && glyph_pixel;
+		frame_pixel =
+			drawing_active &&
+			(h_count >= FRAME_LEFT) && (h_count <= FRAME_RIGHT) &&
+			(v_count >= FRAME_TOP) && (v_count <= FRAME_BOTTOM) &&
+			((h_count < FRAME_LEFT_INNER) ||
+			 (h_count > FRAME_RIGHT_INNER) ||
+			 (v_count < FRAME_TOP_INNER) ||
+			 (v_count > FRAME_BOTTOM_INNER));
 	end
 
 endmodule

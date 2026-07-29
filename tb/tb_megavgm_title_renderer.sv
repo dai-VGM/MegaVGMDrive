@@ -11,12 +11,15 @@ module tb_megavgm_title_renderer;
 	logic [6:0] title_read_addr;
 	logic [7:0] title_read_data;
 	logic text_pixel;
+	logic frame_pixel;
 	byte unsigned title_bytes [0:79];
 	integer checks = 0;
 	integer failures = 0;
 	integer x;
 	integer y;
 	integer ch;
+	integer frame_pixel_count;
+	integer text_frame_collision_count;
 
 	always_comb title_read_data = title_bytes[title_read_addr];
 
@@ -29,7 +32,8 @@ module tb_megavgm_title_renderer;
 		.basename_length(basename_length),
 		.title_read_addr(title_read_addr),
 		.title_read_data(title_read_data),
-		.text_pixel(text_pixel)
+		.text_pixel(text_pixel),
+		.frame_pixel(frame_pixel)
 	);
 
 	task automatic check_result(input logic condition, input string message);
@@ -144,16 +148,76 @@ module tb_megavgm_title_renderer;
 		drawing_active = 0;
 		set_pixel(16, 12);
 		check_result(text_pixel === 1'b0, "drawing inactive clips text");
+		set_pixel(8, 8);
+		check_result(frame_pixel === 1'b0, "drawing inactive clips frame");
 		drawing_active = 1;
 
-		// Full native active region and all printable glyphs are 0/1-clean.
+		// Restore the historical navy screen frame on all four sides.  It is
+		// two pixels wide and inset eight pixels from the 320x240 drawing edge.
+		set_pixel(8, 120);
+		check_result(frame_pixel === 1'b1, "left frame outer pixel");
+		set_pixel(9, 120);
+		check_result(frame_pixel === 1'b1, "left frame inner pixel");
+		set_pixel(10, 120);
+		check_result(frame_pixel === 1'b0, "left frame stops after two pixels");
+		set_pixel(311, 120);
+		check_result(frame_pixel === 1'b1, "right frame outer pixel");
+		set_pixel(310, 120);
+		check_result(frame_pixel === 1'b1, "right frame inner pixel");
+		set_pixel(309, 120);
+		check_result(frame_pixel === 1'b0, "right frame stops after two pixels");
+		set_pixel(160, 8);
+		check_result(frame_pixel === 1'b1, "top frame outer pixel");
+		set_pixel(160, 9);
+		check_result(frame_pixel === 1'b1, "top frame inner pixel");
+		set_pixel(160, 10);
+		check_result(frame_pixel === 1'b0, "top frame stops after two pixels");
+		set_pixel(160, 231);
+		check_result(frame_pixel === 1'b1, "bottom frame outer pixel");
+		set_pixel(160, 230);
+		check_result(frame_pixel === 1'b1, "bottom frame inner pixel");
+		set_pixel(160, 229);
+		check_result(frame_pixel === 1'b0, "bottom frame stops after two pixels");
+		set_pixel(8, 8);
+		check_result(frame_pixel === 1'b1, "top-left frame corner");
+		set_pixel(311, 231);
+		check_result(frame_pixel === 1'b1, "bottom-right frame corner");
+		set_pixel(7, 8);
+		check_result(frame_pixel === 1'b0, "pixel left of frame unchanged");
+		set_pixel(312, 231);
+		check_result(frame_pixel === 1'b0, "pixel right of frame unchanged");
+		set_pixel(8, 7);
+		check_result(frame_pixel === 1'b0, "pixel above frame unchanged");
+		set_pixel(311, 232);
+		check_result(frame_pixel === 1'b0, "pixel below frame unchanged");
+
+		// Full 320x240 coverage proves exact border geometry, no changes outside
+		// the four sides, no text collision at maximum metadata lengths, and
+		// X/Z-free renderer outputs.
+		frame_pixel_count = 0;
+		text_frame_collision_count = 0;
 		for(y = 0; y < 240; y = y + 1) begin
 			for(x = 0; x < 320; x = x + 1) begin
 				set_pixel(x, y);
 				check_result((text_pixel === 1'b0) || (text_pixel === 1'b1),
 				             "native renderer X/Z-free");
+				check_result((frame_pixel === 1'b0) || (frame_pixel === 1'b1),
+				             "native frame X/Z-free");
+				check_result(frame_pixel ===
+				             (((x >= 8) && (x <= 311) &&
+				               (y >= 8) && (y <= 231) &&
+				               ((x < 10) || (x > 309) ||
+				                (y < 10) || (y > 229))) ? 1'b1 : 1'b0),
+				             "frame predicate matches exact geometry");
+				if(frame_pixel)
+					frame_pixel_count = frame_pixel_count + 1;
+				if(frame_pixel && text_pixel)
+					text_frame_collision_count = text_frame_collision_count + 1;
 			end
 		end
+		check_result(frame_pixel_count == 2096, "two-pixel frame area");
+		check_result(text_frame_collision_count == 0,
+		             "maximum title strings do not touch frame");
 		for(ch = 8'h20; ch <= 8'h7e; ch = ch + 1) begin
 			title_bytes[0] = ch;
 			directory_length = 1;
