@@ -1817,12 +1817,14 @@ function [15:0] md_audio_sat18;
 	end
 endfunction
 
+`ifdef MEGAVGMDRIVE_DIAGNOSTIC_RTL
 function [15:0] md_audio_abs16;
 	input [15:0] value;
 	begin
 		md_audio_abs16 = value[15] ? (~value + 16'd1) : value;
 	end
 endfunction
+`endif
 
 wire signed [15:0] audio_l_signed = audio_l;
 wire signed [15:0] audio_r_signed = audio_r;
@@ -1928,6 +1930,7 @@ wire [15:0] audio_out_alsa_r = alsa_r;
 `endif
 `endif
 
+`ifdef MEGAVGMDRIVE_DIAGNOSTIC_RTL
 (* keep = 1 *) wire [15:0] md_debug_audio_out_core_l = audio_out_core_l;
 (* keep = 1 *) wire [15:0] md_debug_audio_out_core_r = audio_out_core_r;
 (* keep = 1 *) wire [15:0] md_debug_emu_audio_l = audio_l;
@@ -1987,6 +1990,13 @@ always @(posedge clk_audio) begin
 		end
 	end
 end
+`else
+// The HDMI meter remains well-defined when its production observer is absent.
+// Constant nets synthesize without the peak/average/rail measurement hardware.
+wire [15:0] audio_core_abs_peak = 16'd0;
+wire [15:0] audio_core_abs_avg = 16'd0;
+wire        audio_core_rail_seen = 1'b0;
+`endif
 
 audio_out audio_out
 (

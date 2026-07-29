@@ -614,6 +614,7 @@ module emu
     wire signed [15:0] audio_r_final =
         MD_AUDIO_FORCE_MUTE_BUILD ? 16'sd0 : audio_r_gated;
 
+`ifdef MEGAVGMDRIVE_DIAGNOSTIC_RTL
     function automatic [15:0] audio_abs16(input logic signed [15:0] value);
         audio_abs16 = value[15] ? (~value + 16'd1) : value;
     endfunction
@@ -713,6 +714,27 @@ module emu
             end
         end
     end
+`else
+    // Release builds do not retain the audio observation datapath.  Keep the
+    // display/debug consumers deterministic without synthesizing its peak,
+    // average, accumulator, comparator, or rail-counter logic.
+    wire signed [15:0] debug_md_sound_module_audio_l = 16'sd0;
+    wire signed [15:0] debug_md_sound_module_audio_r = 16'sd0;
+    wire signed [15:0] debug_emu_audio_l = 16'sd0;
+    wire signed [15:0] debug_emu_audio_r = 16'sd0;
+    wire [15:0] md_audio_l_abs_peak = 16'd0;
+    wire [15:0] md_audio_r_abs_peak = 16'd0;
+    wire [15:0] emu_audio_l_abs_peak = 16'd0;
+    wire [15:0] emu_audio_r_abs_peak = 16'd0;
+    wire [15:0] md_audio_abs_avg = 16'd0;
+    wire [15:0] emu_audio_abs_avg = 16'd0;
+    wire        md_audio_l_at_rail = 1'b0;
+    wire        md_audio_r_at_rail = 1'b0;
+    wire [15:0] md_audio_l_rail_count = 16'd0;
+    wire [15:0] md_audio_r_rail_count = 16'd0;
+    wire [15:0] emu_audio_l_rail_count = 16'd0;
+    wire [15:0] emu_audio_r_rail_count = 16'd0;
+`endif
 
     assign AUDIO_S = 1'b1;
     assign AUDIO_L = audio_l_final;
