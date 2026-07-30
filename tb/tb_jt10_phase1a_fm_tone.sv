@@ -1,6 +1,9 @@
 `timescale 1ns/1ps
 
-module tb_jt10_phase1a_fm_tone;
+module tb_jt10_phase1a_fm_tone #(
+    parameter integer TARGET_PORT = 0,
+    parameter integer PHASE1B_MODE = 0
+);
     localparam [63:0] FNV_OFFSET = 64'hcbf29ce484222325;
     localparam integer ATTACK_SAMPLES = 4096;
     localparam integer STEADY_SAMPLES = 4096;
@@ -8,6 +11,10 @@ module tb_jt10_phase1a_fm_tone;
     localparam integer POST_KEYOFF_SAMPLES = 512;
     localparam integer SILENCE_CONSECUTIVE = 256;
     localparam integer SILENCE_TIMEOUT = 8192;
+    localparam [7:0] TARGET_KEYON =
+        TARGET_PORT == 0 ? 8'h11 : 8'h15;
+    localparam [7:0] TARGET_KEYOFF =
+        TARGET_PORT == 0 ? 8'h01 : 8'h05;
 
     logic clk = 1'b0;
     logic rst = 1'b1;
@@ -112,11 +119,13 @@ module tb_jt10_phase1a_fm_tone;
     logic [63:0] initial_silence_hash;
     logic [63:0] pre_keyon_hash;
     logic [63:0] attack_hash;
+    logic [63:0] primary_attack_hash;
     logic [63:0] steady_hash;
     logic [63:0] keyoff_hash;
     logic [63:0] mute_hash;
     logic [63:0] frequency_hash;
     integer attack_nonzero;
+    integer primary_attack_nonzero;
     integer steady_nonzero;
     integer steady_peak;
     integer steady_min;
@@ -130,6 +139,10 @@ module tb_jt10_phase1a_fm_tone;
     integer frequency_crossings;
     integer keyoff_nonzero;
     integer keyoff_settle_samples;
+    integer mute_settle_samples = 0;
+    integer last_dc_sum;
+    integer steady_dc_sum;
+    integer frequency_dc_sum;
 
     function automatic [63:0] hash_stereo(
         input [63:0] hash_in,
@@ -385,6 +398,7 @@ module tb_jt10_phase1a_fm_tone;
             maximum = -32768;
             zero_crossings = 0;
             previous_sign = 0;
+            last_dc_sum = 0;
             for (index = 0; index < sample_total;
                  index = index + 1) begin
                 next_public_sample(left_value, right_value);
@@ -398,6 +412,7 @@ module tb_jt10_phase1a_fm_tone;
                         hash_stereo(result_hash,
                                     left_value, right_value);
                     left_integer = left_value;
+                    last_dc_sum = last_dc_sum + left_integer;
                     if (left_value != 16'sd0 ||
                         right_value != 16'sd0) begin
                         nonzero_count = nonzero_count + 1;
@@ -440,9 +455,10 @@ module tb_jt10_phase1a_fm_tone;
                 end
             end
             $display(
-                "AUDIO_WINDOW label=%0s samples=%0d hash=%016h nonzero=%0d peak=%0d min=%0d max=%0d zero_crossings=%0d",
+                "AUDIO_WINDOW label=%0s samples=%0d hash=%016h nonzero=%0d peak=%0d min=%0d max=%0d zero_crossings=%0d dc_sum=%0d dc_mean=%0d",
                 label, sample_total, result_hash, nonzero_count,
-                peak, minimum, maximum, zero_crossings
+                peak, minimum, maximum, zero_crossings,
+                last_dc_sum, last_dc_sum / sample_total
             );
         end
     endtask
@@ -482,6 +498,39 @@ module tb_jt10_phase1a_fm_tone;
         end
     endtask
 
+    task automatic wait_for_mute_silence(output integer samples_used);
+        integer consecutive;
+        reg signed [15:0] left_value;
+        reg signed [15:0] right_value;
+        begin
+            samples_used = 0;
+            consecutive = 0;
+            while (consecutive < 16 && samples_used < 256) begin
+                next_public_sample(left_value, right_value);
+                samples_used = samples_used + 1;
+                if ($isunknown(left_value) ||
+                    $isunknown(right_value)) begin
+                    failures = failures + 1;
+                    consecutive = 0;
+                end else if (left_value == 16'sd0 &&
+                             right_value == 16'sd0) begin
+                    consecutive = consecutive + 1;
+                end else begin
+                    consecutive = 0;
+                end
+            end
+            $display(
+                "MUTE_SETTLE samples=%0d consecutive_zero=%0d timeout=%0d keyon_maintained=1",
+                samples_used, consecutive, samples_used >= 256
+            );
+            if (consecutive < 16) begin
+                failures = failures + 1;
+                $display("FAIL MUTE_SETTLE_TIMEOUT samples=%0d",
+                         samples_used);
+            end
+        end
+    endtask
+
     task automatic keyoff_all_channels;
         begin
             bus.jt10_write_port0(8'h28, 8'h00);
@@ -498,14 +547,27 @@ module tb_jt10_phase1a_fm_tone;
         input [7:0] total_level
     );
         begin
-            // Channel 1 is encoded by adding one to each official base.
-            bus.jt10_write_port0(8'h31 + offset, 8'h01);
-            bus.jt10_write_port0(8'h41 + offset, total_level);
-            bus.jt10_write_port0(8'h51 + offset, 8'h1f);
-            bus.jt10_write_port0(8'h61 + offset, 8'h00);
-            bus.jt10_write_port0(8'h71 + offset, 8'h00);
-            bus.jt10_write_port0(8'h81 + offset, 8'haf);
-            bus.jt10_write_port0(8'h91 + offset, 8'h00);
+            // Encodings 1 and 5 both use register channel offset one;
+            // addr[1] selects the lower or upper three-channel part.
+            write_target(8'h31 + offset, 8'h01);
+            write_target(8'h41 + offset, total_level);
+            write_target(8'h51 + offset, 8'h1f);
+            write_target(8'h61 + offset, 8'h00);
+            write_target(8'h71 + offset, 8'h00);
+            write_target(8'h81 + offset, 8'haf);
+            write_target(8'h91 + offset, 8'h00);
+        end
+    endtask
+
+    task automatic write_target(
+        input [7:0] reg_addr,
+        input [7:0] reg_data
+    );
+        begin
+            if (TARGET_PORT == 0)
+                bus.jt10_write_port0(reg_addr, reg_data);
+            else
+                bus.jt10_write_port1(reg_addr, reg_data);
         end
     endtask
 
@@ -513,10 +575,10 @@ module tb_jt10_phase1a_fm_tone;
         begin
             // Official fixture order: high latch, low commit, algorithm,
             // pan/AMS/PMS, then S1/S3/S2/S4 operator registers.
-            bus.jt10_write_port0(8'ha5, 8'h22);
-            bus.jt10_write_port0(8'ha1, 8'h00);
-            bus.jt10_write_port0(8'hb1, 8'h07);
-            bus.jt10_write_port0(8'hb5, 8'hc0);
+            write_target(8'ha5, 8'h22);
+            write_target(8'ha1, 8'h00);
+            write_target(8'hb1, 8'h07);
+            write_target(8'hb5, 8'hc0);
             configure_operator(8'h00, 8'h00);
             configure_operator(8'h08, 8'h7f);
             configure_operator(8'h04, 8'h7f);
@@ -609,7 +671,7 @@ module tb_jt10_phase1a_fm_tone;
         .reset_cen_valid(reset_cen_valid)
     );
 
-    initial begin : phase1a_sequence
+    initial begin : tone_sequence
         integer unused_peak;
         integer unused_min;
         integer unused_max;
@@ -620,7 +682,12 @@ module tb_jt10_phase1a_fm_tone;
 
         if (!$value$plusargs("RUN_ID=%d", run_id))
             run_id = 1;
-        $display("PHASE1A_BEGIN run=%0d", run_id);
+        if (PHASE1B_MODE)
+            $display("PHASE1B_BEGIN run=%0d target_port=1 encoding=5",
+                     run_id);
+        else
+            $display("PHASE1A_BEGIN run=%0d target_port=0 encoding=1",
+                     run_id);
 
         // Phase 0 reset contract: establish session with CEN low, then give
         // reset 64 enabled chip clocks (minimum contract is six).
@@ -683,13 +750,16 @@ module tb_jt10_phase1a_fm_tone;
                      no_keyon_nonzero);
         end
 
-        // Stage C/D: only S1 of logical/register channel 1 keys on.
-        bus.jt10_write_port0(8'h28, 8'h11);
+        // Register 28 is a port-0 global register even when the channel
+        // configuration belongs to port 1.
+        bus.jt10_write_port0(8'h28, TARGET_KEYON);
         keyon_cycle = last_issue_cycle;
         capture_window(
             ATTACK_SAMPLES, "attack", attack_hash, attack_nonzero,
             unused_peak, unused_min, unused_max, unused_crossings
         );
+        primary_attack_hash = attack_hash;
+        primary_attack_nonzero = attack_nonzero;
         if (attack_nonzero == 0 || first_nonzero_index < 0) begin
             failures = failures + 1;
             $display("FAIL ATTACK_ALL_ZERO");
@@ -698,54 +768,101 @@ module tb_jt10_phase1a_fm_tone;
             STEADY_SAMPLES, "steady", steady_hash, steady_nonzero,
             steady_peak, steady_min, steady_max, steady_crossings
         );
+        steady_dc_sum = last_dc_sum;
         if (steady_nonzero == 0 ||
             steady_hash == pre_keyon_hash) begin
             failures = failures + 1;
             $display("FAIL STEADY_TONE_CONTROL");
         end
 
-        // Stage E: release and stable post-keyoff hash.
-        bus.jt10_write_port0(8'h28, 8'h01);
-        wait_for_silence(keyoff_settle_samples);
-        capture_window(
-            POST_KEYOFF_SAMPLES, "post_keyoff", keyoff_hash,
-            keyoff_nonzero, unused_peak, unused_min,
-            unused_max, unused_crossings
-        );
-        if (keyoff_nonzero != 0) begin
-            failures = failures + 1;
-            $display("FAIL KEYOFF_NONZERO count=%0d", keyoff_nonzero);
+        if (!PHASE1B_MODE) begin
+            // Preserve the exact Phase 1A order and landmarks.
+            bus.jt10_write_port0(8'h28, TARGET_KEYOFF);
+            wait_for_silence(keyoff_settle_samples);
+            capture_window(
+                POST_KEYOFF_SAMPLES, "post_keyoff", keyoff_hash,
+                keyoff_nonzero, unused_peak, unused_min,
+                unused_max, unused_crossings
+            );
+            if (keyoff_nonzero != 0) begin
+                failures = failures + 1;
+                $display("FAIL KEYOFF_NONZERO count=%0d",
+                         keyoff_nonzero);
+            end
+
+            write_target(8'h41, 8'h7f);
+            bus.jt10_write_port0(8'h28, TARGET_KEYON);
+            capture_window(
+                MUTE_SAMPLES, "tl_mute", mute_hash, mute_nonzero,
+                unused_peak, unused_min, unused_max, unused_crossings
+            );
+            if (mute_nonzero != 0) begin
+                failures = failures + 1;
+                $display("FAIL TL_MUTE_NONZERO count=%0d",
+                         mute_nonzero);
+            end
+            bus.jt10_write_port0(8'h28, TARGET_KEYOFF);
+            wait_for_silence(release_samples_frequency);
+
+            write_target(8'h41, 8'h00);
+            write_target(8'ha5, 8'h22);
+            write_target(8'ha1, 8'hde);
+            bus.jt10_write_port0(8'h28, TARGET_KEYON);
+            capture_window(
+                ATTACK_SAMPLES, "frequency_attack", attack_hash,
+                attack_nonzero, unused_peak, unused_min,
+                unused_max, unused_crossings
+            );
+            capture_window(
+                STEADY_SAMPLES, "frequency_steady", frequency_hash,
+                frequency_nonzero, frequency_peak, frequency_min,
+                frequency_max, frequency_crossings
+            );
+            frequency_dc_sum = last_dc_sum;
+            bus.jt10_write_port0(8'h28, TARGET_KEYOFF);
+            wait_for_silence(release_samples_frequency);
+        end else begin
+            // Phase 1B keeps encoding 5 keyed while its port-1 carrier TL
+            // is raised to maximum, proving that the silence is TL-driven.
+            write_target(8'h41, 8'h7f);
+            wait_for_mute_silence(mute_settle_samples);
+            capture_window(
+                MUTE_SAMPLES, "tl_mute", mute_hash, mute_nonzero,
+                unused_peak, unused_min, unused_max, unused_crossings
+            );
+            if (mute_nonzero != 0) begin
+                failures = failures + 1;
+                $display("FAIL TL_MUTE_NONZERO count=%0d",
+                         mute_nonzero);
+            end
+
+            // Restore the carrier and change the same port-1 FNUM while
+            // the envelope remains keyed and at its steady level.
+            write_target(8'h41, 8'h00);
+            write_target(8'ha5, 8'h22);
+            write_target(8'ha1, 8'hde);
+            capture_window(
+                STEADY_SAMPLES, "frequency_steady", frequency_hash,
+                frequency_nonzero, frequency_peak, frequency_min,
+                frequency_max, frequency_crossings
+            );
+            frequency_dc_sum = last_dc_sum;
+
+            // Stage G is the only Phase 1B key-off.
+            bus.jt10_write_port0(8'h28, TARGET_KEYOFF);
+            wait_for_silence(keyoff_settle_samples);
+            capture_window(
+                POST_KEYOFF_SAMPLES, "post_keyoff", keyoff_hash,
+                keyoff_nonzero, unused_peak, unused_min,
+                unused_max, unused_crossings
+            );
+            if (keyoff_nonzero != 0) begin
+                failures = failures + 1;
+                $display("FAIL KEYOFF_NONZERO count=%0d",
+                         keyoff_nonzero);
+            end
         end
 
-        // Negative control: maximum TL stays silent even while keyed on.
-        bus.jt10_write_port0(8'h41, 8'h7f);
-        bus.jt10_write_port0(8'h28, 8'h11);
-        capture_window(
-            MUTE_SAMPLES, "tl_mute", mute_hash, mute_nonzero,
-            unused_peak, unused_min, unused_max, unused_crossings
-        );
-        if (mute_nonzero != 0) begin
-            failures = failures + 1;
-            $display("FAIL TL_MUTE_NONZERO count=%0d", mute_nonzero);
-        end
-        bus.jt10_write_port0(8'h28, 8'h01);
-        wait_for_silence(release_samples_frequency);
-
-        // Negative control: restore TL and change FNUM 512 -> 734.
-        bus.jt10_write_port0(8'h41, 8'h00);
-        bus.jt10_write_port0(8'ha5, 8'h22);
-        bus.jt10_write_port0(8'ha1, 8'hde);
-        bus.jt10_write_port0(8'h28, 8'h11);
-        capture_window(
-            ATTACK_SAMPLES, "frequency_attack", attack_hash,
-            attack_nonzero, unused_peak, unused_min,
-            unused_max, unused_crossings
-        );
-        capture_window(
-            STEADY_SAMPLES, "frequency_steady", frequency_hash,
-            frequency_nonzero, frequency_peak, frequency_min,
-            frequency_max, frequency_crossings
-        );
         if (frequency_nonzero == 0 ||
             frequency_hash == steady_hash ||
             frequency_crossings == steady_crossings) begin
@@ -756,8 +873,6 @@ module tb_jt10_phase1a_fm_tone;
                 steady_crossings, frequency_crossings
             );
         end
-        bus.jt10_write_port0(8'h28, 8'h01);
-        wait_for_silence(release_samples_frequency);
 
         if (busy_timeout_count != 0 ||
             busy_while_write_count != 0 ||
@@ -796,14 +911,25 @@ module tb_jt10_phase1a_fm_tone;
             sample_mismatch_count
         );
         $display(
-            "TONE_RESULT steady_samples=%0d steady_hash=%016h steady_nonzero=%0d peak=%0d min=%0d max=%0d zero_crossings=%0d initial_hash=%016h pre_hash=%016h mute_hash=%016h mute_nonzero=%0d frequency_hash=%016h frequency_nonzero=%0d frequency_peak=%0d frequency_min=%0d frequency_max=%0d frequency_zero_crossings=%0d keyoff_hash=%016h keyoff_nonzero=%0d keyoff_settle_samples=%0d",
-            STEADY_SAMPLES, steady_hash, steady_nonzero,
+            "TONE_RESULT steady_samples=%0d attack_hash=%016h attack_nonzero=%0d steady_hash=%016h steady_nonzero=%0d peak=%0d min=%0d max=%0d zero_crossings=%0d dc_sum=%0d dc_mean=%0d initial_hash=%016h pre_hash=%016h mute_hash=%016h mute_nonzero=%0d mute_settle_samples=%0d frequency_hash=%016h frequency_nonzero=%0d frequency_peak=%0d frequency_min=%0d frequency_max=%0d frequency_zero_crossings=%0d frequency_dc_sum=%0d frequency_dc_mean=%0d keyoff_hash=%016h keyoff_nonzero=%0d keyoff_settle_samples=%0d",
+            STEADY_SAMPLES, primary_attack_hash,
+            primary_attack_nonzero,
+            steady_hash, steady_nonzero,
             steady_peak, steady_min, steady_max, steady_crossings,
+            steady_dc_sum, steady_dc_sum / STEADY_SAMPLES,
             initial_silence_hash, pre_keyon_hash,
-            mute_hash, mute_nonzero,
+            mute_hash, mute_nonzero, mute_settle_samples,
             frequency_hash, frequency_nonzero, frequency_peak,
             frequency_min, frequency_max, frequency_crossings,
+            frequency_dc_sum, frequency_dc_sum / STEADY_SAMPLES,
             keyoff_hash, keyoff_nonzero, keyoff_settle_samples
+        );
+        $display(
+            "TONE_COMPARE target_port=%0d target_encoding=%0d phase1a_hash=8aadd7a6819038e5 target_hash=%016h hash_equal=%0d phase1a_peak=4084 target_peak=%0d peak_delta=%0d phase1a_zero_crossings=32 target_zero_crossings=%0d crossing_delta=%0d",
+            TARGET_PORT, TARGET_PORT == 0 ? 1 : 5,
+            steady_hash, steady_hash == 64'h8aadd7a6819038e5,
+            steady_peak, steady_peak - 4084,
+            steady_crossings, steady_crossings - 32
         );
         $display(
             "IDLE_RESULT adpcma_fetch=%0d adpcmb_fetch=%0d adpcma_inactive_strobe=%0d adpcmb_inactive_strobe=%0d adpcm_control_errors=%0d psg_x=%0d psg_nonidle=%0d pcm_x=%0d pcm_nonidle=%0d selector_x=%0d sample_x=%0d",
@@ -815,21 +941,42 @@ module tb_jt10_phase1a_fm_tone;
             pcm_x_count, pcm_nonidle_count,
             selector_x_count, sample_x_count
         );
-        $display(
-            "PHASE1A_RESULT run=%0d failures=%0d accepted=%0d busy_hash=%016h ready_cycle=%0d first_public_cycle=%0d keyon_cycle=%0d first_nonzero_index=%0d steady_hash=%016h keyoff_hash=%016h cadence_errors=%0d width_errors=%0d x_count=%0d drops=%0d duplicates=%0d adpcm_fetch=%0d",
-            run_id, failures, accepted_write_count,
-            busy_duration_hash, warmup_ready_cycle,
-            first_public_cycle, keyon_cycle,
-            first_nonzero_index, steady_hash, keyoff_hash,
-            cadence_error_count, width_error_count,
-            sample_x_count + public_control_x_count +
-                psg_x_count + pcm_x_count + selector_x_count,
-            sample_drop_count, sample_duplicate_count,
-            adpcma_fetch_count + adpcmb_fetch_count
-        );
+        if (PHASE1B_MODE)
+            $display(
+                "PHASE1B_RESULT run=%0d failures=%0d port0=%0d port1=%0d accepted=%0d busy_hash=%016h ready_cycle=%0d first_public_cycle=%0d keyon_cycle=%0d first_nonzero_index=%0d attack_hash=%016h steady_hash=%016h mute_hash=%016h frequency_hash=%016h keyoff_hash=%016h peak=%0d min=%0d max=%0d nonzero=%0d zero_crossings=%0d dc_sum=%0d cadence_errors=%0d width_errors=%0d x_count=%0d drops=%0d duplicates=%0d adpcm_fetch=%0d",
+                run_id, failures, port0_write_count,
+                port1_write_count, accepted_write_count,
+                busy_duration_hash, warmup_ready_cycle,
+                first_public_cycle, keyon_cycle,
+                first_nonzero_index, primary_attack_hash, steady_hash,
+                mute_hash, frequency_hash, keyoff_hash,
+                steady_peak, steady_min, steady_max,
+                steady_nonzero, steady_crossings, steady_dc_sum,
+                cadence_error_count, width_error_count,
+                sample_x_count + public_control_x_count +
+                    psg_x_count + pcm_x_count + selector_x_count,
+                sample_drop_count, sample_duplicate_count,
+                adpcma_fetch_count + adpcmb_fetch_count
+            );
+        else
+            $display(
+                "PHASE1A_RESULT run=%0d failures=%0d accepted=%0d busy_hash=%016h ready_cycle=%0d first_public_cycle=%0d keyon_cycle=%0d first_nonzero_index=%0d steady_hash=%016h keyoff_hash=%016h cadence_errors=%0d width_errors=%0d x_count=%0d drops=%0d duplicates=%0d adpcm_fetch=%0d",
+                run_id, failures, accepted_write_count,
+                busy_duration_hash, warmup_ready_cycle,
+                first_public_cycle, keyon_cycle,
+                first_nonzero_index, steady_hash, keyoff_hash,
+                cadence_error_count, width_error_count,
+                sample_x_count + public_control_x_count +
+                    psg_x_count + pcm_x_count + selector_x_count,
+                sample_drop_count, sample_duplicate_count,
+                adpcma_fetch_count + adpcmb_fetch_count
+            );
         if (failures != 0)
-            $fatal(1, "JT10 Phase 1A failed (%0d)", failures);
-        $display("PHASE1A_PASS run=%0d", run_id);
+            $fatal(1, "JT10 FM tone test failed (%0d)", failures);
+        if (PHASE1B_MODE)
+            $display("PHASE1B_PASS run=%0d", run_id);
+        else
+            $display("PHASE1A_PASS run=%0d", run_id);
         $finish;
     end
 endmodule
