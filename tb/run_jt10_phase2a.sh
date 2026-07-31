@@ -3,7 +3,9 @@ set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 base_head="bee41751e46c2032ecb8288d15746c44d8bc3ae2"
+phase2a_head="517f5c2af12527c71b63e819857b9f4221584dec"
 phase2a_subject="Add standalone JT10 SSG tone bring-up"
+phase2b_subject="Cover all JT10 SSG tone channels"
 phase2a_tmp="$(mktemp -d /private/tmp/jt10-phase2a.XXXXXX)"
 trap 'rm -rf "$phase2a_tmp"' EXIT
 
@@ -85,7 +87,7 @@ run_fixture() {
         vvp "$binary" +RUN_ID="$run_id"
     ) > "$phase2a_tmp/$name.log"
     rg \
-        '^(WARMUP_READY|FIRST_PUBLIC|SSG_WINDOW|SSG_ZERO_SETTLE|MIXER_DC_LOCK|BUS_RESULT|SAMPLE_RESULT|SSG_RESULT|IDLE_RESULT|PHASE2A_PASS|FAIL)' \
+        '^(WARMUP_READY|FIRST_PUBLIC|SSG_WINDOW|SSG_ZERO_SETTLE|MIXER_DC_LOCK|BUS_RESULT|SAMPLE_RESULT|SSG_RESULT|IDLE_RESULT|SSG_TONE_PASS|FAIL)' \
         "$phase2a_tmp/$name.log"
 }
 
@@ -109,9 +111,16 @@ branch="$(git -C "$repo_root" branch --show-current)"
 head_sha="$(git -C "$repo_root" rev-parse HEAD)"
 [[ "$branch" == "ym2610-family-bringup" ]]
 if [[ "$head_sha" != "$base_head" ]]; then
-    [[ "$(git -C "$repo_root" rev-parse HEAD^)" == "$base_head" ]]
-    [[ "$(git -C "$repo_root" show -s --format=%s HEAD)" == \
-        "$phase2a_subject" ]]
+    if [[ "$head_sha" == "$phase2a_head" ]]; then
+        [[ "$(git -C "$repo_root" rev-parse HEAD^)" == "$base_head" ]]
+        [[ "$(git -C "$repo_root" show -s --format=%s HEAD)" == \
+            "$phase2a_subject" ]]
+    else
+        [[ "$(git -C "$repo_root" rev-parse HEAD^)" == \
+            "$phase2a_head" ]]
+        [[ "$(git -C "$repo_root" show -s --format=%s HEAD)" == \
+            "$phase2b_subject" ]]
+    fi
 fi
 echo "BASELINE branch=$branch head=$head_sha base=$base_head"
 git -C "$repo_root" status --short --untracked-files=all
@@ -290,11 +299,11 @@ for run_id in 1 2 3; do
         '^SAMPLE_RESULT cadence=144 width=6 ready_cycle=662 first_public_cycle=799 internal_pulses_at_first=6 tone_enable_cycle=9322 first_nonzero_index=0 public_samples=10342 cadence_errors=0 width_errors=0 drops=0 duplicates=0 mismatches=0$' \
         "$phase2a_tmp/phase2a-run-$run_id.log"
     rg -q \
-        'primary_final_hash=54730095b12b6325 primary_raw_a_hash=a05a9500edbbca25 primary_psg_hash=3beb13acc8e83f25.*volume_mute_hash=28c31cf8df2ec325.*mixer_dc_hash=0f24568f5401b325 mixer_dc_raw_a_hash=be78bcdbd952dd25 mixer_dc_psg_hash=fbd6d46c9105fb25.*mixer_dc_nonzero=512 mixer_dc_peak=8160 mixer_dc_min=8160 mixer_dc_max=8160 mixer_dc_transitions=0.*changed_final_hash=ce0045fbf79de325 changed_raw_a_hash=198a0f033c98f725 changed_psg_hash=6524f6223fd9d325.*final_stop_hash=28c31cf8df2ec325.*x_count=0 clipping=0 drops=0 duplicates=0 fm_nonidle=0 adpcm_fetch=0' \
+        'target=0 failures=0.*primary_final_hash=54730095b12b6325 primary_raw_target_hash=a05a9500edbbca25 primary_psg_hash=3beb13acc8e83f25.*volume_mute_hash=28c31cf8df2ec325.*mixer_dc_hash=0f24568f5401b325 mixer_dc_raw_target_hash=be78bcdbd952dd25 mixer_dc_psg_hash=fbd6d46c9105fb25.*mixer_dc_nonzero=512 mixer_dc_peak=8160 mixer_dc_min=8160 mixer_dc_max=8160 mixer_dc_transitions=0.*changed_final_hash=ce0045fbf79de325 changed_raw_target_hash=198a0f033c98f725 changed_psg_hash=6524f6223fd9d325.*final_stop_hash=28c31cf8df2ec325.*x_count=0 clipping=0 drops=0 duplicates=0 fm_nonidle=0 adpcm_fetch=0' \
         "$phase2a_tmp/phase2a-run-$run_id.log"
     rg -q '^IDLE_RESULT .*noise_enable_events=0 .*fm_nonidle=0 adpcma_fetch=0 adpcmb_fetch=0 pcm_nonidle=0 adpcma_keyon=0 adpcmb_start=0$' \
         "$phase2a_tmp/phase2a-run-$run_id.log"
-    rg -q "^PHASE2A_PASS run=$run_id$" \
+    rg -q "^SSG_TONE_PASS run=$run_id target=0$" \
         "$phase2a_tmp/phase2a-run-$run_id.log"
     normalize_fixture "$phase2a_tmp/phase2a-run-$run_id.log" \
         > "$phase2a_tmp/phase2a-run-$run_id.normalized"

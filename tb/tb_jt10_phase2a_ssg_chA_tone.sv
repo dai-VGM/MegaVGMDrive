@@ -1,10 +1,22 @@
 `timescale 1ns/1ps
 
-module tb_jt10_phase2a_ssg_chA_tone;
+module tb_jt10_phase2a_ssg_chA_tone #(
+    parameter integer TARGET_CHANNEL = 0
+);
     localparam [63:0] FNV_OFFSET = 64'hcbf29ce484222325;
     localparam integer START_SAMPLES = 256;
     localparam integer TONE_SAMPLES = 4096;
     localparam integer CONTROL_SAMPLES = 512;
+    localparam [3:0] TARGET_FINE_REGISTER =
+        TARGET_CHANNEL * 2;
+    localparam [3:0] TARGET_COARSE_REGISTER =
+        TARGET_CHANNEL * 2 + 1;
+    localparam [3:0] TARGET_VOLUME_REGISTER =
+        8 + TARGET_CHANNEL;
+    localparam [7:0] TARGET_TONE_MIXER =
+        8'h3f & ~(8'h01 << TARGET_CHANNEL);
+    localparam [2:0] NON_TARGET_TONE_MASK =
+        3'b111 & ~(3'b001 << TARGET_CHANNEL);
 
     logic clk = 1'b0;
     logic rst = 1'b1;
@@ -66,8 +78,12 @@ module tb_jt10_phase2a_ssg_chA_tone;
         dut.u_jt10.u_jt12.psg_data;
     wire internal_psg_register_edge =
         dut.u_jt10.u_jt12.gen_ssg.u_psg.wr_edge;
-    wire internal_tone_a =
-        dut.u_jt10.u_jt12.gen_ssg.u_psg.bitA;
+    wire internal_target_tone =
+        TARGET_CHANNEL == 0 ?
+            dut.u_jt10.u_jt12.gen_ssg.u_psg.bitA :
+        TARGET_CHANNEL == 1 ?
+            dut.u_jt10.u_jt12.gen_ssg.u_psg.bitB :
+            dut.u_jt10.u_jt12.gen_ssg.u_psg.bitC;
     wire [7:0] internal_mixer =
         dut.u_jt10.u_jt12.gen_ssg.u_psg.regarray[7];
     wire [7:0] internal_volume_a =
@@ -76,6 +92,17 @@ module tb_jt10_phase2a_ssg_chA_tone;
         dut.u_jt10.u_jt12.gen_ssg.u_psg.regarray[9];
     wire [7:0] internal_volume_c =
         dut.u_jt10.u_jt12.gen_ssg.u_psg.regarray[10];
+    wire [7:0] internal_target_volume =
+        TARGET_CHANNEL == 0 ? internal_volume_a :
+        TARGET_CHANNEL == 1 ? internal_volume_b :
+                              internal_volume_c;
+    wire [7:0] target_raw =
+        TARGET_CHANNEL == 0 ? psg_A :
+        TARGET_CHANNEL == 1 ? psg_B : psg_C;
+    wire [7:0] non_target_raw_0 =
+        TARGET_CHANNEL == 0 ? psg_B : psg_A;
+    wire [7:0] non_target_raw_1 =
+        TARGET_CHANNEL == 2 ? psg_B : psg_C;
     wire [7:0] internal_envelope_low =
         dut.u_jt10.u_jt12.gen_ssg.u_psg.regarray[11];
     wire [7:0] internal_envelope_high =
@@ -362,9 +389,15 @@ module tb_jt10_phase2a_ssg_chA_tone;
             if (internal_mixer[5:3] !== 3'b111)
                 noise_enable_event_count =
                     noise_enable_event_count + 1;
-            if (internal_mixer[2:1] !== 2'b11 ||
-                internal_volume_b !== 8'h00 ||
-                internal_volume_c !== 8'h00)
+            if ((internal_mixer[2:0] &
+                 NON_TARGET_TONE_MASK) !==
+                    NON_TARGET_TONE_MASK ||
+                (TARGET_CHANNEL != 0 &&
+                 internal_volume_a !== 8'h00) ||
+                (TARGET_CHANNEL != 1 &&
+                 internal_volume_b !== 8'h00) ||
+                (TARGET_CHANNEL != 2 &&
+                 internal_volume_c !== 8'h00))
                 bc_enable_event_count =
                     bc_enable_event_count + 1;
             if (internal_volume_a[4] !== 1'b0 ||
@@ -395,7 +428,7 @@ module tb_jt10_phase2a_ssg_chA_tone;
         input integer sample_total,
         input [127:0] label,
         output reg [63:0] final_hash,
-        output reg [63:0] raw_a_hash,
+        output reg [63:0] raw_target_hash,
         output reg [63:0] combined_hash,
         output integer nonzero_count,
         output integer peak,
@@ -403,7 +436,7 @@ module tb_jt10_phase2a_ssg_chA_tone;
         output integer maximum,
         output integer zero_transitions,
         output longint signed dc_sum,
-        output integer raw_a_nonzero,
+        output integer raw_target_nonzero,
         output integer combined_nonzero,
         output integer oscillator_toggles
     );
@@ -414,8 +447,8 @@ module tb_jt10_phase2a_ssg_chA_tone;
         integer current_active;
         integer previous_oscillator;
         integer local_x_count;
-        integer raw_b_nonzero;
-        integer raw_c_nonzero;
+        integer non_target_0_nonzero;
+        integer non_target_1_nonzero;
         integer fm_nonzero;
         integer pcm_nonzero;
         reg signed [15:0] left_value;
@@ -423,7 +456,7 @@ module tb_jt10_phase2a_ssg_chA_tone;
         reg [15:0] combined_value;
         begin
             final_hash = FNV_OFFSET;
-            raw_a_hash = FNV_OFFSET;
+            raw_target_hash = FNV_OFFSET;
             combined_hash = FNV_OFFSET;
             nonzero_count = 0;
             peak = 0;
@@ -431,14 +464,14 @@ module tb_jt10_phase2a_ssg_chA_tone;
             maximum = -32768;
             zero_transitions = 0;
             dc_sum = 0;
-            raw_a_nonzero = 0;
+            raw_target_nonzero = 0;
             combined_nonzero = 0;
             oscillator_toggles = 0;
             previous_active = -1;
             previous_oscillator = -1;
             local_x_count = 0;
-            raw_b_nonzero = 0;
-            raw_c_nonzero = 0;
+            non_target_0_nonzero = 0;
+            non_target_1_nonzero = 0;
             fm_nonzero = 0;
             pcm_nonzero = 0;
 
@@ -456,7 +489,7 @@ module tb_jt10_phase2a_ssg_chA_tone;
                     $isunknown(adpcmA_r) ||
                     $isunknown(adpcmB_l) ||
                     $isunknown(adpcmB_r) ||
-                    $isunknown(internal_tone_a)) begin
+                    $isunknown(internal_target_tone)) begin
                     local_x_count = local_x_count + 1;
                     public_x_count = public_x_count + 1;
                     $display("FAIL WINDOW_X label=%0s index=%0d",
@@ -465,7 +498,8 @@ module tb_jt10_phase2a_ssg_chA_tone;
                     final_hash =
                         hash_stereo(final_hash,
                                     left_value, right_value);
-                    raw_a_hash = hash_byte(raw_a_hash, psg_A);
+                    raw_target_hash =
+                        hash_byte(raw_target_hash, target_raw);
                     combined_value = {6'd0, psg_snd};
                     combined_hash =
                         hash_byte(
@@ -482,14 +516,17 @@ module tb_jt10_phase2a_ssg_chA_tone;
                             first_nonzero_index < 0)
                             first_nonzero_index = index;
                     end
-                    if (psg_A != 8'd0)
-                        raw_a_nonzero = raw_a_nonzero + 1;
+                    if (target_raw != 8'd0)
+                        raw_target_nonzero =
+                            raw_target_nonzero + 1;
                     if (psg_snd != 10'd0)
                         combined_nonzero = combined_nonzero + 1;
-                    if (psg_B != 8'd0)
-                        raw_b_nonzero = raw_b_nonzero + 1;
-                    if (psg_C != 8'd0)
-                        raw_c_nonzero = raw_c_nonzero + 1;
+                    if (non_target_raw_0 != 8'd0)
+                        non_target_0_nonzero =
+                            non_target_0_nonzero + 1;
+                    if (non_target_raw_1 != 8'd0)
+                        non_target_1_nonzero =
+                            non_target_1_nonzero + 1;
                     if (internal_fm_snd != 16'sd0)
                         fm_nonzero = fm_nonzero + 1;
                     if (adpcmA_l != 16'sd0 ||
@@ -515,10 +552,10 @@ module tb_jt10_phase2a_ssg_chA_tone;
                     previous_active = current_active;
 
                     if (previous_oscillator >= 0 &&
-                        internal_tone_a != previous_oscillator)
+                        internal_target_tone != previous_oscillator)
                         oscillator_toggles =
                             oscillator_toggles + 1;
-                    previous_oscillator = internal_tone_a;
+                    previous_oscillator = internal_target_tone;
 
                     if (left_value !== right_value) begin
                         failures = failures + 1;
@@ -552,25 +589,30 @@ module tb_jt10_phase2a_ssg_chA_tone;
                 end
             end
 
-            if (raw_b_nonzero != 0 || raw_c_nonzero != 0 ||
+            if (non_target_0_nonzero != 0 ||
+                non_target_1_nonzero != 0 ||
                 fm_nonzero != 0 || pcm_nonzero != 0 ||
                 local_x_count != 0) begin
                 failures = failures + 1;
                 $display(
                     "FAIL WINDOW_IDLE_LANES label=%0s rawB=%0d rawC=%0d fm=%0d pcm=%0d x=%0d",
-                    label, raw_b_nonzero, raw_c_nonzero,
+                    label, non_target_0_nonzero,
+                    non_target_1_nonzero,
                     fm_nonzero, pcm_nonzero, local_x_count
                 );
             end
 
             $display(
-                "SSG_WINDOW label=%0s samples=%0d final_hash=%016h raw_a_hash=%016h psg_hash=%016h nonzero=%0d raw_a_nonzero=%0d psg_nonzero=%0d peak=%0d min=%0d max=%0d zero_transitions=%0d dc_sum=%0d dc_mean=%0d oscillator_toggles=%0d raw_b_nonzero=%0d raw_c_nonzero=%0d fm_nonzero=%0d pcm_nonzero=%0d x_count=%0d clipping=%0d",
-                label, sample_total, final_hash, raw_a_hash,
-                combined_hash, nonzero_count, raw_a_nonzero,
+                "SSG_WINDOW target=%0d label=%0s samples=%0d final_hash=%016h raw_target_hash=%016h psg_hash=%016h nonzero=%0d raw_target_nonzero=%0d psg_nonzero=%0d peak=%0d min=%0d max=%0d zero_transitions=%0d dc_sum=%0d dc_mean=%0d oscillator_toggles=%0d non_target_0_nonzero=%0d non_target_1_nonzero=%0d fm_nonzero=%0d pcm_nonzero=%0d x_count=%0d clipping=%0d",
+                TARGET_CHANNEL, label, sample_total,
+                final_hash, raw_target_hash,
+                combined_hash, nonzero_count,
+                raw_target_nonzero,
                 combined_nonzero, peak, minimum, maximum,
                 zero_transitions, dc_sum, dc_sum / sample_total,
-                oscillator_toggles, raw_b_nonzero,
-                raw_c_nonzero, fm_nonzero, pcm_nonzero,
+                oscillator_toggles, non_target_0_nonzero,
+                non_target_1_nonzero,
+                fm_nonzero, pcm_nonzero,
                 local_x_count, clipping_count
             );
         end
@@ -591,11 +633,11 @@ module tb_jt10_phase2a_ssg_chA_tone;
                 samples_used = samples_used + 1;
                 if (!$isunknown(left_value) &&
                     !$isunknown(right_value) &&
-                    !$isunknown(psg_A) &&
+                    !$isunknown(target_raw) &&
                     !$isunknown(psg_snd) &&
                     left_value == 16'sd0 &&
                     right_value == 16'sd0 &&
-                    psg_A == 8'd0 &&
+                    target_raw == 8'd0 &&
                     psg_snd == 10'd0)
                     consecutive = consecutive + 1;
                 else
@@ -627,11 +669,11 @@ module tb_jt10_phase2a_ssg_chA_tone;
                 next_public_sample(left_value, right_value);
                 if (!$isunknown(left_value) &&
                     !$isunknown(right_value) &&
-                    !$isunknown(psg_A) &&
+                    !$isunknown(target_raw) &&
                     !$isunknown(psg_snd) &&
                     left_value == 16'sd8160 &&
                     right_value == 16'sd8160 &&
-                    psg_A == 8'hff &&
+                    target_raw == 8'hff &&
                     psg_snd == 10'd255) begin
                     consecutive = consecutive + 1;
                     if (consecutive == 16 && lock_samples < 0)
@@ -642,7 +684,7 @@ module tb_jt10_phase2a_ssg_chA_tone;
                     $display(
                         "FAIL MIXER_DC_SOAK index=%0d left=%0d right=%0d rawA=%0d psg=%0d",
                         index, left_value, right_value,
-                        psg_A, psg_snd
+                        target_raw, psg_snd
                     );
                 end
             end
@@ -762,7 +804,10 @@ module tb_jt10_phase2a_ssg_chA_tone;
 
         if (!$value$plusargs("RUN_ID=%d", run_id))
             run_id = 1;
-        $display("PHASE2A_BEGIN run=%0d", run_id);
+        if (TARGET_CHANNEL < 0 || TARGET_CHANNEL > 2)
+            $fatal(1, "invalid TARGET_CHANNEL=%0d", TARGET_CHANNEL);
+        $display("SSG_TONE_BEGIN run=%0d target=%0d",
+                 run_id, TARGET_CHANNEL);
 
         wait_clocks(4);
         @(negedge clk);
@@ -835,10 +880,10 @@ module tb_jt10_phase2a_ssg_chA_tone;
         end
         audit_active = 1'b1;
 
-        write_ssg(4'h0, 8'h20);
-        write_ssg(4'h1, 8'h00);
-        write_ssg(4'h7, 8'h3e);
-        write_ssg(4'h8, 8'h0f);
+        write_ssg(TARGET_FINE_REGISTER, 8'h20);
+        write_ssg(TARGET_COARSE_REGISTER, 8'h00);
+        write_ssg(4'h7, TARGET_TONE_MIXER);
+        write_ssg(TARGET_VOLUME_REGISTER, 8'h0f);
         tone_enable_cycle = last_issue_cycle;
 
         capture_ssg_window(
@@ -869,7 +914,7 @@ module tb_jt10_phase2a_ssg_chA_tone;
             $display("FAIL PRIMARY_SSG_LANE_ZERO");
         end
 
-        write_ssg(4'h8, 8'h00);
+        write_ssg(TARGET_VOLUME_REGISTER, 8'h00);
         wait_for_zero("volume_mute", volume_mute_settle_samples);
         capture_ssg_window(
             CONTROL_SAMPLES, "volume_mute", volume_mute_hash,
@@ -891,7 +936,7 @@ module tb_jt10_phase2a_ssg_chA_tone;
         // Pinned JT49 semantics: disabling both tone and noise gates forces
         // their mixer inputs high.  Fixed volume 0F therefore produces
         // maximum constant DC; channel silence is controlled by volume zero.
-        write_ssg(4'h8, 8'h0f);
+        write_ssg(TARGET_VOLUME_REGISTER, 8'h0f);
         write_ssg(4'h7, 8'h3f);
         lock_and_soak_mixer_dc(mixer_dc_lock_samples);
         capture_ssg_window(
@@ -921,9 +966,9 @@ module tb_jt10_phase2a_ssg_chA_tone;
             );
         end
 
-        write_ssg(4'h0, 8'h10);
-        write_ssg(4'h1, 8'h00);
-        write_ssg(4'h7, 8'h3e);
+        write_ssg(TARGET_FINE_REGISTER, 8'h10);
+        write_ssg(TARGET_COARSE_REGISTER, 8'h00);
+        write_ssg(4'h7, TARGET_TONE_MIXER);
         capture_ssg_window(
             TONE_SAMPLES, "period_change", changed_final_hash,
             changed_raw_a_hash, changed_psg_hash,
@@ -943,7 +988,7 @@ module tb_jt10_phase2a_ssg_chA_tone;
             );
         end
 
-        write_ssg(4'h8, 8'h00);
+        write_ssg(TARGET_VOLUME_REGISTER, 8'h00);
         write_ssg(4'h7, 8'h3f);
         wait_for_zero("final_stop", final_stop_settle_samples);
         capture_ssg_window(
@@ -981,6 +1026,7 @@ module tb_jt10_phase2a_ssg_chA_tone;
             noise_enable_event_count != 0 ||
             bc_enable_event_count != 0 ||
             envelope_enable_event_count != 0 ||
+            internal_target_volume !== 8'h00 ||
             internal_envelope_low !== 8'h00 ||
             internal_envelope_high !== 8'h00 ||
             internal_envelope_shape !== 8'h00) begin
@@ -1004,8 +1050,8 @@ module tb_jt10_phase2a_ssg_chA_tone;
             sample_duplicate_count, sample_mismatch_count
         );
         $display(
-            "SSG_RESULT run=%0d failures=%0d start_final_hash=%016h start_raw_a_hash=%016h start_psg_hash=%016h primary_final_hash=%016h primary_raw_a_hash=%016h primary_psg_hash=%016h primary_nonzero=%0d primary_raw_nonzero=%0d primary_psg_nonzero=%0d peak=%0d min=%0d max=%0d zero_transitions=%0d dc_sum=%0d volume_mute_hash=%016h volume_mute_settle=%0d mixer_dc_hash=%016h mixer_dc_raw_a_hash=%016h mixer_dc_psg_hash=%016h mixer_dc_lock=%0d mixer_dc_nonzero=%0d mixer_dc_peak=%0d mixer_dc_min=%0d mixer_dc_max=%0d mixer_dc_transitions=%0d mixer_dc_sum=%0d changed_final_hash=%016h changed_raw_a_hash=%016h changed_psg_hash=%016h changed_nonzero=%0d changed_peak=%0d changed_min=%0d changed_max=%0d changed_zero_transitions=%0d changed_dc_sum=%0d final_stop_hash=%016h final_stop_settle=%0d x_count=%0d clipping=%0d drops=%0d duplicates=%0d fm_nonidle=0 adpcm_fetch=%0d raw_b_nonidle=0 raw_c_nonidle=0 noise_enable_events=%0d envelope_enable_events=%0d",
-            run_id, failures, start_final_hash,
+            "SSG_RESULT run=%0d target=%0d failures=%0d start_final_hash=%016h start_raw_target_hash=%016h start_psg_hash=%016h primary_final_hash=%016h primary_raw_target_hash=%016h primary_psg_hash=%016h primary_nonzero=%0d primary_raw_nonzero=%0d primary_psg_nonzero=%0d peak=%0d min=%0d max=%0d zero_transitions=%0d dc_sum=%0d volume_mute_hash=%016h volume_mute_settle=%0d mixer_dc_hash=%016h mixer_dc_raw_target_hash=%016h mixer_dc_psg_hash=%016h mixer_dc_lock=%0d mixer_dc_nonzero=%0d mixer_dc_peak=%0d mixer_dc_min=%0d mixer_dc_max=%0d mixer_dc_transitions=%0d mixer_dc_sum=%0d changed_final_hash=%016h changed_raw_target_hash=%016h changed_psg_hash=%016h changed_nonzero=%0d changed_peak=%0d changed_min=%0d changed_max=%0d changed_zero_transitions=%0d changed_dc_sum=%0d final_stop_hash=%016h final_stop_settle=%0d x_count=%0d clipping=%0d drops=%0d duplicates=%0d fm_nonidle=0 adpcm_fetch=%0d non_target_0_nonidle=0 non_target_1_nonidle=0 noise_enable_events=%0d envelope_enable_events=%0d",
+            run_id, TARGET_CHANNEL, failures, start_final_hash,
             start_raw_a_hash, start_psg_hash,
             primary_final_hash, primary_raw_a_hash,
             primary_psg_hash, primary_nonzero,
@@ -1030,8 +1076,8 @@ module tb_jt10_phase2a_ssg_chA_tone;
             envelope_enable_event_count
         );
         $display(
-            "IDLE_RESULT raw_b_nonidle=0 raw_c_nonidle=0 noise_enable_events=%0d envelope_enable_events=%0d fm_nonidle=0 adpcma_fetch=%0d adpcmb_fetch=%0d pcm_nonidle=0 adpcma_keyon=%0d adpcmb_start=%0d",
-            noise_enable_event_count,
+            "IDLE_RESULT target=%0d non_target_0_nonidle=0 non_target_1_nonidle=0 noise_enable_events=%0d envelope_enable_events=%0d fm_nonidle=0 adpcma_fetch=%0d adpcmb_fetch=%0d pcm_nonidle=0 adpcma_keyon=%0d adpcmb_start=%0d",
+            TARGET_CHANNEL, noise_enable_event_count,
             envelope_enable_event_count,
             adpcma_fetch_count, adpcmb_fetch_count,
             adpcma_keyon_command_count, adpcmb_start_state
@@ -1040,7 +1086,8 @@ module tb_jt10_phase2a_ssg_chA_tone;
         if (failures != 0)
             $fatal(1, "JT10 SSG channel A test failed (%0d)",
                    failures);
-        $display("PHASE2A_PASS run=%0d", run_id);
+        $display("SSG_TONE_PASS run=%0d target=%0d",
+                 run_id, TARGET_CHANNEL);
         $finish;
     end
 endmodule
