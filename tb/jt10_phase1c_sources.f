@@ -1,0 +1,2 @@
+tb/tb_jt10_phase1c_ch2_fm_tone.sv
+tb/tb_jt10_phase1c_ch6_fm_tone.sv

@@ -2,7 +2,10 @@
 
 module tb_jt10_phase1a_fm_tone #(
     parameter integer TARGET_PORT = 0,
-    parameter integer PHASE1B_MODE = 0
+    parameter integer TARGET_ENCODING =
+        TARGET_PORT == 0 ? 1 : 5,
+    parameter integer PHASE1B_MODE = 0,
+    parameter integer PHASE1C_MODE = 0
 );
     localparam [63:0] FNV_OFFSET = 64'hcbf29ce484222325;
     localparam integer ATTACK_SAMPLES = 4096;
@@ -11,10 +14,21 @@ module tb_jt10_phase1a_fm_tone #(
     localparam integer POST_KEYOFF_SAMPLES = 512;
     localparam integer SILENCE_CONSECUTIVE = 256;
     localparam integer SILENCE_TIMEOUT = 8192;
+    localparam [7:0] TARGET_CHANNEL_OFFSET =
+        TARGET_ENCODING & 3;
+    localparam [7:0] TARGET_FNUM_HIGH =
+        8'ha4 + TARGET_CHANNEL_OFFSET;
+    localparam [7:0] TARGET_FNUM_LOW =
+        8'ha0 + TARGET_CHANNEL_OFFSET;
+    localparam [7:0] TARGET_ALGORITHM =
+        8'hb0 + TARGET_CHANNEL_OFFSET;
+    localparam [7:0] TARGET_PAN =
+        8'hb4 + TARGET_CHANNEL_OFFSET;
+    localparam [7:0] TARGET_CARRIER_TL =
+        8'h40 + TARGET_CHANNEL_OFFSET;
     localparam [7:0] TARGET_KEYON =
-        TARGET_PORT == 0 ? 8'h11 : 8'h15;
-    localparam [7:0] TARGET_KEYOFF =
-        TARGET_PORT == 0 ? 8'h01 : 8'h05;
+        8'h10 | TARGET_ENCODING;
+    localparam [7:0] TARGET_KEYOFF = TARGET_ENCODING;
 
     logic clk = 1'b0;
     logic rst = 1'b1;
@@ -62,6 +76,15 @@ module tb_jt10_phase1a_fm_tone #(
     wire [2:0] cur_ch = dut.u_jt10.u_jt12.cur_ch;
     wire [1:0] cur_op = dut.u_jt10.u_jt12.cur_op;
     wire [1:0] current_rl = dut.u_jt10.u_jt12.rl;
+    wire synth_clk_en = dut.u_jt10.u_jt12.clk_en;
+    wire signed [15:0] accumulator_input_left =
+        dut.u_jt10.u_jt12.gen_adpcm.u_acc.acc_input_l;
+    wire signed [15:0] accumulator_fm_expected =
+        dut.u_jt10.u_jt12.gen_adpcm.u_acc.opext >>> 1;
+    wire signed [15:0] accumulator_adpcma_expected =
+        (adpcmA_l <<< 2) + (adpcmA_l <<< 1);
+    wire signed [15:0] accumulator_adpcmb_expected =
+        adpcmB_l >>> 1;
     wire adpcma_decoder_active =
         dut.u_jt10.u_jt12.gen_adpcm.u_adpcm_a.u_cnt.decon;
     wire adpcmb_channel_on =
@@ -109,6 +132,10 @@ module tb_jt10_phase1a_fm_tone #(
     integer adpcma_inactive_strobe_count = 0;
     integer adpcmb_inactive_strobe_count = 0;
     integer adpcm_control_error_count = 0;
+    integer accumulator_target_match_count = 0;
+    integer accumulator_adpcma_match_count = 0;
+    integer accumulator_adpcmb_match_count = 0;
+    integer accumulator_select_mismatch_count = 0;
     integer failures = 0;
     integer last_public_rise_cycle = -1;
     integer public_pulse_width = 0;
@@ -355,6 +382,37 @@ module tb_jt10_phase1a_fm_tone #(
              adpcmb_channel_on !== 1'b0))
             adpcm_control_error_count =
                 adpcm_control_error_count + 1;
+
+        if (PHASE1C_MODE && !rst && synth_clk_en === 1'b1 &&
+            cur_op == 2'd0) begin
+            if (cur_ch == TARGET_ENCODING[2:0]) begin
+                if (accumulator_input_left ===
+                    accumulator_fm_expected)
+                    accumulator_target_match_count =
+                        accumulator_target_match_count + 1;
+                else
+                    accumulator_select_mismatch_count =
+                        accumulator_select_mismatch_count + 1;
+            end
+            if (cur_ch == 3'd0) begin
+                if (accumulator_input_left ===
+                    accumulator_adpcma_expected)
+                    accumulator_adpcma_match_count =
+                        accumulator_adpcma_match_count + 1;
+                else
+                    accumulator_select_mismatch_count =
+                        accumulator_select_mismatch_count + 1;
+            end
+            if (cur_ch == 3'd4) begin
+                if (accumulator_input_left ===
+                    accumulator_adpcmb_expected)
+                    accumulator_adpcmb_match_count =
+                        accumulator_adpcmb_match_count + 1;
+                else
+                    accumulator_select_mismatch_count =
+                        accumulator_select_mismatch_count + 1;
+            end
+        end
     end
 
     task automatic wait_clocks(input integer count);
@@ -547,15 +605,22 @@ module tb_jt10_phase1a_fm_tone #(
         input [7:0] total_level
     );
         begin
-            // Encodings 1 and 5 both use register channel offset one;
-            // addr[1] selects the lower or upper three-channel part.
-            write_target(8'h31 + offset, 8'h01);
-            write_target(8'h41 + offset, total_level);
-            write_target(8'h51 + offset, 8'h1f);
-            write_target(8'h61 + offset, 8'h00);
-            write_target(8'h71 + offset, 8'h00);
-            write_target(8'h81 + offset, 8'haf);
-            write_target(8'h91 + offset, 8'h00);
+            // addr[1] selects the lower/upper part and the register's
+            // low two bits select the channel within that part.
+            write_target(
+                8'h30 + TARGET_CHANNEL_OFFSET + offset, 8'h01);
+            write_target(
+                8'h40 + TARGET_CHANNEL_OFFSET + offset, total_level);
+            write_target(
+                8'h50 + TARGET_CHANNEL_OFFSET + offset, 8'h1f);
+            write_target(
+                8'h60 + TARGET_CHANNEL_OFFSET + offset, 8'h00);
+            write_target(
+                8'h70 + TARGET_CHANNEL_OFFSET + offset, 8'h00);
+            write_target(
+                8'h80 + TARGET_CHANNEL_OFFSET + offset, 8'haf);
+            write_target(
+                8'h90 + TARGET_CHANNEL_OFFSET + offset, 8'h00);
         end
     endtask
 
@@ -575,14 +640,66 @@ module tb_jt10_phase1a_fm_tone #(
         begin
             // Official fixture order: high latch, low commit, algorithm,
             // pan/AMS/PMS, then S1/S3/S2/S4 operator registers.
-            write_target(8'ha5, 8'h22);
-            write_target(8'ha1, 8'h00);
-            write_target(8'hb1, 8'h07);
-            write_target(8'hb5, 8'hc0);
+            write_target(TARGET_FNUM_HIGH, 8'h22);
+            write_target(TARGET_FNUM_LOW, 8'h00);
+            write_target(TARGET_ALGORITHM, 8'h07);
+            write_target(TARGET_PAN, 8'hc0);
             configure_operator(8'h00, 8'h00);
             configure_operator(8'h08, 8'h7f);
             configure_operator(8'h04, 8'h7f);
             configure_operator(8'h0c, 8'h7f);
+        end
+    endtask
+
+    task automatic audit_target_capture;
+        integer guard;
+        begin
+            // A legal pan write proves the selected port/channel mapping
+            // before key-on, so it cannot add audio to the idle window.
+            write_target(TARGET_PAN, 8'hc0);
+            #1;
+            if (dut.u_jt10.u_jt12.u_mmr.part !== TARGET_PORT[0] ||
+                dut.u_jt10.u_jt12.u_mmr.selected_register !==
+                    TARGET_PAN ||
+                dut.u_jt10.u_jt12.u_mmr.din_copy !== 8'hc0 ||
+                dut.u_jt10.u_jt12.u_mmr.up_ch !==
+                    TARGET_ENCODING[2:0] ||
+                dut.u_jt10.u_jt12.u_mmr.up_chreg !== 3'b100) begin
+                failures = failures + 1;
+                $display(
+                    "FAIL CHANNEL_CAPTURE target=%0d part=%b selected=%h data=%h ch=%0d chreg=%b",
+                    TARGET_ENCODING,
+                    dut.u_jt10.u_jt12.u_mmr.part,
+                    dut.u_jt10.u_jt12.u_mmr.selected_register,
+                    dut.u_jt10.u_jt12.u_mmr.din_copy,
+                    dut.u_jt10.u_jt12.u_mmr.up_ch,
+                    dut.u_jt10.u_jt12.u_mmr.up_chreg
+                );
+            end
+            guard = 0;
+            while (!(cur_ch == TARGET_ENCODING[2:0] &&
+                     cur_op == 2'd0) &&
+                   guard < 256) begin
+                @(posedge clk);
+                guard = guard + 1;
+            end
+            #1;
+            if (guard >= 256 || current_rl !== 2'b11) begin
+                failures = failures + 1;
+                $display(
+                    "FAIL CHANNEL_STATE target=%0d cur_ch=%0d cur_op=%0d rl=%b guard=%0d",
+                    TARGET_ENCODING, cur_ch, cur_op,
+                    current_rl, guard
+                );
+            end
+            $display(
+                "CHANNEL_AUDIT port=%0d address_phase=%02b data_phase=%02b selected=%02h data=c0 captured_part=%0d captured_ch=%0d rl=%0d result=%0s",
+                TARGET_PORT, {TARGET_PORT[0], 1'b0},
+                {TARGET_PORT[0], 1'b1}, TARGET_PAN,
+                TARGET_PORT, TARGET_ENCODING, current_rl,
+                (guard < 256 && current_rl === 2'b11) ?
+                    "PASS" : "FAIL"
+            );
         end
     endtask
 
@@ -682,7 +799,11 @@ module tb_jt10_phase1a_fm_tone #(
 
         if (!$value$plusargs("RUN_ID=%d", run_id))
             run_id = 1;
-        if (PHASE1B_MODE)
+        if (PHASE1C_MODE)
+            $display(
+                "PHASE1C_BEGIN run=%0d target_port=%0d encoding=%0d",
+                run_id, TARGET_PORT, TARGET_ENCODING);
+        else if (PHASE1B_MODE)
             $display("PHASE1B_BEGIN run=%0d target_port=1 encoding=5",
                      run_id);
         else
@@ -737,7 +858,11 @@ module tb_jt10_phase1a_fm_tone #(
         bus.jt10_write_port0(8'h22, 8'h00);
         bus.jt10_write_port0(8'h27, 8'h00);
         bus.jt10_write_port0(8'h2b, 8'h00);
-        audit_port1_capture();
+        if (PHASE1C_MODE)
+            audit_target_capture();
+        else
+            // Preserve the exact Phase 1A/1B audit transaction.
+            audit_port1_capture();
         configure_primary_tone();
 
         capture_window(
@@ -775,7 +900,7 @@ module tb_jt10_phase1a_fm_tone #(
             $display("FAIL STEADY_TONE_CONTROL");
         end
 
-        if (!PHASE1B_MODE) begin
+        if (!PHASE1B_MODE && !PHASE1C_MODE) begin
             // Preserve the exact Phase 1A order and landmarks.
             bus.jt10_write_port0(8'h28, TARGET_KEYOFF);
             wait_for_silence(keyoff_settle_samples);
@@ -822,9 +947,9 @@ module tb_jt10_phase1a_fm_tone #(
             bus.jt10_write_port0(8'h28, TARGET_KEYOFF);
             wait_for_silence(release_samples_frequency);
         end else begin
-            // Phase 1B keeps encoding 5 keyed while its port-1 carrier TL
-            // is raised to maximum, proving that the silence is TL-driven.
-            write_target(8'h41, 8'h7f);
+            // Phase 1B/1C keep the target keyed while its carrier TL is
+            // raised to maximum, proving that silence is TL-driven.
+            write_target(TARGET_CARRIER_TL, 8'h7f);
             wait_for_mute_silence(mute_settle_samples);
             capture_window(
                 MUTE_SAMPLES, "tl_mute", mute_hash, mute_nonzero,
@@ -836,11 +961,11 @@ module tb_jt10_phase1a_fm_tone #(
                          mute_nonzero);
             end
 
-            // Restore the carrier and change the same port-1 FNUM while
-            // the envelope remains keyed and at its steady level.
-            write_target(8'h41, 8'h00);
-            write_target(8'ha5, 8'h22);
-            write_target(8'ha1, 8'hde);
+            // Restore the carrier and change the target FNUM while the
+            // envelope remains keyed and at its steady level.
+            write_target(TARGET_CARRIER_TL, 8'h00);
+            write_target(TARGET_FNUM_HIGH, 8'h22);
+            write_target(TARGET_FNUM_LOW, 8'hde);
             capture_window(
                 STEADY_SAMPLES, "frequency_steady", frequency_hash,
                 frequency_nonzero, frequency_peak, frequency_min,
@@ -848,7 +973,7 @@ module tb_jt10_phase1a_fm_tone #(
             );
             frequency_dc_sum = last_dc_sum;
 
-            // Stage G is the only Phase 1B key-off.
+            // Stage G is the only Phase 1B/1C key-off.
             bus.jt10_write_port0(8'h28, TARGET_KEYOFF);
             wait_for_silence(keyoff_settle_samples);
             capture_window(
@@ -872,6 +997,23 @@ module tb_jt10_phase1a_fm_tone #(
                 steady_hash, frequency_hash,
                 steady_crossings, frequency_crossings
             );
+        end
+
+        if (PHASE1C_MODE) begin
+            $display(
+                "ACCUMULATOR_TRACE target_encoding=%0d target_default_matches=%0d encoding0_adpcma_matches=%0d encoding4_adpcmb_matches=%0d selector_mismatches=%0d predicate0={cur_op=0,cur_ch=0} predicate4={cur_op=0,cur_ch=4}",
+                TARGET_ENCODING, accumulator_target_match_count,
+                accumulator_adpcma_match_count,
+                accumulator_adpcmb_match_count,
+                accumulator_select_mismatch_count
+            );
+            if (accumulator_target_match_count == 0 ||
+                accumulator_adpcma_match_count == 0 ||
+                accumulator_adpcmb_match_count == 0 ||
+                accumulator_select_mismatch_count != 0) begin
+                failures = failures + 1;
+                $display("FAIL ACCUMULATOR_SELECTION_TRACE");
+            end
         end
 
         if (busy_timeout_count != 0 ||
@@ -926,7 +1068,7 @@ module tb_jt10_phase1a_fm_tone #(
         );
         $display(
             "TONE_COMPARE target_port=%0d target_encoding=%0d phase1a_hash=8aadd7a6819038e5 target_hash=%016h hash_equal=%0d phase1a_peak=4084 target_peak=%0d peak_delta=%0d phase1a_zero_crossings=32 target_zero_crossings=%0d crossing_delta=%0d",
-            TARGET_PORT, TARGET_PORT == 0 ? 1 : 5,
+            TARGET_PORT, TARGET_ENCODING,
             steady_hash, steady_hash == 64'h8aadd7a6819038e5,
             steady_peak, steady_peak - 4084,
             steady_crossings, steady_crossings - 32
@@ -941,7 +1083,28 @@ module tb_jt10_phase1a_fm_tone #(
             pcm_x_count, pcm_nonidle_count,
             selector_x_count, sample_x_count
         );
-        if (PHASE1B_MODE)
+        if (PHASE1C_MODE)
+            $display(
+                "PHASE1C_RESULT run=%0d target_port=%0d target_encoding=%0d failures=%0d port0=%0d port1=%0d accepted=%0d busy_hash=%016h busy_min=%0d busy_max=%0d ready_cycle=%0d first_public_cycle=%0d keyon_cycle=%0d first_nonzero_index=%0d attack_hash=%016h steady_hash=%016h mute_hash=%016h mute_settle_samples=%0d frequency_hash=%016h keyoff_hash=%016h keyoff_settle_samples=%0d peak=%0d min=%0d max=%0d nonzero=%0d zero_crossings=%0d dc_sum=%0d cadence_errors=%0d width_errors=%0d x_count=%0d clipping=0 drops=%0d duplicates=%0d adpcm_fetch=%0d ssg_nonidle=%0d",
+                run_id, TARGET_PORT, TARGET_ENCODING, failures,
+                port0_write_count, port1_write_count,
+                accepted_write_count, busy_duration_hash,
+                busy_min_cycles, busy_max_cycles,
+                warmup_ready_cycle, first_public_cycle,
+                keyon_cycle, first_nonzero_index,
+                primary_attack_hash, steady_hash, mute_hash,
+                mute_settle_samples, frequency_hash, keyoff_hash,
+                keyoff_settle_samples, steady_peak,
+                steady_min, steady_max, steady_nonzero,
+                steady_crossings, steady_dc_sum,
+                cadence_error_count, width_error_count,
+                sample_x_count + public_control_x_count +
+                    psg_x_count + pcm_x_count + selector_x_count,
+                sample_drop_count, sample_duplicate_count,
+                adpcma_fetch_count + adpcmb_fetch_count,
+                psg_nonidle_count
+            );
+        else if (PHASE1B_MODE)
             $display(
                 "PHASE1B_RESULT run=%0d failures=%0d port0=%0d port1=%0d accepted=%0d busy_hash=%016h ready_cycle=%0d first_public_cycle=%0d keyon_cycle=%0d first_nonzero_index=%0d attack_hash=%016h steady_hash=%016h mute_hash=%016h frequency_hash=%016h keyoff_hash=%016h peak=%0d min=%0d max=%0d nonzero=%0d zero_crossings=%0d dc_sum=%0d cadence_errors=%0d width_errors=%0d x_count=%0d drops=%0d duplicates=%0d adpcm_fetch=%0d",
                 run_id, failures, port0_write_count,
@@ -973,7 +1136,11 @@ module tb_jt10_phase1a_fm_tone #(
             );
         if (failures != 0)
             $fatal(1, "JT10 FM tone test failed (%0d)", failures);
-        if (PHASE1B_MODE)
+        if (PHASE1C_MODE)
+            $display(
+                "PHASE1C_PASS run=%0d target_encoding=%0d",
+                run_id, TARGET_ENCODING);
+        else if (PHASE1B_MODE)
             $display("PHASE1B_PASS run=%0d", run_id);
         else
             $display("PHASE1A_PASS run=%0d", run_id);
