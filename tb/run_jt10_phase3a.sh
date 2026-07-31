@@ -3,7 +3,9 @@ set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 base_head="82290dc61912af144bbf5f0c291e9cbed4ee5ffd"
+phase3a_head="0434e480836013c62aaf878fb6c25991249a443b"
 phase3a_subject="Add standalone JT10 ADPCM-A voice 0 bring-up"
+phase3b_subject="Cover all JT10 ADPCM-A voices"
 tmp_root="$(mktemp -d /private/tmp/jt10-phase3a.XXXXXX)"
 trap 'rm -rf "$tmp_root"' EXIT
 
@@ -74,7 +76,7 @@ artifact_digest() {
 
 summary_lines() {
     rg \
-        '^(BUS_RESULT|SAMPLE_RESULT|ADPCMA_LANDMARKS|ADPCMA_PRIMARY|ADPCMA_CONTROLS|ADPCMA_STOP|ISOLATION_RESULT|ADPCMA_RESULT|ADPCMA_VOICE0_PASS)' \
+        '^(BUS_RESULT|SAMPLE_RESULT|ADPCMA_LANDMARKS|ADPCMA_PRIMARY|ADPCMA_CONTROLS|ADPCMA_STOP|ISOLATION_RESULT|ADPCMA_RESULT|ADPCMA_ALIGNMENT|ADPCMA_VOICE0_PASS)' \
         "$1"
 }
 
@@ -116,9 +118,16 @@ branch="$(git -C "$repo_root" branch --show-current)"
 head_sha="$(git -C "$repo_root" rev-parse HEAD)"
 [[ "$branch" == "ym2610-family-bringup" ]]
 if [[ "$head_sha" != "$base_head" ]]; then
-    [[ "$(git -C "$repo_root" rev-parse HEAD^)" == "$base_head" ]]
-    [[ "$(git -C "$repo_root" show -s --format=%s HEAD)" == \
-        "$phase3a_subject" ]]
+    if [[ "$head_sha" == "$phase3a_head" ]]; then
+        [[ "$(git -C "$repo_root" rev-parse HEAD^)" == "$base_head" ]]
+        [[ "$(git -C "$repo_root" show -s --format=%s HEAD)" == \
+            "$phase3a_subject" ]]
+    else
+        [[ "$(git -C "$repo_root" rev-parse HEAD^)" == \
+            "$phase3a_head" ]]
+        [[ "$(git -C "$repo_root" show -s --format=%s HEAD)" == \
+            "$phase3b_subject" ]]
+    fi
 fi
 echo "BASELINE branch=$branch head=$head_sha base=$base_head"
 git -C "$repo_root" status --short --untracked-files=all

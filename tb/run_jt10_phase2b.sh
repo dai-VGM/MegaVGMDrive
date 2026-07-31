@@ -4,8 +4,10 @@ set -euo pipefail
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 base_head="517f5c2af12527c71b63e819857b9f4221584dec"
 phase2b_head="82290dc61912af144bbf5f0c291e9cbed4ee5ffd"
+phase3a_head="0434e480836013c62aaf878fb6c25991249a443b"
 phase2b_subject="Cover all JT10 SSG tone channels"
 phase3a_subject="Add standalone JT10 ADPCM-A voice 0 bring-up"
+phase3b_subject="Cover all JT10 ADPCM-A voices"
 tmp_root="$(mktemp -d /private/tmp/jt10-phase2b.XXXXXX)"
 trap 'rm -rf "$tmp_root"' EXIT
 
@@ -112,11 +114,16 @@ if [[ "$head_sha" != "$base_head" ]]; then
         [[ "$(git -C "$repo_root" rev-parse HEAD^)" == "$base_head" ]]
         [[ "$(git -C "$repo_root" show -s --format=%s HEAD)" == \
             "$phase2b_subject" ]]
-    else
+    elif [[ "$head_sha" == "$phase3a_head" ]]; then
         [[ "$(git -C "$repo_root" rev-parse HEAD^)" == \
             "$phase2b_head" ]]
         [[ "$(git -C "$repo_root" show -s --format=%s HEAD)" == \
             "$phase3a_subject" ]]
+    else
+        [[ "$(git -C "$repo_root" rev-parse HEAD^)" == \
+            "$phase3a_head" ]]
+        [[ "$(git -C "$repo_root" show -s --format=%s HEAD)" == \
+            "$phase3b_subject" ]]
     fi
 fi
 echo "BASELINE branch=$branch head=$head_sha base=$base_head"

@@ -6,10 +6,12 @@ base_head="cc2cd261744d83aa89c6ffc00c68701ba1bbd60c"
 phase1c_head="bee41751e46c2032ecb8288d15746c44d8bc3ae2"
 phase2a_head="517f5c2af12527c71b63e819857b9f4221584dec"
 phase2b_head="82290dc61912af144bbf5f0c291e9cbed4ee5ffd"
+phase3a_head="0434e480836013c62aaf878fb6c25991249a443b"
 phase1c_subject="Cover all standard JT10 FM channels"
 phase2a_subject="Add standalone JT10 SSG tone bring-up"
 phase2b_subject="Cover all JT10 SSG tone channels"
 phase3a_subject="Add standalone JT10 ADPCM-A voice 0 bring-up"
+phase3b_subject="Cover all JT10 ADPCM-A voices"
 phase1c_tmp="$(mktemp -d /private/tmp/jt10-phase1c.XXXXXX)"
 trap 'rm -rf "$phase1c_tmp"' EXIT
 
@@ -141,11 +143,16 @@ if [[ "$head_sha" != "$base_head" ]]; then
             "$phase2a_head" ]]
         [[ "$(git -C "$repo_root" show -s --format=%s HEAD)" == \
             "$phase2b_subject" ]]
-    else
+    elif [[ "$head_sha" == "$phase3a_head" ]]; then
         [[ "$(git -C "$repo_root" rev-parse HEAD^)" == \
             "$phase2b_head" ]]
         [[ "$(git -C "$repo_root" show -s --format=%s HEAD)" == \
             "$phase3a_subject" ]]
+    else
+        [[ "$(git -C "$repo_root" rev-parse HEAD^)" == \
+            "$phase3a_head" ]]
+        [[ "$(git -C "$repo_root" show -s --format=%s HEAD)" == \
+            "$phase3b_subject" ]]
     fi
 fi
 echo "BASELINE branch=$branch head=$head_sha base=$base_head"
