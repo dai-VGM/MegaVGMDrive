@@ -1,0 +1,5 @@
+tb/jt10_phase0_warmup_wrapper.sv
+tb/jt10_cpu_bus_bfm.sv
+tb/jt10_phase3a_adpcma_rom.sv
+tb/jt10_phase3c_arithmetic_reference.sv
+tb/tb_jt10_phase3c_adpcma_multivoice.sv
