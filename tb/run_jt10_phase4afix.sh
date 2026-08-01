@@ -3,7 +3,9 @@ set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 base_head="48df6033e104c3685488f068f9fe9e4c83c34c01"
-final_subject="Fix JT10 ADPCM-B lifecycle contracts"
+phase4afix_head="7ae45b1b11a1fe8b43c6d214d56639a4c1bd71be"
+phase4afix_subject="Fix JT10 ADPCM-B lifecycle contracts"
+phase4a_subject="Add standalone JT10 ADPCM-B single-shot bring-up"
 pinned_root="$repo_root/tb/jt10_pinned/6d51e0b6"
 blob_manifest="$repo_root/tb/jt10_compat/pristine_blobs.tsv"
 overlay_root="$repo_root/rtl/genesis_audio/jt10_ym2610/adpcm"
@@ -115,9 +117,16 @@ branch="$(git -C "$repo_root" branch --show-current)"
 head_sha="$(git -C "$repo_root" rev-parse HEAD)"
 [[ "$branch" == "ym2610-family-bringup" ]]
 if [[ "$head_sha" != "$base_head" ]]; then
-    [[ "$(git -C "$repo_root" rev-parse HEAD^)" == "$base_head" ]]
-    [[ "$(git -C "$repo_root" show -s --format=%s HEAD)" == \
-        "$final_subject" ]]
+    if [[ "$head_sha" == "$phase4afix_head" ]]; then
+        [[ "$(git -C "$repo_root" rev-parse HEAD^)" == "$base_head" ]]
+        [[ "$(git -C "$repo_root" show -s --format=%s HEAD)" == \
+            "$phase4afix_subject" ]]
+    else
+        [[ "$(git -C "$repo_root" rev-parse HEAD^)" == \
+            "$phase4afix_head" ]]
+        [[ "$(git -C "$repo_root" show -s --format=%s HEAD)" == \
+            "$phase4a_subject" ]]
+    fi
 fi
 git -C "$repo_root" diff --cached --quiet
 echo "BASELINE branch=$branch head=$head_sha base=$base_head"
