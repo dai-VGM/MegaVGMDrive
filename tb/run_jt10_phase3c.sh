@@ -116,15 +116,18 @@ echo "== Phase 3C baseline =="
 branch="$(git -C "$repo_root" branch --show-current)"
 head_sha="$(git -C "$repo_root" rev-parse HEAD)"
 [[ "$branch" == "ym2610-family-bringup" ]]
-if [[ "$head_sha" != "$base_head" ]]; then
+if [[ "${JT10_PHASE4AFIX_REGRESSION:-0}" != 1 &&
+      "$head_sha" != "$base_head" ]]; then
     [[ "$(git -C "$repo_root" rev-parse HEAD^)" == "$base_head" ]]
     [[ "$(git -C "$repo_root" show -s --format=%s HEAD)" == \
         "$phase3c_subject" ]]
 fi
 echo "BASELINE branch=$branch head=$head_sha base=$base_head"
 git -C "$repo_root" status --short --untracked-files=all
-git -C "$repo_root" diff --quiet
-git -C "$repo_root" diff --cached --quiet
+if [[ "${JT10_PHASE4AFIX_REGRESSION:-0}" != 1 ]]; then
+    git -C "$repo_root" diff --quiet
+    git -C "$repo_root" diff --cached --quiet
+fi
 
 sacred_sha_before="$(shasum -a 256 "$sacred_tb" | awk '{print $1}')"
 sacred_stat_before="$(stat -f 'size=%z mtime=%m inode=%i' "$sacred_tb")"
@@ -180,6 +183,12 @@ copy_sources "$work_root"
 copy_sources "$repeat_root"
 apply_compatibility "$work_root"
 apply_compatibility "$repeat_root"
+if [[ -n "${JT10_OVERLAY_ROOT:-}" ]]; then
+    "$repo_root/tb/jt10_phase4afix_apply_overlay.sh" \
+        "$work_root" "$JT10_OVERLAY_ROOT"
+    "$repo_root/tb/jt10_phase4afix_apply_overlay.sh" \
+        "$repeat_root" "$JT10_OVERLAY_ROOT"
+fi
 tree_digest "$work_root" > "$tmp_root/work.sha256"
 tree_digest "$repeat_root" > "$tmp_root/repeat.sha256"
 diff -u "$tmp_root/work.sha256" "$tmp_root/repeat.sha256"

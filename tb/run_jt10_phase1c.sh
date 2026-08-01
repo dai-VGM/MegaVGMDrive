@@ -128,7 +128,8 @@ echo "== Phase 1C baseline =="
 branch="$(git -C "$repo_root" branch --show-current)"
 head_sha="$(git -C "$repo_root" rev-parse HEAD)"
 [[ "$branch" == "ym2610-family-bringup" ]]
-if [[ "$head_sha" != "$base_head" ]]; then
+if [[ "${JT10_PHASE4AFIX_REGRESSION:-0}" != 1 &&
+      "$head_sha" != "$base_head" ]]; then
     if [[ "$head_sha" == "$phase1c_head" ]]; then
         [[ "$(git -C "$repo_root" rev-parse HEAD^)" == "$base_head" ]]
         [[ "$(git -C "$repo_root" show -s --format=%s HEAD)" == \
@@ -209,6 +210,12 @@ copy_sources "$work_root"
 copy_sources "$repeat_root"
 apply_compatibility "$work_root"
 apply_compatibility "$repeat_root"
+if [[ -n "${JT10_OVERLAY_ROOT:-}" ]]; then
+    "$repo_root/tb/jt10_phase4afix_apply_overlay.sh" \
+        "$work_root" "$JT10_OVERLAY_ROOT"
+    "$repo_root/tb/jt10_phase4afix_apply_overlay.sh" \
+        "$repeat_root" "$JT10_OVERLAY_ROOT"
+fi
 tree_digest "$work_root" > "$phase1c_tmp/work-tree.sha256"
 tree_digest "$repeat_root" > "$phase1c_tmp/repeat-tree.sha256"
 diff -u "$phase1c_tmp/work-tree.sha256" \

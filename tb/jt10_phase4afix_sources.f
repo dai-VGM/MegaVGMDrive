@@ -1,0 +1,3 @@
+tb/jt10_phase0_warmup_wrapper.sv
+tb/jt10_cpu_bus_bfm.sv
+tb/tb_jt10_phase4afix_adpcmb_lifecycle.sv
