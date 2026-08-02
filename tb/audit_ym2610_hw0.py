@@ -16,13 +16,20 @@ def check(condition: bool, message: str) -> None:
         raise RuntimeError(message)
 
 
-def qip_paths(path: Path) -> list[Path]:
-    found: list[Path] = []
+def qip_path_rows(path: Path) -> list[tuple[str, Path]]:
+    found: list[tuple[str, Path]] = []
     for line in path.read_text().splitlines():
         match = re.search(r"\$::quartus\(qip_path\)\s+([^\]\s]+)", line)
         if match:
-            found.append((path.parent / match.group(1)).resolve())
+            relative = match.group(1)
+            check(not Path(relative).is_absolute(),
+                  f"absolute QIP path in {path.name}: {relative}")
+            found.append((relative, (path.parent / relative).resolve()))
     return found
+
+
+def qip_paths(path: Path) -> list[Path]:
+    return [resolved for _, resolved in qip_path_rows(path)]
 
 
 def modules(path: Path) -> list[str]:
@@ -82,10 +89,21 @@ def main() -> int:
     check("PROJECT_OUTPUT_DIRECTORY output_files" in qsf_text,
           "output directory")
     check("GENERATE_RBF_FILE ON" in qsf_text, "RBF generation")
-    check("source sys_ym2610_hw0.tcl" in qsf_text, "board Tcl source")
-    check("source ../../sys/sys_analog.tcl" in qsf_text,
-          "analog board Tcl source")
-    check("source files_ym2610_hw0.qip" in qsf_text, "HW-0 QIP source")
+    qsf_sources = re.findall(r"(?m)^\s*source\s+(\S+)\s*$", qsf_text)
+    check(qsf_sources == ["sys_ym2610_hw0.tcl",
+                          "../../sys/sys_analog.tcl"],
+          "unexpected QSF source command")
+    check(qsf_sources.count("files_ym2610_hw0.qip") == 0,
+          "HW-0 QIP must not be executed with source")
+    qsf_qip_files = re.findall(
+        r"(?m)^\s*set_global_assignment\s+-name\s+QIP_FILE\s+(\S+)\s*$",
+        qsf_text)
+    check(qsf_qip_files == ["files_ym2610_hw0.qip"],
+          "HW-0 QIP_FILE assignment must occur exactly once")
+    check(not Path(qsf_qip_files[0]).is_absolute(),
+          "HW-0 QIP_FILE assignment is absolute")
+    check((qsf.parent / qsf_qip_files[0]).resolve() == core_qip.resolve(),
+          "HW-0 QIP_FILE path is not relative to its QSF")
     check(not re.search(r"(?:/Users/|[A-Za-z]:[\\/]|/tmp/|/private/tmp/)",
                         all_project_text), "absolute path")
 
@@ -127,7 +145,16 @@ def main() -> int:
     check(all(token.lower() not in lowered for token in forbidden),
           "forbidden HW-0 source dependency")
 
-    source_paths = qip_paths(core_qip) + qip_paths(sys_qip)
+    core_qip_rows = qip_path_rows(core_qip)
+    sys_qip_rows = qip_path_rows(sys_qip)
+    for qip, rows in ((core_qip, core_qip_rows),
+                      (sys_qip, sys_qip_rows)):
+        assignment_count = len(re.findall(
+            r"(?m)^\s*set_global_assignment\s+-name\s+\S+", qip.read_text()))
+        check(len(rows) == assignment_count,
+              f"QIP assignment without qip_path context: {qip.name}")
+    source_paths = ([resolved for _, resolved in core_qip_rows] +
+                    [resolved for _, resolved in sys_qip_rows])
     check(len(source_paths) == len(set(source_paths)), "duplicate source path")
     missing = [path for path in source_paths if not path.is_file()]
     check(not missing, "missing source: " + ", ".join(map(str, missing)))
@@ -202,10 +229,12 @@ def main() -> int:
           "898ae5a61d7c1f94d9f824a9007fcadff65383f9", "production QSF blob")
 
     source_assignments = [
-        str(path.relative_to(ROOT)) for path in qip_paths(core_qip)
+        str(path.relative_to(ROOT)) for _, path in core_qip_rows
     ]
     print("HW0_STATIC top=sys_top family=Cyclone_V device=5CSEBA6U23I7 "
           f"sources={len(source_paths)} core_sources={len(source_assignments)}")
+    print("HW0_QIP registration=QIP_FILE qsf_qip_file=1 "
+          "qsf_direct_source=0 qip_path_expansion=SIMULATED_PASS")
     for source in source_assignments:
         print(f"HW0_SOURCE {source}")
     print("HW0_STATIC board_pin_timing=exact path_audit=PASS "

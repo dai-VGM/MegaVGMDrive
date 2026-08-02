@@ -87,15 +87,23 @@ phase/error controls, each PSG channel and sum, and address/data during every
 valid A/B ROM request. An upstream idle ADPCM-A output-enable pipeline is a
 don't-care until it owns a request; it is not treated as a valid fetch.
 
-## QSF source assignments saved for audit
+## QSF/QIP assignments saved for audit
 
-The QSF contains exactly these source directives:
+The QSF uses Tcl `source` only for the two board adapters and registers the
+core QIP through Quartus' `QIP_FILE` assignment:
 
 ```tcl
 source sys_ym2610_hw0.tcl
 source ../../sys/sys_analog.tcl
-source files_ym2610_hw0.qip
+set_global_assignment -name QIP_FILE files_ym2610_hw0.qip
 ```
+
+The core QIP is not executed directly as Tcl. Quartus supplies
+`$::quartus(qip_path)` while processing a `QIP_FILE`; direct `source` from the
+QSF does not provide that QIP context. The static audit requires zero direct
+QIP `source` commands and exactly one QSF `QIP_FILE` assignment. Without
+running Quartus, it also models `$::quartus(qip_path)` as the directory holding
+each QIP, expands every relative path, and requires every target to exist.
 
 The board adapter selects `sys_ym2610_hw0.qip`; the core QIP assigns 66 files:
 
