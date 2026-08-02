@@ -2,8 +2,20 @@
 
 module tb_ym2610_hw0_top;
     localparam logic [63:0] FNV_OFFSET = 64'hcbf29ce484222325;
+    localparam integer SIM_BOOT = 256;
+    localparam integer SIM_PREROLL = 128;
+    localparam integer SIM_DWELL = 8193;
+    localparam integer SIM_INTER = 128;
+    localparam integer SIM_PAN = 2048;
+    localparam integer SIM_PAN_INTER = 128;
+    // Keep the established Phase 4A natural-restart settling window while
+    // the exact-count pacing TB separately proves the 79901-tick hardware
+    // interval.
+    localparam integer SIM_NATURAL_SILENCE = 512;
+    localparam integer SIM_FINAL = 256;
     logic clk = 1'b0;
     logic reset = 1'b1;
+    logic video_reset = 1'b1;
     integer run_id = 1;
     integer failures = 0;
     integer system_cycle = 0;
@@ -14,20 +26,33 @@ module tb_ym2610_hw0_top;
     integer width_errors = 0;
     integer drops = 0;
     integer duplicates = 0;
+    integer tick_missed = 0;
+    integer tick_duplicates = 0;
     integer x_count = 0;
     integer public_width = 0;
     integer cold_zero_samples = 0;
     integer final_zero_samples = 0;
-    integer phase_order_index = 0;
+    integer phase_transition_index = 0;
+    integer color_visits [1:7];
+    integer loop_hash_index = 0;
+    integer color_event_tick [0:1][0:7];
+    integer sound_event_tick [0:1][0:8];
+    integer stop_event_tick [0:1][0:8];
+    integer zero_event_tick [0:1][0:8];
+    integer sound_event_index = 0;
+    integer stop_event_index = 0;
+    integer zero_event_index = 0;
     integer pan_leak = 0;
     integer left_nonzero = 0;
     integer right_nonzero = 0;
-    integer natural_logical [0:1];
-    integer natural_zero_latency [0:1];
+    integer natural_logical [0:3];
+    integer natural_public [0:3];
+    integer natural_zero_latency [0:3];
     integer natural_run = -1;
     integer zero_wait_samples = 0;
     integer stale_prefix = 0;
     integer x_audio = 0;
+    integer x_internal = 0;
     integer x_control = 0;
     integer x_psg = 0;
     integer x_rom_a = 0;
@@ -47,13 +72,15 @@ module tb_ym2610_hw0_top;
     logic previous_measurement = 1'b0;
     logic previous_b_active = 1'b0;
     logic previous_b_eos = 1'b0;
-    logic [3:0] last_audible_phase = 4'd0;
-    logic [15:0] first_prefix_l [0:15];
-    logic [15:0] first_prefix_r [0:15];
-    integer prefix_count [0:1];
-    logic [63:0] phase_hash [1:5];
-    integer phase_hash_count [1:5];
-    logic [63:0] natural_hash [0:1];
+    logic previous_external_mute = 1'b1;
+    logic [6:0] previous_segment_state = 7'd0;
+    logic [3:0] last_display_phase = 4'd0;
+    logic [15:0] first_prefix_l [0:1][0:15];
+    logic [15:0] first_prefix_r [0:1][0:15];
+    integer prefix_count [0:3];
+    logic [63:0] phase_hash [0:1][1:5];
+    integer phase_hash_count [0:1][1:5];
+    logic [63:0] natural_hash [0:3];
 
     wire signed [15:0] audio_l;
     wire signed [15:0] audio_r;
@@ -61,9 +88,15 @@ module tb_ym2610_hw0_top;
     wire video_ce, video_hs, video_vs, video_de;
     wire [7:0] video_r, video_g, video_b;
     wire [3:0] debug_phase;
+    wire [6:0] debug_segment_state;
+    wire [2:0] debug_startup_state;
+    wire debug_external_mute, debug_sample_tick;
+    wire [31:0] debug_sample_tick_count;
+    wire debug_sample_cadence_error, debug_sample_width_error;
     wire [7:0] debug_microcode_index;
     wire [31:0] debug_accepted_writes;
     wire debug_busy_timeout, debug_write_while_busy;
+    wire debug_zero_timeout, debug_phase_error;
     wire [15:0] debug_restart_count;
     wire debug_measurement_active;
     wire [3:0] debug_measurement_phase;
@@ -109,8 +142,9 @@ module tb_ym2610_hw0_top;
     task automatic fail(input [8*64-1:0] message);
         begin
             failures = failures + 1;
-            $display("HW0_FAIL run=%0d cycle=%0d reason=%0s",
-                     run_id, system_cycle, message);
+            $display("HW0_FAIL run=%0d cycle=%0d tick=%0d state=%0d phase=%0d reason=%0s",
+                     run_id,system_cycle,debug_sample_tick_count,
+                     debug_segment_state,debug_phase,message);
         end
     endtask
 
@@ -120,6 +154,7 @@ module tb_ym2610_hw0_top;
         logic public_rise;
         logic internal_rise;
         integer p;
+        integer li;
         system_cycle = system_cycle + 1;
         #1;
         public_rise = audio_sample && !previous_public;
@@ -150,8 +185,19 @@ module tb_ym2610_hw0_top;
                         $isunknown(audio_sample));
                 x_audio=x_audio+1;
             end
-            if ($isunknown(debug_phase) || $isunknown(debug_busy_timeout) ||
-                $isunknown(debug_write_while_busy)) begin
+            if ($isunknown(dut.internal_left) ||
+                $isunknown(dut.internal_right) ||
+                $isunknown(dut.internal_sample))
+                x_internal=x_internal+1;
+            if ($isunknown(debug_phase) ||
+                $isunknown(debug_segment_state) ||
+                $isunknown(debug_startup_state) ||
+                $isunknown(debug_external_mute) ||
+                $isunknown(debug_sample_tick) ||
+                $isunknown(debug_busy_timeout) ||
+                $isunknown(debug_write_while_busy) ||
+                $isunknown(debug_zero_timeout) ||
+                $isunknown(debug_phase_error)) begin
                 x_control=x_control+1;
             end
             if ($isunknown(debug_psg_a) || $isunknown(debug_psg_b) ||
@@ -171,17 +217,36 @@ module tb_ym2610_hw0_top;
             if (debug_adpcmb_request &&
                 ($isunknown(debug_adpcmb_addr) ||
                  $isunknown(dut.adpcmb_data))) x_rom_b=x_rom_b+1;
-            x_count = x_audio + x_control + x_psg + x_rom_a + x_rom_b;
+            x_count = x_audio+x_internal+x_control+x_psg+x_rom_a+x_rom_b;
             if (internal_rise) internal_samples = internal_samples + 1;
             if (internal_rise && !audio_sample) drops = drops + 1;
             if (public_rise) begin
                 public_samples = public_samples + 1;
                 if (!internal_rise) duplicates = duplicates + 1;
+                if (!debug_sample_tick) tick_missed = tick_missed + 1;
                 if (last_public_cycle >= 0 &&
                     system_cycle - last_public_cycle != 144)
                     cadence_errors = cadence_errors + 1;
                 last_public_cycle = system_cycle;
+                if (debug_external_mute && (audio_l != 0 || audio_r != 0))
+                    fail("EXTERNAL_MUTE_NONZERO");
+                case (debug_segment_state)
+                    7'd1,7'd3,7'd10,7'd11,7'd18,7'd19,
+                    7'd25,7'd26,7'd32,7'd33,7'd39,7'd40,
+                    7'd46,7'd47,7'd53,7'd54,7'd59,7'd65: begin
+                        if (!debug_external_mute)
+                            fail("SILENCE_NOT_MUTED");
+                        if (dut.internal_left != 0 || dut.internal_right != 0)
+                            fail("INTERNAL_SILENCE_NONZERO");
+                    end
+                    default: ;
+                endcase
+                if (debug_segment_state == 7'd1 &&
+                    debug_accepted_writes != 0)
+                    fail("BOOT_WRITE");
             end
+            if (debug_sample_tick && !public_rise)
+                tick_duplicates = tick_duplicates + 1;
             if (audio_sample) public_width = public_width + 1;
             else if (previous_public) begin
                 if (public_width != 6) width_errors = width_errors + 1;
@@ -189,15 +254,60 @@ module tb_ym2610_hw0_top;
             end
         end
 
-        if (!reset && debug_phase != 0 &&
-            debug_phase != last_audible_phase) begin
-            if (debug_phase != phase_order_index + 1)
-                fail("PHASE_ORDER");
-            phase_order_index = debug_phase;
-            last_audible_phase = debug_phase;
-            $display("HW0_PHASE run=%0d phase=%0d cycle=%0d writes=%0d",
-                     run_id, debug_phase, system_cycle,
-                     debug_accepted_writes);
+        if (!reset && debug_phase != last_display_phase) begin
+            if (debug_phase != 0) begin
+                if (phase_transition_index < 16)
+                    color_event_tick[phase_transition_index/8]
+                                    [phase_transition_index%8] =
+                        debug_sample_tick_count;
+                case (phase_transition_index % 8)
+                    0: if (debug_phase != 1) fail("PHASE_ORDER_FM");
+                    1: if (debug_phase != 2) fail("PHASE_ORDER_SSG");
+                    2: if (debug_phase != 3) fail("PHASE_ORDER_A0");
+                    3: if (debug_phase != 4) fail("PHASE_ORDER_A6");
+                    4: if (debug_phase != 5) fail("PHASE_ORDER_B");
+                    5,6: if (debug_phase != 6) fail("PHASE_ORDER_PAN");
+                    default: if (debug_phase != 7)
+                        fail("PHASE_ORDER_NATURAL");
+                endcase
+                phase_transition_index = phase_transition_index + 1;
+                color_visits[debug_phase] =
+                    color_visits[debug_phase] + 1;
+                $display("HW0_PHASE run=%0d loop=%0d phase=%0d tick=%0d state=%0d writes=%0d",
+                         run_id, debug_restart_count, debug_phase,
+                         debug_sample_tick_count, debug_segment_state,
+                         debug_accepted_writes);
+            end
+            last_display_phase = debug_phase;
+        end
+
+        if (!reset && !debug_external_mute && previous_external_mute) begin
+            if (sound_event_index < 18)
+                sound_event_tick[sound_event_index/9]
+                                [sound_event_index%9] =
+                    debug_sample_tick_count;
+            sound_event_index = sound_event_index + 1;
+        end
+        if (!reset && debug_external_mute && !previous_external_mute) begin
+            if (zero_event_index < 18)
+                zero_event_tick[zero_event_index/9]
+                               [zero_event_index%9] =
+                    debug_sample_tick_count;
+            zero_event_index = zero_event_index + 1;
+        end
+        if (!reset && debug_segment_state != previous_segment_state) begin
+            case (debug_segment_state)
+                7'd8,7'd16,7'd23,7'd30,7'd37,7'd44,7'd51,
+                7'd58,7'd63: begin
+                    if (stop_event_index < 18)
+                        stop_event_tick[stop_event_index/9]
+                                       [stop_event_index%9] =
+                            debug_sample_tick_count;
+                    stop_event_index = stop_event_index + 1;
+                end
+                default: ;
+            endcase
+            previous_segment_state = debug_segment_state;
         end
 
         if (public_rise) begin
@@ -206,29 +316,30 @@ module tb_ym2610_hw0_top;
                 if (debug_psg_b != 0 || debug_psg_c != 0)
                     psg_bc_spurious = psg_bc_spurious + 1;
             end
-            if (phase_order_index == 0 && debug_phase == 0 &&
-                dut.u_sequencer.high_state == 6'd1 &&
+            if (debug_restart_count == 0 && debug_phase == 0 &&
+                debug_segment_state == 7'd1 &&
                 !dut.u_sequencer.program_active) begin
                 if (audio_l != 0 || audio_r != 0) fail("COLD_NONZERO");
                 cold_zero_samples = cold_zero_samples + 1;
             end
-            if (phase_order_index == 7 && debug_phase == 0 &&
-                dut.u_sequencer.high_state == 6'd46) begin
+            if (debug_phase == 0 && debug_segment_state == 7'd65) begin
                 if (audio_l != 0 || audio_r != 0) fail("FINAL_NONZERO");
                 final_zero_samples = final_zero_samples + 1;
             end
 
             p = debug_measurement_phase;
+            li = debug_restart_count == 0 ? 0 : 1;
             if (debug_measurement_active && p >= 1 && p <= 5 &&
-                phase_hash_count[p] < (p == 4 ? 8192 :
-                                       p == 5 ? 4097 : 4096)) begin
+                phase_hash_count[li][p] < (p == 4 ? 8192 :
+                                           p == 5 ? 4097 : 4096)) begin
                 // Phase 4A's 4096-sample post-START goal includes one active
                 // boundary sample already seen by its monitor, hence 4097
                 // active-lane samples in the published hash.
                 if (p != 5 || b_chon) begin
-                    phase_hash[p] = hash_stereo(phase_hash[p],
-                                                audio_l, audio_r);
-                    phase_hash_count[p] = phase_hash_count[p] + 1;
+                    phase_hash[li][p] = hash_stereo(phase_hash[li][p],
+                                                    audio_l, audio_r);
+                    phase_hash_count[li][p] =
+                        phase_hash_count[li][p] + 1;
                 end
             end
 
@@ -241,24 +352,35 @@ module tb_ym2610_hw0_top;
                     if (audio_r != 0) right_nonzero = right_nonzero + 1;
                 end
             end
-            if (natural_run >= 0 && natural_run <= 1 && b_chon) begin
+            // The Phase 4A restart anchor is exactly the first 1024 public
+            // samples (512 logical nibbles).  Raw decoder chon may remain set
+            // after EOS until a later command RESET, so never extend the
+            // audio window with post-EOS digital zero.
+            if (natural_run >= 0 && natural_run <= 3 && b_chon &&
+                natural_public[natural_run] < 1024) begin
+                natural_public[natural_run] =
+                    natural_public[natural_run] + 1;
                 natural_hash[natural_run] = hash_stereo(
                     natural_hash[natural_run], audio_l, audio_r);
                 if (prefix_count[natural_run] < 16) begin
-                    if (natural_run == 0) begin
-                        first_prefix_l[prefix_count[0]] = audio_l;
-                        first_prefix_r[prefix_count[0]] = audio_r;
+                    if ((natural_run & 1) == 0) begin
+                        first_prefix_l[natural_run >> 1]
+                                      [prefix_count[natural_run]] = audio_l;
+                        first_prefix_r[natural_run >> 1]
+                                      [prefix_count[natural_run]] = audio_r;
                     end else if (audio_l !==
-                                 first_prefix_l[prefix_count[1]] ||
+                                 first_prefix_l[natural_run >> 1]
+                                               [prefix_count[natural_run]] ||
                                  audio_r !==
-                                 first_prefix_r[prefix_count[1]]) begin
+                                 first_prefix_r[natural_run >> 1]
+                                               [prefix_count[natural_run]]) begin
                         stale_prefix = stale_prefix + 1;
                     end
                     prefix_count[natural_run] =
                         prefix_count[natural_run] + 1;
                 end
             end
-            if (natural_run >= 0 && natural_run <= 1 &&
+            if (natural_run >= 0 && natural_run <= 3 &&
                 !b_chon && debug_adpcmb_eos &&
                 natural_zero_latency[natural_run] < 0) begin
                 if (audio_l == 0 && audio_r == 0)
@@ -278,23 +400,23 @@ module tb_ym2610_hw0_top;
             phase5_zero_latency = -1;
         end
         if (phase5_stop_seen && debug_phase == 0 &&
-            dut.u_sequencer.high_state == 6'd28 &&
+            debug_segment_state == 7'd38 &&
             debug_adpcmb_request === 1'b1)
             phase5_request_after_stop = phase5_request_after_stop + 1;
 
         if (debug_phase == 7 && b_chon && !previous_b_active) begin
             natural_run = natural_run + 1;
-            if (natural_run > 1) fail("NATURAL_EXTRA_START");
+            if (natural_run > 3) fail("NATURAL_EXTRA_START");
             $display("HW0_NATURAL_START run=%0d playback=%0d address=%06h",
                      run_id, natural_run, debug_adpcmb_addr);
         end
         if (debug_phase == 7 && !b_chon && previous_b_active &&
-            natural_run >= 0 && natural_run <= 1) begin
+            natural_run >= 0 && natural_run <= 3) begin
             zero_wait_samples = 0;
             natural_zero_latency[natural_run] = -1;
         end
         if (debug_phase == 7 && b_logical && natural_run >= 0 &&
-            natural_run <= 1)
+            natural_run <= 3)
             natural_logical[natural_run] = natural_logical[natural_run] + 1;
 
         previous_public = audio_sample;
@@ -302,25 +424,38 @@ module tb_ym2610_hw0_top;
         previous_measurement = debug_measurement_active;
         previous_b_active = b_chon;
         previous_b_eos = debug_adpcmb_eos;
+        previous_external_mute = debug_external_mute;
     end
 
     ym2610_hw0_top #(
         .FAST_SIM(1'b1),
-`ifdef HW0_TUNE
-        .BOOT_SAMPLES(1024)
-`else
-        .BOOT_SAMPLES(32768)
-`endif
+        .BOOT_SAMPLES(SIM_BOOT),
+        .COLOR_PREROLL_SAMPLES(SIM_PREROLL),
+        .SOUND_DWELL_SAMPLES(SIM_DWELL),
+        .INTER_SILENCE_SAMPLES(SIM_INTER),
+        .PAN_DWELL_SAMPLES(SIM_PAN),
+        .PAN_INTER_SAMPLES(SIM_PAN_INTER),
+        .NATURAL_SILENCE_SAMPLES(SIM_NATURAL_SILENCE),
+        .FINAL_SILENCE_SAMPLES(SIM_FINAL)
     ) dut (
-        .clk_sys(clk), .reset(reset),
+        .clk_sys(clk), .reset(reset), .video_reset(video_reset),
         .audio_l(audio_l), .audio_r(audio_r), .audio_sample(audio_sample),
         .video_ce(video_ce), .video_hs(video_hs), .video_vs(video_vs),
         .video_de(video_de), .video_r(video_r), .video_g(video_g),
         .video_b(video_b), .debug_phase(debug_phase),
+        .debug_segment_state(debug_segment_state),
+        .debug_startup_state(debug_startup_state),
+        .debug_external_mute(debug_external_mute),
+        .debug_sample_tick(debug_sample_tick),
+        .debug_sample_tick_count(debug_sample_tick_count),
+        .debug_sample_cadence_error(debug_sample_cadence_error),
+        .debug_sample_width_error(debug_sample_width_error),
         .debug_microcode_index(debug_microcode_index),
         .debug_accepted_writes(debug_accepted_writes),
         .debug_busy_timeout(debug_busy_timeout),
         .debug_write_while_busy(debug_write_while_busy),
+        .debug_zero_timeout(debug_zero_timeout),
+        .debug_phase_error(debug_phase_error),
         .debug_restart_count(debug_restart_count),
         .debug_measurement_active(debug_measurement_active),
         .debug_measurement_phase(debug_measurement_phase),
@@ -340,60 +475,79 @@ module tb_ym2610_hw0_top;
     );
 
     initial begin
-        integer i;
+        integer i, j;
         if (!$value$plusargs("RUN_ID=%d", run_id)) run_id = 1;
-        for (i = 1; i <= 5; i = i + 1) begin
-            phase_hash[i] = FNV_OFFSET;
-            phase_hash_count[i] = 0;
+        for (j = 0; j < 2; j = j + 1) begin
+            for (i = 1; i <= 5; i = i + 1) begin
+                phase_hash[j][i] = FNV_OFFSET;
+                phase_hash_count[j][i] = 0;
+            end
+            for (i = 0; i < 9; i = i + 1) begin
+                sound_event_tick[j][i]=0;
+                stop_event_tick[j][i]=0;
+                zero_event_tick[j][i]=0;
+                if (i < 8) color_event_tick[j][i]=0;
+            end
         end
-        for (i = 0; i < 2; i = i + 1) begin
+        for (i = 0; i < 4; i = i + 1) begin
             natural_hash[i] = FNV_OFFSET;
             natural_logical[i] = 0;
+            natural_public[i] = 0;
             natural_zero_latency[i] = -1;
             prefix_count[i] = 0;
         end
+        for (i = 1; i <= 7; i = i + 1) color_visits[i] = 0;
 
         repeat (4) @(posedge clk);
+        video_reset = 1'b0;
         repeat (64) @(posedge clk);
         @(negedge clk);
         reset = 1'b0;
 
         fork
             begin
-                wait (debug_restart_count >= 1);
+                wait (debug_restart_count >= 2);
             end
             begin
-                repeat (22000000) @(posedge clk);
+                repeat (50000000) @(posedge clk);
                 fail("FULL_LOOP_TIMEOUT");
             end
         join_any
         disable fork;
         repeat (32) @(posedge clk);
 
-        if (debug_halted || debug_busy_timeout ||
-            debug_write_while_busy) fail("SEQUENCER_ERROR");
+        if (debug_halted || debug_busy_timeout || debug_write_while_busy ||
+            debug_zero_timeout || debug_phase_error)
+            fail("SEQUENCER_ERROR");
         if (debug_reset_cen_count != 6) fail("RESET_CEN_COUNT");
-        if (phase_order_index != 7) fail("PHASES_INCOMPLETE");
-`ifndef HW0_TUNE
-        if (cold_zero_samples < 32768) fail("COLD_SILENCE_SHORT");
-        if (final_zero_samples < 32768) fail("FINAL_SILENCE_SHORT");
-`endif
+        if (phase_transition_index != 17) fail("PHASES_INCOMPLETE");
+        if (sound_event_index != 18 || stop_event_index != 18 ||
+            zero_event_index != 18) fail("TIMELINE_EVENT_COUNT");
+        for (i = 1; i <= 7; i = i + 1)
+            if (color_visits[i] != (i == 1 ? 3 : i == 6 ? 4 : 2))
+                fail("COLOR_VISIT_COUNT");
+        if (cold_zero_samples < SIM_BOOT) fail("COLD_SILENCE_SHORT");
+        if (final_zero_samples < 2*SIM_FINAL) fail("FINAL_SILENCE_SHORT");
         if (cadence_errors != 0 || width_errors != 0 ||
-            drops != 0 || duplicates != 0) fail("SAMPLE_CONTRACT");
+            drops != 0 || duplicates != 0 || tick_missed != 0 ||
+            tick_duplicates != 0 || debug_sample_cadence_error ||
+            debug_sample_width_error) fail("SAMPLE_CONTRACT");
         if (pre_ready_x != 0 || pre_ready_nonzero != 0)
             fail("PRE_READY_AUDIO");
         if (x_count != 0) fail("PUBLIC_X");
-        if (phase_hash_count[1] != 4096 ||
-            phase_hash[1] != 64'h8aadd7a6819038e5) fail("FM_HASH");
-        if (phase_hash_count[2] != 4096 ||
-            phase_hash[2] != 64'h54730095b12b6325) fail("SSG_HASH");
-        if (phase_hash_count[3] != 4096 ||
-            phase_hash[3] != 64'hadf8cc2f2f81c1b9) fail("ADPCMA0_HASH");
-        if (phase_hash_count[4] != 8192 ||
-            phase_hash[4] != 64'h32cb891931682fe9) fail("ADPCMA6_HASH");
+        for (j = 0; j < 2; j = j + 1) begin
+            if (phase_hash_count[j][1] != 4096 ||
+                phase_hash[j][1] != 64'h8aadd7a6819038e5) fail("FM_HASH");
+            if (phase_hash_count[j][2] != 4096 ||
+                phase_hash[j][2] != 64'h54730095b12b6325) fail("SSG_HASH");
+            if (phase_hash_count[j][3] != 4096 ||
+                phase_hash[j][3] != 64'hadf8cc2f2f81c1b9) fail("ADPCMA0_HASH");
+            if (phase_hash_count[j][4] != 8192 ||
+                phase_hash[j][4] != 64'h32cb891931682fe9) fail("ADPCMA6_HASH");
+            if (phase_hash_count[j][5] != 4097 ||
+                phase_hash[j][5] != 64'h1207d84363d4ed39) fail("ADPCMB_HASH");
+        end
         if (a6_overflow_events != 0) fail("ADPCMA6_OVERFLOW");
-        if (phase_hash_count[5] != 4097 ||
-            phase_hash[5] != 64'h1207d84363d4ed39) fail("ADPCMB_HASH");
         if (!phase5_stop_seen || phase5_zero_latency < 0 ||
             phase5_zero_latency > 3 || phase5_request_after_stop != 0)
             fail("ADPCMB_RESET_STOP");
@@ -403,35 +557,389 @@ module tb_ym2610_hw0_top;
             fail("SSG_ISOLATION");
         if (unexpected_adpcm_requests != 0)
             fail("ADPCM_IDLE_FETCH");
-        if (natural_logical[0] != 512 || natural_logical[1] != 512)
-            fail("NATURAL_LOGICAL_COUNT");
-        if (natural_zero_latency[0] < 0 || natural_zero_latency[0] > 4 ||
-            natural_zero_latency[1] < 0 || natural_zero_latency[1] > 4)
-            fail("NATURAL_ZERO_LATENCY");
-        if (natural_hash[0] != natural_hash[1] || stale_prefix != 0)
+        for (i = 0; i < 4; i = i + 1) begin
+            if (natural_logical[i] != 512) fail("NATURAL_LOGICAL_COUNT");
+            if (natural_zero_latency[i] < 0 ||
+                natural_zero_latency[i] > 4) fail("NATURAL_ZERO_LATENCY");
+            if (natural_hash[i] != 64'he142f7da424b1531)
+                fail("NATURAL_HASH");
+        end
+        if (natural_hash[0] != natural_hash[1] ||
+            natural_hash[0] != natural_hash[2] ||
+            natural_hash[0] != natural_hash[3] || stale_prefix != 0)
             fail("NATURAL_RESTART");
 
-        $display("HW0_HASH run=%0d fm=%016h ssg=%016h a0=%016h a6=%016h b=%016h counts=%0d/%0d/%0d/%0d/%0d",
-            run_id, phase_hash[1], phase_hash[2], phase_hash[3],
-            phase_hash[4], phase_hash[5], phase_hash_count[1],
-            phase_hash_count[2], phase_hash_count[3],
-            phase_hash_count[4], phase_hash_count[5]);
-        $display("HW0_CONTRACT run=%0d writes=%0d timeout=%0d busy_write=%0d cadence_errors=%0d width_errors=%0d drops=%0d duplicates=%0d x=%0d cold=%0d final=%0d b_reset_zero=%0d b_post_request=%0d pan_leak=%0d pan_nonzero=%0d/%0d natural=%0d/%0d zero=%0d/%0d restart_hash=%016h/%016h stale=%0d loops=%0d",
+        for (j = 0; j < 2; j = j + 1) begin
+            for (i = 0; i < 8; i = i + 1) begin
+                if (sound_event_tick[j][i] < color_event_tick[j][i] +
+                                                   SIM_PREROLL)
+                    fail("COLOR_START_ORDER");
+                if (stop_event_tick[j][i] <= sound_event_tick[j][i] ||
+                    zero_event_tick[j][i] <= stop_event_tick[j][i])
+                    fail("STOP_ZERO_ORDER");
+            end
+            if (stop_event_tick[j][8] <= sound_event_tick[j][8] ||
+                zero_event_tick[j][8] <= stop_event_tick[j][8])
+                fail("RESTART_STOP_ZERO_ORDER");
+        end
+
+        $display("HW0_HASH run=%0d fm=%016h ssg=%016h a0=%016h a6=%016h b=%016h counts=%0d/%0d/%0d/%0d/%0d loop2=%016h/%016h/%016h/%016h/%016h",
+            run_id, phase_hash[0][1], phase_hash[0][2], phase_hash[0][3],
+            phase_hash[0][4], phase_hash[0][5], phase_hash_count[0][1],
+            phase_hash_count[0][2], phase_hash_count[0][3],
+            phase_hash_count[0][4], phase_hash_count[0][5],
+            phase_hash[1][1],phase_hash[1][2],phase_hash[1][3],
+            phase_hash[1][4],phase_hash[1][5]);
+        $display("HW0_CONTRACT run=%0d writes=%0d timeout=%0d busy_write=%0d zero_timeout=%0d phase_error=%0d cadence_errors=%0d width_errors=%0d drops=%0d duplicates=%0d tick=%0d/%0d x=%0d cold=%0d final=%0d b_reset_zero=%0d b_post_request=%0d pan_leak=%0d pan_nonzero=%0d/%0d natural=%0d/%0d/%0d/%0d natural_public=%0d/%0d/%0d/%0d restart_hash=%016h/%016h/%016h/%016h stale=%0d loops=%0d",
             run_id, debug_accepted_writes, debug_busy_timeout,
-            debug_write_while_busy, cadence_errors, width_errors, drops,
-            duplicates, x_count, cold_zero_samples, final_zero_samples,
+            debug_write_while_busy,debug_zero_timeout,debug_phase_error,
+            cadence_errors,width_errors,drops,duplicates,
+            tick_missed,tick_duplicates,x_count,cold_zero_samples,final_zero_samples,
             phase5_zero_latency, phase5_request_after_stop,
             pan_leak, left_nonzero, right_nonzero,
-            natural_logical[0], natural_logical[1],
-            natural_zero_latency[0], natural_zero_latency[1],
-            natural_hash[0], natural_hash[1], stale_prefix,
+            natural_logical[0],natural_logical[1],natural_logical[2],natural_logical[3],
+            natural_public[0],natural_public[1],natural_public[2],natural_public[3],
+            natural_hash[0],natural_hash[1],natural_hash[2],natural_hash[3],stale_prefix,
             debug_restart_count);
-        $display("HW0_X run=%0d pre_ready=%0d/%0d audio=%0d control=%0d psg=%0d rom_a=%0d rom_b=%0d ssg_bc=%0d adpcm_idle=%0d a6_overflow=%0d",
-            run_id,pre_ready_x,pre_ready_nonzero,x_audio,x_control,x_psg,
+        $display("HW0_X run=%0d pre_ready=%0d/%0d audio=%0d internal=%0d control=%0d psg=%0d rom_a=%0d rom_b=%0d ssg_bc=%0d adpcm_idle=%0d a6_overflow=%0d",
+            run_id,pre_ready_x,pre_ready_nonzero,x_audio,x_internal,x_control,x_psg,
             x_rom_a,x_rom_b,psg_bc_spurious,unexpected_adpcm_requests,
             a6_overflow_events);
+        $display("HW0_TIMELINE run=%0d fm=%0d/%0d/%0d/%0d ssg=%0d/%0d/%0d/%0d a0=%0d/%0d/%0d/%0d a6=%0d/%0d/%0d/%0d b=%0d/%0d/%0d/%0d left=%0d/%0d/%0d/%0d right=%0d/%0d/%0d/%0d natural=%0d/%0d/%0d/%0d restart=%0d/%0d/%0d loops=%0d",
+            run_id,
+            color_event_tick[0][0],sound_event_tick[0][0],stop_event_tick[0][0],zero_event_tick[0][0],
+            color_event_tick[0][1],sound_event_tick[0][1],stop_event_tick[0][1],zero_event_tick[0][1],
+            color_event_tick[0][2],sound_event_tick[0][2],stop_event_tick[0][2],zero_event_tick[0][2],
+            color_event_tick[0][3],sound_event_tick[0][3],stop_event_tick[0][3],zero_event_tick[0][3],
+            color_event_tick[0][4],sound_event_tick[0][4],stop_event_tick[0][4],zero_event_tick[0][4],
+            color_event_tick[0][5],sound_event_tick[0][5],stop_event_tick[0][5],zero_event_tick[0][5],
+            color_event_tick[0][6],sound_event_tick[0][6],stop_event_tick[0][6],zero_event_tick[0][6],
+            color_event_tick[0][7],sound_event_tick[0][7],stop_event_tick[0][7],zero_event_tick[0][7],
+            sound_event_tick[0][8],stop_event_tick[0][8],zero_event_tick[0][8],debug_restart_count);
         if (failures != 0) $fatal(1, "HW0 failed (%0d)", failures);
         $display("HW0_PASS run=%0d", run_id);
+        $finish;
+    end
+endmodule
+
+module tb_ym2610_hw0_reset_injection;
+    localparam integer SIM_BOOT = 256;
+    logic clk = 1'b0;
+    logic reset = 1'b1;
+    logic video_reset = 1'b1;
+    integer target_state = 7;
+    integer failures = 0;
+    integer boot_entry_tick;
+    integer boot_exit_tick;
+    integer flat_before;
+    integer flat_after;
+    integer flat_delta;
+
+    wire signed [15:0] audio_l, audio_r;
+    wire audio_sample;
+    wire video_ce, video_hs, video_vs, video_de;
+    wire [7:0] video_r, video_g, video_b;
+    wire [3:0] debug_phase;
+    wire [6:0] debug_segment_state;
+    wire [2:0] debug_startup_state;
+    wire debug_external_mute, debug_sample_tick;
+    wire [31:0] debug_sample_tick_count;
+    wire [31:0] debug_accepted_writes;
+    wire debug_busy_timeout, debug_write_while_busy;
+    wire debug_zero_timeout, debug_phase_error, debug_halted;
+    wire debug_core_ready;
+    wire debug_adpcma_request, debug_adpcmb_request;
+
+    task automatic fail(input [8*64-1:0] message);
+        begin
+            failures=failures+1;
+            $display("HW0_RESET_FAIL target=%0d tick=%0d state=%0d reason=%0s",
+                     target_state,debug_sample_tick_count,
+                     debug_segment_state,message);
+        end
+    endtask
+
+    always #5 clk = ~clk;
+
+    ym2610_hw0_top #(
+        .FAST_SIM(1'b1), .BOOT_SAMPLES(SIM_BOOT),
+        .COLOR_PREROLL_SAMPLES(128), .SOUND_DWELL_SAMPLES(8193),
+        .INTER_SILENCE_SAMPLES(128), .PAN_DWELL_SAMPLES(2048),
+        .PAN_INTER_SAMPLES(128), .NATURAL_SILENCE_SAMPLES(128),
+        .FINAL_SILENCE_SAMPLES(256)
+    ) dut (
+        .clk_sys(clk),.reset(reset),.video_reset(video_reset),
+        .audio_l(audio_l),.audio_r(audio_r),.audio_sample(audio_sample),
+        .video_ce(video_ce),.video_hs(video_hs),.video_vs(video_vs),
+        .video_de(video_de),.video_r(video_r),.video_g(video_g),
+        .video_b(video_b),.debug_phase(debug_phase),
+        .debug_segment_state(debug_segment_state),
+        .debug_startup_state(debug_startup_state),
+        .debug_external_mute(debug_external_mute),
+        .debug_sample_tick(debug_sample_tick),
+        .debug_sample_tick_count(debug_sample_tick_count),
+        .debug_accepted_writes(debug_accepted_writes),
+        .debug_busy_timeout(debug_busy_timeout),
+        .debug_write_while_busy(debug_write_while_busy),
+        .debug_zero_timeout(debug_zero_timeout),
+        .debug_phase_error(debug_phase_error),
+        .debug_core_ready(debug_core_ready),
+        .debug_adpcma_request(debug_adpcma_request),
+        .debug_adpcmb_request(debug_adpcmb_request),
+        .debug_halted(debug_halted)
+    );
+
+    initial begin
+        if (!$value$plusargs("TARGET_STATE=%d",target_state))
+            target_state=7;
+        repeat(4) @(posedge clk);
+        video_reset=1'b0;
+        repeat(64) @(posedge clk);
+        @(negedge clk); reset=1'b0;
+        fork
+            wait(debug_segment_state==target_state &&
+                 !debug_external_mute);
+            begin repeat(26000000) @(posedge clk); fail("TARGET_TIMEOUT"); end
+        join_any
+        disable fork;
+        repeat(4) @(posedge clk);
+        if (debug_halted) fail("PRE_RESET_HALTED");
+
+        @(negedge clk);
+        flat_before=dut.u_video.v_count*638+dut.u_video.h_count;
+        reset=1'b1;
+        #1;
+        if(audio_l!==0 || audio_r!==0 || !debug_external_mute)
+            fail("RESET_NOT_IMMEDIATE_ZERO");
+        repeat(20) @(posedge clk);
+        #1;
+        flat_after=dut.u_video.v_count*638+dut.u_video.h_count;
+        flat_delta=(flat_after-flat_before+167156)%167156;
+        if(flat_delta!=10) fail("VIDEO_TIMING_RESET");
+        if(debug_phase!=0 || debug_segment_state!=0 ||
+           debug_accepted_writes!=0) fail("RESET_STATE_NOT_CLEAR");
+        if(audio_l!==0 || audio_r!==0 || audio_sample!==0)
+            fail("RESET_AUDIO_NONZERO");
+
+        @(negedge clk); reset=1'b0;
+        wait(debug_segment_state==7'd1);
+        boot_entry_tick=debug_sample_tick_count;
+        while(debug_segment_state==7'd1) begin
+            @(posedge clk); #1;
+            if(debug_accepted_writes!=0 || debug_phase!=0 ||
+               !debug_external_mute || audio_l!=0 || audio_r!=0 ||
+               debug_adpcmb_request===1'b1)
+                fail("RESTART_BOOT_CONTRACT");
+        end
+        boot_exit_tick=debug_sample_tick_count;
+        if(boot_exit_tick-boot_entry_tick!=SIM_BOOT)
+            fail("RESTART_BOOT_DURATION");
+        wait(debug_phase==1);
+        if(debug_accepted_writes!=18 || !debug_external_mute ||
+           audio_l!=0 || audio_r!=0 ||
+           debug_adpcma_request!==1'b0 ||
+           debug_adpcmb_request!==1'b0)
+            fail("RESTART_NOT_FM_HEAD");
+        if(debug_halted || debug_busy_timeout || debug_write_while_busy ||
+           debug_zero_timeout || debug_phase_error)
+            fail("RESTART_ERROR");
+        if(failures!=0) $fatal(1,"reset injection failed (%0d)",failures);
+        $display("HW0_RESET target=%0d immediate_zero=PASS video_continuity=PASS boot=%0d writes=0 restart_phase=FM result=PASS",
+                 target_state,boot_exit_tick-boot_entry_tick);
+        $finish;
+    end
+endmodule
+
+// Exact-count pacing audit.  It drives one logical sample tick per clock and
+// stubs only the public BUSY/EOS contracts, so multi-second hardware counts
+// can be checked without simulating hundreds of millions of JT10 clocks.
+module tb_ym2610_hw0_pacing;
+    localparam integer BOOT = 159801;
+    localparam integer PREROLL = 53267;
+    localparam integer DWELL = 213068;
+    localparam integer INTER = 79901;
+    localparam integer PAN = 159801;
+    localparam integer PAN_INTER = 53267;
+    localparam integer NATURAL_SILENCE = 79901;
+    localparam integer FINAL = 159801;
+
+    logic clk = 1'b0;
+    logic reset = 1'b1;
+    // This duration-only stub advances chip/sample counters at the same
+    // artificial rate.  Offset them by seven so the real-core SSG congruence
+    // (chip 428, sample mod 128 = 53) remains reachable in the stub model.
+    logic [8:0] chip_cycle = 9'd7;
+    logic [7:0] address_latch [0:1];
+    logic [2:0] busy_left = 3'd0;
+    logic adpcmb_active = 1'b0;
+    logic adpcmb_eos = 1'b0;
+    logic short_mode = 1'b0;
+    integer short_ticks = 0;
+    integer failures = 0;
+    integer phase_events = 0;
+    integer start_events = 0;
+    logic [6:0] last_state = 7'h7f;
+    logic [3:0] last_phase = 4'hf;
+    logic last_mute = 1'b1;
+    logic [31:0] state_enter_tick = 0;
+    logic [31:0] color_tick = 0;
+
+    wire [1:0] bus_addr;
+    wire [7:0] bus_din;
+    wire bus_cs_n, bus_wr_n;
+    wire [7:0] bus_dout = busy_left != 0 ? 8'h80 : 8'h00;
+    wire [3:0] display_phase;
+    wire [6:0] segment_state;
+    wire [2:0] startup_state;
+    wire audio_mute;
+    wire [31:0] sample_tick_count;
+    wire [7:0] microcode_index;
+    wire [31:0] accepted_write_count;
+    wire busy_timeout, write_while_busy, zero_timeout, phase_error;
+    wire [15:0] restart_count;
+    wire measurement_active;
+    wire [3:0] measurement_phase;
+    wire halted;
+
+    task automatic fail(input [8*64-1:0] message);
+        begin
+            failures = failures + 1;
+            $display("HW0_PACING_FAIL tick=%0d state=%0d count=%0d halt=%0d busy=%0d write=%0d zero=%0d phase=%0d reason=%0s",
+                     sample_tick_count, segment_state, dut.sample_count,
+                     halted,busy_timeout,write_while_busy,zero_timeout,
+                     phase_error,message);
+        end
+    endtask
+
+    always #5 clk = ~clk;
+
+    always @(posedge clk) begin
+        if (reset) begin
+            chip_cycle <= 9'd7;
+            busy_left <= 0;
+            short_ticks <= 0;
+        end else begin
+            chip_cycle <= chip_cycle == 9'd431 ? 9'd0 : chip_cycle + 9'd1;
+            if (busy_left != 0) busy_left <= busy_left - 3'd1;
+            if (adpcmb_active && short_mode) begin
+                if (short_ticks + 1 >= 512) begin
+                    short_ticks <= 0;
+                    adpcmb_active <= 1'b0;
+                    adpcmb_eos <= 1'b1;
+                end else short_ticks <= short_ticks + 1;
+            end
+        end
+        #1;
+        if (!reset && segment_state != last_state) begin
+            case (last_state)
+                7'd1:  if (sample_tick_count-state_enter_tick != BOOT) fail("BOOT_DURATION");
+                7'd3,7'd11,7'd19,7'd26,7'd33,7'd40,7'd47,7'd54:
+                    if (sample_tick_count-state_enter_tick != PREROLL) fail("PREROLL_DURATION");
+                7'd10,7'd18,7'd25,7'd32,7'd39,7'd53:
+                    if (sample_tick_count-state_enter_tick != INTER) fail("INTER_DURATION");
+                7'd46: if (sample_tick_count-state_enter_tick != PAN_INTER) fail("PAN_INTER_DURATION");
+                7'd59: if (sample_tick_count-state_enter_tick != NATURAL_SILENCE) fail("NATURAL_SILENCE_DURATION");
+                7'd65: if (sample_tick_count-state_enter_tick != FINAL) fail("FINAL_DURATION");
+                7'd7,7'd15,7'd22,7'd29,7'd36:
+                    if (sample_tick_count-dut.sound_start_tick != DWELL) fail("SOUND_DWELL");
+                7'd43,7'd50:
+                    if (sample_tick_count-dut.sound_start_tick != PAN) fail("PAN_DWELL");
+                default: ;
+            endcase
+            state_enter_tick = sample_tick_count;
+            last_state = segment_state;
+        end
+        if (!reset && display_phase != last_phase) begin
+            if (display_phase != 0) begin
+                phase_events = phase_events + 1;
+                color_tick = sample_tick_count;
+                $display("HW0_PACING_COLOR loop=%0d phase=%0d tick=%0d state=%0d",
+                         restart_count, display_phase, sample_tick_count,
+                         segment_state);
+            end
+            last_phase = display_phase;
+        end
+        if (!reset && !audio_mute && last_mute) begin
+            start_events = start_events + 1;
+            $display("HW0_PACING_START loop=%0d phase=%0d color_tick=%0d start_tick=%0d delta=%0d",
+                     restart_count,display_phase,color_tick,
+                     sample_tick_count,sample_tick_count-color_tick);
+        end
+        last_mute = audio_mute;
+    end
+
+    // Capture the public address/data write and provide a deterministic BUSY
+    // pulse.  Register contents and ordering remain owned by the DUT.
+    always @(negedge clk) begin
+        if (!reset && !bus_cs_n && !bus_wr_n) begin
+            if (!bus_addr[0]) address_latch[bus_addr[1]] = bus_din;
+            else begin
+                busy_left = 3'd3;
+                if (!bus_addr[1] && address_latch[0] == 8'h14)
+                    short_mode = bus_din == 8'h20;
+                if (!bus_addr[1] && address_latch[0] == 8'h10) begin
+                    if (bus_din == 8'h80) begin
+                        adpcmb_active = 1'b1;
+                        adpcmb_eos = 1'b0;
+                        short_ticks = 0;
+                    end else if (bus_din == 8'h01) begin
+                        adpcmb_active = 1'b0;
+                        adpcmb_eos = 1'b0;
+                        short_ticks = 0;
+                    end
+                end
+            end
+        end
+    end
+
+    ym2610_hw0_sequencer #(
+        .BOOT_SAMPLES(BOOT), .COLOR_PREROLL_SAMPLES(PREROLL),
+        .SOUND_DWELL_SAMPLES(DWELL),
+        .INTER_SILENCE_SAMPLES(INTER), .PAN_DWELL_SAMPLES(PAN),
+        .PAN_INTER_SAMPLES(PAN_INTER),
+        .NATURAL_SILENCE_SAMPLES(NATURAL_SILENCE),
+        .FINAL_SILENCE_SAMPLES(FINAL)
+    ) dut (
+        .clk(clk), .reset(reset), .core_ready(1'b1), .audio_zero(1'b1),
+        .sample_tick(!reset), .sample_contract_error(1'b0),
+        .chip_cycle_mod432(chip_cycle), .bus_dout(bus_dout),
+        .adpcmb_eos(adpcmb_eos), .adpcmb_active(adpcmb_active),
+        .adpcmb_request(adpcmb_active),
+        .bus_addr(bus_addr), .bus_din(bus_din),
+        .bus_cs_n(bus_cs_n), .bus_wr_n(bus_wr_n),
+        .display_phase(display_phase), .segment_state(segment_state),
+        .startup_state(startup_state), .audio_mute(audio_mute),
+        .sample_tick_count(sample_tick_count),
+        .microcode_index(microcode_index),
+        .accepted_write_count(accepted_write_count),
+        .busy_timeout(busy_timeout),
+        .write_while_busy(write_while_busy), .zero_timeout(zero_timeout),
+        .phase_error(phase_error), .sequence_restart_count(restart_count),
+        .measurement_active(measurement_active),
+        .measurement_phase(measurement_phase), .halted(halted)
+    );
+
+    initial begin
+        repeat (8) @(posedge clk);
+        @(negedge clk);
+        reset = 1'b0;
+        fork
+            wait (restart_count >= 2);
+            begin repeat (7000000) @(posedge clk); fail("TIMEOUT"); end
+        join_any
+        disable fork;
+        repeat (8) @(posedge clk);
+        if (halted || busy_timeout || write_while_busy || zero_timeout ||
+            phase_error) fail("SEQUENCER_ERROR");
+        if (phase_events != 17 || start_events != 18)
+            fail("EVENT_COUNT");
+        if (accepted_write_count != 328)
+            fail("WRITE_COUNT");
+        if (failures != 0) $fatal(1,"HW0 pacing failed (%0d)",failures);
+        $display("HW0_PACING counts=%0d/%0d/%0d/%0d/%0d/%0d/%0d/%0d phases=%0d starts=%0d writes=%0d loops=%0d result=PASS",
+                 BOOT,PREROLL,DWELL,INTER,PAN,PAN_INTER,
+                 NATURAL_SILENCE,FINAL,phase_events,start_events,
+                 accepted_write_count,restart_count);
         $finish;
     end
 endmodule

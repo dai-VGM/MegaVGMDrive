@@ -53,20 +53,66 @@ The static audit recomputes every row and aborts on content or metadata drift.
 - JT10 fractional CEN: increment 6,434,443 in a 24-bit accumulator,
   7.6704538 MHz nominal chip-enable rate.
 - Internal/public sample: 144 CEN rising interval and six CEN-wide pulse.
+  With the production fractional CEN this is 375 or 376 `clk_sys` cycles per
+  public sample and 15 or 16 `clk_sys` high cycles. `FAST_SIM` observes the
+  equivalent 144-cycle cadence and six-cycle high width.
+- Before this pacing change, the sequencer already used
+  `sample_strobe && !sample_d`, so its duration counter advanced once per
+  logical sample, not six times. The approximately six-times-too-fast
+  hypothesis is rejected. The actual short real-hardware constants were
+  boot 32768 (0.615 s), gap 24576 (0.461 s), main hold 81920 (1.538 s), and
+  pan hold 53248 (1.000 s), with no color-only pre-roll. Color and program
+  launch also happened at the same state transition.
+- The canonical HW-0 `sample_tick` is now generated once in the top from the
+  public-valid 0-to-1 transition. The sequencer receives no raw valid level.
+  Old and new duration-counter increments are both exactly one per public
+  sample; the fix is explicit ownership plus corrected durations, not a
+  divide-by-six workaround. A synthesizable 144-CEN cadence/six-CEN width
+  monitor makes a violation red and halts.
 - Global reset receives at least six asserted CENs. The core continues running
   while the first five internal samples are hidden; the sixth is the first
-  public sample. The sequencer then requires ready, known-zero audio, and BUSY
-  clear before its first write.
+  public sample. Shell reset or PLL unlock asserts the test reset; deassertion
+  crosses a three-stage `clk_sys` synchronizer. The sequencer then requires
+  ready, known-zero internal audio, and BUSY clear, performs 159801 public
+  ticks (3.000 s) of navy silence with zero writes, and only then applies the
+  initial silence program. PLL unlock separately resets video timing; a soft
+  reset returns only `display_phase` to navy and leaves H/V counters running.
 - Writes use status-clear wait → address → data → BUSY-assert wait → BUSY-clear
   wait. A 16-bit watchdog failure or a data write while BUSY halts, mutes, and
   makes video red.
-- Durations use public-sample rising edges, never a fixed system-cycle delay.
+- Durations use the canonical public-sample tick, never a fixed system-cycle
+  delay or public-valid level.
+- The final HW-0 output mux is the only human-silence mute. It is asserted in
+  reset/pre-ready/boot/pre-roll/inter/final states. It remains off after every
+  stop until internal L/R are zero for 32 consecutive public ticks. ADPCM-B
+  also requires request and active clear. Zero timeout, cadence/width error,
+  phase overflow/unexpected state, BUSY failure, or write-while-BUSY halts,
+  mutes, and selects red.
+
+### Hardware duration constants
+
+| Contract | Public ticks | Seconds at 53.267040 kHz |
+|---|---:|---:|
+| boot navy | 159801 | 2.999998 |
+| color-only pre-roll | 53267 | 0.999999 |
+| FM/SSG/A0/A6/B stereo dwell | 213068 | 3.999997 |
+| ordinary navy gap | 79901 | 1.500008 |
+| left/right pan dwell | 159801 | 2.999998 |
+| left-to-right navy gap | 53267 | 0.999999 |
+| white natural-end gap | 79901 | 1.500008 |
+| final navy gap | 159801 | 2.999998 |
+
+The exact-count pacing TB drives one logical tick per simulation clock and
+checks all eight constants over two complete loops. The integrated audio TB
+uses reduced timing parameters only to make four full JT10 runs practical;
+it retains the production measurement alignment/counts and separately proves
+the 144/6 public waveform contract.
 
 ## Self-test/hash windows
 
 | Phase | Contract | Hash samples | Expected stereo FNV-1a |
 |---:|---|---:|---|
-| 0 | cold silence | 32768 zero | zero contract |
+| 0 | boot silence | 159801 zero, zero writes | zero contract |
 | 1 | FM encoding 1, ALG7 | 4096 after 4096 attack | `8aadd7a6819038e5` |
 | 2 | SSG A, period 0020, volume 0F | 4096 after 263 startup | `54730095b12b6325` |
 | 3 | ADPCM-A voice 0 | first 4096 | `adf8cc2f2f81c1b9` |
@@ -74,13 +120,57 @@ The static audit recomputes every row and aborts on content or metadata drift.
 | 5 | ADPCM-B 0020–004f/8000/C0/FF | Phase 4A aligned boundary + 4096 | `1207d84363d4ed39` |
 | 6 | left-only, silence, right-only | isolation | leak 0 |
 | 7 | short 0020/0020 twice | 512 logical each | restart `e142f7da424b1531` |
-| 0 | final silence then loop | 32768 zero | loop count increments |
+| 0 | final silence then loop | 159801 zero | loop count increments |
+
+The source timeline in sample-tick units is:
+
+1. change `display_phase` from navy to the source color;
+2. hold muted/internal-zero for 53267 ticks;
+3. retain the old register order and accept the source START;
+4. keep the source color until 213068 ticks from START (159801 for each pan);
+5. accept the explicit stop/reset, leave external mute off, and wait for 32
+   consecutive internal-zero ticks (plus ADPCM-B request/active clear);
+6. change to navy and start the 79901-tick gap (53267 between left/right);
+7. for white, keep white during the 79901-tick verified-zero gap and restart
+   without reconfiguration; after its second verified natural end, change to
+   navy for 159801 ticks.
+
+FM splits only the old final key-on write from its configuration program. SSG
+keeps its four old writes contiguous and launches the complete program after
+pre-roll, after waiting for the established free-running-divider alignment at
+`chip_cycle_mod432=428` and `sample_tick_count mod 128=53`. With the YM2610
+SSG prescaler, JT49 `cen16`, and period 0020, the complete tone waveform has a
+128-public-sample repeating relationship; the second condition therefore
+returns the retained tone counter to the same measurement phase on every
+loop. Focused one- and two-loop regressions reproduce the Phase 2A hash
+without a program-handoff gap. ADPCM-A/B retain the existing
+`chip_cycle_mod432` alignment waits, so their
+START acceptance can follow the one-second timer by a bounded scheduler
+alignment interval while color is already stable and internal audio remains
+zero. Fixture logs record both the color timer boundary and accepted START
+tick; the 53267-tick pre-roll counter itself is exact.
+
+The pristine ADPCM-A counter does not reset every internal `on`/`roe_n`
+pipeline register. A soft reset injected during six-voice playback can
+therefore leave harmless raw ROM-request pulses during the write-free boot
+hold even though internal and external audio are both known zero. HW-0 does
+not hide or change that pinned-source behavior. The reset TB requires zero
+audio and zero accepted writes throughout boot, then requires both ADPCM-A and
+ADPCM-B requests clear after the unchanged initial-silence program and before
+the blue FM announcement.
 
 Phase 4A sets its 4096 goal only after `start_b()` returns, but its monitor has
 already hashed one active boundary sample. Thus the published stereo hash is
 over 4097 active samples. HW-0 aligns START, first logical consume, and first
 non-zero to that contract and records `counts=.../4097`; shortening it to 4096
 changes the hash to `a92e942c75142561` and is rejected.
+
+The short natural/restart anchor is likewise a fixed 1024-public-sample window
+containing 512 logical nibbles. Raw decoder `chon` is not the end boundary: it
+may remain asserted with PC-GATE output already at digital zero until a later
+command RESET. The integrated TB caps each restart hash at the formal 1024
+samples, checks 512 logical consumes independently, then checks EOS, public
+request/active clear, zero latency, and stale-prefix count separately.
 
 The HW-0 ADPCM-B active output is a sequencer/debug status, not an audio-path
 control. It asserts from the first explicitly routed ROM request, stays latched
@@ -190,3 +280,50 @@ regression runners:
   compatibility, overlay, or production source was changed for this rerun;
 - `git diff --check`: PASS;
 - Quartus on macOS: not run.
+
+### Startup/pacing verification
+
+The startup/pacing runner completed on the final candidate before commit:
+
+- exact hardware-count model, two loops: boot/pre-roll/dwell/gap/pan/pan-gap/
+  natural-gap/final =
+  `159801/53267/213068/79901/159801/53267/79901/159801`, phase visits 17,
+  sound starts 18, accepted writes 328, loop count 2;
+- full integrated self-test: non-`SIMULATION` 3/3 normalized match and
+  `SIMULATION` exact normalized match, with two complete loops in every run;
+- first- and second-loop hashes:
+  `8aadd7a6819038e5/54730095b12b6325/adf8cc2f2f81c1b9/32cb891931682fe9/1207d84363d4ed39`,
+  counts `4096/4096/4096/8192/4097` in both loops;
+- natural/restart: logical `512/512/512/512`, public window
+  `1024/1024/1024/1024`, all four hashes `e142f7da424b1531`, stale prefix 0;
+- reduced-duration integrated timeline, shown as
+  `color/start/stop/verified-zero` public ticks:
+  FM `280/408/8602/8883`, SSG `9011/9146/17339/17373`, A0
+  `17501/17630/25823/25868`, A6 `25996/26124/34317/34364`, stereo B
+  `34492/34620/42813/42847`, left `42975/43104/45152/45186`, right
+  `45314/45444/47492/47526`, first natural play
+  `47654/47784/48809/48844`, restart `49356/50381/50416`;
+- BUSY timeout, write while BUSY, zero timeout, phase error, cadence error,
+  width error, missed/duplicate sample tick, X/Z, pan leak, SSG B/C output,
+  idle ADPCM fetch, ADPCM-A6 overflow, ADPCM-B post-stop request, and stale
+  prefix: all zero; ADPCM-B RESET-to-zero latency: two public samples;
+- reset injection during FM, ADPCM-A six-voice, and ADPCM-B: immediate final
+  audio zero, navy display, ten video pixels over twenty system clocks, boot
+  256/256 ticks in the reduced model, boot writes 0, and restart from FM;
+- Icarus inner top, `SIMULATION` top, reset fixture, and minimal MiSTer `emu`:
+  elaborate PASS. Each full compile reports 73 inherited-timescale/LUT or
+  constant-select sensitivity diagnostics and no error;
+- Verilator: return code 0, warning count 154, latch 0, combinational loop 0.
+  Warning types are `DECLFILENAME=2`, `EOFNEWLINE=19`, `GENUNNAMED=10`,
+  `PINCONNECTEMPTY=11`, `PROCASSINIT=12`, `SYNCASYNCNET=1`,
+  `TIMESCALEMOD=6`, `UNUSEDPARAM=5`, `UNUSEDSIGNAL=70`,
+  `WIDTHEXPAND=16`, and `WIDTHTRUNC=2`;
+- static project/QIP audit: 109 recursively expanded paths, 66 core paths,
+  ten PLL generated sources, seven QIP nodes, missing/duplicate/absolute/test
+  source paths 0, QIP path expansion simulated PASS;
+- Phase 4A single-shot and Phase 4A-FIX formal PC-GATE lifecycle smoke:
+  PASS, including final/restart anchor `e142f7da424b1531`;
+- formal PC-GATE overlay, pristine JT10 15-file manifest, JT49,
+  compatibility/warm-up layers, production project/source, HW-0 QSF/QIP,
+  the 23 protected diagnostics, and Sacred TB: unchanged;
+- `git diff --check`: PASS; Quartus on macOS: not run.

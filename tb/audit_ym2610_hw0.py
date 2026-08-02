@@ -135,6 +135,11 @@ def main() -> int:
     core_text = core_qip.read_text()
     hw0_rtl_paths = sorted((ROOT / "rtl" / "ym2610_hw0").glob("*.[sv]*"))
     hw0_rtl_text = "\n".join(path.read_text() for path in hw0_rtl_paths)
+    hw0_top_text = (ROOT / "rtl" / "ym2610_hw0" /
+                    "ym2610_hw0_top.sv").read_text()
+    sequencer_text = (ROOT / "rtl" / "ym2610_hw0" /
+                      "ym2610_hw0_sequencer.sv").read_text()
+    emu_text = (ROOT / "rtl" / "ym2610_hw0" / "emu.sv").read_text()
     jt12_top_text = (ROOT / "rtl" / "ym2610_hw0" /
                      "ym2610_hw0_jt12_top.v").read_text()
     all_project_text = "\n".join(path.read_text() for path in required)
@@ -172,6 +177,46 @@ def main() -> int:
     check(not re.search(
         r"\b(?:[A-Za-z_$][A-Za-z0-9_$]*\.)+chon\b", hw0_rtl_text),
         "synthesis-visible hierarchical chon reference")
+    hardware_counts = {
+        "BOOT_SAMPLES": 159801,
+        "COLOR_PREROLL_SAMPLES": 53267,
+        "SOUND_DWELL_SAMPLES": 213068,
+        "INTER_SILENCE_SAMPLES": 79901,
+        "PAN_DWELL_SAMPLES": 159801,
+        "PAN_INTER_SAMPLES": 53267,
+        "NATURAL_SILENCE_SAMPLES": 79901,
+        "FINAL_SILENCE_SAMPLES": 159801,
+    }
+    for name, value in hardware_counts.items():
+        check(re.search(rf"parameter\s+integer\s+{name}\s*=\s*{value}\b",
+                        sequencer_text), f"hardware pacing count: {name}")
+    check("input  logic               sample_tick" in sequencer_text and
+          "sample_strobe" not in sequencer_text and
+          "wire sample_rise" not in sequencer_text,
+          "sequencer must consume only the canonical sample tick")
+    check(re.search(
+        r"assign\s+debug_sample_tick\s*=\s*!test_reset\s*&&\s*"
+        r"core_sample\s*&&\s*!sample_valid_d\s*;", hw0_top_text),
+        "canonical public-sample rising-edge tick")
+    check("sample_period_cen != 8'd144" in hw0_top_text and
+          "sample_width_cen != 4'd6" in hw0_top_text,
+          "sample cadence/width hardware monitor")
+    check("posedge clk_sys or posedge reset" in hw0_top_text and
+          "test_reset_pipe <= {test_reset_pipe[1:0], 1'b0}" in hw0_top_text,
+          "synchronized test reset release")
+    check("posedge clk_sys or posedge video_reset" in hw0_top_text and
+          ".reset(video_timing_reset)" in hw0_top_text and
+          ".phase(reset ? 4'd0 : debug_phase)" in hw0_top_text,
+          "video timing/test phase reset separation")
+    check("wire video_reset = !pll_locked;" in emu_text and
+          "wire reset = RESET | status[0] | !pll_locked;" in emu_text,
+          "shell/PLL reset boundary")
+    check("ZERO_CONFIRM_SAMPLES = 32" in sequencer_text and
+          "zero_run_count+1>=ZERO_CONFIRM_SAMPLES" in sequencer_text,
+          "internal zero confirmation before external mute")
+    check("chip_cycle_mod432 == 9'd428" in sequencer_text and
+          "sample_tick_count[6:0] == 7'd53" in sequencer_text,
+          "deterministic JT49 full-tone-cycle alignment")
     check(re.search(
         r"else\s+if\s*\(\s*!adpcmb_roe_n\s*\)\s*"
         r"hw0_adpcmb_request_seen\s*<=\s*1'b1\s*;", jt12_top_text),
@@ -366,6 +411,14 @@ def main() -> int:
         check(subprocess.run(["git", "diff", "--quiet", "HEAD", "--", rel],
                              cwd=ROOT).returncode == 0,
               f"immutable tracked change: {rel}")
+    for rel in ["hw/ym2610_hw0/MegaVGMDrive_YM2610_HW0.qpf",
+                "hw/ym2610_hw0/MegaVGMDrive_YM2610_HW0.qsf",
+                "hw/ym2610_hw0/files_ym2610_hw0.qip",
+                "hw/ym2610_hw0/sys_ym2610_hw0.qip",
+                "hw/ym2610_hw0/sys_ym2610_hw0.tcl"]:
+        check(subprocess.run(["git", "diff", "--quiet", "HEAD", "--", rel],
+                             cwd=ROOT).returncode == 0,
+              f"frozen HW-0 project change: {rel}")
     check(git("rev-parse", "HEAD:files.qip") ==
           "71d98974f2672207467eac493c06bbc23c74e45b", "production QIP blob")
     check(git("rev-parse", "HEAD:VGM_MD_MiSTer.qsf") ==
@@ -385,6 +438,12 @@ def main() -> int:
           "ip_file=0")
     print("HW0_ADPCMB_STATUS request_latch_eos_reset=PASS "
           "hierarchical_chon=0 audio_lifecycle_change=0")
+    print("HW0_PACING_STATIC sample_tick=rising_edge cadence_cen=144 "
+          "width_cen=6 old_counts_per_sample=1 new_counts_per_sample=1 "
+          "boot=159801 preroll=53267 dwell=213068 inter=79901 "
+          "pan=159801 pan_inter=53267 natural_inter=79901 final=159801 "
+          "reset_release=SYNC video_reset=SEPARATE zero_confirm=32 "
+          "ssg_align=428/mod128:53")
     for source in source_assignments:
         print(f"HW0_SOURCE {source}")
     print("HW0_STATIC board_pin_timing=exact path_audit=PASS "

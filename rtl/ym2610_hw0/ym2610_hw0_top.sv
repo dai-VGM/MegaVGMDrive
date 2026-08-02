@@ -2,10 +2,20 @@
 
 module ym2610_hw0_top #(
     parameter bit FAST_SIM = 1'b0,
-    parameter integer BOOT_SAMPLES = 32768
+    parameter integer BOOT_SAMPLES = 159801,
+    parameter integer COLOR_PREROLL_SAMPLES = 53267,
+    parameter integer SOUND_DWELL_SAMPLES = 213068,
+    parameter integer INTER_SILENCE_SAMPLES = 79901,
+    parameter integer PAN_DWELL_SAMPLES = 159801,
+    parameter integer PAN_INTER_SAMPLES = 53267,
+    parameter integer NATURAL_SILENCE_SAMPLES = 79901,
+    parameter integer FINAL_SILENCE_SAMPLES = 159801,
+    parameter integer ZERO_TIMEOUT_SAMPLES = 8192,
+    parameter integer ZERO_CONFIRM_SAMPLES = 32
 ) (
     input  logic               clk_sys,
     input  logic               reset,
+    input  logic               video_reset,
     output logic signed [15:0] audio_l,
     output logic signed [15:0] audio_r,
     output logic               audio_sample,
@@ -17,10 +27,19 @@ module ym2610_hw0_top #(
     output logic         [7:0] video_g,
     output logic         [7:0] video_b,
     output logic         [3:0] debug_phase,
+    output logic         [6:0] debug_segment_state,
+    output logic         [2:0] debug_startup_state,
+    output logic               debug_external_mute,
+    output logic               debug_sample_tick,
+    output logic        [31:0] debug_sample_tick_count,
+    output logic               debug_sample_cadence_error,
+    output logic               debug_sample_width_error,
     output logic         [7:0] debug_microcode_index,
     output logic        [31:0] debug_accepted_writes,
     output logic               debug_busy_timeout,
     output logic               debug_write_while_busy,
+    output logic               debug_zero_timeout,
+    output logic               debug_phase_error,
     output logic        [15:0] debug_restart_count,
     output logic               debug_measurement_active,
     output logic         [3:0] debug_measurement_phase,
@@ -65,11 +84,33 @@ module ym2610_hw0_top #(
     logic [7:0] adpcmb_data;
     logic       adpcma_roe_n;
     logic       adpcmb_roe_n;
+    logic [2:0] test_reset_pipe;
+    logic [2:0] video_reset_pipe;
+    logic       test_reset;
+    logic       video_timing_reset;
+    logic       sequencer_mute;
+    logic       sample_valid_d;
+    logic       sample_valid_cen_d;
+    logic       sample_seen;
+    logic [7:0] sample_period_cen;
+    logic [3:0] sample_width_cen;
+
+    always_ff @(posedge clk_sys or posedge reset) begin
+        if (reset) test_reset_pipe <= 3'b111;
+        else test_reset_pipe <= {test_reset_pipe[1:0], 1'b0};
+    end
+    assign test_reset = test_reset_pipe[2];
+
+    always_ff @(posedge clk_sys or posedge video_reset) begin
+        if (video_reset) video_reset_pipe <= 3'b111;
+        else video_reset_pipe <= {video_reset_pipe[1:0], 1'b0};
+    end
+    assign video_timing_reset = video_reset_pipe[2];
 
     assign cen_sum = {1'b0, cen_accum} + JT10_NTSC_CEN_INC;
 
     always_ff @(posedge clk_sys) begin
-        if (reset) begin
+        if (test_reset) begin
             cen_accum <= 24'd0;
             jt10_cen <= 1'b1;
         end else if (FAST_SIM) begin
@@ -82,7 +123,7 @@ module ym2610_hw0_top #(
     end
 
     always_ff @(posedge clk_sys) begin
-        if (reset) chip_cycle_mod432 <= 9'd0;
+        if (test_reset) chip_cycle_mod432 <= 9'd0;
         else if (jt10_cen) begin
             if (chip_cycle_mod432 == 9'd431)
                 chip_cycle_mod432 <= 9'd0;
@@ -99,7 +140,7 @@ module ym2610_hw0_top #(
     );
 
     ym2610_hw0_jt10_wrapper u_jt10 (
-        .clk(clk_sys), .rst(reset), .cen(jt10_cen),
+        .clk(clk_sys), .rst(test_reset), .cen(jt10_cen),
         .bus_addr(bus_addr), .bus_din(bus_din),
         .bus_cs_n(bus_cs_n), .bus_wr_n(bus_wr_n),
         .bus_dout(bus_dout), .irq_n(irq_n),
@@ -131,35 +172,99 @@ module ym2610_hw0_top #(
         debug_adpcmb_request = !adpcmb_roe_n;
     end
 
+    // JT10's public sample-valid stays high for six CENs.  Collapse only its
+    // 0->1 transition into the single system-clock pulse used by every HW-0
+    // duration counter; the audio-valid level itself remains unchanged.
+    assign debug_sample_tick = !test_reset && core_sample && !sample_valid_d;
+
+    always_ff @(posedge clk_sys) begin
+        if (test_reset || !debug_core_ready) begin
+            sample_valid_d <= 1'b0;
+            sample_valid_cen_d <= 1'b0;
+            sample_seen <= 1'b0;
+            sample_period_cen <= 8'd0;
+            sample_width_cen <= 4'd0;
+            debug_sample_cadence_error <= 1'b0;
+            debug_sample_width_error <= 1'b0;
+        end else begin
+            sample_valid_d <= core_sample;
+            if (jt10_cen) begin
+                if (core_sample && !sample_valid_cen_d) begin
+                    if (sample_seen && sample_period_cen != 8'd144)
+                        debug_sample_cadence_error <= 1'b1;
+                    sample_seen <= 1'b1;
+                    sample_period_cen <= 8'd1;
+                    sample_width_cen <= 4'd1;
+                end else begin
+                    if (sample_seen && sample_period_cen < 8'hff)
+                        sample_period_cen <= sample_period_cen + 8'd1;
+                    if (sample_seen && sample_period_cen >= 8'd144)
+                        debug_sample_cadence_error <= 1'b1;
+                    if (core_sample)
+                        sample_width_cen <= sample_width_cen + 4'd1;
+                    else if (sample_valid_cen_d) begin
+                        if (sample_width_cen != 4'd6)
+                            debug_sample_width_error <= 1'b1;
+                        sample_width_cen <= 4'd0;
+                    end
+                end
+                sample_valid_cen_d <= core_sample;
+            end
+        end
+    end
+
     ym2610_hw0_sequencer #(
-        .FAST_SIM(FAST_SIM), .BOOT_SAMPLES(BOOT_SAMPLES)
+        .BOOT_SAMPLES(BOOT_SAMPLES),
+        .COLOR_PREROLL_SAMPLES(COLOR_PREROLL_SAMPLES),
+        .SOUND_DWELL_SAMPLES(SOUND_DWELL_SAMPLES),
+        .INTER_SILENCE_SAMPLES(INTER_SILENCE_SAMPLES),
+        .PAN_DWELL_SAMPLES(PAN_DWELL_SAMPLES),
+        .PAN_INTER_SAMPLES(PAN_INTER_SAMPLES),
+        .NATURAL_SILENCE_SAMPLES(NATURAL_SILENCE_SAMPLES),
+        .FINAL_SILENCE_SAMPLES(FINAL_SILENCE_SAMPLES),
+        .ZERO_TIMEOUT_SAMPLES(ZERO_TIMEOUT_SAMPLES),
+        .ZERO_CONFIRM_SAMPLES(ZERO_CONFIRM_SAMPLES)
     ) u_sequencer (
-        .clk(clk_sys), .reset(reset), .core_ready(debug_core_ready),
-        .audio_zero(core_left == 16'sd0 && core_right == 16'sd0),
-        .sample_strobe(core_sample),
+        .clk(clk_sys), .reset(test_reset), .core_ready(debug_core_ready),
+        .audio_zero(internal_left == 16'sd0 &&
+                    internal_right == 16'sd0),
+        .sample_tick(debug_sample_tick),
+        .sample_contract_error(debug_sample_cadence_error ||
+                               debug_sample_width_error),
         .chip_cycle_mod432(chip_cycle_mod432), .bus_dout(bus_dout),
         .adpcmb_eos(debug_adpcmb_eos),
         .adpcmb_active(debug_adpcmb_active),
+        .adpcmb_request(debug_adpcmb_request),
         .bus_addr(bus_addr), .bus_din(bus_din),
         .bus_cs_n(bus_cs_n), .bus_wr_n(bus_wr_n),
-        .test_phase(debug_phase),
+        .display_phase(debug_phase),
+        .segment_state(debug_segment_state),
+        .startup_state(debug_startup_state),
+        .audio_mute(sequencer_mute),
+        .sample_tick_count(debug_sample_tick_count),
         .microcode_index(debug_microcode_index),
         .accepted_write_count(debug_accepted_writes),
         .busy_timeout(debug_busy_timeout),
         .write_while_busy(debug_write_while_busy),
+        .zero_timeout(debug_zero_timeout),
+        .phase_error(debug_phase_error),
         .sequence_restart_count(debug_restart_count),
         .measurement_active(debug_measurement_active),
         .measurement_phase(debug_measurement_phase),
         .halted(debug_halted)
     );
 
-    assign audio_l = debug_halted ? 16'sd0 : core_left;
-    assign audio_r = debug_halted ? 16'sd0 : core_right;
-    assign audio_sample = debug_halted ? 1'b0 : core_sample;
+    assign debug_external_mute = reset || test_reset || !debug_core_ready ||
+                                 sequencer_mute || debug_halted;
+    assign audio_l = debug_external_mute ? 16'sd0 : core_left;
+    assign audio_r = debug_external_mute ? 16'sd0 : core_right;
+    assign audio_sample = (reset || test_reset || debug_halted) ?
+                          1'b0 : core_sample;
 
     ym2610_hw0_video u_video (
-        .clk(clk_sys), .reset(reset), .phase(debug_phase),
-        .error(debug_halted), .ce_pixel(video_ce),
+        .clk(clk_sys), .reset(video_timing_reset),
+        .phase(reset ? 4'd0 : debug_phase),
+        .error(reset ? 1'b0 : debug_halted), .ce_pixel(video_ce),
         .hsync(video_hs), .vsync(video_vs), .de(video_de),
         .r(video_r), .g(video_g), .b(video_b)
     );

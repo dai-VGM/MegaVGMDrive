@@ -109,6 +109,7 @@ module emu (
     wire [31:0] status;
     wire [1:0] buttons;
     wire reset = RESET | status[0] | !pll_locked;
+    wire video_reset = !pll_locked;
     wire signed [15:0] audio_l;
     wire signed [15:0] audio_r;
     wire audio_sample;
@@ -131,7 +132,7 @@ module emu (
     );
 
     ym2610_hw0_top u_hw0 (
-        .clk_sys(clk_sys), .reset(reset),
+        .clk_sys(clk_sys), .reset(reset), .video_reset(video_reset),
         .audio_l(audio_l), .audio_r(audio_r),
         .audio_sample(audio_sample),
         .video_ce(video_ce), .video_hs(video_hs),

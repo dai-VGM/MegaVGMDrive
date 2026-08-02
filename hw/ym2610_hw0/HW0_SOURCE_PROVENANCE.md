@@ -57,6 +57,34 @@ stale pipeline ownership on accepted START, stops request/audio ownership when
 inactive, and retains the verified natural-end and command-RESET behavior.
 PC-CLEAR is absent.
 
+## HW-0 startup and pacing boundary
+
+Human-facing timing is owned only by the HW-0 top/sequencer. The public JT10
+sample-valid output remains six CENs wide and repeats every 144 CENs. HW-0
+converts its rising edge into one `clk_sys`-cycle `sample_tick`; boot,
+announcement, audible dwell, zero verification, inter-source silence, and
+final silence counters consume only that tick. No JT10, JT49, formal PC-GATE,
+ROM, gain, pan, or register value is changed by pacing.
+
+The shell reset is `RESET | status[0] | !pll_locked`; asynchronous assertion
+and a three-stage synchronous release are local to the HW-0 top. PLL unlock
+also owns the separately synchronized video-timing reset. Soft reset changes
+the explicit display phase to navy but does not reset the native-video pixel
+counters. The final audio mute is after the complete JT10 left/right output.
+It is asserted during reset, pre-ready, boot, pre-roll, and silence only.
+After a stop write it stays deasserted until 32 consecutive public samples
+prove internal left/right zero; ADPCM-B additionally requires request and
+active status clear. A timeout halts, mutes, and selects red.
+
+FM retains the old ordered write stream with only its final key-on scheduled
+as START after the explicit pre-roll. SSG retains its old single continuous
+four-write period/mixer/volume program and schedules that complete program
+after pre-roll. Because the JT49 tone divider remains free-running while
+muted, HW-0 also waits for `chip_cycle_mod432=428` and the established
+128-public-sample tone phase before launching those writes. The ADPCM scheduler
+alignment values, all register data, ROM byte rule, measurement windows, and
+expected audio hashes remain unchanged.
+
 ## ROM authority
 
 Both small combinational ROM functions reproduce the Phase 3A/4A primary byte
