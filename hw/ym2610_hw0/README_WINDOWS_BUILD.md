@@ -5,15 +5,35 @@ YM2610 (FM/SSG/ADPCM-A/ADPCM-B), deterministic test ROMs, BUSY-aware fixed
 sequencer, direct audio, and a solid-color video generator. It has no VGM
 parser, DDR/file loading, title UI, repeat mode, or YM2610B path.
 
+## MiSTer PLL IP assignments
+
+The HW-0 QSF inherits the three MiSTer shell PLL IPs omitted by the initial
+project adapter, using the same `QIP_FILE` authorities as production Quartus
+17 builds:
+
+```tcl
+set_global_assignment -name QIP_FILE ../../sys/pll_hdmi.qip
+set_global_assignment -name QIP_FILE ../../sys/pll_audio.qip
+set_global_assignment -name QIP_FILE ../../sys/pll_cfg.qip
+```
+
+The existing `sys_ym2610_hw0.qip` continues to register `../../rtl/pll.qip`
+for `clk_sys`. Each outer QIP owns its generated synthesis files and nested
+PLL constraint QIP; do not add those generated files individually to the QSF.
+
 ## Build on Windows
 
 1. Copy the complete Mac repository to Windows. Do not copy only this folder.
 2. Do not edit the QSF on Windows.
-3. Open
+3. Close Quartus, then delete these generated directories under
+   `hw/ym2610_hw0/`: `db`, `incremental_db`, and `output_files`.
+4. Re-sync the complete repository after deleting those directories.
+5. Open
    `hw/ym2610_hw0/MegaVGMDrive_YM2610_HW0.qpf` in Quartus.
-4. Run a full compile. Expected output:
+6. Confirm that the current revision is `MegaVGMDrive_YM2610_HW0`.
+7. Run a full compile. Expected output:
    `hw/ym2610_hw0/output_files/MegaVGMDrive_YM2610_HW0.rbf`.
-5. Record from the compile reports:
+8. Record from the compile reports:
    - Error count and full Critical Warning list;
    - ALM and register usage;
    - block-memory bits and M10K count;
@@ -21,12 +41,12 @@ parser, DDR/file loading, title UI, repeat mode, or YM2610B path.
    - worst setup slack and worst hold slack;
    - unconstrained-path count;
    - exact output RBF path.
-6. If compilation fails, return the full error text, first failing file/line,
+9. If compilation fails, return the full error text, first failing file/line,
    resource report, timing report, and generated report filenames to the Mac
    side.
-7. If a source/QSF change is needed, make it in the Mac repository, then copy
+10. If a source/QSF change is needed, make it in the Mac repository, then copy
    the complete repository again. Never patch the Windows QSF directly.
-8. On success, copy `MegaVGMDrive_YM2610_HW0.rbf` to MiSTer and launch it.
+11. On success, copy `MegaVGMDrive_YM2610_HW0.rbf` to MiSTer and launch it.
 
 Quartus is intentionally not run on macOS for HW-0.
 

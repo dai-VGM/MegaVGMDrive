@@ -100,20 +100,32 @@ don't-care until it owns a request; it is not treated as a valid fetch.
 ## QSF/QIP assignments saved for audit
 
 The QSF uses Tcl `source` only for the two board adapters and registers the
-core QIP through Quartus' `QIP_FILE` assignment:
+three missing MiSTer shell PLL authorities plus the core QIP through Quartus'
+`QIP_FILE` assignment:
 
 ```tcl
 source sys_ym2610_hw0.tcl
 source ../../sys/sys_analog.tcl
+set_global_assignment -name QIP_FILE ../../sys/pll_hdmi.qip
+set_global_assignment -name QIP_FILE ../../sys/pll_audio.qip
+set_global_assignment -name QIP_FILE ../../sys/pll_cfg.qip
 set_global_assignment -name QIP_FILE files_ym2610_hw0.qip
 ```
 
 The core QIP is not executed directly as Tcl. Quartus supplies
 `$::quartus(qip_path)` while processing a `QIP_FILE`; direct `source` from the
 QSF does not provide that QIP context. The static audit requires zero direct
-QIP `source` commands and exactly one QSF `QIP_FILE` assignment. Without
+QIP `source` commands and exactly four QSF `QIP_FILE` assignments. Without
 running Quartus, it also models `$::quartus(qip_path)` as the directory holding
 each QIP, expands every relative path, and requires every target to exist.
+
+Production `sys/sys.qip` selects `sys/pll_q17.qip`, whose four authorities are
+the core, HDMI, audio, and HDMI-reconfiguration PLL QIPs. HW-0 registers that
+same four-QIP set: the core PLL through `sys_ym2610_hw0.qip` and the other three
+through the QSF. The recursive audit reaches seven QIP nodes, ten generated
+synthesis sources, three nested PLL constraint QIPs, and the existing
+`sys/sys_top.sdc`. It requires exactly one definition each for `pll_hdmi`,
+`pll_cfg_hdmi`, and `pll_audio` and rejects individual-source duplication.
 
 The board adapter selects `sys_ym2610_hw0.qip`; the core QIP assigns 66 files:
 
@@ -123,11 +135,13 @@ The board adapter selects `sys_ym2610_hw0.qip`; the core QIP assigns 66 files:
 - 35 shared JT12 FM/mixer sources;
 - six shared JT49 sources.
 
-Together with the 34 MiSTer shell/PLL assignments, the static project graph is
-100 sources. `audit_ym2610_hw0.py` prints and saves the exact 66-path list on
-every run. It reports missing path 0, duplicate source 0, duplicate module 0,
-absolute path 0, production `files.qip`/`rtl/emu.sv` references 0, testbench or
-diagnostic references 0, and production-to-HW-0 references 0.
+Together with the 33 MiSTer shell source/constraint assignments and ten PLL
+generated sources, the recursively expanded static project graph is 109
+source/constraint paths. `audit_ym2610_hw0.py` prints and saves the exact
+66-path core list on every run. It reports missing path 0, duplicate source 0,
+duplicate module 0, absolute path 0, production `files.qip`/`rtl/emu.sv`
+references 0, testbench or diagnostic references 0, and
+production-to-HW-0 references 0.
 
 ## Verification results
 

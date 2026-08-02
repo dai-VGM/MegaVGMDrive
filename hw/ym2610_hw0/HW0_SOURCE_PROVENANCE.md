@@ -83,3 +83,12 @@ project-location changes are permitted and automatically checked:
 `../../sys/` and the existing production `../../rtl/pll.qip`. The static audit
 checks both adapters mechanically, checks every path, and rejects absolute or
 production-audio dependencies.
+
+Production `sys/sys.qip` selects `sys/pll_q17.qip` for Quartus 17. That bundle
+registers four `QIP_FILE` authorities: `rtl/pll.qip`, `sys/pll_hdmi.qip`,
+`sys/pll_audio.qip`, and `sys/pll_cfg.qip`. The HW-0 sys adapter already owns
+the first. The HW-0 QSF registers the remaining three with project-relative
+paths. Their generated Verilog and nested constraint QIPs remain owned by the
+outer QIPs and are not registered a second time. `sys/sys_top.sdc`, including
+`derive_pll_clocks` and the HDMI/audio clock groups, remains supplied exactly
+once by `sys_ym2610_hw0.qip`. No Intel-generated source is modified.

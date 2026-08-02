@@ -9,6 +9,10 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 PROJECT = ROOT / "hw" / "ym2610_hw0"
+QUARTUS_FILE_ASSIGNMENTS = {
+    "IP_FILE", "QIP_FILE", "SDC_FILE", "SYSTEMVERILOG_FILE",
+    "VERILOG_FILE", "VHDL_FILE",
+}
 
 
 def check(condition: bool, message: str) -> None:
@@ -19,7 +23,8 @@ def check(condition: bool, message: str) -> None:
 def qip_path_rows(path: Path) -> list[tuple[str, Path]]:
     found: list[tuple[str, Path]] = []
     for line in path.read_text().splitlines():
-        match = re.search(r"\$::quartus\(qip_path\)\s+([^\]\s]+)", line)
+        match = re.search(
+            r'\$::quartus\(qip_path\)\s+"?([^"\]\s]+)"?', line)
         if match:
             relative = match.group(1)
             check(not Path(relative).is_absolute(),
@@ -28,8 +33,47 @@ def qip_path_rows(path: Path) -> list[tuple[str, Path]]:
     return found
 
 
-def qip_paths(path: Path) -> list[Path]:
-    return [resolved for _, resolved in qip_path_rows(path)]
+def qip_file_rows(path: Path) -> list[tuple[str, str, Path]]:
+    found: list[tuple[str, str, Path]] = []
+    for line in path.read_text().splitlines():
+        assignment = re.search(r"-name\s+([A-Z0-9_]+)", line)
+        target = re.search(
+            r'\$::quartus\(qip_path\)\s+"?([^"\]\s]+)"?', line)
+        if (assignment and target and
+                assignment.group(1) in QUARTUS_FILE_ASSIGNMENTS):
+            relative = target.group(1)
+            check(not Path(relative).is_absolute(),
+                  f"absolute QIP path in {path.name}: {relative}")
+            found.append((assignment.group(1), relative,
+                          (path.parent / relative).resolve()))
+    return found
+
+
+def collect_qip_graph(roots: list[Path]) -> tuple[set[Path],
+                                                   list[tuple[str, Path]],
+                                                   list[Path]]:
+    qips: set[Path] = set()
+    leaves: list[tuple[str, Path]] = []
+    registrations: list[Path] = list(roots)
+
+    def visit(qip: Path) -> None:
+        check(qip.is_file(), f"missing QIP: {qip}")
+        if qip in qips:
+            return
+        qips.add(qip)
+        for kind, _, target in qip_file_rows(qip):
+            check(target.is_file(), f"missing {kind}: {target}")
+            if kind == "QIP_FILE":
+                registrations.append(target)
+                visit(target)
+            else:
+                leaves.append((kind, target))
+
+    for root in roots:
+        visit(root)
+    check(len(registrations) == len(set(registrations)),
+          "duplicate PLL QIP registration")
+    return qips, leaves, registrations
 
 
 def modules(path: Path) -> list[str]:
@@ -76,6 +120,13 @@ def main() -> int:
     core_qip = PROJECT / "files_ym2610_hw0.qip"
     sys_tcl = PROJECT / "sys_ym2610_hw0.tcl"
     sys_qip = PROJECT / "sys_ym2610_hw0.qip"
+    pll_core_qip = ROOT / "rtl" / "pll.qip"
+    pll_hdmi_qip = ROOT / "sys" / "pll_hdmi.qip"
+    pll_audio_qip = ROOT / "sys" / "pll_audio.qip"
+    pll_cfg_qip = ROOT / "sys" / "pll_cfg.qip"
+    production_pll_roots = [
+        pll_core_qip, pll_hdmi_qip, pll_audio_qip, pll_cfg_qip,
+    ]
     required = [qpf, qsf, core_qip, sys_tcl, sys_qip]
     check(all(path.is_file() for path in required), "missing project file")
 
@@ -102,12 +153,22 @@ def main() -> int:
     qsf_qip_files = re.findall(
         r"(?m)^\s*set_global_assignment\s+-name\s+QIP_FILE\s+(\S+)\s*$",
         qsf_text)
-    check(qsf_qip_files == ["files_ym2610_hw0.qip"],
-          "HW-0 QIP_FILE assignment must occur exactly once")
-    check(not Path(qsf_qip_files[0]).is_absolute(),
+    expected_qsf_qips = [
+        "../../sys/pll_hdmi.qip", "../../sys/pll_audio.qip",
+        "../../sys/pll_cfg.qip", "files_ym2610_hw0.qip",
+    ]
+    check(qsf_qip_files == expected_qsf_qips,
+          "HW-0 QSF QIP_FILE assignment set")
+    check(all(not Path(name).is_absolute() for name in qsf_qip_files),
           "HW-0 QIP_FILE assignment is absolute")
-    check((qsf.parent / qsf_qip_files[0]).resolve() == core_qip.resolve(),
-          "HW-0 QIP_FILE path is not relative to its QSF")
+    qsf_qip_paths = [(qsf.parent / name).resolve()
+                     for name in qsf_qip_files]
+    check(all(path.is_file() for path in qsf_qip_paths),
+          "missing QSF QIP_FILE target")
+    check(len(qsf_qip_paths) == len(set(qsf_qip_paths)),
+          "duplicate QSF QIP_FILE target")
+    check(qsf_qip_paths[-1] == core_qip.resolve(),
+          "HW-0 core QIP path is not relative to its QSF")
     check(not re.search(
         r"\b(?:[A-Za-z_$][A-Za-z0-9_$]*\.)+chon\b", hw0_rtl_text),
         "synthesis-visible hierarchical chon reference")
@@ -147,6 +208,18 @@ def main() -> int:
     check(sys_qip.read_text().splitlines() == expected_sys_qip,
           "MiSTer sys QIP adapter is not mechanical")
 
+    expected_production_pll_q17 = [
+        "set_global_assignment -name QIP_FILE           rtl/pll.qip",
+        "set_global_assignment -name QIP_FILE           "
+        "[file join $::quartus(qip_path) pll_hdmi.qip ]",
+        "set_global_assignment -name QIP_FILE           "
+        "[file join $::quartus(qip_path) pll_audio.qip ]",
+        "set_global_assignment -name QIP_FILE           "
+        "[file join $::quartus(qip_path) pll_cfg.qip ]",
+    ]
+    check((ROOT / "sys" / "pll_q17.qip").read_text().splitlines() ==
+          expected_production_pll_q17, "production Quartus 17 PLL bundle")
+
     check('FAMILY "Cyclone V"' in sys_tcl.read_text(), "FPGA family")
     check("DEVICE 5CSEBA6U23I7" in sys_tcl.read_text(), "FPGA device")
     check("../../sys/sys_top.sdc" in sys_qip.read_text(), "SDC path")
@@ -169,11 +242,56 @@ def main() -> int:
             r"(?m)^\s*set_global_assignment\s+-name\s+\S+", qip.read_text()))
         check(len(rows) == assignment_count,
               f"QIP assignment without qip_path context: {qip.name}")
-    source_paths = ([resolved for _, resolved in core_qip_rows] +
-                    [resolved for _, resolved in sys_qip_rows])
+    sys_qip_file_targets = [
+        target for kind, _, target in qip_file_rows(sys_qip)
+        if kind == "QIP_FILE"
+    ]
+    check(sys_qip_file_targets == [pll_core_qip.resolve()],
+          "HW-0 core PLL registration")
+    hw0_pll_roots = sys_qip_file_targets + qsf_qip_paths[:3]
+    check(hw0_pll_roots == [path.resolve()
+                            for path in production_pll_roots],
+          "HW-0 PLL root set differs from production pll_q17")
+
+    pll_qips, pll_leaves, pll_registrations = collect_qip_graph(
+        hw0_pll_roots)
+    nested_constraints = {
+        (ROOT / "rtl" / "pll" / "pll_0002.qip").resolve(),
+        (ROOT / "sys" / "pll_hdmi" / "pll_hdmi_0002.qip").resolve(),
+        (ROOT / "sys" / "pll_audio" / "pll_audio_0002.qip").resolve(),
+    }
+    check(nested_constraints.issubset(pll_qips),
+          "missing nested PLL constraint QIP")
+    check(all("set_instance_assignment -name PLL_" in path.read_text()
+              for path in nested_constraints), "missing nested PLL constraint")
+    check(not any(kind == "IP_FILE" for kind, _ in pll_leaves),
+          "unexpected PLL IP_FILE assignment")
+    pll_source_paths = [
+        path for kind, path in pll_leaves
+        if kind in {"SYSTEMVERILOG_FILE", "VERILOG_FILE", "VHDL_FILE"}
+    ]
+    check(len(pll_source_paths) == 10, "PLL generated source count")
+
+    base_leaves = [
+        target
+        for qip in (core_qip, sys_qip)
+        for kind, _, target in qip_file_rows(qip)
+        if kind != "QIP_FILE"
+    ]
+    source_paths = base_leaves + [path for _, path in pll_leaves]
     check(len(source_paths) == len(set(source_paths)), "duplicate source path")
     missing = [path for path in source_paths if not path.is_file()]
     check(not missing, "missing source: " + ", ".join(map(str, missing)))
+
+    pll_manifest_text = "\n".join(path.read_text() for path in pll_qips)
+    check(not re.search(r"(?:/Users/|[A-Za-z]:[\\/]|/tmp/|/private/tmp/)",
+                        pll_manifest_text), "absolute PLL manifest path")
+    sys_sdc = ROOT / "sys" / "sys_top.sdc"
+    check(sys_sdc in source_paths and
+          "derive_pll_clocks" in sys_sdc.read_text() and
+          "pll_hdmi|pll_hdmi_inst" in sys_sdc.read_text() and
+          "pll_audio|pll_audio_inst" in sys_sdc.read_text(),
+          "MiSTer PLL timing constraints")
 
     owners: dict[str, Path] = {}
     duplicate_modules: list[str] = []
@@ -186,6 +304,15 @@ def main() -> int:
                 owners[module] = source
     check(not duplicate_modules,
           "duplicate module: " + ", ".join(duplicate_modules))
+    expected_pll_entities = {
+        "pll_hdmi": (ROOT / "sys" / "pll_hdmi.v").resolve(),
+        "pll_cfg_hdmi": (ROOT / "sys" / "pll_cfg" /
+                         "pll_cfg_hdmi.v").resolve(),
+        "pll_audio": (ROOT / "sys" / "pll_audio.v").resolve(),
+    }
+    check(all(owners.get(entity) == owner
+              for entity, owner in expected_pll_entities.items()),
+          "undefined or multiply-defined MiSTer PLL entity")
 
     production_files = [ROOT / "VGM_MD_MiSTer.qpf",
                         ROOT / "VGM_MD_MiSTer.qsf", ROOT / "files.qip"]
@@ -248,9 +375,14 @@ def main() -> int:
         str(path.relative_to(ROOT)) for _, path in core_qip_rows
     ]
     print("HW0_STATIC top=sys_top family=Cyclone_V device=5CSEBA6U23I7 "
-          f"sources={len(source_paths)} core_sources={len(source_assignments)}")
-    print("HW0_QIP registration=QIP_FILE qsf_qip_file=1 "
+          f"sources={len(source_paths)} core_sources={len(source_assignments)} "
+          f"pll_sources={len(pll_source_paths)} pll_qips={len(pll_qips)}")
+    print("HW0_QIP registration=QIP_FILE qsf_qip_file=4 "
           "qsf_direct_source=0 qip_path_expansion=SIMULATED_PASS")
+    print("HW0_PLL_IP production_bundle=4 hw0_bundle=4 missing=0 "
+          "entities=pll_hdmi/pll_cfg_hdmi/pll_audio definitions=1/1/1 "
+          f"registrations={len(pll_registrations)} nested_constraints=3 "
+          "ip_file=0")
     print("HW0_ADPCMB_STATUS request_latch_eos_reset=PASS "
           "hierarchical_chon=0 audio_lifecycle_change=0")
     for source in source_assignments:
