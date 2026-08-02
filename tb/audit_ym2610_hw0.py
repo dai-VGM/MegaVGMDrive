@@ -82,6 +82,10 @@ def main() -> int:
     qpf_text = qpf.read_text()
     qsf_text = qsf.read_text()
     core_text = core_qip.read_text()
+    hw0_rtl_paths = sorted((ROOT / "rtl" / "ym2610_hw0").glob("*.[sv]*"))
+    hw0_rtl_text = "\n".join(path.read_text() for path in hw0_rtl_paths)
+    jt12_top_text = (ROOT / "rtl" / "ym2610_hw0" /
+                     "ym2610_hw0_jt12_top.v").read_text()
     all_project_text = "\n".join(path.read_text() for path in required)
     check('PROJECT_REVISION = "MegaVGMDrive_YM2610_HW0"' in qpf_text,
           "QPF revision")
@@ -104,6 +108,18 @@ def main() -> int:
           "HW-0 QIP_FILE assignment is absolute")
     check((qsf.parent / qsf_qip_files[0]).resolve() == core_qip.resolve(),
           "HW-0 QIP_FILE path is not relative to its QSF")
+    check(not re.search(
+        r"\b(?:[A-Za-z_$][A-Za-z0-9_$]*\.)+chon\b", hw0_rtl_text),
+        "synthesis-visible hierarchical chon reference")
+    check(re.search(
+        r"else\s+if\s*\(\s*!adpcmb_roe_n\s*\)\s*"
+        r"hw0_adpcmb_request_seen\s*<=\s*1'b1\s*;", jt12_top_text),
+        "HW-0 ADPCM-B request latch")
+    check(re.search(
+        r"assign\s+hw0_adpcmb_active\s*=\s*!rst\s*&&\s*acmd_on_b\s*&&\s*"
+        r"!acmd_rst_b\s*&&\s*!adpcmb_flag\s*&&\s*"
+        r"\(\s*!adpcmb_roe_n\s*\|\|\s*hw0_adpcmb_request_seen\s*\)\s*;",
+        jt12_top_text), "HW-0 ADPCM-B public status routing")
     check(not re.search(r"(?:/Users/|[A-Za-z]:[\\/]|/tmp/|/private/tmp/)",
                         all_project_text), "absolute path")
 
@@ -235,6 +251,8 @@ def main() -> int:
           f"sources={len(source_paths)} core_sources={len(source_assignments)}")
     print("HW0_QIP registration=QIP_FILE qsf_qip_file=1 "
           "qsf_direct_source=0 qip_path_expansion=SIMULATED_PASS")
+    print("HW0_ADPCMB_STATUS request_latch_eos_reset=PASS "
+          "hierarchical_chon=0 audio_lifecycle_change=0")
     for source in source_assignments:
         print(f"HW0_SOURCE {source}")
     print("HW0_STATIC board_pin_timing=exact path_audit=PASS "

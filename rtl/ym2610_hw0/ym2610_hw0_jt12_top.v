@@ -218,9 +218,18 @@ assign debug_view = { 4'd0, flag_B, flag_A, div_setting };
 assign hw0_adpcma_eos = adpcma_flags;
 assign hw0_adpcma_command = aon_a[5:0];
 assign hw0_adpcmb_eos = adpcmb_flag;
-// This status is for the HW-0 sequencer/video observer only.  It is derived
-// from the command latch and EOS/reset state and is not in the audio path.
-assign hw0_adpcmb_active = gen_adpcm.u_adpcm_b.chon;
+// This status is for the HW-0 sequencer/video observer only.  The first
+// explicit ROM request marks decoder start; EOS or command RESET releases it.
+// It does not feed the ADPCM-B request, decoder, gain, or audio path.
+reg hw0_adpcmb_request_seen;
+always @(posedge clk) begin
+    if( rst || !acmd_on_b || acmd_rst_b || adpcmb_flag )
+        hw0_adpcmb_request_seen <= 1'b0;
+    else if( !adpcmb_roe_n )
+        hw0_adpcmb_request_seen <= 1'b1;
+end
+assign hw0_adpcmb_active = !rst && acmd_on_b && !acmd_rst_b &&
+    !adpcmb_flag && (!adpcmb_roe_n || hw0_adpcmb_request_seen);
 assign hw0_adpcmb_command_update = acmd_up_b;
 
 generate

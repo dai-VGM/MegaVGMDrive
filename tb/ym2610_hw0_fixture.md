@@ -82,6 +82,16 @@ over 4097 active samples. HW-0 aligns START, first logical consume, and first
 non-zero to that contract and records `counts=.../4097`; shortening it to 4096
 changes the hash to `a92e942c75142561` and is rejected.
 
+The HW-0 ADPCM-B active output is a sequencer/debug status, not an audio-path
+control. It asserts from the first explicitly routed ROM request, stays latched
+between requests, and clears on command RESET or EOS before being routed
+through the existing HW-0 ports. The command latch alone is intentionally not
+used as start status because it leads the decoder-active boundary by one public
+sample. The decoder's actual `chon` remains local to `jt10_adpcm_drvB`;
+synthesizable HW-0 RTL does not inspect it hierarchically. PC-GATE alone
+continues to own ROM request qualification, decoder activity, audio lane
+gating, and natural end.
+
 The TB uses individual `$isunknown` calls for left, right, sample strobe,
 phase/error controls, each PSG channel and sum, and address/data during every
 valid A/B ROM request. An upstream idle ADPCM-A output-enable pipeline is a
