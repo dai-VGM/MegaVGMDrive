@@ -54,14 +54,9 @@ for item in "${cases[@]}"; do
   python3 "$repo_dir/tools/inspect_ym2610_vgm.py" "$path" --json \
     >"$build_dir/$expect-reference.json"
   vvp "$build_dir/parser.vvp" "+VGM=$path" >"$build_dir/$expect-parser.log"
-  pids=()
   for run in 1 2 3; do
     vvp "$build_dir/core.vvp" "+VGM=$path" "+EXPECT=$expect" \
-      >"$build_dir/$expect-core-$run.log" &
-    pids+=("$!")
-  done
-  for pid in "${pids[@]}"; do
-    wait "$pid"
+      >"$build_dir/$expect-core-$run.log"
   done
   result_pattern='^(CORE_RESULT|LOOP_RESULT)'
   grep -E "$result_pattern" "$build_dir/$expect-core-1.log"

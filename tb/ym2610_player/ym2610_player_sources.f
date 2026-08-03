@@ -1,4 +1,6 @@
 rtl/ym2610_player/ym2610_player_compat.sv
+rtl/ym2610_player/ym2610_player_reset_fence.sv
+rtl/ym2610_player/ym2610_player_diagnostics.sv
 rtl/ym2610_player/ym2610_player_scanner.sv
 rtl/ym2610_player/ym2610_player_parser.sv
 rtl/ym2610_player/ym2610_player_bus.sv

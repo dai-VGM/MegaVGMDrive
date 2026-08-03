@@ -36,6 +36,7 @@ module ym2610_player_scanner #(
     output logic [31:0]           b_only_writes,
     output logic [31:0]           unknown_writes,
     output logic [31:0]           command_count,
+    output logic [4:0]            debug_state,
     output logic                  variant_b,
     output logic                  dual_chip,
     output logic [31:0]           first_bad_pc,
@@ -78,6 +79,7 @@ module ym2610_player_scanner #(
     } state_t;
 
     state_t state;
+    assign debug_state = state;
     logic [7:0] header [0:127];
     logic [7:0] header_index;
     logic read_pending;

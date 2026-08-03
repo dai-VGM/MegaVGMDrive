@@ -1,5 +1,7 @@
 # YM2610 player-only manifest.  Paths are relative to this QIP directory.
 set_global_assignment -name SYSTEMVERILOG_FILE [file join $::quartus(qip_path) ../../rtl/ym2610_player/emu.sv ]
+set_global_assignment -name SYSTEMVERILOG_FILE [file join $::quartus(qip_path) ../../rtl/ym2610_player/ym2610_player_reset_fence.sv ]
+set_global_assignment -name SYSTEMVERILOG_FILE [file join $::quartus(qip_path) ../../rtl/ym2610_player/ym2610_player_diagnostics.sv ]
 set_global_assignment -name SYSTEMVERILOG_FILE [file join $::quartus(qip_path) ../../rtl/ym2610_player/ym2610_player_compat.sv ]
 set_global_assignment -name SYSTEMVERILOG_FILE [file join $::quartus(qip_path) ../../rtl/ym2610_player/ym2610_player_scanner.sv ]
 set_global_assignment -name SYSTEMVERILOG_FILE [file join $::quartus(qip_path) ../../rtl/ym2610_player/ym2610_player_parser.sv ]

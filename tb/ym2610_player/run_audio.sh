@@ -26,14 +26,9 @@ cases=(
 for item in "${cases[@]}"; do
   fixture=${item%%:*}
   expect=${item##*:}
-  pids=()
   for run in 1 2 3; do
     vvp "$build_dir/core.vvp" "+VGM=$build_dir/fixtures/$fixture" "+EXPECT=$expect" \
-      >"$build_dir/$expect-$run.log" &
-    pids+=("$!")
-  done
-  for pid in "${pids[@]}"; do
-    wait "$pid"
+      >"$build_dir/$expect-$run.log"
   done
   sed -n '/^CORE_RESULT/p' "$build_dir/$expect-1.log"
   diff -u <(sed -n 's/ result=PASS$/ result=PASS/p' "$build_dir/$expect-1.log") \

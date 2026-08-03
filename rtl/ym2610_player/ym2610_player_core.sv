@@ -11,6 +11,7 @@ module ym2610_player_core #(
     input  logic                  ioctl_download,
     input  logic                  load_done_pulse,
     input  logic [31:0]           file_size,
+    input  logic [7:0]            load_generation,
 
     output logic                  mem_req,
     output logic [ADDR_WIDTH-1:0] mem_addr,
@@ -24,7 +25,13 @@ module ym2610_player_core #(
     output logic                  external_mute,
     output logic                  start_pulse,
     output logic [31:0]           start_count,
+    output logic [31:0]           scanner_start_count,
     output logic [3:0]            load_state,
+    output logic [4:0]            scanner_state,
+    output logic [3:0]            parser_state,
+    output logic [31:0]           parser_command_count,
+    output logic                  fatal_active,
+    output logic [7:0]            fatal_code,
     output logic [3:0]            classification,
     output logic                  raw_variant_b,
     output logic [7:0]            reject_code,
@@ -66,6 +73,21 @@ module ym2610_player_core #(
     output logic                  owner_mismatch,
     output logic                  busy_timeout,
     output logic                  write_while_busy,
+    output logic                  memory_timeout,
+    output logic                  memory_request_held,
+    output logic                  memory_outstanding,
+    output logic [1:0]            memory_held_owner,
+    output logic [1:0]            memory_outstanding_owner,
+    output logic [ADDR_WIDTH-1:0] last_memory_accept_addr,
+    output logic [ADDR_WIDTH-1:0] last_memory_response_addr,
+    output logic [7:0]            last_memory_accept_generation,
+    output logic [7:0]            last_memory_response_generation,
+    output logic                  pcm_request_held,
+    output logic                  pcm_response_pending,
+    output logic                  pcm_held_space_b,
+    output logic [19:0]           pcm_held_logical_addr,
+    output logic [31:0]           player_heartbeat,
+    output logic [31:0]           ddr_heartbeat,
     output logic [15:0]           peak_l,
     output logic [15:0]           peak_r,
     output logic [7:0]            psg_a,
@@ -142,6 +164,7 @@ module ym2610_player_core #(
     logic arbiter_reset;
     logic [31:0] scanner_memory_requests, parser_memory_requests;
     logic [31:0] pcm_memory_requests;
+    logic [31:0] arbiter_response_count;
     logic arbiter_stale, arbiter_owner_mismatch;
     logic arbiter_response_timeout;
     logic [7:0] scanner_reject_code;
@@ -198,7 +221,8 @@ module ym2610_player_core #(
                             load_state == LS_DRAIN || load_state == LS_ENDED);
     assign cache_reset = parser_reset;
     assign arbiter_reset = hard_reset || ioctl_download ||
-                           load_state == LS_SCAN_RESET;
+                           load_state == LS_SCAN_RESET ||
+                           load_state == LS_REJECT;
     assign chip_reset = hard_reset || ioctl_download ||
                         (load_state != LS_READY && load_state != LS_INIT &&
                          load_state != LS_SETTLE && load_state != LS_START &&
@@ -215,11 +239,17 @@ module ym2610_player_core #(
     assign stale_response = arbiter_stale || pcm_stale;
     assign owner_mismatch = arbiter_owner_mismatch;
     assign parser_underflow = arbiter_response_timeout && parser_running;
+    assign memory_timeout = arbiter_response_timeout;
     assign raw_variant_b = scan_variant_b;
     assign unsupported_pc = scanner_reject_code == 8'h05 ?
                             first_bad_pc : parser_unsupported_pc;
     assign unsupported_opcode = scanner_reject_code == 8'h05 ?
                                 first_bad_data : parser_unsupported_opcode;
+    assign fatal_active = load_state == LS_REJECT;
+    assign fatal_code = reject_code;
+    assign player_heartbeat = arbiter_response_count;
+    assign ddr_heartbeat = scanner_memory_requests + parser_memory_requests +
+                           pcm_memory_requests + arbiter_response_count;
 
     assign cen_sum = {1'b0, cen_accum} + {1'b0, scan_clock};
     assign sample_sum = {1'b0, sample_accum} + 33'd44_100;
@@ -283,7 +313,8 @@ module ym2610_player_core #(
         .total_samples(scan_total_samples), .total_writes(scan_total_writes),
         .port0_writes(scan_p0), .port1_writes(scan_p1),
         .b_only_writes(b_only_writes), .unknown_writes(unknown_writes),
-        .command_count(scan_command_count), .variant_b(scan_variant_b),
+        .command_count(scan_command_count), .debug_state(scanner_state),
+        .variant_b(scan_variant_b),
         .dual_chip(scan_dual), .first_bad_pc(first_bad_pc),
         .first_bad_port(first_bad_port), .first_bad_address(first_bad_address),
         .first_bad_data(first_bad_data),
@@ -309,7 +340,8 @@ module ym2610_player_core #(
         .opcode(parser_opcode), .wait_remaining(wait_remaining),
         .sample_position(parser_samples), .accepted_writes(parser_accepted),
         .port0_writes(parser_p0), .port1_writes(parser_p1),
-        .loop_count(loop_count), .unsupported_pc(parser_unsupported_pc),
+        .loop_count(loop_count), .command_count(parser_command_count),
+        .debug_state(parser_state), .unsupported_pc(parser_unsupported_pc),
         .unsupported_opcode(parser_unsupported_opcode),
         .trace_valid(trace_valid),
         .trace_pc(trace_pc), .trace_sample(trace_sample)
@@ -353,14 +385,19 @@ module ym2610_player_core #(
         .adpcmb_fetch_responses(adpcmb_fetch_responses),
         .adpcma_underflow(adpcma_underflow),
         .adpcmb_underflow(adpcmb_underflow), .range_error(pcm_range_error),
-        .stale_response(pcm_stale), .occupancy(pcm_occupancy),
+        .stale_response(pcm_stale), .request_held(pcm_request_held),
+        .response_pending(pcm_response_pending),
+        .held_space_b(pcm_held_space_b),
+        .held_logical_addr(pcm_held_logical_addr),
+        .occupancy(pcm_occupancy),
         .last_logical_addr(pcm_last_address),
         .adpcma_last_address(adpcma_last_address),
         .adpcmb_last_address(adpcmb_last_address)
     );
 
     ym2610_player_memory_arbiter #(.ADDR_WIDTH(ADDR_WIDTH)) u_arbiter (
-        .clk(clk), .reset(arbiter_reset), .scan_req(scanner_req),
+        .clk(clk), .reset(arbiter_reset), .generation(load_generation),
+        .scan_req(scanner_req),
         .scan_addr(scanner_addr), .scan_ready(scanner_ready),
         .scan_valid(scanner_valid), .scan_data(scanner_data),
         .parser_req(parser_req), .parser_addr(parser_addr),
@@ -371,9 +408,19 @@ module ym2610_player_core #(
         .mem_valid(mem_valid), .mem_data(mem_data),
         .scanner_requests(scanner_memory_requests),
         .parser_requests(parser_memory_requests),
-        .pcm_requests(pcm_memory_requests), .stale_response(arbiter_stale),
+        .pcm_requests(pcm_memory_requests),
+        .response_count(arbiter_response_count),
+        .stale_response(arbiter_stale),
         .owner_mismatch(arbiter_owner_mismatch),
-        .response_timeout(arbiter_response_timeout)
+        .response_timeout(arbiter_response_timeout),
+        .request_held(memory_request_held),
+        .outstanding(memory_outstanding),
+        .held_owner(memory_held_owner),
+        .outstanding_owner(memory_outstanding_owner),
+        .last_accept_addr(last_memory_accept_addr),
+        .last_response_addr(last_memory_response_addr),
+        .last_accept_generation(last_memory_accept_generation),
+        .last_response_generation(last_memory_response_generation)
     );
 
     ym2610_hw0_jt10_wrapper u_jt10 (
@@ -413,6 +460,7 @@ module ym2610_player_core #(
             download_q <= ioctl_download;
             soft_reset_q <= soft_reset;
             start_count <= 32'd0;
+            scanner_start_count <= 32'd0;
             drain_samples <= 3'd0;
             chip_reset_cens <= 6'd0;
             ready_zero_samples <= 7'd0;
@@ -425,6 +473,7 @@ module ym2610_player_core #(
             if (download_start) begin
                 load_state <= LS_LOAD;
                 file_available <= 1'b0;
+                scanner_start_count <= 32'd0;
                 peak_l <= 16'd0;
                 peak_r <= 16'd0;
                 reject_code <= 8'd0;
@@ -443,8 +492,10 @@ module ym2610_player_core #(
                     LS_LOAD: begin end
                     LS_SCAN_RESET: load_state <= LS_SCAN;
                     LS_SCAN: begin
-                        if (!scanner_busy && !scanner_done && !scanner_start)
+                        if (!scanner_busy && !scanner_done && !scanner_start) begin
                             scanner_start <= 1'b1;
+                            scanner_start_count <= scanner_start_count + 32'd1;
+                        end
                         if (scanner_done) begin
                             reject_code <= scanner_reject_code;
                             if (scanner_accepted) begin

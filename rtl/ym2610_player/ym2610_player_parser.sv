@@ -37,6 +37,8 @@ module ym2610_player_parser #(
     output logic [31:0]           port0_writes,
     output logic [31:0]           port1_writes,
     output logic [31:0]           loop_count,
+    output logic [31:0]           command_count,
+    output logic [3:0]            debug_state,
     output logic [31:0]           unsupported_pc,
     output logic [7:0]            unsupported_opcode,
     output logic                  trace_valid,
@@ -50,6 +52,7 @@ module ym2610_player_parser #(
     } state_t;
 
     state_t state;
+    assign debug_state = state;
     logic read_pending;
     logic [31:0] command_pc;
     logic [7:0] wait_low;
@@ -87,6 +90,7 @@ module ym2610_player_parser #(
             port0_writes <= 32'd0;
             port1_writes <= 32'd0;
             loop_count <= 32'd0;
+            command_count <= 32'd0;
             unsupported_pc <= 32'd0;
             unsupported_opcode <= 8'd0;
             write_port <= 1'b0;
@@ -114,12 +118,14 @@ module ym2610_player_parser #(
                 port0_writes <= 32'd0;
                 port1_writes <= 32'd0;
                 loop_count <= 32'd0;
+                command_count <= 32'd0;
                 unsupported_pc <= 32'd0;
                 unsupported_opcode <= 8'd0;
             end else begin
                 case (state)
                     ST_IDLE: begin end
                     ST_COMMAND: if (mem_valid && read_pending) begin
+                        command_count <= command_count + 32'd1;
                         command_pc <= pc;
                         opcode <= mem_data;
                         pc <= pc + 32'd1;

@@ -67,7 +67,8 @@ module tb_ym2610_player_core;
     ym2610_player_core #(.SYS_CLK_HZ(8_000_000), .CACHE_ENTRIES(16)) dut (
         .clk(clk), .hard_reset(hard_reset), .soft_reset(soft_reset),
         .ioctl_download(ioctl_download), .load_done_pulse(load_done_pulse),
-        .file_size(file_size), .mem_req(mem_req), .mem_addr(mem_addr),
+        .file_size(file_size), .load_generation(8'd1),
+        .mem_req(mem_req), .mem_addr(mem_addr),
         .mem_ready(mem_ready), .mem_valid(mem_valid), .mem_data(mem_data),
         .audio_l(audio_l), .audio_r(audio_r), .audio_sample(audio_sample),
         .external_mute(external_mute), .start_pulse(start_pulse),

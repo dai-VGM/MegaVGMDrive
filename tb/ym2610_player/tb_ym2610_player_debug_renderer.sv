@@ -42,6 +42,36 @@ module tb_ym2610_player_debug_renderer;
     logic adpcmb_underflow = 1'b0;
     logic stale_response = 1'b1;
     logic owner_mismatch = 1'b0;
+    logic fatal_active = 1'b0;
+    logic [7:0] fatal_code = 8'he1;
+    logic [5:0] fatal_error_flags = 6'h2d;
+    logic [4:0] scanner_state = 5'h12;
+    logic [3:0] parser_state = 4'h9;
+    logic [1:0] memory_held_owner = 2'd2;
+    logic [1:0] memory_outstanding_owner = 2'd1;
+    logic memory_request = 1'b1;
+    logic memory_request_held = 1'b1;
+    logic memory_outstanding = 1'b1;
+    logic ddram_busy = 1'b1;
+    logic [22:0] last_memory_accept_addr = 23'h123456;
+    logic [22:0] last_memory_response_addr = 23'h654321;
+    logic [7:0] load_generation = 8'h5a;
+    logic [7:0] last_accept_generation = 8'h6b;
+    logic [7:0] last_response_generation = 8'h7c;
+    logic [2:0] last_reset_source = 3'd3;
+    logic [15:0] video_reset_edge_count = 16'h1234;
+    logic pll_unlock_observed = 1'b0;
+    logic [15:0] video_frame_heartbeat = 16'h2345;
+    logic [15:0] video_line_heartbeat = 16'h3456;
+    logic [31:0] player_heartbeat = 32'h4567_89ab;
+    logic [31:0] ddr_heartbeat = 32'h5678_9abc;
+    logic [31:0] scanner_start_count = 32'd1;
+    logic [31:0] parser_command_count = 32'h6789_abcd;
+    logic [15:0] upload_fifo_debug = 16'h0080;
+    logic upload_partial_valid = 1'b0;
+    logic pcm_request_held = 1'b1;
+    logic pcm_response_pending = 1'b0;
+    logic pcm_held_space_b = 1'b0;
     logic [15:0] peak_l = 16'ha55a;
     logic [15:0] peak_r = 16'h5aa5;
     logic background;
@@ -82,6 +112,33 @@ module tb_ym2610_player_debug_renderer;
         .adpcma_underflow(adpcma_underflow),
         .adpcmb_underflow(adpcmb_underflow),
         .stale_response(stale_response), .owner_mismatch(owner_mismatch),
+        .fatal_active(fatal_active), .fatal_code(fatal_code),
+        .fatal_error_flags(fatal_error_flags),
+        .scanner_state(scanner_state), .parser_state(parser_state),
+        .memory_held_owner(memory_held_owner),
+        .memory_outstanding_owner(memory_outstanding_owner),
+        .memory_request(memory_request),
+        .memory_request_held(memory_request_held),
+        .memory_outstanding(memory_outstanding),
+        .ddram_busy(ddram_busy),
+        .last_memory_accept_addr(last_memory_accept_addr),
+        .last_memory_response_addr(last_memory_response_addr),
+        .load_generation(load_generation),
+        .last_accept_generation(last_accept_generation),
+        .last_response_generation(last_response_generation),
+        .last_reset_source(last_reset_source),
+        .video_reset_edge_count(video_reset_edge_count),
+        .pll_unlock_observed(pll_unlock_observed),
+        .video_frame_heartbeat(video_frame_heartbeat),
+        .video_line_heartbeat(video_line_heartbeat),
+        .player_heartbeat(player_heartbeat), .ddr_heartbeat(ddr_heartbeat),
+        .scanner_start_count(scanner_start_count),
+        .parser_command_count(parser_command_count),
+        .upload_fifo_debug(upload_fifo_debug),
+        .upload_partial_valid(upload_partial_valid),
+        .pcm_request_held(pcm_request_held),
+        .pcm_response_pending(pcm_response_pending),
+        .pcm_held_space_b(pcm_held_space_b),
         .peak_l(peak_l), .peak_r(peak_r), .background(background),
         .text_pixel(text_pixel)
     );
@@ -209,7 +266,7 @@ module tb_ym2610_player_debug_renderer;
         check_row(0, 14, "L", "P", 32'hddee_ff00, 1);
         check_row(0, 15, "U", "P", 32'h1357_9bdf, 1);
         check_row(0, 16, "U", "O", 32'h0000_0050, 1);
-        check_row(0, 17, " ", " ", 32'h0000_0000, 0);
+        check_row(0, 17, "S", "S", 32'h0000_0012, 1);
 
         check_heading(1'b1, "P", "C", "M");
         check_row(1, 1,  "D", "A", 32'h0000_0005, 1);
@@ -250,6 +307,16 @@ module tb_ym2610_player_debug_renderer;
         check(text_pixel === 1'b0, "Debug View Off text");
         check(dut.nibble === 4'd0, "Debug View Off temporary default");
         check_known("Debug View Off X/Z-free");
+
+        // A fatal page overrides Debug View=Off and retains the minimum
+        // hardware recorder fields needed for recovery without power cycling.
+        fatal_active = 1'b1;
+        check_heading(1'b0, "F", "A", "T");
+        check_row(0, 1, "F", "T", 32'h0000_00e1, 1);
+        check_row(0, 5, "O", "W", 32'h0000_00f9, 1);
+        check_row(0, 10, "G", "N", 32'h005a_6b7c, 1);
+        check(background === 1'b1, "fatal overrides Debug View Off");
+        fatal_active = 1'b0;
 
         // drawing_active is the active-raster clip. Coordinates outside the
         // native raster remain fully defined and emit neither background nor text.

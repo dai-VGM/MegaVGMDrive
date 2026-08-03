@@ -45,6 +45,34 @@ module ym2610_player_video (
     input  logic       adpcmb_underflow,
     input  logic       stale_response,
     input  logic       owner_mismatch,
+    input  logic       fatal_active,
+    input  logic [7:0] fatal_code,
+    input  logic [5:0] fatal_error_flags,
+    input  logic [4:0] scanner_state,
+    input  logic [3:0] parser_state,
+    input  logic [1:0] memory_held_owner,
+    input  logic [1:0] memory_outstanding_owner,
+    input  logic       memory_request,
+    input  logic       memory_request_held,
+    input  logic       memory_outstanding,
+    input  logic       ddram_busy,
+    input  logic [22:0] last_memory_accept_addr,
+    input  logic [22:0] last_memory_response_addr,
+    input  logic [7:0] load_generation,
+    input  logic [7:0] last_accept_generation,
+    input  logic [7:0] last_response_generation,
+    input  logic [2:0] last_reset_source,
+    input  logic [15:0] video_reset_edge_count,
+    input  logic       pll_unlock_observed,
+    input  logic [31:0] player_heartbeat,
+    input  logic [31:0] ddr_heartbeat,
+    input  logic [31:0] scanner_start_count,
+    input  logic [31:0] parser_command_count,
+    input  logic [15:0] upload_fifo_debug,
+    input  logic       upload_partial_valid,
+    input  logic       pcm_request_held,
+    input  logic       pcm_response_pending,
+    input  logic       pcm_held_space_b,
     input  logic [15:0] peak_l,
     input  logic [15:0] peak_r,
     output logic       ce_pixel,
@@ -53,7 +81,9 @@ module ym2610_player_video (
     output logic       de,
     output logic [7:0] red,
     output logic [7:0] green,
-    output logic [7:0] blue
+    output logic [7:0] blue,
+    output logic [15:0] frame_heartbeat,
+    output logic [15:0] line_heartbeat
 );
     logic [9:0] h_count;
     logic [8:0] v_count;
@@ -79,7 +109,7 @@ module ym2610_player_video (
     );
 
     ym2610_player_debug_renderer u_debug (
-        .enable(debug_view != 0), .pcm_page(debug_view == 2),
+        .enable(debug_view != 0 || fatal_active), .pcm_page(debug_view == 2),
         .h_count(h_count), .v_count(v_count), .drawing_active(de),
         .load_state(load_state), .original_size(original_size),
         .raw_variant_b(raw_variant_b),
@@ -106,6 +136,33 @@ module ym2610_player_video (
         .pcm_occupancy(pcm_occupancy), .adpcma_underflow(adpcma_underflow),
         .adpcmb_underflow(adpcmb_underflow),
         .stale_response(stale_response), .owner_mismatch(owner_mismatch),
+        .fatal_active(fatal_active), .fatal_code(fatal_code),
+        .fatal_error_flags(fatal_error_flags),
+        .scanner_state(scanner_state), .parser_state(parser_state),
+        .memory_held_owner(memory_held_owner),
+        .memory_outstanding_owner(memory_outstanding_owner),
+        .memory_request(memory_request),
+        .memory_request_held(memory_request_held),
+        .memory_outstanding(memory_outstanding),
+        .ddram_busy(ddram_busy),
+        .last_memory_accept_addr(last_memory_accept_addr),
+        .last_memory_response_addr(last_memory_response_addr),
+        .load_generation(load_generation),
+        .last_accept_generation(last_accept_generation),
+        .last_response_generation(last_response_generation),
+        .last_reset_source(last_reset_source),
+        .video_reset_edge_count(video_reset_edge_count),
+        .pll_unlock_observed(pll_unlock_observed),
+        .video_frame_heartbeat(frame_heartbeat),
+        .video_line_heartbeat(line_heartbeat),
+        .player_heartbeat(player_heartbeat), .ddr_heartbeat(ddr_heartbeat),
+        .scanner_start_count(scanner_start_count),
+        .parser_command_count(parser_command_count),
+        .upload_fifo_debug(upload_fifo_debug),
+        .upload_partial_valid(upload_partial_valid),
+        .pcm_request_held(pcm_request_held),
+        .pcm_response_pending(pcm_response_pending),
+        .pcm_held_space_b(pcm_held_space_b),
         .peak_l(peak_l), .peak_r(peak_r), .background(debug_background),
         .text_pixel(debug_text)
     );
@@ -113,7 +170,7 @@ module ym2610_player_video (
     always_comb begin
         if (!de)
             rgb = 24'h000000;
-        else if (debug_view != 0)
+        else if (fatal_active || debug_view != 0)
             rgb = debug_text ? 24'he8f0ff : 24'h000818;
         else if (title_text)
             rgb = 24'he8f0ff;
@@ -124,5 +181,17 @@ module ym2610_player_video (
         red = rgb[23:16];
         green = rgb[15:8];
         blue = rgb[7:0];
+    end
+
+    always_ff @(posedge clk) begin
+        if (reset) begin
+            frame_heartbeat <= 16'd0;
+            line_heartbeat <= 16'd0;
+        end else begin
+            if (vblank_start)
+                frame_heartbeat <= frame_heartbeat + 16'd1;
+            if (ce_pixel && h_count == 10'd0)
+                line_heartbeat <= line_heartbeat + 16'd1;
+        end
     end
 endmodule

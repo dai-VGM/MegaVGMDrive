@@ -50,6 +50,10 @@ module ym2610_player_pcm_cache #(
     output logic                  adpcmb_underflow,
     output logic                  range_error,
     output logic                  stale_response,
+    output logic                  request_held,
+    output logic                  response_pending,
+    output logic                  held_space_b,
+    output logic [19:0]           held_logical_addr,
     output logic [6:0]            occupancy,
     output logic [19:0]           last_logical_addr,
     output logic [19:0]           adpcma_last_address,
@@ -66,6 +70,13 @@ module ym2610_player_pcm_cache #(
     logic request_pending;
     logic request_space_b;
     logic [19:0] request_logical;
+    logic offer_valid;
+    logic offer_space_b;
+    logic [19:0] offer_logical;
+    logic [ADDR_WIDTH-1:0] offer_file_addr;
+    logic accepted_space_b;
+    logic [19:0] accepted_logical;
+    logic prefer_b;
     logic need_valid;
     logic need_required;
     logic need_space_b;
@@ -75,6 +86,9 @@ module ym2610_player_pcm_cache #(
     logic prewarm_a;
     logic prewarm_b;
     logic prewarm_missing;
+    logic a_need_valid, a_need_required;
+    logic b_need_valid, b_need_required;
+    logic [19:0] a_need_logical, b_need_logical;
     integer i;
 
     function automatic logic contains(input logic space_b,
@@ -123,6 +137,16 @@ module ym2610_player_pcm_cache #(
         adpcmb_data = b_current_data;
     end
 
+    assign mem_req = offer_valid ||
+                     (active && need_valid && map_hit && !request_pending);
+    assign mem_addr = offer_valid ? offer_file_addr : map_file_addr;
+    assign accepted_space_b = offer_valid ? offer_space_b : need_space_b;
+    assign accepted_logical = offer_valid ? offer_logical : need_logical;
+    assign request_held = offer_valid;
+    assign response_pending = request_pending;
+    assign held_space_b = offer_valid ? offer_space_b : request_space_b;
+    assign held_logical_addr = offer_valid ? offer_logical : request_logical;
+
     always_comb begin
         prewarm_a = write_valid && write_port && write_address == 8'h00 &&
                     !write_data[7] && |write_data[5:0];
@@ -133,6 +157,12 @@ module ym2610_player_pcm_cache #(
         need_required = 1'b0;
         need_space_b = 1'b0;
         need_logical = 20'd0;
+        a_need_valid = 1'b0;
+        a_need_required = 1'b0;
+        a_need_logical = adpcma_addr;
+        b_need_valid = 1'b0;
+        b_need_required = 1'b0;
+        b_need_logical = adpcmb_addr[19:0];
 
         if (prewarm_a) begin
             for (integer voice = 0; voice < 6; voice = voice + 1) begin
@@ -170,42 +200,69 @@ module ym2610_player_pcm_cache #(
             prewarm_missing = need_valid;
         end
 
-        if (!need_valid && !adpcma_roe_n && !a_current_hit) begin
-            need_valid = 1'b1;
-            need_required = 1'b1;
-            need_space_b = 1'b0;
-            need_logical = adpcma_addr;
-        end else if (!need_valid && a_current_hit && !a_next_hit) begin
-            need_valid = 1'b1;
-            need_space_b = 1'b0;
-            need_logical = adpcma_addr + 20'd1;
+        if (!adpcma_roe_n && !a_current_hit) begin
+            a_need_valid = 1'b1;
+            a_need_required = 1'b1;
+            a_need_logical = adpcma_addr;
+        end else if (a_current_hit && !a_next_hit) begin
+            a_need_valid = 1'b1;
+            a_need_logical = adpcma_addr + 20'd1;
+        end else if (!a_current_hit) begin
+            a_need_valid = 1'b1;
+            a_need_logical = adpcma_addr;
         end
-        if (!need_valid && !adpcmb_roe_n && !b_current_hit) begin
-            need_valid = 1'b1;
-            need_required = 1'b1;
-            need_space_b = 1'b1;
-            need_logical = adpcmb_addr[19:0];
-        end else if (!need_valid && b_current_hit && !b_next_hit) begin
-            need_valid = 1'b1;
-            need_space_b = 1'b1;
-            need_logical = adpcmb_addr[19:0] + 20'd1;
+
+        if (!adpcmb_roe_n && !b_current_hit) begin
+            b_need_valid = 1'b1;
+            b_need_required = 1'b1;
+            b_need_logical = adpcmb_addr[19:0];
+        end else if (b_current_hit && !b_next_hit) begin
+            b_need_valid = 1'b1;
+            b_need_logical = adpcmb_addr[19:0] + 20'd1;
+        end else if (!b_current_hit) begin
+            b_need_valid = 1'b1;
+            b_need_logical = adpcmb_addr[19:0];
         end
-        if (!need_valid && !a_current_hit) begin
+
+        // Required current bytes outrank speculative +1 prefetch.  If both
+        // active pins need the same class of service, alternate the accepted
+        // lane.  An idle lane never displaces an actively decoding lane.
+        if (!need_valid && (a_need_valid || b_need_valid)) begin
             need_valid = 1'b1;
-            need_space_b = 1'b0;
-            need_logical = adpcma_addr;
-        end
-        if (!need_valid && !b_current_hit) begin
-            need_valid = 1'b1;
-            need_space_b = 1'b1;
-            need_logical = adpcmb_addr[19:0];
+            if (a_need_required && b_need_required) begin
+                need_required = 1'b1;
+                need_space_b = prefer_b;
+                need_logical = prefer_b ? b_need_logical : a_need_logical;
+            end else if (a_need_required) begin
+                need_required = 1'b1;
+                need_space_b = 1'b0;
+                need_logical = a_need_logical;
+            end else if (b_need_required) begin
+                need_required = 1'b1;
+                need_space_b = 1'b1;
+                need_logical = b_need_logical;
+            end else if (a_need_valid && b_need_valid &&
+                         !adpcma_roe_n && !adpcmb_roe_n) begin
+                need_space_b = prefer_b;
+                need_logical = prefer_b ? b_need_logical : a_need_logical;
+            end else if (a_need_valid && !adpcma_roe_n) begin
+                need_space_b = 1'b0;
+                need_logical = a_need_logical;
+            end else if (b_need_valid && !adpcmb_roe_n) begin
+                need_space_b = 1'b1;
+                need_logical = b_need_logical;
+            end else if (a_need_valid) begin
+                need_space_b = 1'b0;
+                need_logical = a_need_logical;
+            end else begin
+                need_space_b = 1'b1;
+                need_logical = b_need_logical;
+            end
         end
 
         write_allow = !(prewarm_a || prewarm_b) || !prewarm_missing;
         map_space_b = need_space_b;
         map_logical_addr = need_logical;
-        mem_req = active && need_valid && map_hit && !request_pending;
-        mem_addr = map_file_addr;
     end
 
     always_ff @(posedge clk) begin
@@ -213,6 +270,11 @@ module ym2610_player_pcm_cache #(
             request_pending <= 1'b0;
             request_space_b <= 1'b0;
             request_logical <= 20'd0;
+            offer_valid <= 1'b0;
+            offer_space_b <= 1'b0;
+            offer_logical <= 20'd0;
+            offer_file_addr <= '0;
+            prefer_b <= 1'b0;
             replace_ptr <= '0;
             request_count <= 32'd0;
             response_count <= 32'd0;
@@ -239,6 +301,13 @@ module ym2610_player_pcm_cache #(
                 cache_data[i] <= 8'd0;
             end
         end else begin
+            if (active && need_valid && map_hit && !offer_valid &&
+                !request_pending && !mem_ready) begin
+                offer_valid <= 1'b1;
+                offer_space_b <= need_space_b;
+                offer_logical <= need_logical;
+                offer_file_addr <= map_file_addr;
+            end
             if (write_accept) begin
                 if (write_port && write_address >= 8'h10 && write_address <= 8'h15)
                     start_a[write_address[2:0]][7:0] <= write_data;
@@ -250,12 +319,14 @@ module ym2610_player_pcm_cache #(
                     start_b[15:8] <= write_data;
             end
             if (mem_req && mem_ready) begin
+                offer_valid <= 1'b0;
                 request_pending <= 1'b1;
-                request_space_b <= need_space_b;
-                request_logical <= need_logical;
+                request_space_b <= accepted_space_b;
+                request_logical <= accepted_logical;
                 request_count <= request_count + 32'd1;
-                last_logical_addr <= need_logical;
-                if (need_space_b)
+                last_logical_addr <= accepted_logical;
+                prefer_b <= !accepted_space_b;
+                if (accepted_space_b)
                     adpcmb_fetch_requests <= adpcmb_fetch_requests + 32'd1;
                 else
                     adpcma_fetch_requests <= adpcma_fetch_requests + 32'd1;
