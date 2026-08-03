@@ -57,7 +57,14 @@ module ym2610_hw0_video (
     assign vsync = !(v_count >= 9'd245 && v_count < 9'd248);
 
     always_comb begin
+        color = 24'h000030;
         row_color = 24'h000000;
+        box_index = 0;
+        row_index = 0;
+        column_index = 0;
+        attempt_index = 0;
+        {r, g, b} = 24'h000000;
+
         if (error) color = 24'hff0000;
         else begin
             case (phase)

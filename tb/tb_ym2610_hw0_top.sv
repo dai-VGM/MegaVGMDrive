@@ -793,6 +793,8 @@ module tb_ym2610_hw0_video_diag;
     wire ce_pixel,hsync,vsync,de;
     wire [7:0] r,g,b;
     integer failures=0;
+    integer i,j,code;
+    logic [23:0] expected_color;
     always #5 clk=~clk;
     task automatic fail(input [8*48-1:0] message);
         begin failures=failures+1;
@@ -820,36 +822,108 @@ module tb_ym2610_hw0_video_diag;
         .hsync(hsync),.vsync(vsync),.de(de),.r(r),.g(g),.b(b));
     initial begin
         repeat(4) @(posedge clk); reset=0;
-        phase=3; diag_seen=7'h7f; diag_attempt=2;
-        diag_completed_attempts=2;
-        diag_attempt_active=1;
+
+        // All four marker quadrants, including its priority over phase color.
+        phase=3;
         expect_pixel(505,8,24'hffffff,"CHECKER_WHITE");
         expect_pixel(513,8,24'hff00b0,"CHECKER_MAGENTA");
-        expect_pixel(20,10,24'h20e060,"STATUS_GREEN");
-        diag_fail[3]=1;
-        expect_pixel(220,10,24'hff2020,"STATUS_RED");
-        expect_pixel(75,220,24'hffffff,"ATTEMPT_DONE");
-        expect_pixel(203,220,24'h20e060,"ATTEMPT_CURRENT");
-        expect_pixel(267,220,24'h303038,"ATTEMPT_PENDING");
-        diag_attempt_active=0; diag_attempt=3;
-        expect_pixel(267,220,24'h303038,"ATTEMPT_GAP_PENDING");
+        expect_pixel(505,16,24'hff00b0,"CHECKER_MAGENTA_LOWER");
+        expect_pixel(513,16,24'hffffff,"CHECKER_WHITE_LOWER");
 
-        summary_active=1; phase=8; diag_summary={35{1'b1}};
+        // Every display phase preserves its established background color.
+        for (i=0;i<=8;i=i+1) begin
+            phase=i;
+            case(i)
+                1: expected_color=24'h0030ff;
+                2: expected_color=24'h00d040;
+                3: expected_color=24'hffe000;
+                4: expected_color=24'hff7000;
+                5: expected_color=24'hff00b0;
+                6: expected_color=24'h00d8e8;
+                7: expected_color=24'hffffff;
+                8: expected_color=24'h000018;
+                default: expected_color=24'h000030;
+            endcase
+            expect_pixel(20,100,expected_color,"PHASE_BACKGROUND");
+        end
+
+        // Exercise all four seen/fail input combinations in every status
+        // column.  Fail has the existing priority when both bits are high.
+        phase=3;
+        for (i=0;i<7;i=i+1) begin
+            diag_seen=0; diag_fail=0;
+            expect_pixel(20+i*68,10,24'h303038,"STATUS_STATE_0_GRAY");
+            diag_seen[i]=1;
+            expect_pixel(20+i*68,10,24'h20e060,"STATUS_STATE_1_GREEN");
+            diag_seen[i]=0; diag_fail[i]=1;
+            expect_pixel(20+i*68,10,24'hff2020,"STATUS_STATE_2_RED");
+            diag_seen[i]=1;
+            expect_pixel(20+i*68,10,24'hff2020,"STATUS_STATE_3_FAIL_PRIORITY");
+        end
+        diag_seen=0; diag_fail=0;
+
+        // Current, completed, and pending rendering for attempts 0 through 5.
+        diag_completed_attempts=0; diag_attempt_active=1;
+        for (i=0;i<6;i=i+1) begin
+            diag_attempt=i;
+            expect_pixel(75+i*64,220,24'h20e060,"ATTEMPT_CURRENT_0_TO_5");
+        end
+        diag_attempt_active=0; diag_completed_attempts=6;
+        for (i=0;i<6;i=i+1)
+            expect_pixel(75+i*64,220,24'hffffff,"ATTEMPT_DONE_0_TO_5");
+        diag_completed_attempts=0;
+        for (i=0;i<6;i=i+1)
+            expect_pixel(75+i*64,220,24'h303038,"ATTEMPT_PENDING_0_TO_5");
+        phase=7; diag_attempt=4; diag_attempt_active=1;
+        for (i=3;i<6;i=i+1)
+            expect_pixel(75+i*64,220,24'h303038,"NATURAL_UNUSED_ATTEMPT");
+
+        // Check all row identifiers and every row/column matrix mapping in
+        // valid-green, valid-red, and invalid-gray states.
+        summary_active=1; phase=8; diag_summary=0;
         diag_summary_valid=5'h1f;
-        expect_pixel(12,45,24'hffe000,"SUMMARY_A0_ROW");
-        expect_pixel(60,45,24'h20e060,"SUMMARY_GREEN");
-        diag_summary[0]=0;
-        expect_pixel(60,45,24'hff2020,"SUMMARY_RED");
-        expect_pixel(12,197,24'hffffff,"SUMMARY_RESTART_ROW");
+        for (i=0;i<5;i=i+1) begin
+            case(i)
+                0: expected_color=24'hffe000;
+                1: expected_color=24'hff7000;
+                2: expected_color=24'hff00b0;
+                3: expected_color=24'h00d8e8;
+                default: expected_color=24'hffffff;
+            endcase
+            expect_pixel(12,45+i*38,expected_color,"SUMMARY_ROW_COLOR_0_TO_4");
+        end
+        for (i=0;i<5;i=i+1) begin
+            for (j=0;j<7;j=j+1) begin
+                diag_summary=0;
+                expect_pixel(60+j*60,45+i*38,24'hff2020,"SUMMARY_CELL_RED_5X7");
+                diag_summary[i*7+j]=1;
+                expect_pixel(60+j*60,45+i*38,24'h20e060,"SUMMARY_CELL_GREEN_5X7");
+            end
+        end
+        diag_summary=0; diag_summary_valid=0;
+        for (i=0;i<5;i=i+1)
+            for (j=0;j<7;j=j+1)
+                expect_pixel(60+j*60,45+i*38,24'h303038,"SUMMARY_CELL_GRAY_5X7");
 
-        summary_active=0; error=1; error_code=4'b1010;
+        // Exhaust all 16 fatal codes and all four bit boxes.
+        summary_active=0; error=1;
         expect_pixel(20,100,24'hff0000,"FATAL_RED");
-        expect_pixel(165,200,24'hffffff,"ERROR_CODE_8");
-        expect_pixel(217,200,24'h000000,"ERROR_CODE_4");
-        expect_pixel(269,200,24'hffffff,"ERROR_CODE_2");
-        expect_pixel(321,200,24'h000000,"ERROR_CODE_1");
+        for (code=0;code<16;code=code+1) begin
+            error_code=code;
+            for (j=0;j<4;j=j+1) begin
+                expected_color=((code >> (3-j)) & 1) ?
+                               24'hffffff : 24'h000000;
+                expect_pixel(165+j*52,200,expected_color,
+                             "FATAL_CODE_0_TO_15");
+            end
+        end
+        expect_pixel(505,8,24'hffffff,"FATAL_CHECKER_PRIORITY");
+
+        // Outside the active 529x240 raster, RGB must remain the black
+        // default regardless of phase/error state.
+        expect_pixel(600,250,24'h000000,"OUT_OF_RANGE_DEFAULT");
         if(failures) $fatal(1,"video diagnostic failed (%0d)",failures);
-        $display("HW0_VIDEO marker=PASS status_boxes=PASS attempts=PASS summary=PASS fatal_code=PASS result=PASS");
+        $display("HW0_VIDEO marker=4/4 phases=9/9 status_vectors=4x7 attempts=0-5 summary=5x7x3 fatal_codes=0-15 out_of_range=PASS result=PASS");
         $finish;
     end
 endmodule
@@ -887,6 +961,7 @@ module tb_ym2610_hw0_pcm_diag;
     integer x_adpcma_rom = 0;
     integer x_adpcmb_rom = 0;
     integer summary_count = 0;
+    integer requested_loops = 2;
     integer phase_visits [1:8];
     integer attempt_closures [0:4];
     integer pan_leak = 0;
@@ -1288,6 +1363,9 @@ module tb_ym2610_hw0_pcm_diag;
     initial begin
         integer l, p, a, i;
         if (!$value$plusargs("RUN_ID=%d",run_id)) run_id=1;
+        if (!$value$plusargs("LOOPS=%d",requested_loops)) requested_loops=2;
+        if (requested_loops < 1 || requested_loops > 2)
+            $fatal(1,"LOOPS must be 1 or 2");
         for (l=0;l<2;l=l+1) begin
             for (p=1;p<=2;p=p+1) begin
                 reference_hash[l][p]=FNV_OFFSET;
@@ -1308,7 +1386,7 @@ module tb_ym2610_hw0_pcm_diag;
         repeat(4) @(posedge clk); video_reset=0;
         repeat(64) @(posedge clk); @(negedge clk); reset=0;
         fork
-            wait(debug_restart_count>=2);
+            wait(debug_restart_count>=requested_loops);
             begin repeat(100000000) @(posedge clk); fail("FULL_LOOP_TIMEOUT"); end
         join_any
         disable fork;
@@ -1318,13 +1396,15 @@ module tb_ym2610_hw0_pcm_diag;
            debug_phase_error) fail("FATAL_SEQUENCER_ERROR");
         if(debug_zero_timeout) fail("STOP_TIMEOUT");
         if(debug_reset_cen_count!=6) fail("RESET_CEN_COUNT");
-        if(summary_count!=2) fail("SUMMARY_COUNT");
+        if(summary_count!=requested_loops) fail("SUMMARY_COUNT");
         for(i=1;i<=8;i=i+1)
-            if(phase_visits[i]!=2) fail("PHASE_VISIT_COUNT");
-        if(attempt_closures[0]!=12 || attempt_closures[1]!=12 ||
-           attempt_closures[2]!=12 || attempt_closures[3]!=12 ||
-           attempt_closures[4]!=6) fail("ATTEMPT_COUNTS");
-        for(l=0;l<2;l=l+1) begin
+            if(phase_visits[i]!=requested_loops) fail("PHASE_VISIT_COUNT");
+        if(attempt_closures[0]!=6*requested_loops ||
+           attempt_closures[1]!=6*requested_loops ||
+           attempt_closures[2]!=6*requested_loops ||
+           attempt_closures[3]!=6*requested_loops ||
+           attempt_closures[4]!=3*requested_loops) fail("ATTEMPT_COUNTS");
+        for(l=0;l<requested_loops;l=l+1) begin
             if(reference_count[l][1]!=4096 ||
                reference_hash[l][1]!=64'h8aadd7a6819038e5) fail("FM_HASH");
             if(reference_count[l][2]!=4096 ||
@@ -1341,7 +1421,7 @@ module tb_ym2610_hw0_pcm_diag;
                     fail("B_ATTEMPT_HASH");
             end
         end
-        for(i=0;i<12;i=i+1) begin
+        for(i=0;i<6*requested_loops;i=i+1) begin
             if(natural_logical[i]!=512 || natural_public[i]!=1024 ||
                natural_hash[i]!=64'he142f7da424b1531)
                 fail("NATURAL_RESTART_HASH");
