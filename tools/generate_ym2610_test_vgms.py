@@ -1,0 +1,373 @@
+#!/usr/bin/env python3
+"""Generate small, redistributable YM2610 parser/audio fixtures.
+
+Only the generator is committed.  Generated VGM files belong in a temporary
+test directory and are intentionally ignored by the profile project.
+"""
+
+from __future__ import annotations
+
+import argparse
+import pathlib
+import struct
+
+
+def u32(value: int) -> bytes:
+    return struct.pack("<I", value)
+
+
+def write(port: int, address: int, value: int) -> bytes:
+    return bytes((0x58 + port, address, value))
+
+
+def wait(samples: int) -> bytes:
+    if 1 <= samples <= 16:
+        return bytes((0x6F + samples,))
+    return bytes((0x61, samples & 0xFF, samples >> 8))
+
+
+def block(block_type: int, logical_size: int, start: int, payload: bytes) -> bytes:
+    body = u32(logical_size) + u32(start) + payload
+    return b"\x67\x66" + bytes((block_type,)) + u32(len(body)) + body
+
+
+def vgm(commands: bytes, *, variant_b: bool = False, dual: bool = False,
+        loop_command_offset: int | None = None) -> bytes:
+    header = bytearray(0x80)
+    header[:4] = b"Vgm "
+    header[8:12] = u32(0x151)
+    header[0x34:0x38] = u32(0x80 - 0x34)
+    flags = (0x80000000 if variant_b else 0) | (0x40000000 if dual else 0)
+    header[0x4C:0x50] = u32(flags | 8_000_000)
+    if loop_command_offset is not None:
+        absolute = 0x80 + loop_command_offset
+        header[0x1C:0x20] = u32(absolute - 0x1C)
+    result = bytes(header) + commands
+    result = result[:4] + u32(len(result) - 4) + result[8:]
+    return result
+
+
+def prepared(raw: bytes, directory: str, basename: str) -> bytes:
+    directory_bytes = directory.encode("ascii")
+    basename_bytes = basename.encode("ascii")
+    if len(directory_bytes) > 32 or len(basename_bytes) > 48:
+        raise ValueError("MVGMTTL name is too long")
+    trailer = bytearray(128)
+    trailer[:8] = b"MVGMTTL\0"
+    trailer[8] = 1
+    trailer[9] = (1 if directory_bytes else 0) | (2 if basename_bytes else 0)
+    trailer[10] = len(directory_bytes)
+    trailer[11] = len(basename_bytes)
+    trailer[12:16] = b"\x80\x00\x00\x00"
+    trailer[16:20] = u32(len(raw))
+    trailer[32:32 + len(directory_bytes)] = directory_bytes
+    trailer[64:64 + len(basename_bytes)] = basename_bytes
+    return raw + trailer
+
+
+def fm_sequence() -> bytes:
+    # A quiet but valid four-operator tone on standard channel code 1.
+    sequence = bytearray()
+    for register, value in (
+        (0x31, 0x01), (0x35, 0x01), (0x39, 0x01), (0x3D, 0x01),
+        (0x41, 0x10), (0x45, 0x18), (0x49, 0x20), (0x4D, 0x08),
+        (0x51, 0x1F), (0x55, 0x1F), (0x59, 0x1F), (0x5D, 0x1F),
+        (0x61, 0x08), (0x65, 0x08), (0x69, 0x08), (0x6D, 0x08),
+        (0x71, 0x04), (0x75, 0x04), (0x79, 0x04), (0x7D, 0x04),
+        (0x81, 0x0F), (0x85, 0x0F), (0x89, 0x0F), (0x8D, 0x0F),
+        (0xB1, 0xC7), (0xA5, 0x22), (0xA1, 0x69),
+    ):
+        sequence += write(0, register, value)
+    sequence += write(0, 0x28, 0xF1) + wait(2205)
+    sequence += write(0, 0x28, 0x01) + wait(128)
+    return bytes(sequence)
+
+
+def ssg_sequence() -> bytes:
+    sequence = bytearray()
+    for register, value in (
+        (0x00, 0x40), (0x01, 0x01),
+        (0x02, 0x80), (0x03, 0x01),
+        (0x04, 0xC0), (0x05, 0x01),
+        (0x07, 0x38),
+        (0x08, 0x0F), (0x09, 0x0C), (0x0A, 0x09),
+    ):
+        sequence += write(0, register, value)
+    sequence += wait(2205)
+    sequence += write(0, 0x08, 0) + write(0, 0x09, 0) + write(0, 0x0A, 0)
+    sequence += wait(128)
+    return bytes(sequence)
+
+
+def adpcma_sequence() -> bytes:
+    payload = bytes(((index * 73 + 41) & 0xFF) for index in range(0x400))
+    sequence = bytearray(block(0x82, 0x100000, 0, payload))
+    # Voice 0, start page 0, end page 1, centered, maximum channel level.
+    for register, value in ((0x10, 0), (0x18, 0), (0x20, 3), (0x28, 0),
+                            (0x01, 0x3F), (0x08, 0xDF), (0x00, 1)):
+        sequence += write(1, register, value)
+    sequence += wait(1024) + write(1, 0x00, 0x81) + wait(128)
+    return bytes(sequence)
+
+
+def adpcmb_sequence() -> bytes:
+    payload = bytes(((index * 29 + 17) & 0xFF) for index in range(0x400))
+    sequence = bytearray(block(0x83, 0x80000, 0, payload))
+    for register, value in ((0x11, 0xC0), (0x12, 0), (0x13, 0),
+                            (0x14, 3), (0x15, 0), (0x19, 0xFF),
+                            (0x1A, 0x7F), (0x1B, 0xFF), (0x10, 0x80)):
+        sequence += write(0, register, value)
+    sequence += wait(1024) + write(0, 0x10, 0x01) + wait(128)
+    return bytes(sequence)
+
+
+def fixtures() -> dict[str, bytes]:
+    standard_all = vgm(fm_sequence() + ssg_sequence() + adpcma_sequence() +
+                       adpcmb_sequence() + b"\x66")
+    b_compatible = vgm(fm_sequence() + adpcma_sequence() +
+                       adpcmb_sequence() + b"\x66", variant_b=True)
+    b_key = vgm(write(0, 0x28, 0xF0) + b"\x66", variant_b=True)
+    b_setup = vgm(write(0, 0x30, 0x01) + write(1, 0xB0, 0x07) + b"\x66",
+                  variant_b=True)
+    dual = vgm(fm_sequence() + b"\x66", dual=True)
+    unknown_register = vgm(write(0, 0x20, 0x12) + b"\x66")
+    unsupported_opcode = vgm(b"\x50\x00\x66")
+    block_out_of_range = vgm(
+        block(0x82, 0x100000, 0xFFFF0, bytes(range(32))) + b"\x66")
+    ssg = vgm(ssg_sequence() + b"\x66")
+    fm = vgm(fm_sequence() + b"\x66")
+    adpcma = vgm(adpcma_sequence() + b"\x66")
+    adpcmb = vgm(adpcmb_sequence() + b"\x66")
+    payload_a = bytes(((index * 73 + 41) & 0xFF) for index in range(0x400))
+    payload_b = bytes(((index * 29 + 17) & 0xFF) for index in range(0x400))
+    simultaneous_commands = bytearray()
+    simultaneous_commands += block(0x82, 0x100000, 0, payload_a)
+    simultaneous_commands += block(0x83, 0x80000, 0, payload_b)
+    for port, register, value in (
+        (1, 0x10, 0), (1, 0x18, 0), (1, 0x20, 3), (1, 0x28, 0),
+        (1, 0x01, 0x3F), (1, 0x08, 0xDF),
+        (0, 0x11, 0xC0), (0, 0x12, 0), (0, 0x13, 0),
+        (0, 0x14, 3), (0, 0x15, 0), (0, 0x19, 0xFF),
+        (0, 0x1A, 0x7F), (0, 0x1B, 0xFF),
+        (1, 0x00, 1), (0, 0x10, 0x80),
+    ):
+        simultaneous_commands += write(port, register, value)
+    simultaneous_commands += wait(1024)
+    simultaneous_commands += write(1, 0x00, 0x81) + write(0, 0x10, 1)
+    simultaneous_commands += wait(128) + b"\x66"
+    simultaneous = vgm(bytes(simultaneous_commands))
+    loop_body = fm_sequence()
+    looping = vgm(loop_body + b"\x66", loop_command_offset=0)
+    lifecycle = vgm(wait(16) + b"\x66")
+    result = {
+        "standard_all_raw.vgm": standard_all,
+        "standard_all_prepared.vgm": prepared(standard_all, "Synthetic", "YM2610 Standard"),
+        "b_compatible.vgm": b_compatible,
+        "b_only_keyon.vgm": b_key,
+        "b_only_setup.vgm": b_setup,
+        "dual_unsupported.vgm": dual,
+        "unknown_register.vgm": unknown_register,
+        "unsupported_opcode.vgm": unsupported_opcode,
+        "block_out_of_range.vgm": block_out_of_range,
+        "ssg_abc_raw.vgm": ssg,
+        "ssg_abc_prepared.vgm": prepared(ssg, "Synthetic", "SSG A B C"),
+        "adpcma.vgm": adpcma,
+        "fm_standard.vgm": fm,
+        "adpcmb.vgm": adpcmb,
+        "adpcma_b_simultaneous.vgm": simultaneous,
+        "loop.vgm": looping,
+        "lifecycle.vgm": lifecycle,
+    }
+    return result
+
+
+def compressed_window(source: bytes, start_sample: int, end_sample: int,
+                      *, preserve_loop: bool = False) -> bytes:
+    """Build a temporary timing-compressed fixture from a local acceptance VGM.
+
+    Data blocks and all preceding register setup writes are retained byte exact.
+    Wait time outside the requested interval is removed.  The result is for
+    local simulation only and must never be committed.
+    """
+    original_size = struct.unpack_from("<I", source, 4)[0] + 4
+    data_offset = 0x34 + struct.unpack_from("<I", source, 0x34)[0]
+    raw_loop = struct.unpack_from("<I", source, 0x1C)[0]
+    loop_pc = 0 if raw_loop == 0 else 0x1C + raw_loop
+    pc = data_offset
+    sample = 0
+    output = bytearray()
+    new_loop_offset: int | None = None
+    while pc < original_size:
+        if pc == loop_pc:
+            new_loop_offset = len(output)
+        command_pc = pc
+        opcode = source[pc]
+        pc += 1
+        if opcode in (0x58, 0x59):
+            output += source[command_pc:pc + 2]
+            pc += 2
+        elif opcode == 0x67:
+            size = struct.unpack_from("<I", source, pc + 2)[0] & 0x7FFFFFFF
+            end = pc + 6 + size
+            output += source[command_pc:end]
+            pc = end
+        elif opcode == 0x61:
+            duration = source[pc] | (source[pc + 1] << 8)
+            pc += 2
+            overlap = max(0, min(sample + duration, end_sample) -
+                          max(sample, start_sample))
+            if overlap:
+                output += wait(overlap)
+            sample += duration
+        elif opcode == 0x62:
+            duration = 735
+            overlap = max(0, min(sample + duration, end_sample) -
+                          max(sample, start_sample))
+            if overlap:
+                output += wait(overlap)
+            sample += duration
+        elif opcode == 0x63:
+            duration = 882
+            overlap = max(0, min(sample + duration, end_sample) -
+                          max(sample, start_sample))
+            if overlap:
+                output += wait(overlap)
+            sample += duration
+        elif 0x70 <= opcode <= 0x7F:
+            duration = (opcode & 15) + 1
+            overlap = max(0, min(sample + duration, end_sample) -
+                          max(sample, start_sample))
+            if overlap:
+                output += wait(overlap)
+            sample += duration
+        elif opcode == 0x66:
+            break
+        else:
+            raise ValueError(f"unsupported source opcode {opcode:02X} at {command_pc:X}")
+        if not preserve_loop and sample >= end_sample:
+            break
+    output += b"\x66"
+    loop = new_loop_offset if preserve_loop else None
+    if preserve_loop and loop is None:
+        raise ValueError("loop target was not retained")
+    return vgm(bytes(output), variant_b=True, loop_command_offset=loop)
+
+
+def loop_transition_window(source: bytes) -> bytes:
+    """Create a bounded, Olga-derived end-to-loop transition fixture.
+
+    The original type 82/83 payloads are retained byte exact.  Register writes
+    and waits come from the final 3,000 samples followed by the first 9,000
+    samples at the loop target.  The compact stream is ordered post-loop then
+    pre-end so its 0x66 can jump backward to the real post-loop slice.  This
+    exercises a natural parser loop plus audio after the jump without replaying
+    81k unrelated writes in every Icarus determinism run.
+    """
+    original_size = struct.unpack_from("<I", source, 4)[0] + 4
+    data_offset = 0x34 + struct.unpack_from("<I", source, 0x34)[0]
+    raw_loop = struct.unpack_from("<I", source, 0x1C)[0]
+    loop_pc = 0 if raw_loop == 0 else 0x1C + raw_loop
+    pc = data_offset
+    sample = 0
+    loop_sample: int | None = None
+    data_blocks = bytearray()
+    while pc < original_size:
+        if pc == loop_pc:
+            loop_sample = sample
+        command_pc = pc
+        opcode = source[pc]
+        pc += 1
+        if opcode in (0x58, 0x59):
+            pc += 2
+        elif opcode == 0x67:
+            size = struct.unpack_from("<I", source, pc + 2)[0] & 0x7FFFFFFF
+            end = pc + 6 + size
+            data_blocks += source[command_pc:end]
+            pc = end
+        elif opcode == 0x61:
+            sample += source[pc] | (source[pc + 1] << 8)
+            pc += 2
+        elif opcode == 0x62:
+            sample += 735
+        elif opcode == 0x63:
+            sample += 882
+        elif 0x70 <= opcode <= 0x7F:
+            sample += (opcode & 15) + 1
+        elif opcode == 0x66:
+            break
+        else:
+            raise ValueError(f"unsupported source opcode {opcode:02X} at {command_pc:X}")
+    if loop_sample is None:
+        raise ValueError("source has no command-boundary loop")
+
+    def segment(start_sample: int, end_sample: int) -> bytes:
+        pc = data_offset
+        sample = 0
+        output = bytearray()
+        while pc < original_size:
+            command_pc = pc
+            opcode = source[pc]
+            pc += 1
+            if opcode in (0x58, 0x59):
+                if start_sample <= sample < end_sample:
+                    output += source[command_pc:pc + 2]
+                pc += 2
+            elif opcode == 0x67:
+                size = struct.unpack_from("<I", source, pc + 2)[0] & 0x7FFFFFFF
+                pc += 6 + size
+            elif opcode in (0x61, 0x62, 0x63) or 0x70 <= opcode <= 0x7F:
+                if opcode == 0x61:
+                    duration = source[pc] | (source[pc + 1] << 8)
+                    pc += 2
+                elif opcode == 0x62:
+                    duration = 735
+                elif opcode == 0x63:
+                    duration = 882
+                else:
+                    duration = (opcode & 15) + 1
+                overlap = max(0, min(sample + duration, end_sample) -
+                              max(sample, start_sample))
+                if overlap:
+                    output += wait(overlap)
+                sample += duration
+            elif opcode == 0x66:
+                break
+            else:
+                raise ValueError(
+                    f"unsupported source opcode {opcode:02X} at {command_pc:X}")
+        return bytes(output)
+
+    post_loop = segment(loop_sample, loop_sample + 9_000)
+    pre_end = segment(max(0, sample - 3_000), sample)
+    commands = bytes(data_blocks) + post_loop + pre_end + b"\x66"
+    return vgm(commands, variant_b=True,
+               loop_command_offset=len(data_blocks))
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("output", type=pathlib.Path)
+    parser.add_argument("--olga", type=pathlib.Path,
+                        help="also create temporary bounded Olga windows")
+    args = parser.parse_args()
+    args.output.mkdir(parents=True, exist_ok=True)
+    for name, data in fixtures().items():
+        (args.output / name).write_bytes(data)
+        print(f"{name} {len(data)}")
+    if args.olga:
+        source = args.olga.read_bytes()
+        windows = {
+            "olga_adpcmb_window.vgm": compressed_window(source, 4_000, 10_000),
+            "olga_fm_window.vgm": compressed_window(source, 120_000, 126_000),
+            "olga_adpcma_window.vgm": compressed_window(source, 120_500, 127_000),
+            "olga_ab_window.vgm": compressed_window(source, 395_000, 402_000),
+            "olga_loop_window.vgm": loop_transition_window(source),
+        }
+        for name, data in windows.items():
+            (args.output / name).write_bytes(data)
+            print(f"{name} {len(data)}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
