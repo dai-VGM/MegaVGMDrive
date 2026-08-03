@@ -74,7 +74,9 @@ counters. The final audio mute is after the complete JT10 left/right output.
 It is asserted during reset, pre-ready, boot, pre-roll, and silence only.
 After a stop write it stays deasserted until 32 consecutive public samples
 prove internal left/right zero; ADPCM-B additionally requires request and
-active status clear. A timeout halts, mutes, and selects red.
+active status clear. In PCM diagnostics, a stop timeout closes that attempt as
+FAIL and continues; transport/sample/state corruption alone halts and selects
+full-screen red.
 
 FM retains the old ordered write stream with only its final key-on scheduled
 as START after the explicit pre-roll. SSG retains its old single continuous
@@ -84,6 +86,47 @@ muted, HW-0 also waits for `chip_cycle_mod432=428` and the established
 128-public-sample tone phase before launching those writes. The ADPCM scheduler
 alignment values, all register data, ROM byte rule, measurement windows, and
 expected audio hashes remain unchanged.
+
+## PCM diagnostic observer boundary
+
+The diagnostic build changes only HW-0 scheduling, status observation, and
+video. The verified register-word function is byte-identical to the pacing
+baseline, both combinational ROM source blobs are unchanged, and no JT10,
+JT49, PC-GATE, gain, shift, or pan logic is modified.
+
+The previous generic red cause after magenta was the HW-0 sequencer's
+four-second `H_B_DWELL` assertion that the status-only
+`hw0_adpcmb_active` proxy remain high. The short fixture reaches EOS long
+before that dwell ends, so the proxy correctly clears and the sequencer
+incorrectly converted natural completion into `phase_error`. The same check
+also guarded the old pan dwells. The diagnostic sequencer no longer uses that
+proxy as a duration owner. It observes request, capture, public address/data,
+EOS, final zero, and explicit RESET independently and records a phase-local
+result before continuing.
+
+Source lanes are routed only through explicit HW-0 ports. The already present
+`adpcmA_l/r` and `adpcmB_l/r` wires in `ym2610_hw0_jt12_top` feed new
+status-only outputs, pass through `ym2610_hw0_jt10_wrapper`, and terminate in
+the HW-0 observer. JT10 final samples, the ready-gated pre-mute samples, and
+post-mute `AUDIO_L/R` remain separate observation points. There are no
+synthesis-visible hierarchical diagnostic references.
+
+For the zero-wait-state fixture ROMs, a request with the explicit public
+address and data pins is the capture transaction. Progress requires at least
+two addresses and two distinct data values; ADPCM-A observation starts only
+with the accepted key-on attempt, so clear-boundary dummy traffic is excluded.
+The small request, transaction-event, address-change, distinct-address
+progression, and completed-attempt counters saturate. The sequencer's current
+attempt index is kept separate from the observer's completed count. The
+sequential fixture ROM contract lets the
+observer count the first public address plus each change without an address
+history CAM. The 64-bit hashes remain exclusively in the testbench.
+
+PCM codes 4–10 are phase-local and populate the current boxes and final 5×7
+matrix. BUSY timeout, write-while-BUSY, sample-contract corruption, illegal
+state, ROM range violation, and unknown/internal contracts remain fatal codes
+1–3 and 11–15. A phase-local stop timeout is recorded before the final mute is
+asserted and cannot hide an unobserved source/final/output stage.
 
 ## ROM authority
 

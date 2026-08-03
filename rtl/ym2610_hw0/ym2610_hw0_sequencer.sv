@@ -10,7 +10,16 @@ module ym2610_hw0_sequencer #(
     parameter integer NATURAL_SILENCE_SAMPLES = 79901,
     parameter integer FINAL_SILENCE_SAMPLES = 159801,
     parameter integer ZERO_TIMEOUT_SAMPLES = 8192,
-    parameter integer ZERO_CONFIRM_SAMPLES = 32
+    parameter integer ZERO_CONFIRM_SAMPLES = 32,
+    parameter integer REFERENCE_DWELL_SAMPLES = 159801,
+    parameter integer REFERENCE_GAP_SAMPLES = 53267,
+    parameter integer PCM_ATTEMPT_SAMPLES = 53267,
+    parameter integer A0_ATTEMPT_SAMPLES = PCM_ATTEMPT_SAMPLES,
+    parameter integer A6_ATTEMPT_SAMPLES = PCM_ATTEMPT_SAMPLES,
+    parameter integer B_ATTEMPT_SAMPLES = PCM_ATTEMPT_SAMPLES,
+    parameter integer PCM_ATTEMPT_GAP_SAMPLES = 26634,
+    parameter integer PCM_RESULT_SAMPLES = 159801,
+    parameter integer SUMMARY_SAMPLES = 532670
 ) (
     input  logic               clk,
     input  logic               reset,
@@ -22,7 +31,9 @@ module ym2610_hw0_sequencer #(
     input  logic        [7:0]  bus_dout,
     input  logic               adpcmb_eos,
     input  logic               adpcmb_active,
+    input  logic               adpcma_request,
     input  logic               adpcmb_request,
+    input  logic               diag_rom_range_error,
     output logic        [1:0]  bus_addr,
     output logic        [7:0]  bus_din,
     output logic               bus_cs_n,
@@ -41,6 +52,15 @@ module ym2610_hw0_sequencer #(
     output logic       [15:0]  sequence_restart_count,
     output logic               measurement_active,
     output logic        [3:0]  measurement_phase,
+    output logic        [2:0]  diag_phase_index,
+    output logic        [2:0]  diag_attempt_index,
+    output logic               diag_phase_begin,
+    output logic               diag_attempt_begin,
+    output logic               diag_attempt_end,
+    output logic               diag_stop_pass,
+    output logic               diag_pan_right,
+    output logic               summary_active,
+    output logic        [3:0]  fatal_error_code,
     output logic               halted
 );
     localparam logic [4:0] P_SILENCE   = 5'd0;
@@ -87,48 +107,58 @@ module ym2610_hw0_sequencer #(
     localparam logic [6:0] H_A0_DWELL        = 7'd22;
     localparam logic [6:0] H_A0_OFF          = 7'd23;
     localparam logic [6:0] H_A0_ZERO         = 7'd24;
-    localparam logic [6:0] H_SILENCE_3       = 7'd25;
-    localparam logic [6:0] H_A6_PREROLL      = 7'd26;
-    localparam logic [6:0] H_A6_ALIGN        = 7'd27;
-    localparam logic [6:0] H_A6_START        = 7'd28;
-    localparam logic [6:0] H_A6_DWELL        = 7'd29;
-    localparam logic [6:0] H_A6_OFF          = 7'd30;
-    localparam logic [6:0] H_A6_ZERO         = 7'd31;
-    localparam logic [6:0] H_SILENCE_4       = 7'd32;
-    localparam logic [6:0] H_B_PREROLL       = 7'd33;
-    localparam logic [6:0] H_B_ALIGN         = 7'd34;
-    localparam logic [6:0] H_B_START         = 7'd35;
-    localparam logic [6:0] H_B_DWELL         = 7'd36;
-    localparam logic [6:0] H_B_RESET         = 7'd37;
-    localparam logic [6:0] H_B_ZERO          = 7'd38;
-    localparam logic [6:0] H_SILENCE_5       = 7'd39;
-    localparam logic [6:0] H_L_PREROLL       = 7'd40;
-    localparam logic [6:0] H_L_ALIGN         = 7'd41;
-    localparam logic [6:0] H_L_START         = 7'd42;
-    localparam logic [6:0] H_L_DWELL         = 7'd43;
-    localparam logic [6:0] H_L_RESET         = 7'd44;
-    localparam logic [6:0] H_L_ZERO          = 7'd45;
-    localparam logic [6:0] H_PAN_SILENCE     = 7'd46;
-    localparam logic [6:0] H_R_PREROLL       = 7'd47;
-    localparam logic [6:0] H_R_ALIGN         = 7'd48;
-    localparam logic [6:0] H_R_START         = 7'd49;
-    localparam logic [6:0] H_R_DWELL         = 7'd50;
-    localparam logic [6:0] H_R_RESET         = 7'd51;
-    localparam logic [6:0] H_R_ZERO          = 7'd52;
-    localparam logic [6:0] H_SILENCE_6       = 7'd53;
-    localparam logic [6:0] H_SHORT_PREROLL   = 7'd54;
-    localparam logic [6:0] H_SHORT_ALIGN1    = 7'd55;
-    localparam logic [6:0] H_SHORT_START1    = 7'd56;
-    localparam logic [6:0] H_SHORT_PLAY1     = 7'd57;
-    localparam logic [6:0] H_SHORT_ZERO1     = 7'd58;
-    localparam logic [6:0] H_SHORT_SILENCE   = 7'd59;
-    localparam logic [6:0] H_SHORT_ALIGN2    = 7'd60;
-    localparam logic [6:0] H_SHORT_START2    = 7'd61;
-    localparam logic [6:0] H_SHORT_PLAY2     = 7'd62;
-    localparam logic [6:0] H_SHORT_ZERO2     = 7'd63;
-    localparam logic [6:0] H_FINAL_STOP      = 7'd64;
-    localparam logic [6:0] H_FINAL_SILENCE   = 7'd65;
-    localparam logic [6:0] H_SSG_CFG         = 7'd66;
+    localparam logic [6:0] H_A0_GAP          = 7'd25;
+    localparam logic [6:0] H_A0_RESULT       = 7'd26;
+    localparam logic [6:0] H_A6_PREROLL      = 7'd27;
+    localparam logic [6:0] H_A6_ALIGN        = 7'd28;
+    localparam logic [6:0] H_A6_START        = 7'd29;
+    localparam logic [6:0] H_A6_DWELL        = 7'd30;
+    localparam logic [6:0] H_A6_OFF          = 7'd31;
+    localparam logic [6:0] H_A6_ZERO         = 7'd32;
+    localparam logic [6:0] H_A6_GAP          = 7'd33;
+    localparam logic [6:0] H_A6_RESULT       = 7'd34;
+    localparam logic [6:0] H_B_PREROLL       = 7'd35;
+    localparam logic [6:0] H_B_ALIGN         = 7'd36;
+    localparam logic [6:0] H_B_START         = 7'd37;
+    localparam logic [6:0] H_B_DWELL         = 7'd38;
+    localparam logic [6:0] H_B_RESET         = 7'd39;
+    localparam logic [6:0] H_B_ZERO          = 7'd40;
+    localparam logic [6:0] H_B_GAP           = 7'd41;
+    localparam logic [6:0] H_B_RESULT        = 7'd42;
+    localparam logic [6:0] H_L_PREROLL       = 7'd43;
+    localparam logic [6:0] H_L_ALIGN         = 7'd44;
+    localparam logic [6:0] H_L_START         = 7'd45;
+    localparam logic [6:0] H_L_DWELL         = 7'd46;
+    localparam logic [6:0] H_L_RESET         = 7'd47;
+    localparam logic [6:0] H_L_ZERO          = 7'd48;
+    localparam logic [6:0] H_PAN_SILENCE     = 7'd49;
+    localparam logic [6:0] H_R_PREROLL       = 7'd50;
+    localparam logic [6:0] H_R_ALIGN         = 7'd51;
+    localparam logic [6:0] H_R_START         = 7'd52;
+    localparam logic [6:0] H_R_DWELL         = 7'd53;
+    localparam logic [6:0] H_R_RESET         = 7'd54;
+    localparam logic [6:0] H_R_ZERO          = 7'd55;
+    localparam logic [6:0] H_PAN_RESULT      = 7'd56;
+    localparam logic [6:0] H_SHORT_PREROLL   = 7'd57;
+    localparam logic [6:0] H_SHORT_ALIGN1    = 7'd58;
+    localparam logic [6:0] H_SHORT_START1    = 7'd59;
+    localparam logic [6:0] H_SHORT_PLAY1     = 7'd60;
+    localparam logic [6:0] H_SHORT_ZERO1     = 7'd61;
+    localparam logic [6:0] H_SHORT_SILENCE   = 7'd62;
+    localparam logic [6:0] H_SHORT_ALIGN2    = 7'd63;
+    localparam logic [6:0] H_SHORT_START2    = 7'd64;
+    localparam logic [6:0] H_SHORT_PLAY2     = 7'd65;
+    localparam logic [6:0] H_SHORT_ZERO2     = 7'd66;
+    localparam logic [6:0] H_NAT_RESET       = 7'd67;
+    localparam logic [6:0] H_NAT_CFG         = 7'd68;
+    localparam logic [6:0] H_NAT_GAP         = 7'd69;
+    localparam logic [6:0] H_NAT_RESULT      = 7'd70;
+    localparam logic [6:0] H_SUMMARY         = 7'd71;
+    localparam logic [6:0] H_LOOP_STOP       = 7'd72;
+    localparam logic [6:0] H_LOOP_BOOT       = 7'd73;
+    localparam logic [6:0] H_SHORT_RECOVER1  = 7'd74;
+    localparam logic [6:0] H_SHORT_RECOVER2  = 7'd75;
+    localparam logic [6:0] H_SSG_CFG         = 7'd76;
 
     localparam logic [3:0] B_IDLE          = 4'd0;
     localparam logic [3:0] B_CLEAR_SETUP   = 4'd1;
@@ -156,6 +186,9 @@ module ym2610_hw0_sequencer #(
     logic [7:0]  zero_run_count;
     logic [31:0] natural_watchdog;
     logic        natural_armed;
+    logic        natural_first_stop_ok;
+    logic        natural_restart_seen;
+    logic [3:0]  natural_zero_latency;
 
     assign segment_state = high_state;
 
@@ -173,7 +206,10 @@ module ym2610_hw0_sequencer #(
                             high_state == H_R_ZERO ||
                             high_state == H_SHORT_ZERO1 ||
                             high_state == H_SHORT_ZERO2;
+    wire adpcma_zero_wait = high_state == H_A0_ZERO ||
+                            high_state == H_A6_ZERO;
     wire zero_sample_ok = audio_zero &&
+                          (!adpcma_zero_wait || !adpcma_request) &&
                           (!adpcmb_zero_wait ||
                            (!adpcmb_request && !adpcmb_active));
 
@@ -376,11 +412,25 @@ module ym2610_hw0_sequencer #(
         end
     endtask
 
+    task automatic halt_fatal(input logic [3:0] code);
+        begin
+            phase_error <= 1'b1;
+            fatal_error_code <= code;
+            halted <= 1'b1;
+            audio_mute <= 1'b1;
+            measurement_active <= 1'b0;
+        end
+    endtask
+
     // The synthesizable bus-drive tasks below assign this process's outputs.
     // Use a plain clocked process so lint tools do not misclassify task-body
     // assignments as separate always_ff drivers.
     always @(posedge clk) begin
         program_done <= 1'b0;
+        diag_phase_begin <= 1'b0;
+        diag_attempt_begin <= 1'b0;
+        diag_attempt_end <= 1'b0;
+        diag_stop_pass <= 1'b0;
 
         if (reset) begin
             bus_addr <= 2'b00;
@@ -404,6 +454,9 @@ module ym2610_hw0_sequencer #(
             zero_run_count <= 8'd0;
             natural_watchdog <= 32'd0;
             natural_armed <= 1'b0;
+            natural_first_stop_ok <= 1'b0;
+            natural_restart_seen <= 1'b0;
+            natural_zero_latency <= 4'd0;
             accepted_write_count <= 32'd0;
             busy_timeout <= 1'b0;
             write_while_busy <= 1'b0;
@@ -412,6 +465,11 @@ module ym2610_hw0_sequencer #(
             sequence_restart_count <= 16'd0;
             measurement_active <= 1'b0;
             measurement_phase <= 4'd0;
+            diag_phase_index <= 3'd0;
+            diag_attempt_index <= 3'd0;
+            diag_pan_right <= 1'b0;
+            summary_active <= 1'b0;
+            fatal_error_code <= 4'd0;
             halted <= 1'b0;
         end else if (!halted) begin
             if (sample_tick)
@@ -448,6 +506,7 @@ module ym2610_hw0_sequencer #(
                         bus_state <= B_ADDR_SETUP;
                     end else if (busy_watchdog == 16'hffff) begin
                         busy_timeout <= 1'b1;
+                        fatal_error_code <= 4'd1;
                         halted <= 1'b1;
                     end else begin
                         busy_watchdog <= busy_watchdog + 16'd1;
@@ -472,6 +531,7 @@ module ym2610_hw0_sequencer #(
                 B_DATA_SAMPLE: begin
                     if (bus_dout[7] != 1'b0) begin
                         write_while_busy <= 1'b1;
+                        fatal_error_code <= 4'd2;
                         halted <= 1'b1;
                         drive_idle();
                     end else begin
@@ -501,6 +561,16 @@ module ym2610_hw0_sequencer #(
                         sound_start_tick <= sample_tick_count;
                         sample_count <= 32'd0;
                     end
+                    if ((program_id == P_A0_ON &&
+                         high_state == H_A0_START) ||
+                        (program_id == P_A6_ON &&
+                         high_state == H_A6_START) ||
+                        (program_id == P_B_START &&
+                         (high_state == H_B_START ||
+                          high_state == H_L_START ||
+                          high_state == H_R_START ||
+                          high_state == H_SHORT_START1)))
+                        diag_attempt_begin <= 1'b1;
                     if (program_id == P_A0_ON) begin
                         measurement_active <= 1'b1;
                         measurement_phase <= 4'd3;
@@ -508,7 +578,7 @@ module ym2610_hw0_sequencer #(
                         measurement_active <= 1'b1;
                         measurement_phase <= 4'd4;
                     end else if (program_id == P_B_START &&
-                                 display_phase == 4'd5) begin
+                                 diag_phase_index == 3'd2) begin
                         measurement_active <= 1'b1;
                         measurement_phase <= 4'd5;
                     end
@@ -526,6 +596,7 @@ module ym2610_hw0_sequencer #(
                         bus_state <= B_DONE_SAMPLE;
                     end else if (busy_watchdog == 16'hffff) begin
                         busy_timeout <= 1'b1;
+                        fatal_error_code <= 4'd1;
                         halted <= 1'b1;
                     end else begin
                         busy_watchdog <= busy_watchdog + 16'd1;
@@ -550,6 +621,7 @@ module ym2610_hw0_sequencer #(
                         end
                     end else if (busy_watchdog == 16'hffff) begin
                         busy_timeout <= 1'b1;
+                        fatal_error_code <= 4'd1;
                         halted <= 1'b1;
                     end else begin
                         busy_watchdog <= busy_watchdog + 16'd1;
@@ -559,15 +631,24 @@ module ym2610_hw0_sequencer #(
                 default: bus_state <= B_IDLE;
             endcase
 
-            if (sample_contract_error) begin
+            if (diag_rom_range_error) begin
                 phase_error <= 1'b1;
+                fatal_error_code <= 4'd13;
+                halted <= 1'b1;
+                startup_state <= 3'd4;
+                audio_mute <= 1'b1;
+                measurement_active <= 1'b0;
+                drive_idle();
+            end else if (sample_contract_error) begin
+                phase_error <= 1'b1;
+                fatal_error_code <= 4'd3;
                 halted <= 1'b1;
                 startup_state <= 3'd4;
                 audio_mute <= 1'b1;
                 measurement_active <= 1'b0;
                 drive_idle();
             end else if (halted || busy_timeout || write_while_busy ||
-                         zero_timeout || phase_error) begin
+                         phase_error) begin
                 halted <= 1'b1;
                 startup_state <= 3'd4;
                 audio_mute <= 1'b1;
@@ -576,12 +657,14 @@ module ym2610_hw0_sequencer #(
             end else begin
                 if (sample_tick && sample_count == 32'hffff_ffff) begin
                     phase_error <= 1'b1;
+                    fatal_error_code <= 4'd11;
                     halted <= 1'b1;
                 end else case (high_state)
                     H_BOOT_WAIT: begin
                         display_phase <= 4'd0;
                         audio_mute <= 1'b1;
                         startup_state <= 3'd1;
+                        summary_active <= 1'b0;
                         if (core_ready && audio_zero &&
                             bus_dout[7] == 1'b0 && !program_active) begin
                             high_state <= H_BOOT_HOLD;
@@ -590,10 +673,8 @@ module ym2610_hw0_sequencer #(
                         end
                     end
                     H_BOOT_HOLD: if (sample_tick) begin
-                        if (!audio_zero) begin
-                            phase_error <= 1'b1;
-                            halted <= 1'b1;
-                        end else if (sample_count + 1 >= BOOT_SAMPLES) begin
+                        if (!audio_zero) halt_fatal(4'd15);
+                        else if (sample_count + 1 >= BOOT_SAMPLES) begin
                             start_program(P_SILENCE);
                             high_state <= H_INITIAL_SILENCE;
                             sample_count <= 32'd0;
@@ -608,260 +689,547 @@ module ym2610_hw0_sequencer #(
                     end
 
                     H_FM_PREROLL: if (sample_tick) begin
-                        if (!audio_zero) begin phase_error<=1'b1; halted<=1'b1; end
+                        if (!audio_zero) halt_fatal(4'd15);
                         else if (sample_count + 1 >= COLOR_PREROLL_SAMPLES) begin
-                            if (program_active) begin phase_error<=1'b1; halted<=1'b1; end
-                            else begin start_program(P_FM_ON); high_state<=H_FM_START; sample_count<=0; end
+                            if (!program_active) begin
+                                start_program(P_FM_ON);
+                                high_state <= H_FM_START;
+                                sample_count <= 0;
+                            end
                         end else sample_count <= sample_count + 1;
                     end
-                    H_FM_START: if (program_done) begin high_state<=H_FM_ATTACK; sample_count<=0; end
+                    H_FM_START: if (program_done) begin
+                        high_state <= H_FM_ATTACK; sample_count <= 0;
+                    end
                     H_FM_ATTACK: if (sample_tick) begin
                         if (sample_count + 1 >= 4096) begin
-                            high_state<=H_FM_MEASURE; sample_count<=0;
-                            measurement_active<=1'b1; measurement_phase<=4'd1;
-                        end else sample_count<=sample_count+1;
+                            high_state <= H_FM_MEASURE; sample_count <= 0;
+                            measurement_active <= 1; measurement_phase <= 1;
+                        end else sample_count <= sample_count + 1;
                     end
                     H_FM_MEASURE: if (sample_tick) begin
                         if (sample_count + 1 >= 4096) begin
-                            measurement_active<=1'b0; high_state<=H_FM_HOLD; sample_count<=0;
-                        end else sample_count<=sample_count+1;
+                            measurement_active <= 0; high_state <= H_FM_HOLD;
+                            sample_count <= 0;
+                        end else sample_count <= sample_count + 1;
                     end
                     H_FM_HOLD: if (sample_tick &&
-                        sample_tick_count + 1 - sound_start_tick >= SOUND_DWELL_SAMPLES) begin
-                        start_program(P_FM_OFF); high_state<=H_FM_OFF;
+                        sample_tick_count + 1 - sound_start_tick >=
+                        REFERENCE_DWELL_SAMPLES) begin
+                        start_program(P_FM_OFF); high_state <= H_FM_OFF;
                     end
-                    H_FM_OFF: if (program_done) begin high_state<=H_FM_ZERO; sample_count<=0; end
+                    H_FM_OFF: if (program_done) begin
+                        high_state <= H_FM_ZERO; sample_count <= 0;
+                    end
                     H_FM_ZERO: if (sample_tick) begin
-                        if (zero_sample_ok && zero_run_count+1>=ZERO_CONFIRM_SAMPLES) begin display_phase<=0; audio_mute<=1; high_state<=H_SILENCE_1; sample_count<=0; end
-                        else if (sample_count+1>=ZERO_TIMEOUT_SAMPLES) begin zero_timeout<=1; halted<=1; end
-                        else sample_count<=sample_count+1;
+                        if (zero_sample_ok && zero_run_count + 1 >=
+                            ZERO_CONFIRM_SAMPLES) begin
+                            display_phase <= 0; audio_mute <= 1;
+                            high_state <= H_SILENCE_1; sample_count <= 0;
+                        end else if (sample_count + 1 >= ZERO_TIMEOUT_SAMPLES) begin
+                            zero_timeout <= 1; display_phase <= 0;
+                            audio_mute <= 1; high_state <= H_SILENCE_1;
+                            sample_count <= 0;
+                        end else sample_count <= sample_count + 1;
                     end
                     H_SILENCE_1: if (sample_tick) begin
-                        if (!audio_zero) begin phase_error<=1; halted<=1; end
-                        else if (sample_count+1>=INTER_SILENCE_SAMPLES) begin
-                            display_phase<=2; high_state<=H_SSG_PREROLL; sample_count<=0;
-                        end else sample_count<=sample_count+1;
+                        if (!audio_zero) halt_fatal(4'd15);
+                        else if (sample_count + 1 >= REFERENCE_GAP_SAMPLES) begin
+                            display_phase <= 2; high_state <= H_SSG_PREROLL;
+                            sample_count <= 0;
+                        end else sample_count <= sample_count + 1;
                     end
 
                     H_SSG_PREROLL: if (sample_tick) begin
-                        if (!audio_zero) begin phase_error<=1; halted<=1; end
-                        else if (sample_count+1>=COLOR_PREROLL_SAMPLES) begin
-                            if (program_active) begin phase_error<=1; halted<=1; end
-                            else begin high_state<=H_SSG_ALIGN; sample_count<=0; end
-                        end else sample_count<=sample_count+1;
+                        if (!audio_zero) halt_fatal(4'd15);
+                        else if (sample_count + 1 >= COLOR_PREROLL_SAMPLES) begin
+                            if (!program_active) begin
+                                high_state <= H_SSG_ALIGN; sample_count <= 0;
+                            end
+                        end else sample_count <= sample_count + 1;
                     end
-                    // JT49's divider is free-running.  Preserve the Phase 2A
-                    // write/measurement alignment while still completing the
-                    // full color-only pre-roll before the first SSG write.
                     H_SSG_ALIGN: if (!program_active &&
                                      chip_cycle_mod432 == 9'd428 &&
                                      sample_tick_count[6:0] == 7'd53) begin
-                        start_program(P_SSG_CFG);
-                        high_state<=H_SSG_CFG;
+                        start_program(P_SSG_CFG); high_state <= H_SSG_CFG;
                     end
-                    H_SSG_CFG: if (program_done) begin high_state<=H_SSG_ATTACK; sample_count<=0; end
+                    H_SSG_CFG: if (program_done) begin
+                        high_state <= H_SSG_ATTACK; sample_count <= 0;
+                    end
                     H_SSG_ATTACK: if (sample_tick) begin
-                        if (sample_count+1>=263) begin high_state<=H_SSG_MEASURE; sample_count<=0; measurement_active<=1; measurement_phase<=2; end
-                        else sample_count<=sample_count+1;
+                        if (sample_count + 1 >= 263) begin
+                            high_state <= H_SSG_MEASURE; sample_count <= 0;
+                            measurement_active <= 1; measurement_phase <= 2;
+                        end else sample_count <= sample_count + 1;
                     end
                     H_SSG_MEASURE: if (sample_tick) begin
-                        if (sample_count+1>=4096) begin measurement_active<=0; high_state<=H_SSG_HOLD; sample_count<=0; end
-                        else sample_count<=sample_count+1;
+                        if (sample_count + 1 >= 4096) begin
+                            measurement_active <= 0; high_state <= H_SSG_HOLD;
+                            sample_count <= 0;
+                        end else sample_count <= sample_count + 1;
                     end
                     H_SSG_HOLD: if (sample_tick &&
-                        sample_tick_count + 1 - sound_start_tick >= SOUND_DWELL_SAMPLES) begin
-                        start_program(P_SSG_OFF); high_state<=H_SSG_OFF;
+                        sample_tick_count + 1 - sound_start_tick >=
+                        REFERENCE_DWELL_SAMPLES) begin
+                        start_program(P_SSG_OFF); high_state <= H_SSG_OFF;
                     end
-                    H_SSG_OFF: if (program_done) begin high_state<=H_SSG_ZERO; sample_count<=0; end
+                    H_SSG_OFF: if (program_done) begin
+                        high_state <= H_SSG_ZERO; sample_count <= 0;
+                    end
                     H_SSG_ZERO: if (sample_tick) begin
-                        if (zero_sample_ok && zero_run_count+1>=ZERO_CONFIRM_SAMPLES) begin display_phase<=0; audio_mute<=1; high_state<=H_SILENCE_2; sample_count<=0; end
-                        else if (sample_count+1>=ZERO_TIMEOUT_SAMPLES) begin zero_timeout<=1; halted<=1; end
-                        else sample_count<=sample_count+1;
+                        if (zero_sample_ok && zero_run_count + 1 >=
+                            ZERO_CONFIRM_SAMPLES) begin
+                            display_phase <= 0; audio_mute <= 1;
+                            high_state <= H_SILENCE_2; sample_count <= 0;
+                        end else if (sample_count + 1 >= ZERO_TIMEOUT_SAMPLES) begin
+                            zero_timeout <= 1; display_phase <= 0;
+                            audio_mute <= 1; high_state <= H_SILENCE_2;
+                            sample_count <= 0;
+                        end else sample_count <= sample_count + 1;
                     end
                     H_SILENCE_2: if (sample_tick) begin
-                        if (!audio_zero) begin phase_error<=1; halted<=1; end
-                        else if (sample_count+1>=INTER_SILENCE_SAMPLES) begin
-                            display_phase<=3; start_program(P_A0_CFG); high_state<=H_A0_PREROLL; sample_count<=0;
-                        end else sample_count<=sample_count+1;
+                        if (!audio_zero) halt_fatal(4'd15);
+                        else if (sample_count + 1 >= REFERENCE_GAP_SAMPLES) begin
+                            display_phase <= 3; diag_phase_index <= 0;
+                            diag_attempt_index <= 0; diag_phase_begin <= 1;
+                            start_program(P_A0_CFG); high_state <= H_A0_PREROLL;
+                            sample_count <= 0;
+                        end else sample_count <= sample_count + 1;
                     end
 
                     H_A0_PREROLL: if (sample_tick) begin
-                        if (!audio_zero) begin phase_error<=1; halted<=1; end
-                        else if (sample_count+1>=COLOR_PREROLL_SAMPLES) begin
-                            if (program_active) begin phase_error<=1; halted<=1; end
-                            else begin high_state<=H_A0_ALIGN; sample_count<=0; end
-                        end else sample_count<=sample_count+1;
+                        if (!audio_zero) halt_fatal(4'd15);
+                        else if (sample_count + 1 >= COLOR_PREROLL_SAMPLES) begin
+                            if (!program_active) begin
+                                high_state <= H_A0_ALIGN; sample_count <= 0;
+                            end
+                        end else sample_count <= sample_count + 1;
                     end
-                    H_A0_ALIGN: if (!program_active && chip_cycle_mod432==9'd230) begin start_program(P_A0_ON); high_state<=H_A0_START; end
-                    H_A0_START: if (program_done) begin high_state<=H_A0_DWELL; sample_count<=0; end
+                    H_A0_ALIGN: if (!program_active &&
+                        chip_cycle_mod432 == 9'd230) begin
+                        start_program(P_A0_ON); high_state <= H_A0_START;
+                    end
+                    H_A0_START: if (program_done) begin
+                        high_state <= H_A0_DWELL; sample_count <= 0;
+                    end
                     H_A0_DWELL: if (sample_tick) begin
-                        if (measurement_active && sample_count+1>=4096) measurement_active<=0;
-                        if (sample_tick_count+1-sound_start_tick>=SOUND_DWELL_SAMPLES) begin measurement_active<=0; start_program(P_A0_OFF); high_state<=H_A0_OFF; end
-                        else sample_count<=sample_count+1;
+                        if (measurement_active && sample_count + 1 >= 4096)
+                            measurement_active <= 0;
+                        if (sample_tick_count + 1 - sound_start_tick >=
+                            A0_ATTEMPT_SAMPLES) begin
+                            measurement_active <= 0; start_program(P_A0_OFF);
+                            high_state <= H_A0_OFF;
+                        end else sample_count <= sample_count + 1;
                     end
-                    H_A0_OFF: if (program_done) begin high_state<=H_A0_ZERO; sample_count<=0; end
+                    H_A0_OFF: if (program_done) begin
+                        high_state <= H_A0_ZERO; sample_count <= 0;
+                    end
                     H_A0_ZERO: if (sample_tick) begin
-                        if (zero_sample_ok && zero_run_count+1>=ZERO_CONFIRM_SAMPLES) begin display_phase<=0; audio_mute<=1; high_state<=H_SILENCE_3; sample_count<=0; end
-                        else if (sample_count+1>=ZERO_TIMEOUT_SAMPLES) begin zero_timeout<=1; halted<=1; end
-                        else sample_count<=sample_count+1;
+                        if (zero_sample_ok && zero_run_count + 1 >=
+                            ZERO_CONFIRM_SAMPLES) begin
+                            diag_attempt_end <= 1; diag_stop_pass <= 1;
+                            audio_mute <= 1; sample_count <= 0;
+                            if (diag_attempt_index == 5)
+                                high_state <= H_A0_RESULT;
+                            else begin
+                                diag_attempt_index <= diag_attempt_index + 1;
+                                high_state <= H_A0_GAP;
+                            end
+                        end else if (sample_count + 1 >= ZERO_TIMEOUT_SAMPLES) begin
+                            zero_timeout <= 1; diag_attempt_end <= 1;
+                            diag_stop_pass <= 0; audio_mute <= 1;
+                            sample_count <= 0;
+                            if (diag_attempt_index == 5)
+                                high_state <= H_A0_RESULT;
+                            else begin
+                                diag_attempt_index <= diag_attempt_index + 1;
+                                high_state <= H_A0_GAP;
+                            end
+                        end else sample_count <= sample_count + 1;
                     end
-                    H_SILENCE_3: if (sample_tick) begin
-                        if (!audio_zero) begin phase_error<=1; halted<=1; end
-                        else if (sample_count+1>=INTER_SILENCE_SAMPLES) begin
-                            display_phase<=4; start_program(P_A6_CFG); high_state<=H_A6_PREROLL; sample_count<=0;
-                        end else sample_count<=sample_count+1;
+                    H_A0_GAP: if (sample_tick) begin
+                        if (sample_count + 1 >= PCM_ATTEMPT_GAP_SAMPLES) begin
+                            high_state <= H_A0_ALIGN; sample_count <= 0;
+                        end else sample_count <= sample_count + 1;
+                    end
+                    H_A0_RESULT: if (sample_tick) begin
+                        if (sample_count + 1 >= PCM_RESULT_SAMPLES) begin
+                            display_phase <= 4; diag_phase_index <= 1;
+                            diag_attempt_index <= 0; diag_phase_begin <= 1;
+                            start_program(P_A6_CFG); high_state <= H_A6_PREROLL;
+                            sample_count <= 0;
+                        end else sample_count <= sample_count + 1;
                     end
 
                     H_A6_PREROLL: if (sample_tick) begin
-                        if (!audio_zero) begin phase_error<=1; halted<=1; end
-                        else if (sample_count+1>=COLOR_PREROLL_SAMPLES) begin
-                            if (program_active) begin phase_error<=1; halted<=1; end
-                            else begin high_state<=H_A6_ALIGN; sample_count<=0; end
-                        end else sample_count<=sample_count+1;
+                        if (!audio_zero) halt_fatal(4'd15);
+                        else if (sample_count + 1 >= COLOR_PREROLL_SAMPLES) begin
+                            if (!program_active) begin
+                                high_state <= H_A6_ALIGN; sample_count <= 0;
+                            end
+                        end else sample_count <= sample_count + 1;
                     end
-                    H_A6_ALIGN: if (!program_active && chip_cycle_mod432==9'd402) begin start_program(P_A6_ON); high_state<=H_A6_START; end
-                    H_A6_START: if (program_done) begin high_state<=H_A6_DWELL; sample_count<=0; end
+                    H_A6_ALIGN: if (!program_active &&
+                        chip_cycle_mod432 == 9'd402) begin
+                        start_program(P_A6_ON); high_state <= H_A6_START;
+                    end
+                    H_A6_START: if (program_done) begin
+                        high_state <= H_A6_DWELL; sample_count <= 0;
+                    end
                     H_A6_DWELL: if (sample_tick) begin
-                        if (measurement_active && sample_count+1>=8192) measurement_active<=0;
-                        if (sample_tick_count+1-sound_start_tick>=SOUND_DWELL_SAMPLES) begin measurement_active<=0; start_program(P_A6_OFF); high_state<=H_A6_OFF; end
-                        else sample_count<=sample_count+1;
+                        if (measurement_active && sample_count + 1 >= 8192)
+                            measurement_active <= 0;
+                        if (sample_tick_count + 1 - sound_start_tick >=
+                            A6_ATTEMPT_SAMPLES) begin
+                            measurement_active <= 0; start_program(P_A6_OFF);
+                            high_state <= H_A6_OFF;
+                        end else sample_count <= sample_count + 1;
                     end
-                    H_A6_OFF: if (program_done) begin high_state<=H_A6_ZERO; sample_count<=0; end
+                    H_A6_OFF: if (program_done) begin
+                        high_state <= H_A6_ZERO; sample_count <= 0;
+                    end
                     H_A6_ZERO: if (sample_tick) begin
-                        if (zero_sample_ok && zero_run_count+1>=ZERO_CONFIRM_SAMPLES) begin display_phase<=0; audio_mute<=1; high_state<=H_SILENCE_4; sample_count<=0; end
-                        else if (sample_count+1>=ZERO_TIMEOUT_SAMPLES) begin zero_timeout<=1; halted<=1; end
-                        else sample_count<=sample_count+1;
+                        if (zero_sample_ok && zero_run_count + 1 >=
+                            ZERO_CONFIRM_SAMPLES) begin
+                            diag_attempt_end <= 1; diag_stop_pass <= 1;
+                            audio_mute <= 1; sample_count <= 0;
+                            if (diag_attempt_index == 5)
+                                high_state <= H_A6_RESULT;
+                            else begin
+                                diag_attempt_index <= diag_attempt_index + 1;
+                                high_state <= H_A6_GAP;
+                            end
+                        end else if (sample_count + 1 >= ZERO_TIMEOUT_SAMPLES) begin
+                            zero_timeout <= 1; diag_attempt_end <= 1;
+                            diag_stop_pass <= 0; audio_mute <= 1;
+                            sample_count <= 0;
+                            if (diag_attempt_index == 5)
+                                high_state <= H_A6_RESULT;
+                            else begin
+                                diag_attempt_index <= diag_attempt_index + 1;
+                                high_state <= H_A6_GAP;
+                            end
+                        end else sample_count <= sample_count + 1;
                     end
-                    H_SILENCE_4: if (sample_tick) begin
-                        if (!audio_zero) begin phase_error<=1; halted<=1; end
-                        else if (sample_count+1>=INTER_SILENCE_SAMPLES) begin
-                            display_phase<=5; start_program(P_B_STEREO); high_state<=H_B_PREROLL; sample_count<=0;
-                        end else sample_count<=sample_count+1;
+                    H_A6_GAP: if (sample_tick) begin
+                        if (sample_count + 1 >= PCM_ATTEMPT_GAP_SAMPLES) begin
+                            high_state <= H_A6_ALIGN; sample_count <= 0;
+                        end else sample_count <= sample_count + 1;
+                    end
+                    H_A6_RESULT: if (sample_tick) begin
+                        if (sample_count + 1 >= PCM_RESULT_SAMPLES) begin
+                            display_phase <= 5; diag_phase_index <= 2;
+                            diag_attempt_index <= 0; diag_phase_begin <= 1;
+                            start_program(P_B_STEREO); high_state <= H_B_PREROLL;
+                            sample_count <= 0;
+                        end else sample_count <= sample_count + 1;
                     end
 
                     H_B_PREROLL: if (sample_tick) begin
-                        if (!audio_zero) begin phase_error<=1; halted<=1; end
-                        else if (sample_count+1>=COLOR_PREROLL_SAMPLES) begin
-                            if (program_active) begin phase_error<=1; halted<=1; end
-                            else begin high_state<=H_B_ALIGN; sample_count<=0; end
-                        end else sample_count<=sample_count+1;
+                        if (!audio_zero) halt_fatal(4'd15);
+                        else if (sample_count + 1 >= COLOR_PREROLL_SAMPLES) begin
+                            if (!program_active) begin
+                                high_state <= H_B_ALIGN; sample_count <= 0;
+                            end
+                        end else sample_count <= sample_count + 1;
                     end
-                    H_B_ALIGN: if (!program_active && chip_cycle_mod432==9'd416) begin start_program(P_B_START); high_state<=H_B_START; end
-                    H_B_START: if (program_done) begin high_state<=H_B_DWELL; sample_count<=0; end
+                    H_B_ALIGN: if (!program_active &&
+                        chip_cycle_mod432 == 9'd416) begin
+                        start_program(P_B_START); high_state <= H_B_START;
+                    end
+                    H_B_START: if (program_done) begin
+                        high_state <= H_B_DWELL; sample_count <= 0;
+                    end
                     H_B_DWELL: if (sample_tick) begin
-                        if (!adpcmb_active) begin phase_error<=1; halted<=1; end
-                        else begin
-                            if (measurement_active && sample_count+1>=4097) measurement_active<=0;
-                            if (sample_tick_count+1-sound_start_tick>=SOUND_DWELL_SAMPLES) begin measurement_active<=0; start_program(P_B_RESET); high_state<=H_B_RESET; end
-                            else sample_count<=sample_count+1;
-                        end
+                        if (measurement_active && sample_count + 1 >= 4097)
+                            measurement_active <= 0;
+                        if (sample_tick_count + 1 - sound_start_tick >=
+                            B_ATTEMPT_SAMPLES) begin
+                            measurement_active <= 0; start_program(P_B_RESET);
+                            high_state <= H_B_RESET;
+                        end else sample_count <= sample_count + 1;
                     end
-                    H_B_RESET: if (program_done) begin high_state<=H_B_ZERO; sample_count<=0; end
+                    H_B_RESET: if (program_done) begin
+                        high_state <= H_B_ZERO; sample_count <= 0;
+                    end
                     H_B_ZERO: if (sample_tick) begin
-                        if (zero_sample_ok && zero_run_count+1>=ZERO_CONFIRM_SAMPLES) begin display_phase<=0; audio_mute<=1; high_state<=H_SILENCE_5; sample_count<=0; end
-                        else if (sample_count+1>=ZERO_TIMEOUT_SAMPLES) begin zero_timeout<=1; halted<=1; end
-                        else sample_count<=sample_count+1;
+                        if (zero_sample_ok && zero_run_count + 1 >=
+                            ZERO_CONFIRM_SAMPLES) begin
+                            diag_attempt_end <= 1; diag_stop_pass <= 1;
+                            audio_mute <= 1; sample_count <= 0;
+                            if (diag_attempt_index == 5)
+                                high_state <= H_B_RESULT;
+                            else begin
+                                diag_attempt_index <= diag_attempt_index + 1;
+                                high_state <= H_B_GAP;
+                            end
+                        end else if (sample_count + 1 >= ZERO_TIMEOUT_SAMPLES) begin
+                            zero_timeout <= 1; diag_attempt_end <= 1;
+                            diag_stop_pass <= 0; audio_mute <= 1;
+                            sample_count <= 0;
+                            if (diag_attempt_index == 5)
+                                high_state <= H_B_RESULT;
+                            else begin
+                                diag_attempt_index <= diag_attempt_index + 1;
+                                high_state <= H_B_GAP;
+                            end
+                        end else sample_count <= sample_count + 1;
                     end
-                    H_SILENCE_5: if (sample_tick) begin
-                        if (!audio_zero) begin phase_error<=1; halted<=1; end
-                        else if (sample_count+1>=INTER_SILENCE_SAMPLES) begin
-                            display_phase<=6; start_program(P_B_LEFT); high_state<=H_L_PREROLL; sample_count<=0;
-                        end else sample_count<=sample_count+1;
+                    H_B_GAP: if (sample_tick) begin
+                        if (sample_count + 1 >= PCM_ATTEMPT_GAP_SAMPLES) begin
+                            high_state <= H_B_ALIGN; sample_count <= 0;
+                        end else sample_count <= sample_count + 1;
+                    end
+                    H_B_RESULT: if (sample_tick) begin
+                        if (sample_count + 1 >= PCM_RESULT_SAMPLES) begin
+                            display_phase <= 6; diag_phase_index <= 3;
+                            diag_attempt_index <= 0; diag_pan_right <= 0;
+                            diag_phase_begin <= 1; start_program(P_B_LEFT);
+                            high_state <= H_L_PREROLL; sample_count <= 0;
+                        end else sample_count <= sample_count + 1;
                     end
 
                     H_L_PREROLL: if (sample_tick) begin
-                        if (!audio_zero) begin phase_error<=1; halted<=1; end
-                        else if (sample_count+1>=COLOR_PREROLL_SAMPLES) begin
-                            if (program_active) begin phase_error<=1; halted<=1; end
-                            else begin high_state<=H_L_ALIGN; sample_count<=0; end
-                        end else sample_count<=sample_count+1;
+                        if (!audio_zero) halt_fatal(4'd15);
+                        else if (sample_count + 1 >= COLOR_PREROLL_SAMPLES) begin
+                            if (!program_active) begin
+                                high_state <= H_L_ALIGN; sample_count <= 0;
+                            end
+                        end else sample_count <= sample_count + 1;
                     end
-                    H_L_ALIGN: if (!program_active && chip_cycle_mod432==9'd416) begin start_program(P_B_START); high_state<=H_L_START; end
-                    H_L_START: if (program_done) begin high_state<=H_L_DWELL; sample_count<=0; end
+                    H_L_ALIGN: if (!program_active &&
+                        chip_cycle_mod432 == 9'd416) begin
+                        start_program(P_B_START); high_state <= H_L_START;
+                    end
+                    H_L_START: if (program_done) begin
+                        high_state <= H_L_DWELL; sample_count <= 0;
+                    end
                     H_L_DWELL: if (sample_tick) begin
-                        if (!adpcmb_active) begin phase_error<=1; halted<=1; end
-                        else if (sample_tick_count+1-sound_start_tick>=PAN_DWELL_SAMPLES) begin start_program(P_B_RESET); high_state<=H_L_RESET; end
-                        else sample_count<=sample_count+1;
+                        if (sample_tick_count + 1 - sound_start_tick >=
+                            B_ATTEMPT_SAMPLES) begin
+                            start_program(P_B_RESET); high_state <= H_L_RESET;
+                        end else sample_count <= sample_count + 1;
                     end
-                    H_L_RESET: if (program_done) begin high_state<=H_L_ZERO; sample_count<=0; end
+                    H_L_RESET: if (program_done) begin
+                        high_state <= H_L_ZERO; sample_count <= 0;
+                    end
                     H_L_ZERO: if (sample_tick) begin
-                        if (zero_sample_ok && zero_run_count+1>=ZERO_CONFIRM_SAMPLES) begin display_phase<=0; audio_mute<=1; high_state<=H_PAN_SILENCE; sample_count<=0; end
-                        else if (sample_count+1>=ZERO_TIMEOUT_SAMPLES) begin zero_timeout<=1; halted<=1; end
-                        else sample_count<=sample_count+1;
+                        if ((zero_sample_ok && zero_run_count + 1 >=
+                             ZERO_CONFIRM_SAMPLES) ||
+                            sample_count + 1 >= ZERO_TIMEOUT_SAMPLES) begin
+                            if (!(zero_sample_ok && zero_run_count + 1 >=
+                                  ZERO_CONFIRM_SAMPLES)) zero_timeout <= 1;
+                            diag_attempt_end <= 1;
+                            diag_stop_pass <= zero_sample_ok &&
+                                zero_run_count + 1 >= ZERO_CONFIRM_SAMPLES;
+                            audio_mute <= 1; sample_count <= 0;
+                            diag_attempt_index <= diag_attempt_index + 1;
+                            if (diag_attempt_index == 2) begin
+                                diag_pan_right <= 1;
+                                start_program(P_B_RIGHT);
+                            end
+                            high_state <= H_PAN_SILENCE;
+                        end else sample_count <= sample_count + 1;
                     end
                     H_PAN_SILENCE: if (sample_tick) begin
-                        if (!audio_zero) begin phase_error<=1; halted<=1; end
-                        else if (sample_count+1>=PAN_INTER_SAMPLES) begin
-                            display_phase<=6; start_program(P_B_RIGHT); high_state<=H_R_PREROLL; sample_count<=0;
-                        end else sample_count<=sample_count+1;
+                        if (sample_count + 1 >= PCM_ATTEMPT_GAP_SAMPLES) begin
+                            if (!program_active) begin
+                                high_state <= diag_pan_right ?
+                                    H_R_ALIGN : H_L_ALIGN;
+                                sample_count <= 0;
+                            end
+                        end else sample_count <= sample_count + 1;
                     end
-                    H_R_PREROLL: if (sample_tick) begin
-                        if (!audio_zero) begin phase_error<=1; halted<=1; end
-                        else if (sample_count+1>=COLOR_PREROLL_SAMPLES) begin
-                            if (program_active) begin phase_error<=1; halted<=1; end
-                            else begin high_state<=H_R_ALIGN; sample_count<=0; end
-                        end else sample_count<=sample_count+1;
+                    H_R_PREROLL: high_state <= H_R_ALIGN;
+                    H_R_ALIGN: if (!program_active &&
+                        chip_cycle_mod432 == 9'd416) begin
+                        start_program(P_B_START); high_state <= H_R_START;
                     end
-                    H_R_ALIGN: if (!program_active && chip_cycle_mod432==9'd416) begin start_program(P_B_START); high_state<=H_R_START; end
-                    H_R_START: if (program_done) begin high_state<=H_R_DWELL; sample_count<=0; end
+                    H_R_START: if (program_done) begin
+                        high_state <= H_R_DWELL; sample_count <= 0;
+                    end
                     H_R_DWELL: if (sample_tick) begin
-                        if (!adpcmb_active) begin phase_error<=1; halted<=1; end
-                        else if (sample_tick_count+1-sound_start_tick>=PAN_DWELL_SAMPLES) begin start_program(P_B_RESET); high_state<=H_R_RESET; end
-                        else sample_count<=sample_count+1;
+                        if (sample_tick_count + 1 - sound_start_tick >=
+                            B_ATTEMPT_SAMPLES) begin
+                            start_program(P_B_RESET); high_state <= H_R_RESET;
+                        end else sample_count <= sample_count + 1;
                     end
-                    H_R_RESET: if (program_done) begin high_state<=H_R_ZERO; sample_count<=0; end
+                    H_R_RESET: if (program_done) begin
+                        high_state <= H_R_ZERO; sample_count <= 0;
+                    end
                     H_R_ZERO: if (sample_tick) begin
-                        if (zero_sample_ok && zero_run_count+1>=ZERO_CONFIRM_SAMPLES) begin display_phase<=0; audio_mute<=1; high_state<=H_SILENCE_6; sample_count<=0; end
-                        else if (sample_count+1>=ZERO_TIMEOUT_SAMPLES) begin zero_timeout<=1; halted<=1; end
-                        else sample_count<=sample_count+1;
+                        if ((zero_sample_ok && zero_run_count + 1 >=
+                             ZERO_CONFIRM_SAMPLES) ||
+                            sample_count + 1 >= ZERO_TIMEOUT_SAMPLES) begin
+                            if (!(zero_sample_ok && zero_run_count + 1 >=
+                                  ZERO_CONFIRM_SAMPLES)) zero_timeout <= 1;
+                            diag_attempt_end <= 1;
+                            diag_stop_pass <= zero_sample_ok &&
+                                zero_run_count + 1 >= ZERO_CONFIRM_SAMPLES;
+                            audio_mute <= 1; sample_count <= 0;
+                            if (diag_attempt_index == 5)
+                                high_state <= H_PAN_RESULT;
+                            else begin
+                                diag_attempt_index <= diag_attempt_index + 1;
+                                high_state <= H_PAN_SILENCE;
+                            end
+                        end else sample_count <= sample_count + 1;
                     end
-                    H_SILENCE_6: if (sample_tick) begin
-                        if (!audio_zero) begin phase_error<=1; halted<=1; end
-                        else if (sample_count+1>=INTER_SILENCE_SAMPLES) begin
-                            display_phase<=7; start_program(P_B_SHORT); high_state<=H_SHORT_PREROLL; sample_count<=0;
-                        end else sample_count<=sample_count+1;
+                    H_PAN_RESULT: if (sample_tick) begin
+                        if (sample_count + 1 >= PCM_RESULT_SAMPLES) begin
+                            display_phase <= 7; diag_phase_index <= 4;
+                            diag_attempt_index <= 0; diag_pan_right <= 0;
+                            diag_phase_begin <= 1; start_program(P_B_SHORT);
+                            high_state <= H_SHORT_PREROLL; sample_count <= 0;
+                        end else sample_count <= sample_count + 1;
                     end
 
                     H_SHORT_PREROLL: if (sample_tick) begin
-                        if (!audio_zero) begin phase_error<=1; halted<=1; end
-                        else if (sample_count+1>=COLOR_PREROLL_SAMPLES) begin
-                            if (program_active) begin phase_error<=1; halted<=1; end
-                            else begin high_state<=H_SHORT_ALIGN1; sample_count<=0; end
-                        end else sample_count<=sample_count+1;
+                        if (!audio_zero) halt_fatal(4'd15);
+                        else if (sample_count + 1 >= COLOR_PREROLL_SAMPLES) begin
+                            if (!program_active) begin
+                                high_state <= H_SHORT_ALIGN1; sample_count <= 0;
+                            end
+                        end else sample_count <= sample_count + 1;
                     end
-                    H_SHORT_ALIGN1: if (!program_active && chip_cycle_mod432==9'd416) begin start_program(P_B_START); high_state<=H_SHORT_START1; natural_watchdog<=0; natural_armed<=0; end
-                    H_SHORT_START1: if (program_done) begin high_state<=H_SHORT_PLAY1; natural_armed<=1; end
-                    H_SHORT_PLAY1: if (natural_armed && adpcmb_eos) begin high_state<=H_SHORT_ZERO1; sample_count<=0; natural_armed<=0; end
-                        else if (sample_tick) begin natural_watchdog<=natural_watchdog+1; if(natural_watchdog>4096) begin busy_timeout<=1; halted<=1; end end
+                    H_SHORT_ALIGN1: if (!program_active &&
+                        chip_cycle_mod432 == 9'd416) begin
+                        start_program(P_B_START); high_state <= H_SHORT_START1;
+                        natural_watchdog <= 0; natural_armed <= 0;
+                        natural_first_stop_ok <= 0;
+                        natural_restart_seen <= 0;
+                    end
+                    H_SHORT_START1: if (program_done) begin
+                        high_state <= H_SHORT_PLAY1; natural_armed <= 1;
+                    end
+                    H_SHORT_PLAY1: begin
+                        if (natural_armed && adpcmb_eos) begin
+                            high_state <= H_SHORT_ZERO1; sample_count <= 0;
+                            natural_armed <= 0; natural_zero_latency <= 0;
+                        end else if (sample_tick) begin
+                            natural_watchdog <= natural_watchdog + 1;
+                            if (natural_watchdog >= 4096) begin
+                                start_program(P_B_RESET);
+                                high_state <= H_SHORT_RECOVER1;
+                                natural_first_stop_ok <= 0;
+                            end
+                        end
+                    end
                     H_SHORT_ZERO1: if (sample_tick) begin
-                        if (zero_sample_ok && zero_run_count+1>=ZERO_CONFIRM_SAMPLES) begin audio_mute<=1; high_state<=H_SHORT_SILENCE; sample_count<=0; end
-                        else if (sample_count+1>=ZERO_TIMEOUT_SAMPLES) begin zero_timeout<=1; halted<=1; end
-                        else sample_count<=sample_count+1;
+                        if (zero_sample_ok) begin
+                            natural_first_stop_ok <= sample_count < 4;
+                            audio_mute <= 1; high_state <= H_SHORT_SILENCE;
+                            sample_count <= 0;
+                        end else if (sample_count + 1 >= ZERO_TIMEOUT_SAMPLES) begin
+                            zero_timeout <= 1; start_program(P_B_RESET);
+                            high_state <= H_SHORT_RECOVER1;
+                            natural_first_stop_ok <= 0;
+                        end else begin
+                            sample_count <= sample_count + 1;
+                            natural_zero_latency <= natural_zero_latency + 1;
+                        end
                     end
                     H_SHORT_SILENCE: if (sample_tick) begin
-                        if (!audio_zero) begin phase_error<=1; halted<=1; end
-                        else if (sample_count+1>=NATURAL_SILENCE_SAMPLES) begin high_state<=H_SHORT_ALIGN2; sample_count<=0; end
-                        else sample_count<=sample_count+1;
+                        if (sample_count + 1 >= NATURAL_SILENCE_SAMPLES) begin
+                            high_state <= H_SHORT_ALIGN2; sample_count <= 0;
+                        end else sample_count <= sample_count + 1;
                     end
-                    H_SHORT_ALIGN2: if (!program_active && chip_cycle_mod432==9'd416) begin start_program(P_B_START); high_state<=H_SHORT_START2; natural_watchdog<=0; natural_armed<=0; end
-                    H_SHORT_START2: if (program_done) begin high_state<=H_SHORT_PLAY2; natural_armed<=1; end
-                    H_SHORT_PLAY2: if (natural_armed && adpcmb_eos) begin high_state<=H_SHORT_ZERO2; sample_count<=0; natural_armed<=0; end
-                        else if (sample_tick) begin natural_watchdog<=natural_watchdog+1; if(natural_watchdog>4096) begin busy_timeout<=1; halted<=1; end end
+                    H_SHORT_ALIGN2: if (!program_active &&
+                        chip_cycle_mod432 == 9'd416) begin
+                        start_program(P_B_START); high_state <= H_SHORT_START2;
+                        natural_watchdog <= 0; natural_armed <= 0;
+                    end
+                    H_SHORT_START2: if (program_done) begin
+                        high_state <= H_SHORT_PLAY2; natural_armed <= 1;
+                        natural_restart_seen <= 1;
+                    end
+                    H_SHORT_PLAY2: begin
+                        if (natural_armed && adpcmb_eos) begin
+                            high_state <= H_SHORT_ZERO2; sample_count <= 0;
+                            natural_armed <= 0; natural_zero_latency <= 0;
+                        end else if (sample_tick) begin
+                            natural_watchdog <= natural_watchdog + 1;
+                            if (natural_watchdog >= 4096) begin
+                                start_program(P_B_RESET);
+                                high_state <= H_SHORT_RECOVER2;
+                            end
+                        end
+                    end
                     H_SHORT_ZERO2: if (sample_tick) begin
-                        if (zero_sample_ok && zero_run_count+1>=ZERO_CONFIRM_SAMPLES) begin
-                            display_phase<=0; audio_mute<=1; start_program(P_SILENCE); high_state<=H_FINAL_STOP; sample_count<=0;
-                        end else if (sample_count+1>=ZERO_TIMEOUT_SAMPLES) begin zero_timeout<=1; halted<=1; end
-                        else sample_count<=sample_count+1;
+                        if (zero_sample_ok ||
+                            sample_count + 1 >= ZERO_TIMEOUT_SAMPLES) begin
+                            if (!zero_sample_ok) zero_timeout <= 1;
+                            diag_attempt_end <= 1;
+                            diag_stop_pass <= zero_sample_ok &&
+                                sample_count < 4 && natural_first_stop_ok &&
+                                natural_restart_seen;
+                            audio_mute <= 1; sample_count <= 0;
+                            if (diag_attempt_index == 2)
+                                high_state <= H_NAT_RESULT;
+                            else begin
+                                start_program(P_B_RESET);
+                                high_state <= H_NAT_RESET;
+                            end
+                        end else begin
+                            sample_count <= sample_count + 1;
+                            natural_zero_latency <= natural_zero_latency + 1;
+                        end
                     end
-                    H_FINAL_STOP: if (program_done) begin high_state<=H_FINAL_SILENCE; sample_count<=0; end
-                    H_FINAL_SILENCE: if (sample_tick) begin
-                        if (!audio_zero) begin phase_error<=1; halted<=1; end
-                        else if (sample_count+1>=FINAL_SILENCE_SAMPLES) begin
-                            sequence_restart_count<=sequence_restart_count+1;
-                            display_phase<=1; start_program(P_FM_CFG); high_state<=H_FM_PREROLL; sample_count<=0;
-                        end else sample_count<=sample_count+1;
+                    H_SHORT_RECOVER1: if (program_done) begin
+                        diag_attempt_end <= 1; diag_stop_pass <= 0;
+                        audio_mute <= 1; sample_count <= 0;
+                        if (diag_attempt_index == 2)
+                            high_state <= H_NAT_RESULT;
+                        else begin
+                            start_program(P_B_SHORT); high_state <= H_NAT_CFG;
+                        end
                     end
-                    default: begin phase_error<=1; halted<=1; end
+                    H_SHORT_RECOVER2: if (program_done) begin
+                        diag_attempt_end <= 1; diag_stop_pass <= 0;
+                        audio_mute <= 1; sample_count <= 0;
+                        if (diag_attempt_index == 2)
+                            high_state <= H_NAT_RESULT;
+                        else begin
+                            start_program(P_B_SHORT); high_state <= H_NAT_CFG;
+                        end
+                    end
+                    H_NAT_RESET: if (program_done) begin
+                        start_program(P_B_SHORT); high_state <= H_NAT_CFG;
+                    end
+                    H_NAT_CFG: if (program_done) begin
+                        diag_attempt_index <= diag_attempt_index + 1;
+                        high_state <= H_NAT_GAP; sample_count <= 0;
+                    end
+                    H_NAT_GAP: if (sample_tick) begin
+                        if (sample_count + 1 >= PCM_ATTEMPT_GAP_SAMPLES) begin
+                            high_state <= H_SHORT_ALIGN1; sample_count <= 0;
+                        end else sample_count <= sample_count + 1;
+                    end
+                    H_NAT_RESULT: if (sample_tick) begin
+                        if (sample_count + 1 >= PCM_RESULT_SAMPLES) begin
+                            display_phase <= 8; summary_active <= 1;
+                            high_state <= H_SUMMARY; sample_count <= 0;
+                        end else sample_count <= sample_count + 1;
+                    end
+                    H_SUMMARY: if (sample_tick) begin
+                        if (sample_count + 1 >= SUMMARY_SAMPLES) begin
+                            sequence_restart_count <= sequence_restart_count + 1;
+                            display_phase <= 0; summary_active <= 0;
+                            start_program(P_SILENCE); high_state <= H_LOOP_STOP;
+                            sample_count <= 0; audio_mute <= 1;
+                        end else sample_count <= sample_count + 1;
+                    end
+                    H_LOOP_STOP: if (program_done) begin
+                        high_state <= H_LOOP_BOOT; sample_count <= 0;
+                    end
+                    H_LOOP_BOOT: if (sample_tick) begin
+                        if (!audio_zero) halt_fatal(4'd15);
+                        else if (sample_count + 1 >= BOOT_SAMPLES) begin
+                            display_phase <= 1; start_program(P_FM_CFG);
+                            high_state <= H_FM_PREROLL; sample_count <= 0;
+                        end else sample_count <= sample_count + 1;
+                    end
+                    default: halt_fatal(4'd11);
                 endcase
             end
         end else begin

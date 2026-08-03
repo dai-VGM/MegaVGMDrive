@@ -85,9 +85,10 @@ The static audit recomputes every row and aborts on content or metadata drift.
 - The final HW-0 output mux is the only human-silence mute. It is asserted in
   reset/pre-ready/boot/pre-roll/inter/final states. It remains off after every
   stop until internal L/R are zero for 32 consecutive public ticks. ADPCM-B
-  also requires request and active clear. Zero timeout, cadence/width error,
-  phase overflow/unexpected state, BUSY failure, or write-while-BUSY halts,
-  mutes, and selects red.
+  also requires request and active clear. A PCM stop timeout records S6 FAIL
+  and continues. Cadence/width corruption, phase overflow/illegal state,
+  BUSY failure, write-while-BUSY, or ROM range corruption halts, mutes, and
+  selects red.
 
 ### Hardware duration constants
 
@@ -95,15 +96,17 @@ The static audit recomputes every row and aborts on content or metadata drift.
 |---|---:|---:|
 | boot navy | 159801 | 2.999998 |
 | color-only pre-roll | 53267 | 0.999999 |
-| FM/SSG/A0/A6/B stereo dwell | 213068 | 3.999997 |
-| ordinary navy gap | 79901 | 1.500008 |
-| left/right pan dwell | 159801 | 2.999998 |
-| left-to-right navy gap | 53267 | 0.999999 |
+| FM/SSG reference dwell | 159801 | 2.999998 |
+| FM/SSG navy gap | 53267 | 0.999999 |
+| each PCM attempt | 53267 | 0.999999 |
+| PCM attempt gap | 26634 | 0.500009 |
+| PCM phase result hold | 159801 | 2.999998 |
 | white natural-end gap | 79901 | 1.500008 |
-| final navy gap | 159801 | 2.999998 |
+| final summary | 532670 | 10.000000 |
 
 The exact-count pacing TB drives one logical tick per simulation clock and
-checks all eight constants over two complete loops. The integrated audio TB
+checks all diagnostic constants, 54 attempt closures, and two summaries over
+two complete loops. The integrated audio TB
 uses reduced timing parameters only to make four full JT10 runs practical;
 it retains the production measurement alignment/counts and separately proves
 the 144/6 public waveform contract.
@@ -115,25 +118,29 @@ the 144/6 public waveform contract.
 | 0 | boot silence | 159801 zero, zero writes | zero contract |
 | 1 | FM encoding 1, ALG7 | 4096 after 4096 attack | `8aadd7a6819038e5` |
 | 2 | SSG A, period 0020, volume 0F | 4096 after 263 startup | `54730095b12b6325` |
-| 3 | ADPCM-A voice 0 | first 4096 | `adf8cc2f2f81c1b9` |
-| 4 | ADPCM-A six-voice Scenario G | first 8192 | `32cb891931682fe9` |
-| 5 | ADPCM-B 0020–004f/8000/C0/FF | Phase 4A aligned boundary + 4096 | `1207d84363d4ed39` |
-| 6 | left-only, silence, right-only | isolation | leak 0 |
-| 7 | short 0020/0020 twice | 512 logical each | restart `e142f7da424b1531` |
-| 0 | final silence then loop | 159801 zero | loop count increments |
+| 3 | ADPCM-A voice 0, six attempts | first 4096 each | `adf8cc2f2f81c1b9` |
+| 4 | ADPCM-A six-voice Scenario G, six attempts | first 8192 each | `32cb891931682fe9` |
+| 5 | ADPCM-B 0020–004f/8000/C0/FF, six attempts | Phase 4A boundary + 4096 each | `1207d84363d4ed39` |
+| 6 | left-only ×3, right-only ×3 | isolation | leak 0 |
+| 7 | short 0020/0020 plus restart, three pairs | 512 logical each play | restart `e142f7da424b1531` |
+| 8 | five-row × seven-column summary | 532670 | result matrix |
 
 The source timeline in sample-tick units is:
 
 1. change `display_phase` from navy to the source color;
 2. hold muted/internal-zero for 53267 ticks;
 3. retain the old register order and accept the source START;
-4. keep the source color until 213068 ticks from START (159801 for each pan);
+4. keep FM/SSG audible for 159801 ticks; keep each PCM attempt open for
+   53267 ticks without stretching its short sample;
 5. accept the explicit stop/reset, leave external mute off, and wait for 32
    consecutive internal-zero ticks (plus ADPCM-B request/active clear);
-6. change to navy and start the 79901-tick gap (53267 between left/right);
-7. for white, keep white during the 79901-tick verified-zero gap and restart
-   without reconfiguration; after its second verified natural end, change to
-   navy for 159801 ticks.
+6. retain the PCM phase color for a 26634-tick muted gap and repeat the same
+   verified START six times (three left plus three right for pan);
+7. after each PCM phase, retain its color/result for 159801 ticks;
+8. for white, keep white during the 79901-tick verified-zero gap and restart
+   without reconfiguration; repeat that pair three times;
+9. show the dark-navy 5×7 summary for 532670 ticks, then return through the
+   159801-tick boot/navy loop head.
 
 FM splits only the old final key-on write from its configuration program. SSG
 keeps its four old writes contiguous and launches the complete program after
@@ -186,6 +193,83 @@ The TB uses individual `$isunknown` calls for left, right, sample strobe,
 phase/error controls, each PSG channel and sum, and address/data during every
 valid A/B ROM request. An upstream idle ADPCM-A output-enable pipeline is a
 don't-care until it owns a request; it is not treated as a valid fetch.
+
+## PCM path diagnostic contract
+
+The change baseline is branch `ym2610-family-bringup`, HEAD
+`b9bcf818d97cb7937106bf1ce2f78b1b1e4beb9a`, subject
+`Stabilize YM2610 HW-0 startup and pacing`, with clean tracked/staged state.
+The protected 23-file diagnostic aggregate, Sacred TB metadata, formal
+PC-GATE tree, pristine 15-file manifest, JT49 tree, HW-0 project files, and
+production project files matched their recorded authorities before editing.
+
+The magenta-to-red hardware symptom maps exactly to old state `H_B_DWELL`
+(36): it halted whenever the status-only `hw0_adpcmb_active` proxy cleared
+during the four-second colored dwell. A short single-shot correctly reaches
+EOS and clears the proxy before that dwell ends. The old generic predicate
+therefore converted completion into `phase_error`; identical predicates in
+left/right dwell would also block later phases. The new sequencer never uses
+that proxy as a dwell owner.
+
+Each PCM attempt independently latches these seven columns:
+
+| Bit | Evidence | PASS predicate |
+|---:|---|---|
+| S0 | RAW_REQ | target public ROM request observed |
+| S1 | CAPTURE | qualified zero-wait request/address/data transaction |
+| S2 | PROGRESS | at least two addresses and two distinct ROM bytes |
+| S3 | SOURCE_LANE | explicitly routed ADPCM-A or ADPCM-B L/R non-zero |
+| S4 | JT10_FINAL | JT10 final internal L/R non-zero |
+| S5 | HW_OUTPUT | post-mute HW-0 `AUDIO_L/R` non-zero |
+| S6 | STOP_RESTART | request/final zero and stop; pan isolation or restart when applicable |
+
+The current attempt retains a seen bit, fail bit, four-bit saturating event
+count, first-event tick low 16 bits, eight-bit saturating request/address
+change counts, an eight-bit saturating distinct-address progression proxy, and
+first/last 24-bit address. For these sequential deterministic fixtures the
+first address plus each public address change is the distinct-byte count; no
+address-history CAM is synthesized. A three-bit completed-attempt counter,
+separate from the sequencer's current attempt index, drives the lower boxes so
+a gap can never make the next pending attempt appear complete. Five seven-bit
+row accumulators AND the
+attempt results. No hash hardware is synthesized. ADPCM-A observation begins
+only on accepted key-on, excluding clear-boundary dummy traffic. JT10 final,
+ready-gated HW-0 pre-mute, and post-mute AUDIO L/R are separately routed; the
+positive TB requires equality across the latter two boundaries whenever mute
+is released.
+
+Codes 4–10 are nonfatal and leave a red cell before proceeding. Codes 1–3
+and 11–15 halt full-screen red. Mapping is: none 0, BUSY timeout 1,
+write-while-BUSY 2, cadence/width 3, no request 4, no capture/progress 5,
+lane zero 6, final zero 7, output zero 8, stop/pan 9, EOS/restart 10, illegal
+phase 11, reset synchronizer 12, ROM range 13, reserved 14, unknown/internal
+15. Simulation treats address/data/audio X/Z as fatal test failure even though
+hardware cannot synthesize an X detector.
+
+The upper-right white/magenta checker permanently identifies the diagnostic
+RBF. During phases 3–7 the top seven 60×32 boxes show S0–S6, and six bottom
+attempt boxes show completed/current/pending. The ten-second phase-8 matrix
+uses yellow/orange/magenta/cyan/white rows and the same seven columns. The
+fatal screen retains red and shows the four-bit code as bottom white/black
+boxes, MSB first.
+
+Negative controls instantiate only the observer with explicit stub inputs:
+request without capture, legal progress with a zero lane, live final with a
+zero post-mute output, and suppressed EOS/restart. Each produces the expected
+red cell and code. A second no-reset pass runs all five diagnostic rows,
+proves every later phase remains runnable, and retains the earlier red cells
+in the complete summary matrix; no force or fault path exists in synthesizable
+HW-0.
+
+Reset injection targets A0, A6, and stereo B attempt dwell. It requires
+immediate final zero/navy, continued H/V timing, cleared current status and
+5×7 matrix, the complete boot hold with zero writes, and restart from FM.
+
+Windows handoff remains: close Quartus, synchronize the complete repository,
+delete `hw\ym2610_hw0\db`, `incremental_db`, and `output_files`, open
+`hw\ym2610_hw0\MegaVGMDrive_YM2610_HW0.qpf`, select revision
+`MegaVGMDrive_YM2610_HW0`, run Full Compilation, and use
+`output_files\MegaVGMDrive_YM2610_HW0.rbf`.
 
 ## QSF/QIP assignments saved for audit
 
@@ -326,4 +410,58 @@ The startup/pacing runner completed on the final candidate before commit:
 - formal PC-GATE overlay, pristine JT10 15-file manifest, JT49,
   compatibility/warm-up layers, production project/source, HW-0 QSF/QIP,
   the 23 protected diagnostics, and Sacred TB: unchanged;
+- `git diff --check`: PASS; Quartus on macOS: not run.
+
+### PCM path diagnostic verification
+
+The final HW-0 PCM diagnostic candidate completed the required non-Quartus
+verification before commit:
+
+- hardware-count pacing model, two loops: boot `159801`, reference/PCM
+  pre-roll `53267`, reference dwell/gap `159801/53267`, PCM observation and
+  inter-attempt silence `53267/26634`, result hold `159801`, natural silence
+  `79901`, and summary `532670` sample ticks; 16 diagnostic phase visits,
+  64 starts, 54 PCM attempts, 478 accepted writes, and two summaries;
+- non-`SIMULATION` full-loop runs: 3/3 normalized match; `SIMULATION`: exact
+  normalized match. Every run completed two loops and reported summary matrix
+  `7ffffffff`, valid rows `1f`, and error code 0 in both loops;
+- hashes in every run and both loops: FM `8aadd7a6819038e5`, SSG
+  `54730095b12b6325`, ADPCM-A voice 0 `adf8cc2f2f81c1b9`, ADPCM-A six-voice
+  `32cb891931682fe9`, ADPCM-B stereo `1207d84363d4ed39`, and ADPCM-B restart
+  `e142f7da424b1531`;
+- per-loop attempt counts: ADPCM-A0 6, ADPCM-A6 6, ADPCM-B stereo 6, pan 6,
+  and natural/restart 3. Across two loops the contract reported
+  `12/12/12/12/6`, with all seven stage bits seen and no attempt fail bit;
+- BUSY timeout, write while BUSY, zero timeout, fatal error, sample drop,
+  duplicate sample, and pan leak: all zero. Relevant-event X/Z: zero, with
+  category counts `0/0/0/0/0/0` for control, audio, ADPCM-A lane, ADPCM-B
+  lane, ADPCM-A ROM, and ADPCM-B ROM;
+- negative controls: ROM response stop, source-lane zero, external-output
+  mute, and EOS suppression all continued through five diagnostic rows,
+  reached summary, and retained the expected red cells; full-screen fatal red
+  was not asserted;
+- video contract: white/magenta checker marker, seven status boxes, six
+  attempt indicators, 5-by-7 summary, and four-bit fatal code display: PASS;
+- reset injection at ADPCM-A0 state 22, ADPCM-A6 state 30, and ADPCM-B state
+  38: immediate output zero, video continuity/navy, diagnostic clear, reduced
+  boot 256 ticks with zero writes, and restart from FM: PASS in all three;
+- Icarus inner top, `SIMULATION` top, reset fixture, and minimal MiSTer `emu`:
+  compile/elaborate PASS. The three full compiles each report 57 inherited
+  warnings and 26 constant-select sensitivity notices; the minimal `emu`
+  compile reports the same 26 notices and no error;
+- Verilator: return code 0, warning count 176, latch 0, combinational loop 0.
+  Warning types are `DECLFILENAME=3`, `EOFNEWLINE=19`, `GENUNNAMED=10`,
+  `PINCONNECTEMPTY=11`, `PROCASSINIT=12`, `SYNCASYNCNET=1`,
+  `TIMESCALEMOD=6`, `UNUSEDPARAM=10`, `UNUSEDSIGNAL=73`,
+  `WIDTHEXPAND=29`, and `WIDTHTRUNC=2`;
+- static project/QIP audit: 109 recursively expanded paths, 66 core sources,
+  ten PLL generated sources, and seven QIP nodes; missing, duplicate-source,
+  duplicate-module, absolute, production-source, simulation-source,
+  diagnostic-source, and temporary-source references: all zero;
+- Phase 4A-FIX lifecycle and Phase 4A single-shot formal PC-GATE smoke:
+  PASS, including deterministic non-`SIMULATION`, matching `SIMULATION`,
+  Verilator return code 0, and restart anchor `e142f7da424b1531`;
+- register microcode table, deterministic ROM contents/generation, formal
+  PC-GATE overlay, pristine JT10 15-file manifest, JT49, production project,
+  HW-0 QPF/QSF/QIP, the 23 protected diagnostics, and Sacred TB: unchanged;
 - `git diff --check`: PASS; Quartus on macOS: not run.

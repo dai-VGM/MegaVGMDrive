@@ -142,6 +142,10 @@ def main() -> int:
     emu_text = (ROOT / "rtl" / "ym2610_hw0" / "emu.sv").read_text()
     jt12_top_text = (ROOT / "rtl" / "ym2610_hw0" /
                      "ym2610_hw0_jt12_top.v").read_text()
+    wrapper_text = (ROOT / "rtl" / "ym2610_hw0" /
+                    "ym2610_hw0_jt10_wrapper.sv").read_text()
+    video_text = (ROOT / "rtl" / "ym2610_hw0" /
+                  "ym2610_hw0_video.sv").read_text()
     all_project_text = "\n".join(path.read_text() for path in required)
     check('PROJECT_REVISION = "MegaVGMDrive_YM2610_HW0"' in qpf_text,
           "QPF revision")
@@ -177,6 +181,10 @@ def main() -> int:
     check(not re.search(
         r"\b(?:[A-Za-z_$][A-Za-z0-9_$]*\.)+chon\b", hw0_rtl_text),
         "synthesis-visible hierarchical chon reference")
+    check(not re.search(
+        r"\b(?:u|gen)_[A-Za-z_$][A-Za-z0-9_$]*\."
+        r"[A-Za-z_$][A-Za-z0-9_$]*", hw0_rtl_text),
+        "synthesis-visible hierarchical diagnostic reference")
     hardware_counts = {
         "BOOT_SAMPLES": 159801,
         "COLOR_PREROLL_SAMPLES": 53267,
@@ -190,6 +198,17 @@ def main() -> int:
     for name, value in hardware_counts.items():
         check(re.search(rf"parameter\s+integer\s+{name}\s*=\s*{value}\b",
                         sequencer_text), f"hardware pacing count: {name}")
+    diagnostic_counts = {
+        "REFERENCE_DWELL_SAMPLES": 159801,
+        "REFERENCE_GAP_SAMPLES": 53267,
+        "PCM_ATTEMPT_SAMPLES": 53267,
+        "PCM_ATTEMPT_GAP_SAMPLES": 26634,
+        "PCM_RESULT_SAMPLES": 159801,
+        "SUMMARY_SAMPLES": 532670,
+    }
+    for name, value in diagnostic_counts.items():
+        check(re.search(rf"parameter\s+integer\s+{name}\s*=\s*{value}\b",
+                        sequencer_text), f"diagnostic pacing count: {name}")
     check("input  logic               sample_tick" in sequencer_text and
           "sample_strobe" not in sequencer_text and
           "wire sample_rise" not in sequencer_text,
@@ -212,11 +231,44 @@ def main() -> int:
           "wire reset = RESET | status[0] | !pll_locked;" in emu_text,
           "shell/PLL reset boundary")
     check("ZERO_CONFIRM_SAMPLES = 32" in sequencer_text and
-          "zero_run_count+1>=ZERO_CONFIRM_SAMPLES" in sequencer_text,
+          re.search(r"zero_run_count\s*\+\s*1\s*>=\s*"
+                    r"ZERO_CONFIRM_SAMPLES", sequencer_text),
           "internal zero confirmation before external mute")
     check("chip_cycle_mod432 == 9'd428" in sequencer_text and
           "sample_tick_count[6:0] == 7'd53" in sequencer_text,
           "deterministic JT49 full-tone-cycle alignment")
+    check("if (!adpcmb_active)" not in sequencer_text and
+          "diag_attempt_end <= 1" in sequencer_text and
+          "summary_active <= 1" in sequencer_text,
+          "ADPCM-B early EOS must be phase-local diagnostic evidence")
+    check("output logic        [3:0]  fatal_error_code" in sequencer_text and
+          all(f"fatal_error_code <= 4'd{code}" in sequencer_text
+              for code in (1, 2, 3, 11, 13)) and
+          all(f"last_error_code <= 4'd{code}" in hw0_top_text
+              for code in (4, 5, 6, 7, 8, 9, 10)),
+          "fatal/nonfatal error-code taxonomy")
+    check("module ym2610_hw0_pcm_diag_monitor" in hw0_top_text and
+          "output logic        [34:0] debug_diag_summary" in hw0_top_text and
+          "output logic       [111:0] debug_diag_first_ticks" in hw0_top_text and
+          "output logic         [7:0] debug_diag_distinct_addresses" in
+          hw0_top_text and
+          "output logic         [2:0] debug_diag_completed_attempts" in
+          hw0_top_text,
+          "synthesizable seven-stage PCM diagnostic monitor")
+    check(all(token in jt12_top_text for token in (
+              "assign hw0_adpcma_left = adpcmA_l;",
+              "assign hw0_adpcma_right = adpcmA_r;",
+              "assign hw0_adpcmb_left = adpcmB_l;",
+              "assign hw0_adpcmb_right = adpcmB_r;")) and
+          all(token in wrapper_text for token in (
+              ".hw0_adpcma_left(adpcma_left)",
+              ".hw0_adpcmb_left(adpcmb_left)")),
+          "explicit synthesis-safe PCM lane routing")
+    check("Permanent diagnostic-build marker" in video_text and
+          "Five-row by seven-column" in video_text and
+          "Seven status boxes" in video_text and
+          "Fatal errors retain full red" in video_text,
+          "photo-readable PCM diagnostic video contract")
     check(re.search(
         r"else\s+if\s*\(\s*!adpcmb_roe_n\s*\)\s*"
         r"hw0_adpcmb_request_seen\s*<=\s*1'b1\s*;", jt12_top_text),
@@ -423,6 +475,19 @@ def main() -> int:
           "71d98974f2672207467eac493c06bbc23c74e45b", "production QIP blob")
     check(git("rev-parse", "HEAD:VGM_MD_MiSTer.qsf") ==
           "898ae5a61d7c1f94d9f824a9007fcadff65383f9", "production QSF blob")
+    check(git("hash-object", "rtl/ym2610_hw0/ym2610_hw0_adpcma_rom.sv") ==
+          "4304563f34fc2994f15952bd1df988ec1433d18e",
+          "HW-0 ADPCM-A ROM blob")
+    check(git("hash-object", "rtl/ym2610_hw0/ym2610_hw0_adpcmb_rom.sv") ==
+          "ab3f1341c08d4900d396061376422fd8c4f86544",
+          "HW-0 ADPCM-B ROM blob")
+    program_match = re.search(
+        r"function automatic \[16:0\] program_word.*?endfunction",
+        sequencer_text, flags=re.S)
+    check(program_match is not None and
+          sha256((program_match.group(0) + "\n").encode()).hexdigest() ==
+          "15f59ccc8d3723930c074a67a829d8b4ecd8caf2b8bdf21f8005bd671f665080",
+          "HW-0 register microcode values")
 
     source_assignments = [
         str(path.relative_to(ROOT)) for _, path in core_qip_rows
@@ -437,13 +502,19 @@ def main() -> int:
           f"registrations={len(pll_registrations)} nested_constraints=3 "
           "ip_file=0")
     print("HW0_ADPCMB_STATUS request_latch_eos_reset=PASS "
-          "hierarchical_chon=0 audio_lifecycle_change=0")
+          "hierarchical_chon=0 hierarchical_diag=0 audio_lifecycle_change=0")
+    print("HW0_PCM_DIAG lanes=ADPCMA_LR/ADPCMB_LR stages=7 attempts="
+          "6/6/6/6/3 summary=5x7 marker=checker fatal=1-3,11-15 "
+          "nonfatal=4-10 microcode=UNCHANGED rom=UNCHANGED")
     print("HW0_PACING_STATIC sample_tick=rising_edge cadence_cen=144 "
           "width_cen=6 old_counts_per_sample=1 new_counts_per_sample=1 "
           "boot=159801 preroll=53267 dwell=213068 inter=79901 "
           "pan=159801 pan_inter=53267 natural_inter=79901 final=159801 "
           "reset_release=SYNC video_reset=SEPARATE zero_confirm=32 "
           "ssg_align=428/mod128:53")
+    print("HW0_DIAG_PACING reference=159801 gap=53267 "
+          "attempt=53267 attempt_gap=26634 result=159801 "
+          "natural_gap=79901 summary=532670")
     for source in source_assignments:
         print(f"HW0_SOURCE {source}")
     print("HW0_STATIC board_pin_timing=exact path_audit=PASS "

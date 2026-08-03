@@ -2,7 +2,7 @@
 
 This is a dedicated lab RBF. It contains only the MiSTer shell, standard
 YM2610 (FM/SSG/ADPCM-A/ADPCM-B), deterministic test ROMs, BUSY-aware fixed
-sequencer, direct audio, and a solid-color video generator. It has no VGM
+sequencer, direct audio, and a photo-readable PCM diagnostic video overlay. It has no VGM
 parser, DDR/file loading, title UI, repeat mode, or YM2610B path.
 
 ## MiSTer PLL IP assignments
@@ -68,24 +68,24 @@ counted by that one-cycle tick, never by the six-CEN-wide level.
 |---|---|---:|---:|
 | reset/ready boot hold | navy, muted | 159801 | 3.000 s |
 | source announcement | source color, muted | 53267 | 1.000 s |
-| FM/SSG/A0/A6/ADPCM-B stereo | source color, audible | 213068 | 4.000 s |
-| ordinary source gap | navy, muted | 79901 | 1.500 s |
-| ADPCM-B left or right | cyan, audible | 159801 | 3.000 s |
-| left-to-right gap | navy, muted | 53267 | 1.000 s |
+| FM or SSG reference | source color, audible | 159801 | 3.000 s |
+| FM/SSG reference gap | navy, muted | 53267 | 1.000 s |
+| each PCM attempt | phase color, audible window | 53267 | 1.000 s |
+| PCM attempt gap | same phase color, muted | 26634 | 0.500 s |
+| PCM phase result hold | same phase color | 159801 | 3.000 s |
 | first short play to restart | white, muted after verified zero | 79901 | 1.500 s |
-| loop-end gap | navy, muted | 159801 | 3.000 s |
-| error | red, muted | halted | until reset |
+| final summary | dark navy, 5×7 result matrix | 532670 | 10.000 s |
+| fatal error | red plus four-bit code | halted | until reset |
 
 The fixed order is blue FM, green SSG, yellow ADPCM-A voice 0, orange
-ADPCM-A six voice, magenta ADPCM-B stereo, cyan left-only, navy, cyan
-right-only, and white short natural-end/restart. Each source color appears
-for one full second before its START write. FM/SSG/A0/A6/stereo then retain
-that color for four seconds from START; the hash window remains at its old
-alignment and finishes before the extra colored hold. The first white short
-sample ends naturally, HW-0 verifies internal zero and no remaining request,
-holds white silence for 1.5 seconds, then starts the identical sample again.
-After the second natural end it shows navy silence for three seconds and
-announces blue for the next loop.
+ADPCM-A six voice, magenta ADPCM-B stereo, cyan pan, white short
+natural-end/restart, then the dark-navy summary. FM and SSG run once. A0, A6,
+and stereo B run six times each. Pan runs left-only three times and right-only
+three times. White performs natural-end plus unchanged-register restart three
+times. The sample is never stretched: each short burst is separated by a
+half-second muted interval so it can be heard as a distinct attempt. Every
+published hash window retains its established alignment and finishes inside
+the one-second attempt hold.
 
 Shell reset and PLL unlock asynchronously request reset; release is
 synchronized into `clk_sys`. PLL unlock resets video timing, but a soft reset
@@ -95,7 +95,7 @@ phase and sequencer to navy, clears partial microcode state, waits for JT10
 ready/BUSY-clear/known zero, and repeats the complete 159801-sample boot hold.
 Thus RBF load and soft reset have the same audio/test startup sequence.
 
-The audible holds exceed the shorter hash windows. ADPCM-B's published Phase
+The attempt holds exceed the shorter hash windows. ADPCM-B's published Phase
 4A anchor has 4096 samples after START returns plus its already-observed active
 boundary sample (4097 active samples total); HW-0 preserves that exact
 first-logical/first-nonzero alignment.
@@ -108,22 +108,73 @@ shift, gain, saturation, clipping, normalization, filtering, DC blocking,
 fade, limiting, pan change, or channel swap. Consequently there is no HW-0
 conversion clip condition.
 
+## Reading the PCM diagnostic screen
+
+A permanent white/magenta 2×2 checker at the upper right identifies this PCM
+diagnostic build. During yellow, orange, magenta, cyan, and white phases, the
+seven large boxes across the top are, from left to right:
+
+1. raw ROM request;
+2. qualified ROM capture;
+3. address progression plus changing ROM data;
+4. ADPCM source lane non-zero;
+5. JT10 final L/R non-zero before the HW-0 mute;
+6. final `AUDIO_L/R` non-zero after the mute;
+7. stop/zero, pan isolation, or natural-end/restart contract.
+
+Green means observed/PASS, red means the completed attempt failed, and dark
+gray means not observed yet. Six boxes along the bottom identify attempts:
+white is complete, green is current, and dark gray is pending. Natural/restart
+uses only the first three.
+
+The final ten-second summary has five rows: yellow A0, orange A6, magenta B,
+cyan pan, and white restart. Its seven columns use the same order. Green is
+PASS, red is FAIL, and dark gray is unavailable. Report a photographed result
+in this fixed format:
+
+```text
+黄: G G G G G G G
+橙: G G G G G G G
+紫: G G G G G G G
+シアン: G G G G G G G
+白: G G G G G G G
+error code: 0
+```
+
+PCM evidence failures do not stop the sequence. Codes 4–10 remain recorded in
+the boxes and summary while testing continues through cyan and white. Only a
+transport/state integrity failure produces a full red halt. The four bottom
+white/black boxes show the binary error code, most-significant bit first:
+
+| Code | Meaning | Class |
+|---:|---|---|
+| 0 | none | — |
+| 1 | BUSY timeout | fatal |
+| 2 | write while BUSY | fatal |
+| 3 | sample cadence/width corruption | fatal |
+| 4 | no PCM request | phase-local |
+| 5 | no capture/progress | phase-local |
+| 6 | source lane remained zero | phase-local |
+| 7 | source lane live but JT10 final zero | phase-local |
+| 8 | JT10 final live but HW output zero | phase-local |
+| 9 | stop/zero timeout or pan isolation | phase-local |
+| 10 | EOS/restart failure | phase-local |
+| 11 | illegal phase | fatal |
+| 12 | reset synchronizer contract | fatal/reserved |
+| 13 | ROM range violation | fatal |
+| 14 | reserved | fatal |
+| 15 | unknown/internal contract | fatal |
+
 ## MiSTer checklist
 
 - Cold boot/navy: about three seconds with no write and no buzz, pop, hum, or
   DC tone; silence is truly silent.
-- Every source color: about one second of color-only silence before sound.
-- Blue/FM: one tone, equal in left and right.
-- Green/SSG: audible square wave, clearly distinct from FM.
-- Yellow/ADPCM-A voice 0: sample plays, then becomes silent.
-- Orange/ADPCM-A six voice: multiple voices mix without noise or dropouts.
-- Magenta/ADPCM-B stereo: sample plays; RESET leaves no DC.
-- Cyan/pan: left-only then right-only, without swap or leak.
-- White/natural end: short sample, silence, identical restart; no stale prefix,
-  buzz, or old sample at the second start.
-- Loop: returns to navy for about three seconds, second loop sounds identical,
-  and long operation does not degrade.
-- Soft reset from blue, orange, or magenta: immediate silence/navy, then the
+- Upper-right white/magenta checker is present throughout.
+- Blue/FM and green/SSG remain audible references.
+- Yellow, orange, and magenta each show six separated attempts.
+- Cyan shows three left-only then three right-only attempts.
+- White shows three natural-end/restart pairs.
+- The ten-second summary is reached even when a PCM row contains red cells.
+- Soft reset from yellow, orange, or magenta: immediate silence/navy, then the
   same three-second boot hold and a restart from blue FM.
-- Red at any time is a failed BUSY, sample-cadence, phase, internal-zero, or
-  ADPCM-B lifecycle contract; stop and report it.
+- Full-screen red means a fatal code 1–3 or 11–15; record its four-bit code.

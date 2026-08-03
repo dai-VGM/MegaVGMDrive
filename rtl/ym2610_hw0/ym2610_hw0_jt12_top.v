@@ -72,9 +72,13 @@ module ym2610_hw0_jt12_top (
     output          [ 7:0] debug_view,
     output          [ 5:0] hw0_adpcma_eos,
     output          [ 5:0] hw0_adpcma_command,
+    output signed   [15:0] hw0_adpcma_left,
+    output signed   [15:0] hw0_adpcma_right,
     output                 hw0_adpcmb_eos,
     output                 hw0_adpcmb_active,
-    output                 hw0_adpcmb_command_update
+    output                 hw0_adpcmb_command_update,
+    output signed   [15:0] hw0_adpcmb_left,
+    output signed   [15:0] hw0_adpcmb_right
 );
 
 // parameters to select the features for each chip type
@@ -217,7 +221,11 @@ wire    [13:0]  op_result_hd;
 assign debug_view = { 4'd0, flag_B, flag_A, div_setting };
 assign hw0_adpcma_eos = adpcma_flags;
 assign hw0_adpcma_command = aon_a[5:0];
+assign hw0_adpcma_left = adpcmA_l;
+assign hw0_adpcma_right = adpcmA_r;
 assign hw0_adpcmb_eos = adpcmb_flag;
+assign hw0_adpcmb_left = adpcmB_l;
+assign hw0_adpcmb_right = adpcmB_r;
 // This status is for the HW-0 sequencer/video observer only.  The first
 // explicit ROM request marks decoder start; EOS or command RESET releases it.
 // It does not feed the ADPCM-B request, decoder, gain, or audio path.

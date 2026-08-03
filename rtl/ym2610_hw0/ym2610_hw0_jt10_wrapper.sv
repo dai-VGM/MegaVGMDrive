@@ -31,9 +31,13 @@ module ym2610_hw0_jt10_wrapper (
     output logic         [2:0] reset_cen_count,
     output logic         [5:0] adpcma_eos,
     output logic         [5:0] adpcma_command,
+    output logic signed [15:0] adpcma_left,
+    output logic signed [15:0] adpcma_right,
     output logic               adpcmb_eos,
     output logic               adpcmb_active,
     output logic               adpcmb_command_update,
+    output logic signed [15:0] adpcmb_left,
+    output logic signed [15:0] adpcmb_right,
     output logic signed [15:0] internal_left,
     output logic signed [15:0] internal_right,
     output logic               internal_sample
@@ -100,8 +104,12 @@ module ym2610_hw0_jt10_wrapper (
         .debug_bus(8'h00), .debug_view(unused_debug),
         .hw0_adpcma_eos(adpcma_eos),
         .hw0_adpcma_command(adpcma_command),
+        .hw0_adpcma_left(adpcma_left),
+        .hw0_adpcma_right(adpcma_right),
         .hw0_adpcmb_eos(adpcmb_eos),
         .hw0_adpcmb_active(adpcmb_active),
-        .hw0_adpcmb_command_update(adpcmb_command_update)
+        .hw0_adpcmb_command_update(adpcmb_command_update),
+        .hw0_adpcmb_left(adpcmb_left),
+        .hw0_adpcmb_right(adpcmb_right)
     );
 endmodule

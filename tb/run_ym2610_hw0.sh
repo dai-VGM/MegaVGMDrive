@@ -8,11 +8,11 @@ build_root="$work_root/build"
 log_root="$work_root/logs"
 mkdir -p "$build_root" "$log_root"
 
-top=tb_ym2610_hw0_top
+top=tb_ym2610_hw0_pcm_diag
 manifest="$repo_root/tb/ym2610_hw0_sources.f"
 
 normalize() {
-    rg '^(HW0_HASH|HW0_CONTRACT|HW0_X|HW0_TIMELINE|HW0_PASS)' "$1" |
+    rg '^(HW0_DIAG_HASH|HW0_DIAG_CONTRACT|HW0_DIAG_SUMMARY|HW0_DIAG_PASS)' "$1" |
         sed -E 's/run=[0-9]+/run=N/g'
 }
 
@@ -48,6 +48,28 @@ echo "== HW-0 exact hardware pacing counts =="
 rg -q '^HW0_PACING .* result=PASS$' "$log_root/pacing.log"
 rg '^HW0_PACING ' "$log_root/pacing.log"
 
+echo "== HW-0 PCM negative controls =="
+(
+    cd "$repo_root"
+    iverilog -g2012 -s tb_ym2610_hw0_pcm_diag_negative \
+        -o "$build_root/hw0-negative.vvp" \
+        tb/tb_ym2610_hw0_top.sv rtl/ym2610_hw0/ym2610_hw0_top.sv
+    vvp "$build_root/hw0-negative.vvp"
+) >"$log_root/negative.log" 2>&1
+rg -q '^HW0_NEGATIVE .* result=PASS$' "$log_root/negative.log"
+rg '^HW0_NEGATIVE ' "$log_root/negative.log"
+
+echo "== HW-0 diagnostic video =="
+(
+    cd "$repo_root"
+    iverilog -g2012 -s tb_ym2610_hw0_video_diag \
+        -o "$build_root/hw0-video.vvp" \
+        tb/tb_ym2610_hw0_top.sv rtl/ym2610_hw0/ym2610_hw0_video.sv
+    vvp "$build_root/hw0-video.vvp"
+) >"$log_root/video.log" 2>&1
+rg -q '^HW0_VIDEO .* result=PASS$' "$log_root/video.log"
+rg '^HW0_VIDEO ' "$log_root/video.log"
+
 echo "== HW-0 reset-injection elaboration =="
 (
     cd "$repo_root"
@@ -74,23 +96,23 @@ for pid in "${pids[@]}"; do
 done
 
 for run in 1 2 3; do
-    ! rg -q '^HW0_FAIL|^FATAL:' "$log_root/run-$run.log"
-    rg -q "^HW0_PASS run=$run$" "$log_root/run-$run.log"
+    ! rg -q '^HW0_(?:DIAG_)?FAIL|^FATAL:' "$log_root/run-$run.log"
+    rg -q "^HW0_DIAG_PASS run=$run$" "$log_root/run-$run.log"
     normalize "$log_root/run-$run.log" >"$log_root/run-$run.norm"
 done
-! rg -q '^HW0_FAIL|^FATAL:' "$log_root/simulation.log"
-rg -q '^HW0_PASS run=1$' "$log_root/simulation.log"
+! rg -q '^HW0_(?:DIAG_)?FAIL|^FATAL:' "$log_root/simulation.log"
+rg -q '^HW0_DIAG_PASS run=1$' "$log_root/simulation.log"
 normalize "$log_root/simulation.log" >"$log_root/simulation.norm"
 diff -u "$log_root/run-1.norm" "$log_root/run-2.norm"
 diff -u "$log_root/run-1.norm" "$log_root/run-3.norm"
 diff -u "$log_root/run-1.norm" "$log_root/simulation.norm"
-rg '^(HW0_HASH|HW0_CONTRACT|HW0_X|HW0_TIMELINE|HW0_PASS)' \
+rg '^(HW0_DIAG_HASH|HW0_DIAG_CONTRACT|HW0_DIAG_SUMMARY|HW0_DIAG_PASS)' \
     "$log_root/run-1.log"
 echo "HW0_DETERMINISM non_simulation=3/3 simulation=MATCH result=PASS"
 
-echo "== HW-0 reset injection FM/ADPCM-A6/ADPCM-B =="
+echo "== HW-0 reset injection ADPCM-A0/ADPCM-A6/ADPCM-B =="
 pids=()
-for target in 7 29 36; do
+for target in 22 30 38; do
     (
         cd "$repo_root"
         stdbuf -oL vvp "$build_root/hw0-reset.vvp" \
@@ -101,13 +123,13 @@ done
 for pid in "${pids[@]}"; do
     wait "$pid"
 done
-for target in 7 29 36; do
+for target in 22 30 38; do
     ! rg -q '^HW0_RESET_FAIL|^FATAL:' "$log_root/reset-$target.log"
     rg -q "^HW0_RESET target=$target .* result=PASS$" \
         "$log_root/reset-$target.log"
     rg '^HW0_RESET ' "$log_root/reset-$target.log"
 done
-echo "HW0_RESET_INJECTION cases=FM/ADPCM-A6/ADPCM-B result=PASS"
+echo "HW0_RESET_INJECTION cases=ADPCM-A0/ADPCM-A6/ADPCM-B result=PASS"
 
 echo "== HW-0 minimal MiSTer emu elaboration =="
 (
