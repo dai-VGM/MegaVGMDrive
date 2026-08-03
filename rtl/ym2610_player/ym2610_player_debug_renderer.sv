@@ -88,6 +88,7 @@ module ym2610_player_debug_renderer (
         label0 = " ";
         label1 = " ";
         row_valid = 1'b1;
+        nibble = 4'd0;
         shifted_value = 32'd0;
 
         if (!pcm_page) begin
