@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "candidate": "Golden Player Shell v1.1 audio contract",
+  "status": "hardware_validation_pending",
+  "v1_0_hardware_pass_commit": "35d99c23852a1290257021176e1fe5bc61446726",
+  "stable_release": "MegaVGMPlayer v1.0.1",
+  "stable_source_commit": "5ecce555edb80bdcb010a322ee46ba8837a6ee27",
+  "base_commit": "ee27173d15665330ef38bf8cf9f9a3c803be75fa",
+  "non_quartus_validation": "PASS; see NON_QUARTUS_RESULTS.md",
+  "reused_direct_sources": [
+    "rtl/emu.sv",
+    "rtl/megavgm_video_timing.sv",
+    "rtl/megavgm_title_receiver.sv",
+    "rtl/megavgm_font5x7.sv",
+    "rtl/megavgm_title_renderer.sv",
+    "rtl/vgm_ddram_backend.sv",
+    "rtl/golden_player_shell/golden_player_shell_upload.sv",
+    "sys"
+  ],
+  "versioned_sources": [
+    "rtl/golden_player_shell_v1_1/mister_vgm_md_top_v1_1.sv",
+    "rtl/golden_player_shell_v1_1/profiles/golden_player_shell_v1_1_stage_a_profile.sv",
+    "rtl/golden_player_shell_v1_1/profiles/golden_player_shell_v1_1_audio_lab_profile.sv"
+  ],
+  "qsf_contract": "each candidate QSF equals the v1.0 Stage A template after replacing exactly one profile QIP assignment",
+  "promotion_requires": [
+    "v1.1 Stage A MiSTer PASS",
+    "v1.1 Audio Lab MiSTer PASS",
+    "future v1.1 Stage B MiSTer PASS",
+    "future v1.1 Stage C Olga FM MiSTer PASS"
+  ]
+}

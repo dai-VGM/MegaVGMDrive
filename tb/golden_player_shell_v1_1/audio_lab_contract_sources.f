@@ -1,0 +1,2 @@
+rtl/golden_player_shell_v1_1/profiles/golden_player_shell_v1_1_audio_lab_profile.sv
+tb/golden_player_shell_v1_1/tb_golden_player_shell_v1_1_audio_lab.sv

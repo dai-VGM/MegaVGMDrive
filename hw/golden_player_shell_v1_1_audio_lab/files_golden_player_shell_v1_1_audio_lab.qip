@@ -1,0 +1,11 @@
+# Golden Player Shell v1.1 lab-only audio-contract source graph.
+# No scanner, parser, sound chip, ADPCM, or logical PCM reader is present.
+set_global_assignment -name SYSTEMVERILOG_FILE [file join $::quartus(qip_path) ../../rtl/emu.sv ]
+set_global_assignment -name SYSTEMVERILOG_FILE [file join $::quartus(qip_path) ../../rtl/megavgm_video_timing.sv ]
+set_global_assignment -name SYSTEMVERILOG_FILE [file join $::quartus(qip_path) ../../rtl/megavgm_title_receiver.sv ]
+set_global_assignment -name SYSTEMVERILOG_FILE [file join $::quartus(qip_path) ../../rtl/megavgm_font5x7.sv ]
+set_global_assignment -name SYSTEMVERILOG_FILE [file join $::quartus(qip_path) ../../rtl/megavgm_title_renderer.sv ]
+set_global_assignment -name SYSTEMVERILOG_FILE [file join $::quartus(qip_path) ../../rtl/vgm_ddram_backend.sv ]
+set_global_assignment -name SYSTEMVERILOG_FILE [file join $::quartus(qip_path) ../../rtl/golden_player_shell/golden_player_shell_upload.sv ]
+set_global_assignment -name SYSTEMVERILOG_FILE [file join $::quartus(qip_path) ../../rtl/golden_player_shell_v1_1/mister_vgm_md_top_v1_1.sv ]
+set_global_assignment -name SYSTEMVERILOG_FILE [file join $::quartus(qip_path) ../../rtl/golden_player_shell_v1_1/profiles/golden_player_shell_v1_1_audio_lab_profile.sv ]

@@ -1,0 +1,11 @@
+tb/hps_io_elab_stub.sv
+tb/megavgm_pll_elab_stubs.sv
+rtl/vgm_ddram_backend.sv
+rtl/megavgm_video_timing.sv
+rtl/megavgm_title_receiver.sv
+rtl/megavgm_font5x7.sv
+rtl/megavgm_title_renderer.sv
+rtl/golden_player_shell/golden_player_shell_upload.sv
+rtl/golden_player_shell_v1_1/mister_vgm_md_top_v1_1.sv
+rtl/golden_player_shell_v1_1/profiles/golden_player_shell_v1_1_audio_lab_profile.sv
+rtl/emu.sv

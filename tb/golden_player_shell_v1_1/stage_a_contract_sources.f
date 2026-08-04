@@ -1,0 +1,5 @@
+rtl/vgm_ddram_backend.sv
+rtl/megavgm_title_receiver.sv
+rtl/golden_player_shell_v1_1/profiles/golden_player_shell_v1_1_stage_a_profile.sv
+rtl/golden_player_shell/golden_player_shell_upload.sv
+tb/golden_player_shell_v1_1/tb_golden_player_shell_v1_1_stage_a.sv
