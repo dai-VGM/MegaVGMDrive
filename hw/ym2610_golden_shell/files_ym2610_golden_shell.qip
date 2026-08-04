@@ -1,0 +1,14 @@
+# Golden Player Shell Stage A source graph.  Paths are relative to this QIP.
+# Stable production shell services are referenced directly; no source is copied.
+set_global_assignment -name SYSTEMVERILOG_FILE [file join $::quartus(qip_path) ../../rtl/emu.sv ]
+set_global_assignment -name SYSTEMVERILOG_FILE [file join $::quartus(qip_path) ../../rtl/megavgm_video_timing.sv ]
+set_global_assignment -name SYSTEMVERILOG_FILE [file join $::quartus(qip_path) ../../rtl/megavgm_title_receiver.sv ]
+set_global_assignment -name SYSTEMVERILOG_FILE [file join $::quartus(qip_path) ../../rtl/megavgm_font5x7.sv ]
+set_global_assignment -name SYSTEMVERILOG_FILE [file join $::quartus(qip_path) ../../rtl/megavgm_title_renderer.sv ]
+set_global_assignment -name SYSTEMVERILOG_FILE [file join $::quartus(qip_path) ../../rtl/vgm_ddram_backend.sv ]
+
+# Profile-local boundary only: stable-top port compatibility, physical upload
+# mapping, and the deliberately inert YM2610 Stage A profile.
+set_global_assignment -name SYSTEMVERILOG_FILE [file join $::quartus(qip_path) ../../rtl/ym2610_golden_profile/ym2610_golden_stage_a.sv ]
+set_global_assignment -name SYSTEMVERILOG_FILE [file join $::quartus(qip_path) ../../rtl/golden_player_shell/golden_player_shell_upload.sv ]
+set_global_assignment -name SYSTEMVERILOG_FILE [file join $::quartus(qip_path) ../../rtl/golden_player_shell/mister_vgm_md_top_compat.sv ]

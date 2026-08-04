@@ -1,0 +1,512 @@
+{
+  "schema_version": 1,
+  "stable_release": "MegaVGMPlayer v1.0.1",
+  "stable_commit": "5ecce555edb80bdcb010a322ee46ba8837a6ee27",
+  "port_base_commit": "951fea6b9644b774d8eb8c98cb22e9b2bde6f5dd",
+  "generated_for": "Golden Player Shell Stage A",
+  "files": [
+    {
+      "path": "VGM_MD_MiSTer.qpf",
+      "git_blob": "956c0d07f1857d712869fadf35015a3e6d5b4b79",
+      "sha256": "248aa68f041667b54b25ac666bb80bcf99dda400393a8f8cd948ce34d969b053",
+      "role": "Quartus project revision",
+      "classification": "stable_exact"
+    },
+    {
+      "path": "VGM_MD_MiSTer.qsf",
+      "git_blob": "898ae5a61d7c1f94d9f824a9007fcadff65383f9",
+      "sha256": "4c2bf74e9c54cc879db7a78dbaf5facdc085359f2194bccf8436e9ed6dbfcb7a",
+      "role": "Quartus assignment template/project",
+      "classification": "stable_exact"
+    },
+    {
+      "path": "VGM_MD_MiSTer.sdc",
+      "git_blob": "bcd5159022ebc52e4bb035b20cab6638aeadbd04",
+      "sha256": "a2f6c29c18ce853ab15c6329ced89e1d889407b653c72bb6cb5b5eeeef225b32",
+      "role": "stable timing constraints",
+      "classification": "stable_exact"
+    },
+    {
+      "path": "files.qip",
+      "git_blob": "71d98974f2672207467eac493c06bbc23c74e45b",
+      "sha256": "853cd0ff943a334667851b7f2b2db4b53c2ef71d0e9d6bbc4282cd2a86ab2b36",
+      "role": "source/path assignment graph",
+      "classification": "stable_exact"
+    },
+    {
+      "path": "rtl/emu.sv",
+      "git_blob": "c7f58b85ea3722a7592b7a3779ea642b62ed21fc",
+      "sha256": "0cefaf7df5c4a40cceff586144800bd98feb264aefa4a1506b885b96bd5a7216",
+      "role": "stable MegaVGMPlayer emu shell",
+      "classification": "stable_exact"
+    },
+    {
+      "path": "rtl/megavgm_font5x7.sv",
+      "git_blob": "a3e2e2ee4ec418c24c84ea42a6679c946ce0b815",
+      "sha256": "79645adbd743a325cfd36b5f7ee30ef33b48b8fa79c332a90b6e36aa72a556dc",
+      "role": "stable title presentation",
+      "classification": "stable_exact"
+    },
+    {
+      "path": "rtl/megavgm_title_receiver.sv",
+      "git_blob": "c33b154adf65e848e5a141ee7114df581ca1353f",
+      "sha256": "999ee41890f5b3f814e59b8e4dbedfd0287a916e234faab471cc5ef5ea7a6567",
+      "role": "prepared MVGMTTL observer",
+      "classification": "stable_exact"
+    },
+    {
+      "path": "rtl/megavgm_title_renderer.sv",
+      "git_blob": "c974ddba3467b84341f81fc8663f45195e716f49",
+      "sha256": "a4d2470aebe1eb4621d9e14dd9f7132d856852d29574b9afbd95cbcf533cff8b",
+      "role": "stable title presentation",
+      "classification": "stable_exact"
+    },
+    {
+      "path": "rtl/megavgm_video_timing.sv",
+      "git_blob": "852c31415173ab097974501937886c206ad2a288",
+      "sha256": "65a682578e2af7f840df426a96776832000b2e908c0ba30139bd15c1155e5d35",
+      "role": "stable native video timing",
+      "classification": "stable_exact"
+    },
+    {
+      "path": "rtl/pll.qip",
+      "git_blob": "22278c8f7c5338a3b70fb43ddad19d9ca3a86f80",
+      "sha256": "60c0c7b517dc7ecb736f6df65dd360c1b8493f04fc72c4518f073a29fc04a19f",
+      "role": "stable PLL/IP clock support",
+      "classification": "stable_exact"
+    },
+    {
+      "path": "rtl/pll.v",
+      "git_blob": "6446867ebec35c20f136ce5f321344a6c559b156",
+      "sha256": "8e1a58e1539aba4c9c8e9bb66dca68e9beb298beca7402943aceeba932d6bfc0",
+      "role": "stable PLL/IP clock support",
+      "classification": "stable_exact"
+    },
+    {
+      "path": "rtl/pll/pll_0002.qip",
+      "git_blob": "aec45eb73ea83ceab9b5ad1b7d71b5869c92036f",
+      "sha256": "98c91540a36e672f25f071bfaae965b8c9f60c679db4fbe226578c8c78c5052a",
+      "role": "stable PLL/IP clock support",
+      "classification": "stable_exact"
+    },
+    {
+      "path": "rtl/pll/pll_0002.v",
+      "git_blob": "c599468749fd26ad95fca4593c869fbeace4572f",
+      "sha256": "8ac785958023eadf517605bc669189d5583af48de2d63dabbddbeca1acda9ffa",
+      "role": "stable PLL/IP clock support",
+      "classification": "stable_exact"
+    },
+    {
+      "path": "rtl/vgm_ddram_backend.sv",
+      "git_blob": "f50e34831aca6d643cbfabcada4cdb819711c6b4",
+      "sha256": "b4b2ab6f8e70de357c59be01847c73124d3ebe6a9c8b1c1267e8b64b642d1f2b",
+      "role": "stable physical DDR upload backend",
+      "classification": "stable_exact"
+    },
+    {
+      "path": "sys/alsa.sv",
+      "git_blob": "90343893eac82574438c6dbdc0881d2a3d9048fa",
+      "sha256": "74943b658cd3f4adc5b74c72f225fb42b95122a1c5e453df860a4c6a9bf72fc9",
+      "role": "MiSTer platform audio-output support",
+      "classification": "stable_exact"
+    },
+    {
+      "path": "sys/arcade_video.v",
+      "git_blob": "8388fda9f1166dd03263c7e3af30f04088e228c2",
+      "sha256": "f02e25a8b608577326caacb89af42727373484285c5e27b09227c832fd7b6d52",
+      "role": "MiSTer video/scaler/OSD support",
+      "classification": "stable_exact"
+    },
+    {
+      "path": "sys/ascal.vhd",
+      "git_blob": "7ac95a604802004c14630d09af28f7895cf485a0",
+      "sha256": "12e17ef4346101b9a2f7dd091d016d33c84585bf443dfb11da109f83dc690c32",
+      "role": "MiSTer stable system support",
+      "classification": "stable_exact"
+    },
+    {
+      "path": "sys/audio_out.v",
+      "git_blob": "0f748e008f3873695be5c7323591bdd0891b20ea",
+      "sha256": "565dd9badb00052dbd324e70f7ab66e8c6ecd0c5c2791aebffe477a2c0669363",
+      "role": "MiSTer platform audio-output support",
+      "classification": "stable_exact"
+    },
+    {
+      "path": "sys/ddr_svc.sv",
+      "git_blob": "abcd4faf948c03df363b42154fa3e21416d4a033",
+      "sha256": "cc67cf6aa9ac17f181498f44f86bf05e80189bb13ce70b3cc16657e035abf794",
+      "role": "MiSTer stable system support",
+      "classification": "stable_exact"
+    },
+    {
+      "path": "sys/f2sdram_safe_terminator.sv",
+      "git_blob": "07085d7e570a72d311e36b3be354fcbff161d730",
+      "sha256": "605cd81a43eb94eb34b4917455e7a4a2dbd87b2616ab8a026fb24f3cd9664d86",
+      "role": "MiSTer stable system support",
+      "classification": "stable_exact"
+    },
+    {
+      "path": "sys/gamma_corr.sv",
+      "git_blob": "321b83f7e1a7e52d6997e59a67eeac8ae4c5d849",
+      "sha256": "2754944c6fe05d921374d1fecc26621782520b3bc6fbf600ca561e9f37c7af88",
+      "role": "MiSTer video/scaler/OSD support",
+      "classification": "stable_exact"
+    },
+    {
+      "path": "sys/hps_io.sv",
+      "git_blob": "4fac671d940dfde6b989b5126470ec3ec11a2bf2",
+      "sha256": "1e96035560400b9b0fe68adcd6801d9836290957cd1fcddcb30c0b11dabe4cc2",
+      "role": "stable HPS/OSD/ioctl bridge",
+      "classification": "stable_exact"
+    },
+    {
+      "path": "sys/hq2x.sv",
+      "git_blob": "f5fcc712bea537a137f6152bc73afce1f423acb5",
+      "sha256": "2146b69cf63c26a4b41407e9ac1b4462db4d7e3ea6d8a99f31ba12712d68f975",
+      "role": "MiSTer stable system support",
+      "classification": "stable_exact"
+    },
+    {
+      "path": "sys/i2c.v",
+      "git_blob": "35c8cbdb83183cc7273f4a27d4664112eac450ba",
+      "sha256": "c119d827783a40ba36a8cac53f0663d26fda4a5b081fac5a45ebfb89d072b06b",
+      "role": "MiSTer stable system support",
+      "classification": "stable_exact"
+    },
+    {
+      "path": "sys/i2s.v",
+      "git_blob": "7d4517bac6625a9fa104a862e7327122ebf8c9b4",
+      "sha256": "927d2aea6797fb837f383e5e8a3259609e132ed24883127240ab21601f467efa",
+      "role": "MiSTer platform audio-output support",
+      "classification": "stable_exact"
+    },
+    {
+      "path": "sys/iir_filter.v",
+      "git_blob": "a5336e9842d4c233da11ef2412f44bf2c7750b43",
+      "sha256": "c860abb26b2e79c9966a4e7edab53f8c6e7fb6e73892257e527611daee5e8b35",
+      "role": "MiSTer platform audio-output support",
+      "classification": "stable_exact"
+    },
+    {
+      "path": "sys/ltc2308.sv",
+      "git_blob": "4d3ccc1590057222ba6c461bf89443a31672952e",
+      "sha256": "825fa1197c8e9f31c19c2fef1b01693133fb7df3cfb2dd831f2848a98fc6899c",
+      "role": "MiSTer stable system support",
+      "classification": "stable_exact"
+    },
+    {
+      "path": "sys/math.sv",
+      "git_blob": "1cf327fd99e92b10a56a707f179ee41d35da5f2b",
+      "sha256": "74d7501a41886b0990cae4815b2583867bee1e0af9baebfae09d0581b30f96b3",
+      "role": "MiSTer stable system support",
+      "classification": "stable_exact"
+    },
+    {
+      "path": "sys/mcp23009.sv",
+      "git_blob": "82eaf37f140d4fc60c227d3913d0ff5fac5ea43e",
+      "sha256": "f168485e0b64c0545060f25b858c9f1c12b57024ce441754bb6a0cb0e9072e3f",
+      "role": "MiSTer stable system support",
+      "classification": "stable_exact"
+    },
+    {
+      "path": "sys/mt32pi.sv",
+      "git_blob": "cafa880892fd187ddc82565e87cdc598dcc02082",
+      "sha256": "298147936fd96f5c80c33c1566d6c807f7937eb6b0205a64ca2e4c77df8c60b0",
+      "role": "MiSTer stable system support",
+      "classification": "stable_exact"
+    },
+    {
+      "path": "sys/osd.v",
+      "git_blob": "c354f6f6823e4fba227633f6d7b3e45d51107e4c",
+      "sha256": "68ec08401a6ddaf68c95a2e976b9085b77f0002d5b64ffed7454055dbcc48062",
+      "role": "MiSTer video/scaler/OSD support",
+      "classification": "stable_exact"
+    },
+    {
+      "path": "sys/pll_audio.qip",
+      "git_blob": "abb013b6b477818cc81bead119edaa3a2b77e310",
+      "sha256": "278496eefe70d18f6b3ccf624c3a4595ccca74a9a6740eb4520200f1e929a236",
+      "role": "stable PLL/IP clock support",
+      "classification": "stable_exact"
+    },
+    {
+      "path": "sys/pll_audio.v",
+      "git_blob": "e96b2483bd00eeda1e7ee93ad7455b9c928dbb86",
+      "sha256": "82118b01e3c3ba8bed269b9eed7cf06bf6af69e028e40f2c4c184de0d7b9f227",
+      "role": "stable PLL/IP clock support",
+      "classification": "stable_exact"
+    },
+    {
+      "path": "sys/pll_audio/pll_audio_0002.qip",
+      "git_blob": "dadd4b80566d3caaeae55becbd990dc3ce65f8d7",
+      "sha256": "4cedd5394006286e0be61acdcbb6455f35cdf5c1488f4eb4a76b60e20eb43fb8",
+      "role": "stable PLL/IP clock support",
+      "classification": "stable_exact"
+    },
+    {
+      "path": "sys/pll_audio/pll_audio_0002.v",
+      "git_blob": "37eea13ceac4ea3d116318842cfa7b9e0a691d21",
+      "sha256": "8625d01bb2581a56358afe4380e539524a1c8bc7661b97a8b1c94216ac19984d",
+      "role": "stable PLL/IP clock support",
+      "classification": "stable_exact"
+    },
+    {
+      "path": "sys/pll_cfg.qip",
+      "git_blob": "0b560f9ddf57c738df6feecabb12d15c53a991c7",
+      "sha256": "7c1573f321012132479272242434d02058b1bcfe8d89843130ef11173a901eae",
+      "role": "stable PLL/IP clock support",
+      "classification": "stable_exact"
+    },
+    {
+      "path": "sys/pll_cfg/altera_pll_reconfig_core.v",
+      "git_blob": "84995674a979f5f4dbbbda5571afc4cd6a5879f9",
+      "sha256": "ec126715f09d512cae28101ba48f286079e8852d665ac30ce9fd3edbb10607d3",
+      "role": "stable PLL/IP clock support",
+      "classification": "stable_exact"
+    },
+    {
+      "path": "sys/pll_cfg/altera_pll_reconfig_top.v",
+      "git_blob": "9a9e93ec2a652f8494b622c85ffc2469cb0c5661",
+      "sha256": "81134703e17a0e60bc6928dcbb8e5b13491b0293ee401649cdb1c22df01dc1bd",
+      "role": "stable PLL/IP clock support",
+      "classification": "stable_exact"
+    },
+    {
+      "path": "sys/pll_cfg/pll_cfg.v",
+      "git_blob": "2a2f07857dcb80dcbaeb8e38cab46cff53605fbf",
+      "sha256": "89750669762947128e105736d82384587f1cf8ac2f9965090e483c20f7624d59",
+      "role": "stable PLL/IP clock support",
+      "classification": "stable_exact"
+    },
+    {
+      "path": "sys/pll_cfg/pll_cfg_hdmi.v",
+      "git_blob": "1912c2af7e44aa3fb813acabc0fd7dc00a2bb8e7",
+      "sha256": "d3874dda124af03656054fa1ae1ee70f1a4d3cea6d4670795a5168325bb6760a",
+      "role": "stable PLL/IP clock support",
+      "classification": "stable_exact"
+    },
+    {
+      "path": "sys/pll_hdmi.qip",
+      "git_blob": "be34aeb27eeab50edfa0f60d96941d6001d48bd2",
+      "sha256": "5571604010bf98858a0797a2286d2389e105d32a97b42508865b02ba4237dd0d",
+      "role": "stable PLL/IP clock support",
+      "classification": "stable_exact"
+    },
+    {
+      "path": "sys/pll_hdmi.v",
+      "git_blob": "52a9de9acba06860125024b51ff2551c72602ebf",
+      "sha256": "327d94e5e5d6568bcc4489ee279f752969f18aa62af088649ad27f34fa476617",
+      "role": "stable PLL/IP clock support",
+      "classification": "stable_exact"
+    },
+    {
+      "path": "sys/pll_hdmi/pll_hdmi_0002.qip",
+      "git_blob": "3cb7073d8d9c972ae7f002d9017c0029efc202cd",
+      "sha256": "de648286a832ee72839dd6abb444231a4238d32b2c26f29426399d2221d7bf5b",
+      "role": "stable PLL/IP clock support",
+      "classification": "stable_exact"
+    },
+    {
+      "path": "sys/pll_hdmi/pll_hdmi_0002.v",
+      "git_blob": "dc6310023792b47ff86c0bdc9054cf17ff7f08fe",
+      "sha256": "45ec17829bf7a119136c8a5a9df98b59a87178a6e9ae71658a0e00bca91058b6",
+      "role": "stable PLL/IP clock support",
+      "classification": "stable_exact"
+    },
+    {
+      "path": "sys/pll_hdmi_adj.vhd",
+      "git_blob": "67287cb3f521e7ab8f3945eb0be4978166146413",
+      "sha256": "ae18c82eef2f6b9c7783c68ac272d03f570eb1bdaddce14a1908c351da51a71b",
+      "role": "stable PLL/IP clock support",
+      "classification": "stable_exact"
+    },
+    {
+      "path": "sys/scandoubler.v",
+      "git_blob": "81e7c3f4e62d7214186ccffa48856494e6a7005d",
+      "sha256": "d36181c5fde9df0a504c547e23f60bcf201420052ada2682f081b00fd9485e6b",
+      "role": "MiSTer video/scaler/OSD support",
+      "classification": "stable_exact"
+    },
+    {
+      "path": "sys/scanlines.v",
+      "git_blob": "43f890f148d3a642f403f611792efe8f253b022d",
+      "sha256": "1fc7ac5359fd224a3fc06388f7671e07bf57cf6a39f35803a265661c56c564d4",
+      "role": "MiSTer video/scaler/OSD support",
+      "classification": "stable_exact"
+    },
+    {
+      "path": "sys/sd_card.sv",
+      "git_blob": "8cb05607d621e260dc174ac96cf25c9fd89135ee",
+      "sha256": "65d2645216265955189ab5f7a00d54b7150a3ff2416d977303795b152daa10ce",
+      "role": "MiSTer stable system support",
+      "classification": "stable_exact"
+    },
+    {
+      "path": "sys/shadowmask.sv",
+      "git_blob": "572679c2fcc4bd8193c760751f82fa9b872f2b9b",
+      "sha256": "88429d137b4ce9f6538a052f03d874604f46decf6d69b3fc824cc795efcf3193",
+      "role": "MiSTer video/scaler/OSD support",
+      "classification": "stable_exact"
+    },
+    {
+      "path": "sys/sigma_delta_dac.v",
+      "git_blob": "d0d6be0877b42623605939845c343f9a4ee97fa9",
+      "sha256": "352d31dd185bce14d9d1e8a4999fbb5f2b5b2e42b048bdc9f4b828119cc5127a",
+      "role": "MiSTer stable system support",
+      "classification": "stable_exact"
+    },
+    {
+      "path": "sys/spdif.v",
+      "git_blob": "eee2b0817641c83bd46c5919150be54f98a4dd8c",
+      "sha256": "a617bba332c4611caf81ba585b8f6828c7899aec5f81664a870f10419cb9b451",
+      "role": "MiSTer platform audio-output support",
+      "classification": "stable_exact"
+    },
+    {
+      "path": "sys/sys.qip",
+      "git_blob": "ced8e8bd6c86db26131924457c12ccf88ed1627f",
+      "sha256": "3854d7f172097e01a40037e0a82dfd1a4178391ea0964767492979216279f31d",
+      "role": "source/path assignment graph",
+      "classification": "stable_exact"
+    },
+    {
+      "path": "sys/sys.tcl",
+      "git_blob": "6228a14246404ea05cbf5f3a11ae1d3da1b9713c",
+      "sha256": "2c811c7cbed6766c82c5fad152e534569b8626a9f4c2c551f8f9bebb61bc6406",
+      "role": "source/path assignment graph",
+      "classification": "stable_exact"
+    },
+    {
+      "path": "sys/sys_analog.tcl",
+      "git_blob": "7ffb3ec3117df6800e84e741b7c5bf5883fcd629",
+      "sha256": "c84e6375325bd78299309ac3f31e109611e976b8f1b7999952e96c694fd8b669",
+      "role": "source/path assignment graph",
+      "classification": "stable_exact"
+    },
+    {
+      "path": "sys/sys_top.sdc",
+      "git_blob": "d0e6a1bf8744a1e8b879c7ac9d41c3dede7c1ef1",
+      "sha256": "36b2e18090244956ae20eba9d23a72e5fdb21166c5dcde8a06eee434fa961835",
+      "role": "stable timing constraints",
+      "classification": "stable_exact"
+    },
+    {
+      "path": "sys/sys_top.v",
+      "git_blob": "e8556fec42d51d2ca79eefee3d1499156aa92ed9",
+      "sha256": "1e60f1fbdd7aaaa1ff5d3e3d5c7005028d85f528e2d3bb708709b6444beff139",
+      "role": "MiSTer platform top",
+      "classification": "stable_exact"
+    },
+    {
+      "path": "sys/sysmem.sv",
+      "git_blob": "8c17e868502c1768cff70f48aebe427ba88e0527",
+      "sha256": "9f8cf78563cc31beb7dfc6d7048c51ba536ff4f1f9f640b4ff9f8d574456c94e",
+      "role": "MiSTer stable system support",
+      "classification": "stable_exact"
+    },
+    {
+      "path": "sys/vga_out.sv",
+      "git_blob": "41606354e37c98111138446aa13c7870244db89d",
+      "sha256": "02a533c3dfd547afddea2946019ecc79bbe9c27bb6128c0999fa5fc9e78f8108",
+      "role": "MiSTer video/scaler/OSD support",
+      "classification": "stable_exact"
+    },
+    {
+      "path": "sys/video_cleaner.sv",
+      "git_blob": "ddcd2d55e5ff6cf2a6b7a7e5f2b1e36f5133e105",
+      "sha256": "1dc01d4003fa37de57b794cf8ce3660a5137253d165279c94246c6c0de633380",
+      "role": "MiSTer video/scaler/OSD support",
+      "classification": "stable_exact"
+    },
+    {
+      "path": "sys/video_freak.sv",
+      "git_blob": "4348ee2f7a7819ba5ed01b5bc11aa8be2a3194a5",
+      "sha256": "1c331bd8aee90bd722e8d9e400a8305de73392cb00cae256b8fb710e4fc2d478",
+      "role": "MiSTer video/scaler/OSD support",
+      "classification": "stable_exact"
+    },
+    {
+      "path": "sys/video_freezer.sv",
+      "git_blob": "cfbdf22cf98c4ce69aac6bc4812c029f81823aa3",
+      "sha256": "f016d25480a8492744265f8da8164d50b01da09477f0101d0a212af65f96072f",
+      "role": "MiSTer video/scaler/OSD support",
+      "classification": "stable_exact"
+    },
+    {
+      "path": "sys/video_mixer.sv",
+      "git_blob": "fd0b08fac93c29607b4dbf4065247acb4d357917",
+      "sha256": "ca02e63c3e61d8a8c817fa10008a7a9873eb34a40ab89e2e2a596c590f9f0cf9",
+      "role": "MiSTer video/scaler/OSD support",
+      "classification": "stable_exact"
+    },
+    {
+      "path": "sys/yc_out.sv",
+      "git_blob": "984fc379afed7c038061be50ae95302e250fab18",
+      "sha256": "c52d7bfcc8dbc5a0cda2b3117172cbba790fb97b7de61722ddac205f6ec8bc20",
+      "role": "MiSTer video/scaler/OSD support",
+      "classification": "stable_exact"
+    },
+    {
+      "path": "hw/ym2610_golden_shell/MegaVGMPlayer_YM2610_GoldenShell_MiSTer.qpf",
+      "git_blob": "dff0ebc0bd3d39ec865f2398fad9845c9c839ec3",
+      "sha256": "ac768deb6fcaed0e1b0492abdfdd5d21dba1eac660a2d60d229688064659a552",
+      "role": "Quartus project revision",
+      "classification": "new_project"
+    },
+    {
+      "path": "hw/ym2610_golden_shell/MegaVGMPlayer_YM2610_GoldenShell_MiSTer.qsf",
+      "git_blob": "8a867abe9bb4da17ee835f8688a012665b06c6a4",
+      "sha256": "105e582180eb41b9d12f13256664bbbab923a61c9213de96b67074ed7090bb3e",
+      "role": "Quartus assignment template/project",
+      "classification": "path_adapter",
+      "authority_path": "VGM_MD_MiSTer.qsf"
+    },
+    {
+      "path": "hw/ym2610_golden_shell/files_ym2610_golden_shell.qip",
+      "git_blob": "c3bacb8c2e313cab2587070cb8cceadd9a41b7ee",
+      "sha256": "1c872c31b7ccbbd68a038d861c72b1d46c1f94c582c2fe4bf70c8b6dfebb71ed",
+      "role": "source/path assignment graph",
+      "classification": "path_adapter",
+      "authority_path": "files.qip"
+    },
+    {
+      "path": "hw/ym2610_golden_shell/sys_golden_shell.tcl",
+      "git_blob": "aeb07c0e04d09875beb1ecff47dee4031429f1b6",
+      "sha256": "50f8f6462e4eea54f7d474753bbcb03d579e600194b31fb12765bb72b4edb05c",
+      "role": "source/path assignment graph",
+      "classification": "path_adapter",
+      "authority_path": "sys/sys.tcl"
+    },
+    {
+      "path": "hw/ym2610_golden_shell/sys_golden_shell.qip",
+      "git_blob": "a5a40427f3255222a9227fc0dd96621f628b441c",
+      "sha256": "cd44d384b3358b82ad487850bdb220702e96cdd0a36d1721c2e0dccfa3092618",
+      "role": "source/path assignment graph",
+      "classification": "path_adapter",
+      "authority_path": "sys/sys.qip"
+    },
+    {
+      "path": "rtl/golden_player_shell/golden_player_shell_upload.sv",
+      "git_blob": "9bca9668503d812c080a98a31ea406cf01333e2e",
+      "sha256": "5e793563aef968b8dbb33c4dbcecbac5f5a8a95054f183f64013f875cb8de745",
+      "role": "Stage A upload width/boundary adapter",
+      "classification": "profile_local",
+      "authority_path": "rtl/vgm_ddram_backend.sv"
+    },
+    {
+      "path": "rtl/golden_player_shell/mister_vgm_md_top_compat.sv",
+      "git_blob": "a51942a3484807852f1f8256d573f37f2e4ebb01",
+      "sha256": "3d7c8711594bc558182e7bb8431a0dc3362c167e93f25fdb7d1546452898319a",
+      "role": "stable emu public-port compatibility shim",
+      "classification": "profile_local",
+      "authority_path": "rtl/mister_vgm_md_top.sv"
+    },
+    {
+      "path": "rtl/ym2610_golden_profile/ym2610_golden_stage_a.sv",
+      "git_blob": "0c116e476bded817756b61eadbb895f3215c5f63",
+      "sha256": "0f9d3c34c648fea6255145ae3b22341430d7a82e765c2f40863a7fb150a0390a",
+      "role": "inert future profile boundary",
+      "classification": "profile_local"
+    }
+  ]
+}
