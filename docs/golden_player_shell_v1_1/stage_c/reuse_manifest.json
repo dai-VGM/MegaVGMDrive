@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "candidate": "Golden Player Shell v1.1 Stage C",
+  "status": "hardware_validation_pending",
+  "base_commit": "a7728b74cd67939614f5e981557409adabbfe171",
+  "v1_1_stage_a_hardware": "PASS",
+  "v1_1_audio_lab_cold_start_hardware": "PASS",
+  "v1_1_stage_b_hardware": "PASS",
+  "existing_stage_sources": {
+    "rtl/ym2610_golden_profile/stage_b/ym2610_golden_stage_b_compat.sv": "46c11f68a3456ff638ce757c18cdd4a0262995e0bc11e3b923468b8783262115",
+    "rtl/ym2610_golden_profile/stage_b/ym2610_golden_stage_b_read_adapter.sv": "fe23765aa5b90d45b26800704aeba10620b5ae48a99cb825b6de5b0af6aa3b3b",
+    "rtl/ym2610_golden_profile/stage_b/ym2610_golden_stage_b_scanner.sv": "fa8643ad830074633502ced52f0795e16e4c007dc4077e49a6421e03605deddb",
+    "rtl/ym2610_golden_profile/stage_c/ym2610_golden_stage_c_owner.sv": "8641e8de3a89bd5171c800515a6c3a76ad55dfddcd4a0f030e784ccd50acb59e",
+    "rtl/ym2610_golden_profile/stage_c/ym2610_golden_stage_c_parser.sv": "8923d87c889d5c93369a0cf6cc9ea0d55d8717476f2b17f4e9fd8ee82538f01c",
+    "rtl/ym2610_golden_profile/stage_c/ym2610_golden_stage_c_profile.sv": "447fa3d36ba2ee4ca438f5619923e356fea6853395610d3b3e0235749a5a3055",
+    "rtl/ym2610_golden_profile/stage_c/ym2610_golden_stage_c_sound_adapter.sv": "20a6bd12603d541585ee8e979f247afd9103321dd07d744ac6c5e5d874574f1f"
+  },
+  "new_profile_wrapper": "rtl/golden_player_shell_v1_1/profiles/stage_c/golden_player_shell_v1_1_stage_c_profile.sv",
+  "existing_profile_module": "ym2610_golden_stage_a",
+  "v1_1_profile_module": "golden_player_shell_v1_1_profile",
+  "qip_sources": 75,
+  "qip_unique_modules": 76,
+  "scanner_clients": 1,
+  "parser_clients": 1,
+  "simultaneous_scanner_parser_clients": 0,
+  "pcm_ddr_clients": 0,
+  "adpcma_forwarded": false,
+  "adpcmb_forwarded": false,
+  "audio_gate": "registered public-output-derived fail-closed",
+  "stage_d_allowed": false,
+  "promotion_requires": [
+    "Quartus Full Compilation",
+    "Golden Player Shell v1.1 Stage C MiSTer PASS",
+    "recorded FM-only Olga timing/loop/reset/reload result"
+  ]
+}
