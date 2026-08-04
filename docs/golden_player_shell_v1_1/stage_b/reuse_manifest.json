@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "candidate": "Golden Player Shell v1.1 Stage B",
+  "status": "hardware_validation_pending",
+  "base_commit": "750eeaea7d17dd82bd554967605a44996449a1a7",
+  "v1_1_stage_a_hardware": "PASS",
+  "v1_1_audio_lab_cold_start_hardware": "PASS",
+  "v1_1_audio_lab_software_reset_retrigger": "not_recorded",
+  "existing_stage_b_sources": {
+    "rtl/ym2610_golden_profile/stage_b/ym2610_golden_stage_b_compat.sv": "46c11f68a3456ff638ce757c18cdd4a0262995e0bc11e3b923468b8783262115",
+    "rtl/ym2610_golden_profile/stage_b/ym2610_golden_stage_b_profile.sv": "ddb7a9e8ad2f4de0a1b5aa467d3eb12246c30edb86672db784340fb0f75db966",
+    "rtl/ym2610_golden_profile/stage_b/ym2610_golden_stage_b_read_adapter.sv": "fe23765aa5b90d45b26800704aeba10620b5ae48a99cb825b6de5b0af6aa3b3b",
+    "rtl/ym2610_golden_profile/stage_b/ym2610_golden_stage_b_scanner.sv": "fa8643ad830074633502ced52f0795e16e4c007dc4077e49a6421e03605deddb"
+  },
+  "new_profile_wrapper": "rtl/golden_player_shell_v1_1/profiles/stage_b/golden_player_shell_v1_1_stage_b_profile.sv",
+  "scanner_clients": 1,
+  "playback_parser": false,
+  "sound_device": false,
+  "pcm_playback_client": false,
+  "profile_audio_enable": false,
+  "promotion_requires": [
+    "Golden Player Shell v1.1 Stage B MiSTer PASS",
+    "recorded Audio Lab software Reset tone retrigger",
+    "future stage-gated migration results"
+  ]
+}
