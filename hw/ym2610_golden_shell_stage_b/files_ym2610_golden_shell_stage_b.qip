@@ -1,0 +1,16 @@
+# Golden Player Shell Stage B source graph. Stable shell services and the
+# immutable compatibility boundary are referenced directly; only the inert
+# Stage A profile implementation is replaced by the versioned Stage B drop-in.
+set_global_assignment -name SYSTEMVERILOG_FILE [file join $::quartus(qip_path) ../../rtl/emu.sv ]
+set_global_assignment -name SYSTEMVERILOG_FILE [file join $::quartus(qip_path) ../../rtl/megavgm_video_timing.sv ]
+set_global_assignment -name SYSTEMVERILOG_FILE [file join $::quartus(qip_path) ../../rtl/megavgm_title_receiver.sv ]
+set_global_assignment -name SYSTEMVERILOG_FILE [file join $::quartus(qip_path) ../../rtl/megavgm_font5x7.sv ]
+set_global_assignment -name SYSTEMVERILOG_FILE [file join $::quartus(qip_path) ../../rtl/megavgm_title_renderer.sv ]
+set_global_assignment -name SYSTEMVERILOG_FILE [file join $::quartus(qip_path) ../../rtl/vgm_ddram_backend.sv ]
+
+set_global_assignment -name SYSTEMVERILOG_FILE [file join $::quartus(qip_path) ../../rtl/ym2610_golden_profile/stage_b/ym2610_golden_stage_b_compat.sv ]
+set_global_assignment -name SYSTEMVERILOG_FILE [file join $::quartus(qip_path) ../../rtl/ym2610_golden_profile/stage_b/ym2610_golden_stage_b_read_adapter.sv ]
+set_global_assignment -name SYSTEMVERILOG_FILE [file join $::quartus(qip_path) ../../rtl/ym2610_golden_profile/stage_b/ym2610_golden_stage_b_scanner.sv ]
+set_global_assignment -name SYSTEMVERILOG_FILE [file join $::quartus(qip_path) ../../rtl/ym2610_golden_profile/stage_b/ym2610_golden_stage_b_profile.sv ]
+set_global_assignment -name SYSTEMVERILOG_FILE [file join $::quartus(qip_path) ../../rtl/golden_player_shell/golden_player_shell_upload.sv ]
+set_global_assignment -name SYSTEMVERILOG_FILE [file join $::quartus(qip_path) ../../rtl/golden_player_shell/mister_vgm_md_top_compat.sv ]

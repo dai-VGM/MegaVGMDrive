@@ -1,0 +1,4 @@
+rtl/ym2610_golden_profile/stage_b/ym2610_golden_stage_b_compat.sv
+rtl/ym2610_golden_profile/stage_b/ym2610_golden_stage_b_read_adapter.sv
+rtl/ym2610_golden_profile/stage_b/ym2610_golden_stage_b_scanner.sv
+rtl/ym2610_golden_profile/stage_b/ym2610_golden_stage_b_profile.sv
