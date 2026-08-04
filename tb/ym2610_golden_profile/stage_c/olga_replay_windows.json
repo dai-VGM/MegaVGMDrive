@@ -1,0 +1,69 @@
+{
+  "audio_measurement_contract": "512 public sample rises after nonzero, VGM sample tick accelerated to one clk, exact 8 MHz header CEN, retained state through loop",
+  "extended_trace_events": 81418,
+  "forwarded_events": 78293,
+  "source_sha256": "7fd15fe7bf9537128bc2eb2db957a8ccf40cdac394675137a40ba2a9daa66246",
+  "window_contract": "256 forwarded events centered on nearest standard FM key-on",
+  "windows": {
+    "first_fm_key_on": {
+      "arm_trace_event": 119,
+      "events": 256,
+      "first_pc": 555753,
+      "first_sample": 0,
+      "last_pc": 557263,
+      "last_sample": 130112,
+      "metadata_sha256": "54c35d8631454e73b02f055ae1b74946c2b465eea240c6cf0402103bda21d93f",
+      "replay_final_lr_hash": "bda45f7a067cf72d",
+      "replay_fm_lane_hash": "bda45f7a067cf72d",
+      "trace_hash": "aa08327c27e49dad"
+    },
+    "first_sustained_fm": {
+      "arm_trace_event": 5759,
+      "events": 256,
+      "first_pc": 581407,
+      "first_sample": 546383,
+      "last_pc": 582594,
+      "last_sample": 576062,
+      "metadata_sha256": "57706edc7c659b341957baa904795c01110cc352451040f04732f0e4323780db",
+      "replay_final_lr_hash": "dc663bb0b7349cd5",
+      "replay_fm_lane_hash": "dc663bb0b7349cd5",
+      "trace_hash": "769f7432c78628ce"
+    },
+    "loop_crossing": {
+      "arm_trace_event": 81122,
+      "events": 256,
+      "first_pc": 932959,
+      "first_sample": 8358492,
+      "last_pc": 746651,
+      "last_sample": 8391942,
+      "metadata_sha256": "0062bfb62ec14e0559017947f590c998e5da4ad3e0cb794b959e0648b49c950b",
+      "replay_final_lr_hash": "87a5398c48b391c1",
+      "replay_fm_lane_hash": "87a5398c48b391c1",
+      "trace_hash": "bb9b092cfab29191"
+    },
+    "loop_target_first_pass": {
+      "arm_trace_event": 40999,
+      "events": 256,
+      "first_pc": 745304,
+      "first_sample": 4331998,
+      "last_pc": 746647,
+      "last_sample": 4366078,
+      "metadata_sha256": "e9c329a23a01d5c2e680b6adf75411b94ed8995cae500ca9f33f0d94067160f3",
+      "replay_final_lr_hash": "a4a707ca22e4bb61",
+      "replay_fm_lane_hash": "a4a707ca22e4bb61",
+      "trace_hash": "f3661fff32384196"
+    },
+    "mid_song_fm": {
+      "arm_trace_event": 39435,
+      "events": 256,
+      "first_pc": 737857,
+      "first_sample": 4174126,
+      "last_pc": 739149,
+      "last_sample": 4201687,
+      "metadata_sha256": "ebaa5def9dd3852fb6318b8e5af05380f28e1d30a850f4f8b3f0bde294039103",
+      "replay_final_lr_hash": "184eec59e4466a7d",
+      "replay_fm_lane_hash": "184eec59e4466a7d",
+      "trace_hash": "81d9ec4d0157199c"
+    }
+  }
+}

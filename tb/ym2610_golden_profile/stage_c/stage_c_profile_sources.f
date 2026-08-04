@@ -1,0 +1,7 @@
+rtl/ym2610_golden_profile/stage_b/ym2610_golden_stage_b_read_adapter.sv
+rtl/ym2610_golden_profile/stage_b/ym2610_golden_stage_b_compat.sv
+rtl/ym2610_golden_profile/stage_b/ym2610_golden_stage_b_scanner.sv
+rtl/ym2610_golden_profile/stage_c/ym2610_golden_stage_c_owner.sv
+rtl/ym2610_golden_profile/stage_c/ym2610_golden_stage_c_parser.sv
+rtl/ym2610_golden_profile/stage_c/ym2610_golden_stage_c_sound_adapter.sv
+rtl/ym2610_golden_profile/stage_c/ym2610_golden_stage_c_profile.sv
