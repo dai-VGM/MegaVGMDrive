@@ -1,0 +1,56 @@
+{
+  "conclusion": "Z3_ADOPT",
+  "branch": "jt10-gatee-te-ownership-fix",
+  "base_head": "b531ed016c7d1f701f5c00501e995db756629a72",
+  "candidate_sha256": {
+    "z0": "8e410f0fcf989049d3b39e7c4cc91b011f4a2cf67c2c92adec1a752bc1186ff6",
+    "z1": "14df3fd83ece7d41ab0ba9696fa0213432797403285eb4d6b4a050e8a1079d41",
+    "z2": "168505ac2cfda4cb63e97950ff2266c54949074b9edf868540370df812acee92",
+    "z3": "3b38cec6e8c696f786f10cffe256f40890c5d8caf4929282d44458f49a34c7b1"
+  },
+  "gates": {
+    "static": "PASS",
+    "unit": {"status": "PASS", "compile": 4, "simulation": 4},
+    "two_layer_negative": {"status": "PASS", "compile": 1, "simulation": 1},
+    "offline": {"status": "PASS", "compile": 4, "simulation": 4},
+    "targeted": {
+      "status": "PASS",
+      "compile": 1,
+      "simulation": 1,
+      "fm_zero_cycle": 23383799,
+      "ssg_zero_cycle": 24620903,
+      "raw_attempt": 2,
+      "semantic_attempt": 0,
+      "a1_failures": 0,
+      "r3_failures": 0,
+      "vvp_sha256": "bd963a9a7cbabc240e2cee5e6591814ea9ef5667fe611cbd495e443fb655bc35",
+      "stdout_sha256": "a9322cf5f032a4778d3a59c1cf2687b5cefaccf91c1a377fd04836c93a77b2c4"
+    },
+    "two_loop": {
+      "status": "PASS",
+      "compile": 1,
+      "simulation": 1,
+      "terminal_cycle": 44167607,
+      "loop0": {"start": 32, "stop": 32, "zero": 32},
+      "loop1": {"start": 32, "stop": 32, "zero": 32},
+      "aggregate": {"start": 64, "stop": 64, "zero": 64},
+      "a1_failures": 0,
+      "r3_failures": 0,
+      "missing": 0,
+      "duplicate": 0,
+      "ownership": 0,
+      "order": 0,
+      "loop_errors": 0,
+      "rearm": 1,
+      "third_epoch": 0,
+      "timeline_complete": 1,
+      "integration_complete": 1,
+      "vvp_sha256": "37ce8310f090c738c66f8981be9396833ef6d9cc550f3321d36e7177563ba977",
+      "stdout_sha256": "72e6ed3c73124a5576a36716b06f29ee0f865ccd84d21516316319c939dde49b"
+    }
+  },
+  "simulation_count": 11,
+  "fast_sim_complete_count": 0,
+  "quartus_count": 0,
+  "rbf_count": 0
+}

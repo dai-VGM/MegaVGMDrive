@@ -1,0 +1,12 @@
+layer	case	raw tuple classification	A1 result	R3 expectation	R3 result	owner
+Adapter-invalid	A6 state34/raw4	invalid	code4 exactly once; publish 0	A6/5 ZERO	input 0	A1
+Adapter-invalid	B state41/raw0	invalid	code4 exactly once; publish 0	B/1 ZERO	input 0	A1
+Adapter-invalid	NATURAL2 state70/raw1	invalid	code4 exactly once; publish 0	NATURAL2/2 ZERO	input 0	A1
+Adapter-valid/R3-invalid	A0 state25/raw2	A0/1	code4 0; publish 1	A0/3 ZERO	reject code4	R3
+Adapter-valid/R3-invalid	LEFT state49/raw1	LEFT/0	code4 0; publish 1	LEFT/2 ZERO	reject code4	R3
+Adapter-valid/R3-invalid	RIGHT case state49/raw2	LEFT/1	code4 0; publish 1	RIGHT/1 ZERO	reject code6	R3
+Adapter-valid/R3-invalid	NATURAL1 state62/raw2	NATURAL1/2	code4 0; publish 1	NATURAL1/0 ZERO	reject code4	R3
+Downstream	valid FM START / wrong program	FM/0	publish 1	program ownership	reject code3	R3
+Downstream	valid FM ZERO / wrong phase	FM/0	publish 1	phase ownership	reject code18	R3
+Downstream	duplicate START	valid	publish 1	WAIT_STOP	reject code2	R3
+Downstream	STOP while WAIT_START	valid	publish 1	START	reject code9	R3

@@ -1,0 +1,5 @@
+candidate	ZERO normalization	unit	adapter negative	R3 negative	offline A1 START/STOP/ZERO	offline A1 failures	offline R3	actual targeted	two-loop	decision
+Z0	frozen A1	PASS	N/A	N/A	64/64/62	2	code13 after dropped FM ZERO	N/A	N/A	baseline exact
+Z1	FM only	PASS	N/A	N/A	64/64/63	1	code13; SSG ZERO remains dropped	N/A	N/A	FM-only responsibility PASS
+Z2	SSG only	PASS	N/A	N/A	64/64/63	1	code13; FM ZERO remains dropped	N/A	N/A	SSG-only responsibility PASS
+Z3	FM and SSG	PASS	PASS	PASS	64/64/64	0	failures 0; complete 1	PASS	PASS 64/64/64	ADOPT

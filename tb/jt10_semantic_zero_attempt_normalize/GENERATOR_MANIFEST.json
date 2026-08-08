@@ -1,0 +1,16 @@
+{
+  "candidates": {
+    "z0_frozen.sv": "8e410f0fcf989049d3b39e7c4cc91b011f4a2cf67c2c92adec1a752bc1186ff6",
+    "z1_fm_zero.sv": "14df3fd83ece7d41ab0ba9696fa0213432797403285eb4d6b4a050e8a1079d41",
+    "z2_ssg_zero.sv": "168505ac2cfda4cb63e97950ff2266c54949074b9edf868540370df812acee92",
+    "z3_fm_ssg_zero.sv": "3b38cec6e8c696f786f10cffe256f40890c5d8caf4929282d44458f49a34c7b1"
+  },
+  "meaning": {
+    "z0_frozen.sv": "frozen A1 exact",
+    "z1_fm_zero.sv": "FM ZERO semantic attempt normalization only",
+    "z2_ssg_zero.sv": "SSG ZERO semantic attempt normalization only",
+    "z3_fm_ssg_zero.sv": "all existing single-attempt families; currently FM and SSG"
+  },
+  "source": "tb/jt10_semantic_timeline_adapter_knownfix/candidates/a1_named_wire.sv",
+  "source_sha256": "8e410f0fcf989049d3b39e7c4cc91b011f4a2cf67c2c92adec1a752bc1186ff6"
+}

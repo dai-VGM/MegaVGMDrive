@@ -1,0 +1,10 @@
+test_case	raw_state	raw_attempt	A1_mapped_family	A1_mapped_attempt	A1_code4	A1_publish	R3_expected_family	R3_expected_attempt	R3_result	failure_owner
+A0 expected3 / raw2	25	2	A0	1	0	1	A0	3	reject code4 wrong attempt	R3
+LEFT expected2 / raw1	49	1	LEFT	0	0	1	LEFT	2	reject code4 wrong attempt	R3
+RIGHT expected1 / raw2	49	2	LEFT	1	0	1	RIGHT	1	reject code6 wrong family	R3
+NATURAL1 expected0 / raw2	62	2	NATURAL1	2	0	1	NATURAL1	0	reject code4 wrong attempt	R3
+A6 final state / raw4	34	4	NONE	NONE	1	0	A6	5	no input	A1
+B repeat state / raw0	41	0	NONE	NONE	1	0	B	1	no input	A1
+NATURAL2 final state / raw1	70	1	NONE	NONE	1	0	NATURAL2	2	no input	A1
+FM loop1 ZERO stale raw2	10	2	FM	0 after Z1/Z3	0 after Z1/Z3	1 after Z1/Z3	FM	0	accept	A1 normalization then R3
+SSG loop1 ZERO stale raw2	18	2	SSG	0 after Z2/Z3	0 after Z2/Z3	1 after Z2/Z3	SSG	0	accept	A1 normalization then R3
