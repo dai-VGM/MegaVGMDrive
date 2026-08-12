@@ -1,0 +1,22 @@
+{
+  "issue": "#17 FINAL_SILENCE_SHORT",
+  "status": "RESOLVED",
+  "historical_root": {"primary": "F17-E", "secondary": "F17-G"},
+  "ownership": "TB-only authority mismatch",
+  "production_real": false,
+  "unit_pass": true,
+  "actual_dut_targeted_pass": true,
+  "threshold_samples": 512,
+  "consecutive_public_zero": true,
+  "final_dwell_complete": true,
+  "vvp_sha256": "b684e801b6bff745101a5c4ec220e6311815b96ae14150ef2568884f7cc00cb0",
+  "vvp_size": 1435043,
+  "stdout_bytes": 41215,
+  "stdout_lines": 403,
+  "stderr_bytes": 0,
+  "raw_returncode": "unavailable",
+  "pass_marker": "FINAL_DWELL_TARGETED_PASS count=512 A1=0 P=0 R=0 S3=0 V3=0 H4=0",
+  "terminal_finish": "tb_targeted_actual.sv:10: $finish called at 442414791000 (1ps)",
+  "hw0_fail_ownership": "legacy nonfatal diagnostic; outside checker acceptance predicate",
+  "remaining": {"L-P": 7, "L-B": 8, "semantic_timeline_unknown": 0}
+}
