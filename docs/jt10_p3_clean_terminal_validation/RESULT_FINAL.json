@@ -1,0 +1,20 @@
+{
+  "status": "VALIDATED_ADOPTABLE",
+  "lp": {"total": 7, "resolved": 7, "lp_a": 4, "lp_c": 3, "production_real": 0, "unknown": 0},
+  "marker": "P3_PHASE_TARGETED_PASS",
+  "phase_events": 16,
+  "visits": {"1": 2, "2": 2, "3": 2, "4": 2, "5": 2, "6": 2, "7": 2, "8": 2},
+  "errors": {"LP_A": 0, "LP_C": 0, "missing": 0, "duplicate": 0, "order": 0, "third_loop": 0},
+  "terminal_checked": 1,
+  "terminal_pass": 1,
+  "regressions": {"A1": 0, "R3": 0, "B3": 0, "S3": 0, "V3": 0, "H4": 0, "FINAL_DWELL": 0},
+  "vvp_sha256": "d64a0c6fd649e6aa0a312a153fb62f39014a970d343d68e3e0931e50407f3944",
+  "compile_manifest_sha256": "3dbfb2670981c55d804daa2f48d81856a27032f4b0a2075521867fca6143cfe2",
+  "stdout": {"bytes": 41074, "lines": 399, "sha256": "62546c68d4f79a4159ede9cf7c4347e52c40b7be5fd1f406c32583ef527602c0"},
+  "stderr": {"bytes": 0},
+  "raw_returncode": 0,
+  "timeout": false,
+  "exception": null,
+  "finish": {"file": "tb/jt10_p3_clean_terminal_validation/tb_p3_clean_target_actual.sv", "line": 30, "time": 442229042000},
+  "legacy_hw0_aggregate_acceptance_owner": false
+}
