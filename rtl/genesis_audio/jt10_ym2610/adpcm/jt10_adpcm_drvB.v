@@ -19,6 +19,12 @@
     Date: 21-03-2019
 */
 
+// Versioned sparse-CEN successor of the formal PC-GATE ADPCM-B driver.
+// The external CEN event which creates pre_clk_en_55 is published as cen55
+// half a cycle later.  Delay that same external event by one system cycle so
+// the decoder/interpolator pipeline keeps the original event count and sees
+// adv && cen55 in the same enabled cycle.  Counter, request, gain, global CEN,
+// JT12 division, FM, SSG and ADPCM-A are unchanged.
 module jt10_adpcm_drvB(
     input           rst_n,
     input           clk,
@@ -61,6 +67,12 @@ wire start_accept = acmd_up_b && acmd_on_b;
 // end
 // `endif
 
+reg decoder_cen;
+
+always @(posedge clk or negedge rst_n)
+    if(!rst_n) decoder_cen <= 1'b0;
+    else decoder_cen <= cen;
+
 always @(posedge clk) roe_n <= ~(adv & cen55 & (chon | restart));
 
 jt10_adpcmb_cnt u_cnt(
@@ -93,7 +105,7 @@ wire signed [15:0] pcmdec, pcminter, pcmgain;
 jt10_adpcmb u_decoder(
     .rst_n  ( rst_n          ),
     .clk    ( clk            ),
-    .cen    ( cen            ),
+    .cen    ( decoder_cen    ),
     .adv    ( adv & cen55    ),
     .data   ( din            ),
     .chon   ( chon           ),
@@ -105,7 +117,7 @@ jt10_adpcmb u_decoder(
 jt10_adpcmb_interpol u_interpol(
     .rst_n  ( rst_n          ),
     .clk    ( clk            ),
-    .cen    ( cen            ),
+    .cen    ( decoder_cen    ),
     .cen55  ( cen55  && chon ),
     .start_clr( start_accept    ),
     .adv    ( adv            ),
