@@ -51,6 +51,7 @@ set_global_assignment -name VERILOG_MACRO "MEGAVGMDRIVE_PRODUCTION_AUDIO_BUILD=1
 # filename is provided in this project directory with profile-relative paths.
 source ../ym2610_hw0/sys_ym2610_hw0.tcl
 source ../../sys/sys_analog.tcl
+set_global_assignment -name SEARCH_PATH ../../
 set_global_assignment -name QIP_FILE ../../sys/pll_hdmi.qip
 set_global_assignment -name QIP_FILE ../../sys/pll_audio.qip
 set_global_assignment -name QIP_FILE ../../sys/pll_cfg.qip
