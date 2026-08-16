@@ -508,11 +508,11 @@ module emu (
     assign DDRAM_CLK = clk_sys;
     assign {SDRAM_CLK, SDRAM_CKE, SDRAM_A, SDRAM_BA,
             SDRAM_DQML, SDRAM_DQMH, SDRAM_nCS, SDRAM_nCAS,
-            SDRAM_nRAS, SDRAM_nWE} = '0;
+            SDRAM_nRAS, SDRAM_nWE} = 'Z;
     assign SDRAM_DQ = 16'hzzzz;
 `ifdef MISTER_DUAL_SDRAM
     assign {SDRAM2_CLK, SDRAM2_A, SDRAM2_BA,
-            SDRAM2_nCS, SDRAM2_nCAS, SDRAM2_nRAS, SDRAM2_nWE} = '0;
+            SDRAM2_nCS, SDRAM2_nCAS, SDRAM2_nRAS, SDRAM2_nWE} = 'Z;
     assign SDRAM2_DQ = 16'hzzzz;
 `endif
 `ifdef MISTER_FB
