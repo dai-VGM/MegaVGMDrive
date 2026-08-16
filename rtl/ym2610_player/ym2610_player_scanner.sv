@@ -462,7 +462,13 @@ module ym2610_player_scanner #(
                             3'd5: block_logical_start[15:8] <= mem_data;
                             3'd6: block_logical_start[23:16] <= mem_data;
                             3'd7: begin
-                                if ((block_type == 8'h82 &&
+                                // An empty 0x83 block carries no B-ROM data or
+                                // descriptor.  Keep block framing strict, but
+                                // treat its ROM declaration as metadata only.
+                                if (block_type == 8'h83 && block_size == 32'd8) begin
+                                    scan_pc <= command_pc + 32'd7 + block_size;
+                                    state <= ST_COMMAND;
+                                end else if ((block_type == 8'h82 &&
                                      block_rom_size != 32'h0010_0000) ||
                                     (block_type == 8'h83 &&
                                      block_rom_size != 32'h0008_0000) ||

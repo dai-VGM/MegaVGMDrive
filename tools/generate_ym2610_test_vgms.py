@@ -181,6 +181,21 @@ def fixtures() -> dict[str, bytes]:
     }
     descriptor_mixed = vgm(descriptor_sequence(0x82, 10) +
                            descriptor_sequence(0x83, 3) + b"\x66")
+    empty_b_512 = vgm(block(0x83, 0x80000, 0, b"") + b"\x66")
+    empty_b_1m = vgm(block(0x83, 0x100000, 0, b"") + b"\x66")
+    valid_b = block(0x83, 0x80000, 0x100, bytes(range(16)))
+    invalid_b = block(0x83, 0x100000, 0x100, bytes(range(16)))
+    malformed_b = vgm(b"\x67\x66\x83" + u32(7) + b"\0" * 7 + b"\x66")
+    empty_b_with_a = vgm(
+        block(0x82, 0x100000, 0, bytes(range(16))) +
+        empty_b_1m[0x80:-1] +
+        block(0x82, 0x100000, 0x100, bytes(range(16))) + b"\x66")
+    empty_b_then_valid = vgm(empty_b_1m[0x80:-1] + valid_b + b"\x66")
+    empty_b_then_invalid = vgm(empty_b_1m[0x80:-1] + invalid_b + b"\x66")
+    b_out_of_range = vgm(block(0x83, 0x80000, 0x7fff0,
+                                bytes(range(32))) + b"\x66")
+    b_overlap = vgm(block(0x83, 0x80000, 0, bytes(range(16))) +
+                    block(0x83, 0x80000, 8, bytes(range(16))) + b"\x66")
     result = {
         "standard_all_raw.vgm": standard_all,
         "standard_all_prepared.vgm": prepared(standard_all, "Synthetic", "YM2610 Standard"),
@@ -202,6 +217,16 @@ def fixtures() -> dict[str, bytes]:
         **descriptor_a,
         **descriptor_b,
         "descriptor_a10_b3.vgm": descriptor_mixed,
+        "empty_b_512k.vgm": empty_b_512,
+        "empty_b_1m.vgm": empty_b_1m,
+        "valid_b_512k.vgm": vgm(valid_b + b"\x66"),
+        "invalid_b_1m.vgm": vgm(invalid_b + b"\x66"),
+        "malformed_b.vgm": malformed_b,
+        "empty_b_with_a.vgm": empty_b_with_a,
+        "empty_b_then_valid.vgm": empty_b_then_valid,
+        "empty_b_then_invalid.vgm": empty_b_then_invalid,
+        "b_out_of_range.vgm": b_out_of_range,
+        "b_overlap.vgm": b_overlap,
     }
     return result
 

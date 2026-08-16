@@ -76,6 +76,38 @@ vvp "$build_dir/scanner.vvp" \
   "+VGM=$build_dir/fixtures/descriptor_a10_b3.vgm" \
   +EXPECT_ACCEPTED=1 +EXPECT_REJECT=00 +EXPECT_DESC_A=10 +EXPECT_DESC_B=3
 
+# Empty 0x83 blocks are metadata only; nonempty B-ROM validation is unchanged.
+vvp "$build_dir/scanner.vvp" \
+  "+VGM=$build_dir/fixtures/empty_b_512k.vgm" \
+  +EXPECT_ACCEPTED=1 +EXPECT_REJECT=00 +EXPECT_DESC_A=0 +EXPECT_DESC_B=0
+vvp "$build_dir/scanner.vvp" \
+  "+VGM=$build_dir/fixtures/empty_b_1m.vgm" \
+  +EXPECT_ACCEPTED=1 +EXPECT_REJECT=00 +EXPECT_DESC_A=0 +EXPECT_DESC_B=0
+vvp "$build_dir/scanner.vvp" \
+  "+VGM=$build_dir/fixtures/valid_b_512k.vgm" \
+  +EXPECT_ACCEPTED=1 +EXPECT_REJECT=00 +EXPECT_DESC_A=0 +EXPECT_DESC_B=1
+vvp "$build_dir/scanner.vvp" \
+  "+VGM=$build_dir/fixtures/invalid_b_1m.vgm" \
+  +EXPECT_ACCEPTED=0 +EXPECT_REJECT=07 +EXPECT_DESC_A=0 +EXPECT_DESC_B=0
+vvp "$build_dir/scanner.vvp" \
+  "+VGM=$build_dir/fixtures/malformed_b.vgm" \
+  +EXPECT_ACCEPTED=0 +EXPECT_REJECT=06 +EXPECT_DESC_A=0 +EXPECT_DESC_B=0
+vvp "$build_dir/scanner.vvp" \
+  "+VGM=$build_dir/fixtures/empty_b_with_a.vgm" \
+  +EXPECT_ACCEPTED=1 +EXPECT_REJECT=00 +EXPECT_DESC_A=2 +EXPECT_DESC_B=0
+vvp "$build_dir/scanner.vvp" \
+  "+VGM=$build_dir/fixtures/empty_b_then_valid.vgm" \
+  +EXPECT_ACCEPTED=1 +EXPECT_REJECT=00 +EXPECT_DESC_A=0 +EXPECT_DESC_B=1
+vvp "$build_dir/scanner.vvp" \
+  "+VGM=$build_dir/fixtures/empty_b_then_invalid.vgm" \
+  +EXPECT_ACCEPTED=0 +EXPECT_REJECT=07 +EXPECT_DESC_A=0 +EXPECT_DESC_B=0
+vvp "$build_dir/scanner.vvp" \
+  "+VGM=$build_dir/fixtures/b_out_of_range.vgm" \
+  +EXPECT_ACCEPTED=0 +EXPECT_REJECT=07 +EXPECT_DESC_A=0 +EXPECT_DESC_B=0
+vvp "$build_dir/scanner.vvp" \
+  "+VGM=$build_dir/fixtures/b_overlap.vgm" \
+  +EXPECT_ACCEPTED=0 +EXPECT_REJECT=08 +EXPECT_DESC_A=0 +EXPECT_DESC_B=1
+
 if [[ -f "/Users/daizo/Music/03 Olga Breeze.vgm" ]]; then
   PYTHONDONTWRITEBYTECODE=1 python3 - "$repo_dir" "/Users/daizo/Music/03 Olga Breeze.vgm" "$build_dir/olga.map" <<'PY'
 import pathlib
