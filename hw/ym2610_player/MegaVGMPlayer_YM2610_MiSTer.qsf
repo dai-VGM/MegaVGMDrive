@@ -42,6 +42,10 @@ set_global_assignment -name SEED 1
 
 set_global_assignment -name VERILOG_MACRO "MISTER_FB=1"
 set_global_assignment -name VERILOG_MACRO "YM2610_PLAYER=1"
+set_global_assignment -name VERILOG_MACRO "FIXED_REGION_MODE=5"
+set_global_assignment -name VERILOG_MACRO "MODE5_VGM_BACKEND=1"
+set_global_assignment -name VERILOG_MACRO "MODE5_VGM_ADDR_WIDTH=23"
+set_global_assignment -name VERILOG_MACRO "MEGAVGMDRIVE_PRODUCTION_AUDIO_BUILD=1"
 
 # Reuse the already-audited MiSTer board/pin assignment Tcl.  Its local QIP
 # filename is provided in this project directory with profile-relative paths.

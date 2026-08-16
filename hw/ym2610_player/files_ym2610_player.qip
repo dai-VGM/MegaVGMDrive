@@ -1,11 +1,4 @@
 # YM2610 production profile manifest. Paths are relative to this QIP directory.
-# The QSF remains unchanged; these profile-local build selections make the
-# immutable production emu choose its loaded-VGM, 23-bit DDR boundary.
-set_global_assignment -name VERILOG_MACRO "FIXED_REGION_MODE=5"
-set_global_assignment -name VERILOG_MACRO "MODE5_VGM_BACKEND=1"
-set_global_assignment -name VERILOG_MACRO "MODE5_VGM_ADDR_WIDTH=23"
-set_global_assignment -name VERILOG_MACRO "MEGAVGMDRIVE_PRODUCTION_AUDIO_BUILD=1"
-
 # Immutable production shell and its versioned profile/audio boundary.
 set_global_assignment -name SYSTEMVERILOG_FILE [file join $::quartus(qip_path) ../../rtl/emu.sv ]
 set_global_assignment -name SYSTEMVERILOG_FILE [file join $::quartus(qip_path) ../../rtl/golden_player_shell/golden_player_shell_upload.sv ]
