@@ -56,6 +56,26 @@ PY
   fi
 done
 
+for count in 0 1 8 9 10; do
+  vvp "$build_dir/scanner.vvp" \
+    "+VGM=$build_dir/fixtures/descriptor_a_${count}.vgm" \
+    +EXPECT_ACCEPTED=1 +EXPECT_REJECT=00 +EXPECT_DESC_A="$count" +EXPECT_DESC_B=0
+done
+vvp "$build_dir/scanner.vvp" \
+  "+VGM=$build_dir/fixtures/descriptor_a_11.vgm" \
+  +EXPECT_ACCEPTED=0 +EXPECT_REJECT=08 +EXPECT_DESC_A=10 +EXPECT_DESC_B=0
+for count in 10; do
+  vvp "$build_dir/scanner.vvp" \
+    "+VGM=$build_dir/fixtures/descriptor_b_${count}.vgm" \
+    +EXPECT_ACCEPTED=1 +EXPECT_REJECT=00 +EXPECT_DESC_A=0 +EXPECT_DESC_B="$count"
+done
+vvp "$build_dir/scanner.vvp" \
+  "+VGM=$build_dir/fixtures/descriptor_b_11.vgm" \
+  +EXPECT_ACCEPTED=0 +EXPECT_REJECT=08 +EXPECT_DESC_A=0 +EXPECT_DESC_B=10
+vvp "$build_dir/scanner.vvp" \
+  "+VGM=$build_dir/fixtures/descriptor_a10_b3.vgm" \
+  +EXPECT_ACCEPTED=1 +EXPECT_REJECT=00 +EXPECT_DESC_A=10 +EXPECT_DESC_B=3
+
 if [[ -f "/Users/daizo/Music/03 Olga Breeze.vgm" ]]; then
   PYTHONDONTWRITEBYTECODE=1 python3 - "$repo_dir" "/Users/daizo/Music/03 Olga Breeze.vgm" "$build_dir/olga.map" <<'PY'
 import pathlib

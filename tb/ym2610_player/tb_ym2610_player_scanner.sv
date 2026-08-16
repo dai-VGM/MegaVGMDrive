@@ -45,6 +45,10 @@ module tb_ym2610_player_scanner;
     reg [31:0] map_byte_value;
     string filename;
     string map_filename;
+    integer expected_accepted;
+    integer expected_reject;
+    integer expected_desc_a;
+    integer expected_desc_b;
 
     always #5 clk = ~clk;
 
@@ -114,6 +118,22 @@ module tb_ym2610_player_scanner;
             timeout = timeout + 1;
         end
         if (!done) $fatal(1, "scanner timeout state=%0d pc=%08x", dut.state, dut.scan_pc);
+        if ($value$plusargs("EXPECT_ACCEPTED=%d", expected_accepted) &&
+            accepted !== expected_accepted[0])
+            $fatal(1, "accepted mismatch expected=%0d actual=%0d",
+                expected_accepted, accepted);
+        if ($value$plusargs("EXPECT_REJECT=%h", expected_reject) &&
+            reject_code !== expected_reject[7:0])
+            $fatal(1, "reject mismatch expected=%02x actual=%02x",
+                expected_reject[7:0], reject_code);
+        if ($value$plusargs("EXPECT_DESC_A=%d", expected_desc_a) &&
+            descriptor_a_count !== expected_desc_a[3:0])
+            $fatal(1, "A descriptor mismatch expected=%0d actual=%0d",
+                expected_desc_a, descriptor_a_count);
+        if ($value$plusargs("EXPECT_DESC_B=%d", expected_desc_b) &&
+            descriptor_b_count !== expected_desc_b[3:0])
+            $fatal(1, "B descriptor mismatch expected=%0d actual=%0d",
+                expected_desc_b, descriptor_b_count);
         map_vectors = 0;
         if ($value$plusargs("MAP=%s", map_filename)) begin
             map_fd = $fopen(map_filename, "r");

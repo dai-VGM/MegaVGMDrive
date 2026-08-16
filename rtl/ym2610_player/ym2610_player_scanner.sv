@@ -5,7 +5,7 @@
 // leak a register write into JT10.
 module ym2610_player_scanner #(
     parameter int ADDR_WIDTH = 23,
-    parameter int MAX_DESCRIPTORS = 8
+    parameter int MAX_DESCRIPTORS = 10
 ) (
     input  logic                  clk,
     input  logic                  reset,
@@ -484,19 +484,19 @@ module ym2610_player_scanner #(
                                     state <= ST_FATAL;
                                 end else begin
                                     if (block_type == 8'h82) begin
-                                        desc_a_logical[descriptor_a_count[2:0]] <=
+                                        desc_a_logical[descriptor_a_count[3:0]] <=
                                             block_logical_start[19:0];
-                                        desc_a_length[descriptor_a_count[2:0]] <=
+                                        desc_a_length[descriptor_a_count[3:0]] <=
                                             block_size[20:0] - 21'd8;
-                                        desc_a_file[descriptor_a_count[2:0]] <=
+                                        desc_a_file[descriptor_a_count[3:0]] <=
                                             command_pc[ADDR_WIDTH-1:0] + 23'd15;
                                         descriptor_a_count <= descriptor_a_count + 4'd1;
                                     end else begin
-                                        desc_b_logical[descriptor_b_count[2:0]] <=
+                                        desc_b_logical[descriptor_b_count[3:0]] <=
                                             block_logical_start[19:0];
-                                        desc_b_length[descriptor_b_count[2:0]] <=
+                                        desc_b_length[descriptor_b_count[3:0]] <=
                                             block_size[20:0] - 21'd8;
-                                        desc_b_file[descriptor_b_count[2:0]] <=
+                                        desc_b_file[descriptor_b_count[3:0]] <=
                                             command_pc[ADDR_WIDTH-1:0] + 23'd15;
                                         descriptor_b_count <= descriptor_b_count + 4'd1;
                                     end

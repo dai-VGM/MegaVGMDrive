@@ -121,6 +121,16 @@ def adpcmb_sequence() -> bytes:
     return bytes(sequence)
 
 
+def descriptor_sequence(block_type: int, count: int) -> bytes:
+    """Non-overlapping 16-byte ROM regions for scanner-capacity tests."""
+    logical_size = 0x100000 if block_type == 0x82 else 0x80000
+    return b"".join(
+        block(block_type, logical_size, index * 0x1000,
+              bytes((index,)) * 16)
+        for index in range(count)
+    )
+
+
 def fixtures() -> dict[str, bytes]:
     standard_all = vgm(fm_sequence() + ssg_sequence() + adpcma_sequence() +
                        adpcmb_sequence() + b"\x66")
@@ -159,6 +169,18 @@ def fixtures() -> dict[str, bytes]:
     loop_body = fm_sequence()
     looping = vgm(loop_body + b"\x66", loop_command_offset=0)
     lifecycle = vgm(wait(16) + b"\x66")
+    descriptor_a = {
+        f"descriptor_a_{count}.vgm": vgm(
+            descriptor_sequence(0x82, count) + b"\x66")
+        for count in (0, 1, 8, 9, 10, 11)
+    }
+    descriptor_b = {
+        f"descriptor_b_{count}.vgm": vgm(
+            descriptor_sequence(0x83, count) + b"\x66")
+        for count in (10, 11)
+    }
+    descriptor_mixed = vgm(descriptor_sequence(0x82, 10) +
+                           descriptor_sequence(0x83, 3) + b"\x66")
     result = {
         "standard_all_raw.vgm": standard_all,
         "standard_all_prepared.vgm": prepared(standard_all, "Synthetic", "YM2610 Standard"),
@@ -177,6 +199,9 @@ def fixtures() -> dict[str, bytes]:
         "adpcma_b_simultaneous.vgm": simultaneous,
         "loop.vgm": looping,
         "lifecycle.vgm": lifecycle,
+        **descriptor_a,
+        **descriptor_b,
+        "descriptor_a10_b3.vgm": descriptor_mixed,
     }
     return result
 
