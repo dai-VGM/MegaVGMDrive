@@ -1,7 +1,18 @@
-# YM2610 player-only manifest.  Paths are relative to this QIP directory.
-set_global_assignment -name SYSTEMVERILOG_FILE [file join $::quartus(qip_path) ../../rtl/ym2610_player/emu.sv ]
-set_global_assignment -name SYSTEMVERILOG_FILE [file join $::quartus(qip_path) ../../rtl/ym2610_player/ym2610_player_reset_fence.sv ]
-set_global_assignment -name SYSTEMVERILOG_FILE [file join $::quartus(qip_path) ../../rtl/ym2610_player/ym2610_player_diagnostics.sv ]
+# YM2610 production profile manifest. Paths are relative to this QIP directory.
+# The QSF remains unchanged; these profile-local build selections make the
+# immutable production emu choose its loaded-VGM, 23-bit DDR boundary.
+set_global_assignment -name VERILOG_MACRO "FIXED_REGION_MODE=5"
+set_global_assignment -name VERILOG_MACRO "MODE5_VGM_BACKEND=1"
+set_global_assignment -name VERILOG_MACRO "MODE5_VGM_ADDR_WIDTH=23"
+set_global_assignment -name VERILOG_MACRO "MEGAVGMDRIVE_PRODUCTION_AUDIO_BUILD=1"
+
+# Immutable production shell and its versioned profile/audio boundary.
+set_global_assignment -name SYSTEMVERILOG_FILE [file join $::quartus(qip_path) ../../rtl/emu.sv ]
+set_global_assignment -name SYSTEMVERILOG_FILE [file join $::quartus(qip_path) ../../rtl/golden_player_shell/golden_player_shell_upload.sv ]
+set_global_assignment -name SYSTEMVERILOG_FILE [file join $::quartus(qip_path) ../../rtl/golden_player_shell_v1_1/mister_vgm_md_top_v1_1.sv ]
+set_global_assignment -name SYSTEMVERILOG_FILE [file join $::quartus(qip_path) ../../rtl/ym2610_player/ym2610_player_production_profile.sv ]
+
+# Existing PCM-PASS YM2610 logical player backend.
 set_global_assignment -name SYSTEMVERILOG_FILE [file join $::quartus(qip_path) ../../rtl/ym2610_player/ym2610_player_compat.sv ]
 set_global_assignment -name SYSTEMVERILOG_FILE [file join $::quartus(qip_path) ../../rtl/ym2610_player/ym2610_player_scanner.sv ]
 set_global_assignment -name SYSTEMVERILOG_FILE [file join $::quartus(qip_path) ../../rtl/ym2610_player/ym2610_player_parser.sv ]
@@ -9,8 +20,6 @@ set_global_assignment -name SYSTEMVERILOG_FILE [file join $::quartus(qip_path) .
 set_global_assignment -name SYSTEMVERILOG_FILE [file join $::quartus(qip_path) ../../rtl/ym2610_player/ym2610_player_memory_arbiter.sv ]
 set_global_assignment -name SYSTEMVERILOG_FILE [file join $::quartus(qip_path) ../../rtl/ym2610_player/ym2610_player_pcm_cache.sv ]
 set_global_assignment -name SYSTEMVERILOG_FILE [file join $::quartus(qip_path) ../../rtl/ym2610_player/ym2610_player_core.sv ]
-set_global_assignment -name SYSTEMVERILOG_FILE [file join $::quartus(qip_path) ../../rtl/ym2610_player/ym2610_player_debug_renderer.sv ]
-set_global_assignment -name SYSTEMVERILOG_FILE [file join $::quartus(qip_path) ../../rtl/ym2610_player/ym2610_player_video.sv ]
 
 # Frozen production-common shell services, referenced rather than copied.
 set_global_assignment -name SYSTEMVERILOG_FILE [file join $::quartus(qip_path) ../../rtl/vgm_ddram_backend.sv ]
