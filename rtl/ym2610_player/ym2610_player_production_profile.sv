@@ -201,7 +201,10 @@ module golden_player_shell_v1_1_profile #(
     assign profile_audio_sample_valid = core_audio_sample;
     assign profile_audio_enable = !reset && !core_external_mute;
     assign playback_active = core_load_state == 4'd7;
-    assign profile_fatal = core_fatal;
+    ym2610_gunfrontier_reject_probe u_gunfrontier_reject_probe (
+        .fatal_active(core_fatal), .reject_code(core_fatal_code),
+        .profile_fatal(profile_fatal)
+    );
     assign profile_status = {core_fatal, 3'd0, core_fatal_code,
                              core_load_state};
     assign debug_page_data = 16'd0;
@@ -218,4 +221,24 @@ module golden_player_shell_v1_1_profile #(
         shell_sample_timing
     };
 
+endmodule
+
+// Lab-only external diagnostic gate.  The normal build preserves the
+// established profile_fatal = fatal_active contract exactly.  Probe macros
+// only select which existing reject-code bit is presented at that ABI output;
+// they have no fanout into the player core or audio path.
+module ym2610_gunfrontier_reject_probe (
+    input  logic       fatal_active,
+    input  logic [7:0] reject_code,
+    output logic       profile_fatal
+);
+`ifdef YM2610_GF_REJECT_PROBE_BIT0
+    assign profile_fatal = fatal_active && reject_code[0];
+`elsif YM2610_GF_REJECT_PROBE_BIT1
+    assign profile_fatal = fatal_active && reject_code[1];
+`elsif YM2610_GF_REJECT_PROBE_BIT2
+    assign profile_fatal = fatal_active && reject_code[2];
+`else
+    assign profile_fatal = fatal_active;
+`endif
 endmodule

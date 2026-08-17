@@ -1,0 +1,3 @@
+source MegaVGMPlayer_YM2610_MiSTer.qsf
+set_global_assignment -name VERILOG_MACRO "MISTER_VGM_DEBUG_VIDEO_ENABLE=1"
+set_global_assignment -name VERILOG_MACRO "YM2610_GF_REJECT_PROBE_BIT2=1"
