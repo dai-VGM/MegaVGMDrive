@@ -19,6 +19,8 @@ module tb_ym2610_gunfrontier_persistent_probe;
     );
 `ifdef YM2610_GF_PERSISTENT_VALID_PROBE
         expected_probe = active && code == 8'h0b && valid;
+`elsif YM2610_GF_PERSISTENT_CURRENT_PROBE
+        expected_probe = active && code == 8'h0b && valid && current;
 `elsif YM2610_GF_PERSISTENT_RG1_PROBE
         expected_probe = active && code == 8'h0b && valid &&
                          addr == 20'h07600 && current;
