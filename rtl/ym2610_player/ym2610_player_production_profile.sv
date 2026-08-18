@@ -252,7 +252,10 @@ module ym2610_gunfrontier_reject_probe (
 `endif
     output logic       profile_fatal
 );
-`ifdef YM2610_GF_RG1_CURRENT_PROBE
+`ifdef YM2610_GF_RG1_VALID_PROBE
+    assign profile_fatal = fatal_active && reject_code == 8'h0b &&
+                           range_fault_valid;
+`elsif YM2610_GF_RG1_CURRENT_PROBE
     assign profile_fatal = fatal_active && reject_code == 8'h0b &&
                            range_fault_valid && range_fault_current;
 `elsif YM2610_GF_RG1_ADDR_PROBE
