@@ -66,6 +66,11 @@ module ym2610_player_core #(
     output logic [19:0]           range_fault_addr,
     output logic                  range_fault_current,
 `endif
+`ifdef YM2610_GF_PERSISTENT_RANGE_PROBE
+    output logic                  diag_range_fault_valid,
+    output logic [19:0]           diag_range_fault_addr,
+    output logic                  diag_range_fault_current,
+`endif
     output logic [31:0]           adpcma_fetch_requests,
     output logic [31:0]           adpcma_fetch_responses,
     output logic [31:0]           adpcmb_fetch_requests,
@@ -169,6 +174,11 @@ module ym2610_player_core #(
     logic cache_range_fault_valid;
     logic [19:0] cache_range_fault_addr;
     logic cache_range_fault_current;
+`endif
+`ifdef YM2610_GF_PERSISTENT_RANGE_PROBE
+    logic persistent_range_fault_valid;
+    logic [19:0] persistent_range_fault_addr;
+    logic persistent_range_fault_current;
 `endif
 
     logic arbiter_reset;
@@ -416,6 +426,26 @@ module ym2610_player_core #(
     assign range_fault_current = cache_range_fault_current;
 `endif
 
+`ifdef YM2610_GF_PERSISTENT_RANGE_PROBE
+    // Capture occurs at N+1: the cache's raw snapshot is still live while the
+    // core observes its sticky range_error and enters LS_REJECT.  This bank is
+    // intentionally not reset by LS_REJECT/cache_reset.
+    ym2610_gunfrontier_range_fault_sticky u_persistent_range_fault (
+        .clk(clk),
+        .clear(hard_reset || download_start || load_done_pulse || soft_reset_rise),
+        .capture(load_state == LS_PLAY && pcm_range_error &&
+                 cache_range_fault_valid),
+        .capture_addr(cache_range_fault_addr),
+        .capture_current(cache_range_fault_current),
+        .valid(persistent_range_fault_valid),
+        .addr(persistent_range_fault_addr),
+        .current(persistent_range_fault_current)
+    );
+    assign diag_range_fault_valid = persistent_range_fault_valid;
+    assign diag_range_fault_addr = persistent_range_fault_addr;
+    assign diag_range_fault_current = persistent_range_fault_current;
+`endif
+
     ym2610_player_memory_arbiter #(.ADDR_WIDTH(ADDR_WIDTH)) u_arbiter (
         .clk(clk), .reset(arbiter_reset), .generation(load_generation),
         .scan_req(scanner_req),
@@ -612,3 +642,29 @@ module ym2610_player_core #(
         audio_sample = external_mute ? 1'b0 : jt_sample;
     end
 endmodule
+
+`ifdef YM2610_GF_PERSISTENT_RANGE_PROBE
+// Lab-only diagnostic state. It has no output path into functional control.
+module ym2610_gunfrontier_range_fault_sticky (
+    input  logic        clk,
+    input  logic        clear,
+    input  logic        capture,
+    input  logic [19:0] capture_addr,
+    input  logic        capture_current,
+    output logic        valid,
+    output logic [19:0] addr,
+    output logic        current
+);
+    always_ff @(posedge clk) begin
+        if (clear) begin
+            valid <= 1'b0;
+            addr <= 20'd0;
+            current <= 1'b0;
+        end else if (capture && !valid) begin
+            valid <= 1'b1;
+            addr <= capture_addr;
+            current <= capture_current;
+        end
+    end
+endmodule
+`endif

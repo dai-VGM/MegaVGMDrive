@@ -65,6 +65,11 @@ module golden_player_shell_v1_1_profile #(
     logic [19:0] core_range_fault_addr;
     logic core_range_fault_current;
 `endif
+`ifdef YM2610_GF_PERSISTENT_RANGE_PROBE
+    logic core_diag_range_fault_valid;
+    logic [19:0] core_diag_range_fault_addr;
+    logic core_diag_range_fault_current;
+`endif
 
     // The physical backend's upload_complete level is asserted only after an
     // accepted index-1 upload has ended and its final write has drained. One
@@ -155,6 +160,11 @@ module golden_player_shell_v1_1_profile #(
         .range_fault_addr(core_range_fault_addr),
         .range_fault_current(core_range_fault_current),
 `endif
+`ifdef YM2610_GF_PERSISTENT_RANGE_PROBE
+        .diag_range_fault_valid(core_diag_range_fault_valid),
+        .diag_range_fault_addr(core_diag_range_fault_addr),
+        .diag_range_fault_current(core_diag_range_fault_current),
+`endif
         .adpcma_fetch_requests(),
         .adpcma_fetch_responses(),
         .adpcmb_fetch_requests(),
@@ -218,6 +228,11 @@ module golden_player_shell_v1_1_profile #(
         .range_fault_addr(core_range_fault_addr),
         .range_fault_current(core_range_fault_current),
 `endif
+`ifdef YM2610_GF_PERSISTENT_RANGE_PROBE
+        .diag_range_fault_valid(core_diag_range_fault_valid),
+        .diag_range_fault_addr(core_diag_range_fault_addr),
+        .diag_range_fault_current(core_diag_range_fault_current),
+`endif
         .profile_fatal(profile_fatal)
     );
     assign profile_status = {core_fatal, 3'd0, core_fatal_code,
@@ -250,9 +265,22 @@ module ym2610_gunfrontier_reject_probe (
     input  logic [19:0] range_fault_addr,
     input  logic       range_fault_current,
 `endif
+`ifdef YM2610_GF_PERSISTENT_RANGE_PROBE
+    input  logic       diag_range_fault_valid,
+    input  logic [19:0] diag_range_fault_addr,
+    input  logic       diag_range_fault_current,
+`endif
     output logic       profile_fatal
 );
-`ifdef YM2610_GF_RG1_VALID_PROBE
+`ifdef YM2610_GF_PERSISTENT_VALID_PROBE
+    assign profile_fatal = fatal_active && reject_code == 8'h0b &&
+                           diag_range_fault_valid;
+`elsif YM2610_GF_PERSISTENT_RG1_PROBE
+    assign profile_fatal = fatal_active && reject_code == 8'h0b &&
+                           diag_range_fault_valid &&
+                           diag_range_fault_addr == 20'h07600 &&
+                           diag_range_fault_current;
+`elsif YM2610_GF_RG1_VALID_PROBE
     assign profile_fatal = fatal_active && reject_code == 8'h0b &&
                            range_fault_valid;
 `elsif YM2610_GF_RG1_CURRENT_PROBE
