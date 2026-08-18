@@ -58,6 +58,11 @@ module ym2610_player_pcm_cache #(
     output logic [19:0]           last_logical_addr,
     output logic [19:0]           adpcma_last_address,
     output logic [19:0]           adpcmb_last_address
+`ifdef YM2610_GF_RG1_PROBE
+    ,output logic                  range_fault_valid,
+    output logic [19:0]           range_fault_addr,
+    output logic                  range_fault_current
+`endif
 );
     localparam int PTR_WIDTH = $clog2(ENTRIES);
     logic cache_valid [0:ENTRIES-1];
@@ -81,6 +86,11 @@ module ym2610_player_pcm_cache #(
     logic need_required;
     logic need_space_b;
     logic [19:0] need_logical;
+`ifdef YM2610_GF_RG1_PROBE
+    // Diagnostic-only source tag for the final selected need.  A prewarm
+    // need has priority over decoder service and must remain distinguishable.
+    logic need_current_a;
+`endif
     logic a_current_hit, a_next_hit, b_current_hit, b_next_hit;
     logic [7:0] a_current_data, b_current_data;
     logic prewarm_a;
@@ -157,6 +167,9 @@ module ym2610_player_pcm_cache #(
         need_required = 1'b0;
         need_space_b = 1'b0;
         need_logical = 20'd0;
+`ifdef YM2610_GF_RG1_PROBE
+        need_current_a = 1'b0;
+`endif
         a_need_valid = 1'b0;
         a_need_required = 1'b0;
         a_need_logical = adpcma_addr;
@@ -237,6 +250,9 @@ module ym2610_player_pcm_cache #(
                 need_required = 1'b1;
                 need_space_b = 1'b0;
                 need_logical = a_need_logical;
+`ifdef YM2610_GF_RG1_PROBE
+                need_current_a = 1'b1;
+`endif
             end else if (b_need_required) begin
                 need_required = 1'b1;
                 need_space_b = 1'b1;
@@ -291,6 +307,11 @@ module ym2610_player_pcm_cache #(
             last_logical_addr <= 20'd0;
             adpcma_last_address <= 20'd0;
             adpcmb_last_address <= 20'd0;
+`ifdef YM2610_GF_RG1_PROBE
+            range_fault_valid <= 1'b0;
+            range_fault_addr <= 20'd0;
+            range_fault_current <= 1'b0;
+`endif
             start_b <= 16'd0;
             for (i = 0; i < 6; i = i + 1)
                 start_a[i] <= 16'd0;
@@ -362,6 +383,14 @@ module ym2610_player_pcm_cache #(
             end
             if (active && need_required && need_valid && !map_hit)
                 range_error <= 1'b1;
+`ifdef YM2610_GF_RG1_PROBE
+            if (active && need_required && need_valid && !map_hit &&
+                !range_fault_valid) begin
+                range_fault_valid <= 1'b1;
+                range_fault_addr <= need_logical;
+                range_fault_current <= need_current_a;
+            end
+`endif
         end
     end
 endmodule

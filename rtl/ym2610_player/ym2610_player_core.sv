@@ -61,6 +61,11 @@ module ym2610_player_core #(
     output logic [19:0]           pcm_last_address,
     output logic [19:0]           adpcma_last_address,
     output logic [19:0]           adpcmb_last_address,
+`ifdef YM2610_GF_RG1_PROBE
+    output logic                  range_fault_valid,
+    output logic [19:0]           range_fault_addr,
+    output logic                  range_fault_current,
+`endif
     output logic [31:0]           adpcma_fetch_requests,
     output logic [31:0]           adpcma_fetch_responses,
     output logic [31:0]           adpcmb_fetch_requests,
@@ -160,6 +165,11 @@ module ym2610_player_core #(
     logic [ADDR_WIDTH-1:0] pcm_addr;
     logic [7:0] pcm_data;
     logic pcm_range_error, pcm_stale;
+`ifdef YM2610_GF_RG1_PROBE
+    logic cache_range_fault_valid;
+    logic [19:0] cache_range_fault_addr;
+    logic cache_range_fault_current;
+`endif
 
     logic arbiter_reset;
     logic [31:0] scanner_memory_requests, parser_memory_requests;
@@ -393,7 +403,18 @@ module ym2610_player_core #(
         .last_logical_addr(pcm_last_address),
         .adpcma_last_address(adpcma_last_address),
         .adpcmb_last_address(adpcmb_last_address)
+`ifdef YM2610_GF_RG1_PROBE
+        ,.range_fault_valid(cache_range_fault_valid),
+        .range_fault_addr(cache_range_fault_addr),
+        .range_fault_current(cache_range_fault_current)
+`endif
     );
+
+`ifdef YM2610_GF_RG1_PROBE
+    assign range_fault_valid = cache_range_fault_valid;
+    assign range_fault_addr = cache_range_fault_addr;
+    assign range_fault_current = cache_range_fault_current;
+`endif
 
     ym2610_player_memory_arbiter #(.ADDR_WIDTH(ADDR_WIDTH)) u_arbiter (
         .clk(clk), .reset(arbiter_reset), .generation(load_generation),

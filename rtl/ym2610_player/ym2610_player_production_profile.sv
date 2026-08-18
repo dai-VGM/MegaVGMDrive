@@ -60,6 +60,11 @@ module golden_player_shell_v1_1_profile #(
     logic [31:0] core_parser_command_count;
     logic core_fatal;
     logic [7:0] core_fatal_code;
+`ifdef YM2610_GF_RG1_PROBE
+    logic core_range_fault_valid;
+    logic [19:0] core_range_fault_addr;
+    logic core_range_fault_current;
+`endif
 
     // The physical backend's upload_complete level is asserted only after an
     // accepted index-1 upload has ended and its final write has drained. One
@@ -145,6 +150,11 @@ module golden_player_shell_v1_1_profile #(
         .pcm_last_address(),
         .adpcma_last_address(),
         .adpcmb_last_address(),
+`ifdef YM2610_GF_RG1_PROBE
+        .range_fault_valid(core_range_fault_valid),
+        .range_fault_addr(core_range_fault_addr),
+        .range_fault_current(core_range_fault_current),
+`endif
         .adpcma_fetch_requests(),
         .adpcma_fetch_responses(),
         .adpcmb_fetch_requests(),
@@ -203,6 +213,11 @@ module golden_player_shell_v1_1_profile #(
     assign playback_active = core_load_state == 4'd7;
     ym2610_gunfrontier_reject_probe u_gunfrontier_reject_probe (
         .fatal_active(core_fatal), .reject_code(core_fatal_code),
+`ifdef YM2610_GF_RG1_PROBE
+        .range_fault_valid(core_range_fault_valid),
+        .range_fault_addr(core_range_fault_addr),
+        .range_fault_current(core_range_fault_current),
+`endif
         .profile_fatal(profile_fatal)
     );
     assign profile_status = {core_fatal, 3'd0, core_fatal_code,
@@ -230,9 +245,18 @@ endmodule
 module ym2610_gunfrontier_reject_probe (
     input  logic       fatal_active,
     input  logic [7:0] reject_code,
+`ifdef YM2610_GF_RG1_PROBE
+    input  logic       range_fault_valid,
+    input  logic [19:0] range_fault_addr,
+    input  logic       range_fault_current,
+`endif
     output logic       profile_fatal
 );
-`ifdef YM2610_GF_REJECT_PROBE_BIT0
+`ifdef YM2610_GF_RG1_PROBE
+    assign profile_fatal = fatal_active && reject_code == 8'h0b &&
+                           range_fault_valid && range_fault_addr == 20'h07600 &&
+                           range_fault_current;
+`elsif YM2610_GF_REJECT_PROBE_BIT0
     assign profile_fatal = fatal_active && reject_code[0];
 `elsif YM2610_GF_REJECT_PROBE_BIT1
     assign profile_fatal = fatal_active && reject_code[1];
