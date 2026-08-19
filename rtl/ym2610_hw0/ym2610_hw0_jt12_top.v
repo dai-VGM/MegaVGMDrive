@@ -192,9 +192,9 @@ wire    [3:0]   psg_addr;
 wire    [7:0]   psg_data, psg_dout;
 wire            psg_wr_n;
 // ADPCM-A
-wire [15:0] addr_a;
-wire [ 2:0] up_addr, up_lracl;
-wire        up_start, up_end;
+wire [95:0] start_addr_a, end_addr_a;
+wire [ 2:0] up_lracl;
+wire [ 5:0] up_start, up_end;
 wire [ 7:0] aon_a, lracl;
 wire [ 5:0] atl_a;     // ADPCM Total Level
 wire        up_aon;
@@ -264,11 +264,11 @@ if( use_adpcm==1 ) begin: gen_adpcm
 
         // Control Registers
         .atl        ( atl_a         ),        // ADPCM Total Level
-        .addr_in    ( addr_a        ),
+        .start_addr_in ( start_addr_a ),
+        .end_addr_in   ( end_addr_a   ),
         .lracl_in   ( lracl         ),
         .up_start   ( up_start      ),
         .up_end     ( up_end        ),
-        .up_addr    ( up_addr       ),
         .up_lracl   ( up_lracl      ),
 
         .aon_cmd    ( aon_a         ),    // ADPCM ON equivalent to key on for FM
@@ -405,11 +405,11 @@ ym2610_hw0_jt12_mmr #(.use_ssg(use_ssg),.num_ch(num_ch),.use_pcm(use_pcm),
     // ADPCM-A
     .aon_a      ( aon_a         ),   // ON
     .atl_a      ( atl_a         ),   // TL
-    .addr_a     ( addr_a        ),   // address latch
+    .start_addr_a( start_addr_a  ),   // per-channel start register state
+    .end_addr_a  ( end_addr_a    ),   // per-channel end register state
     .lracl      ( lracl         ),   // L/R ADPCM Channel Level
     .up_start   ( up_start      ),   // write enable start address latch
     .up_end     ( up_end        ),   // write enable end address latch
-    .up_addr    ( up_addr       ),   // write enable end address latch
     .up_lracl   ( up_lracl      ),
     .up_aon     ( up_aon        ),
     // ADPCM-B

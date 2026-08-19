@@ -37,12 +37,12 @@ module ym2610_hw0_jt10_adpcm_drvA(
     // Control Registers
     input   [5:0]   atl,        // ADPCM Total Level
     input   [7:0]   lracl_in,
-    input   [15:0]  addr_in,
+    input   [95:0]  start_addr_in,
+    input   [95:0]  end_addr_in,
 
     input   [2:0]   up_lracl,
-    input           up_start,
-    input           up_end,
-    input   [2:0]   up_addr,
+    input   [5:0]   up_start,
+    input   [5:0]   up_end,
 
     input   [7:0]   aon_cmd,    // ADPCM ON equivalent to key on for FM
     input           up_aon,
@@ -141,6 +141,27 @@ always @(posedge clk or negedge rst_n)
         match <= cur_next == (cur_ch[5] ? en_next : en_ch);
     end
 
+function [15:0] select_addr;
+    input [95:0] addresses;
+    input [5:0] channel;
+    begin
+        case(channel)
+            6'b000001: select_addr = addresses[15:0];
+            6'b000010: select_addr = addresses[31:16];
+            6'b000100: select_addr = addresses[47:32];
+            6'b001000: select_addr = addresses[63:48];
+            6'b010000: select_addr = addresses[79:64];
+            6'b100000: select_addr = addresses[95:80];
+            default:   select_addr = 16'd0;
+        endcase
+    end
+endfunction
+
+wire [15:0] start_addr_current = select_addr(start_addr_in, cur_ch);
+wire [15:0] end_addr_current   = select_addr(end_addr_in, cur_ch);
+wire up_start_current = |(up_start & cur_ch);
+wire up_end_current   = |(up_end & cur_ch);
+
 wire [15:0] start_top, end_top;
 
 wire clr_dec, decon;
@@ -153,10 +174,10 @@ ym2610_adpcma_candidate_jt10_adpcm_cnt u_cnt(
     .cur_ch      ( cur_ch          ),
     .en_ch       ( en_ch           ),
     // START/END update
-    .addr_in     ( addr_in         ),
-    .addr_ch     ( up_addr         ),
-    .up_start    ( up_start        ),
-    .up_end      ( up_end          ),
+    .start_addr_in( start_addr_current ),
+    .end_addr_in  ( end_addr_current   ),
+    .up_start    ( up_start_current ),
+    .up_end      ( up_end_current   ),
     // Control
     .aon         ( aon_sr[0]       ),
     .aoff        ( aoff_sr[0]      ),
@@ -404,8 +425,8 @@ module ym2610_adpcma_candidate_jt10_adpcm_cnt(
     input      [ 5:0] cur_ch,
     input      [ 5:0] en_ch,
     // Address writes from CPU
-    input      [15:0] addr_in,
-    input      [ 2:0] addr_ch,
+    input      [15:0] start_addr_in,
+    input      [15:0] end_addr_in,
     input             up_start,
     input             up_end,
     // Counter control
@@ -483,21 +504,6 @@ wire [11:0] addr1_cmp = addr1[20:9];
 assign start_top = {bank1, start1};
 assign   end_top =   {bank1, end1};
 
-reg [5:0] addr_ch_dec;
-
-always @(*)
-    case(addr_ch)
-        3'd0: addr_ch_dec = 6'b000_001;
-        3'd1: addr_ch_dec = 6'b000_010;
-        3'd2: addr_ch_dec = 6'b000_100;
-        3'd3: addr_ch_dec = 6'b001_000;
-        3'd4: addr_ch_dec = 6'b010_000;
-        3'd5: addr_ch_dec = 6'b100_000;
-        default: addr_ch_dec = 6'd0;
-    endcase // up_addr
-
-wire up1 = cur_ch == addr_ch_dec;
-
 always @(posedge clk or negedge rst_n)
     if( !rst_n ) begin
         addr1  <= 'd0;    addr2 <= 'd0;    addr3 <= 'd0;
@@ -522,9 +528,9 @@ always @(posedge clk or negedge rst_n)
         addr2  <= addr1;
         on2    <= aoff ? 1'b0 : (aon | (on1 && ~done1));
         clr2   <= aoff || aon || done1; // Each time a A-ON is sent the address counter restarts
-        start2 <=  (up_start && up1) ? addr_in[11:0] : start1;
-        end2   <=  (up_end   && up1) ? addr_in[11:0] : end1;
-        bank2  <=  (up_start && up1) ? addr_in[15:12] : bank1;
+        start2 <=  up_start ? start_addr_in[11:0] : start1;
+        end2   <=  up_end   ? end_addr_in[11:0] : end1;
+        bank2  <=  up_start ? start_addr_in[15:12] : bank1;
         skip2  <= skip1;
 
         addr3  <= addr2; // clr2 ? {start2,9'd0} : addr2;

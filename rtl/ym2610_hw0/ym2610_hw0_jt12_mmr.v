@@ -62,11 +62,14 @@ module ym2610_hw0_jt12_mmr(
     // ADPCM-A
     output  reg  [ 7:0] aon_a,      // ON
     output  reg  [ 5:0] atl_a,      // TL
-    output  reg  [15:0] addr_a,     // address latch
+    // ADPCM-A address register state is independent for start/end and every
+    // channel.  The old single addr_a staging latch allowed a later address
+    // write to alter the payload of a held update for a different register.
+    output  reg  [95:0] start_addr_a,
+    output  reg  [95:0] end_addr_a,
     output  reg  [ 7:0] lracl,      // L/R ADPCM Channel Level
-    output  reg         up_start,   // write enable start address latch
-    output  reg         up_end,     // write enable end address latch
-    output  reg  [ 2:0] up_addr,    // write enable end address latch
+    output  reg  [ 5:0] up_start,   // start register state valid by channel
+    output  reg  [ 5:0] up_end,     // end register state valid by channel
     output  reg  [ 2:0] up_lracl,
     output  reg         up_aon,     // There was a write AON register
     // ADPCM-B
@@ -237,11 +240,11 @@ always @(posedge clk) begin : memory_mapped_registers
         atl_a       <=  'd0;
         up_start    <=  'd0;
         up_end      <=  'd0;
-        up_addr     <= 3'd7;
         up_lracl    <= 3'd7;
         up_aon      <=  'd0;
         lracl       <=  'd0;
-        addr_a      <=  'd0;
+        start_addr_a <= 'd0;
+        end_addr_a   <= 'd0;
         // ADPCM-B
         acmd_on_b   <=  'd0;
         acmd_rep_b  <=  'd0;
@@ -361,17 +364,22 @@ always @(posedge clk) begin : memory_mapped_registers
                                 up_lracl <= selected_register[2:0];
                             end
                             6'b01_????, 6'b10_????: begin
-                                if( !selected_register[3] ) addr_a[ 7:0] <= din;
-                                if( selected_register[3]  ) addr_a[15:8] <= din;
                                 case( selected_register[5:4] )
-                                    2'b01, 2'b10: begin
-                                        {up_end, up_start } <= selected_register[5:4];
-                                        up_addr <= selected_register[2:0];
+                                    2'b01: begin
+                                        if( !selected_register[3] )
+                                            start_addr_a[{selected_register[2:0],4'b0} +: 8] <= din;
+                                        if( selected_register[3] )
+                                            start_addr_a[{selected_register[2:0],4'b0} + 8 +: 8] <= din;
+                                        up_start[selected_register[2:0]] <= 1'b1;
                                     end
-                                    default: begin
-                                        up_start <= 1'b0;
-                                        up_end   <= 1'b0;
+                                    2'b10: begin
+                                        if( !selected_register[3] )
+                                            end_addr_a[{selected_register[2:0],4'b0} +: 8] <= din;
+                                        if( selected_register[3] )
+                                            end_addr_a[{selected_register[2:0],4'b0} + 8 +: 8] <= din;
+                                        up_end[selected_register[2:0]] <= 1'b1;
                                     end
+                                    default:;
                                 endcase
                             end
                             default:;
