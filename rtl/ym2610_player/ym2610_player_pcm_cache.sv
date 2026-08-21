@@ -97,6 +97,10 @@ module ym2610_player_pcm_cache #(
     // of which lane happens to be visible when a memory response arrives.
     logic [5:0] live_a_valid;
     logic [19:0] live_a_addr [0:5];
+    logic [5:0] live_a_current_slot_valid;
+    logic [5:0] live_a_next_slot_valid;
+    logic [PTR_WIDTH-1:0] live_a_current_slot [0:5];
+    logic [PTR_WIDTH-1:0] live_a_next_slot [0:5];
     logic [ENTRIES-1:0] live_a_slots;
     logic live_a_transition;
     // ADPCM-B has one channel, but its ROM output-enable is a pulse.  Retain
@@ -104,12 +108,23 @@ module ym2610_player_pcm_cache #(
     // cannot evict data that B still presents to the decoder.
     logic live_b_valid;
     logic [19:0] live_b_addr;
+    logic live_b_current_slot_valid;
+    logic live_b_next_slot_valid;
+    logic [PTR_WIDTH-1:0] live_b_current_slot;
+    logic [PTR_WIDTH-1:0] live_b_next_slot;
     logic [ENTRIES-1:0] live_b_slots;
     logic live_b_transition;
+    logic [ENTRIES-1:0] live_a_victim_slots;
+    logic [ENTRIES-1:0] live_b_victim_slots;
+    logic [ENTRIES-1:0] protected_slots;
     logic [PTR_WIDTH-1:0] replacement_slot;
     logic replacement_found;
     logic response_live_a;
     logic response_live_b;
+    logic [5:0] response_a_current_lane;
+    logic [5:0] response_a_next_lane;
+    logic response_b_current;
+    logic response_b_next;
     logic [15:0] start_a [0:5];
     logic [15:0] start_b;
     logic request_pending;
@@ -133,6 +148,12 @@ module ym2610_player_pcm_cache #(
 `endif
     logic a_current_hit, a_next_hit, b_current_hit, b_next_hit;
     logic [7:0] a_current_data, b_current_data;
+    logic [PTR_WIDTH-1:0] a_current_slot, a_next_slot;
+    logic [PTR_WIDTH-1:0] b_current_slot, b_next_slot;
+    logic [5:0] prewarm_a_current_hit, prewarm_a_next_hit;
+    logic [PTR_WIDTH-1:0] prewarm_a_current_slot [0:5];
+    logic [PTR_WIDTH-1:0] prewarm_a_next_slot [0:5];
+    logic prewarm_b_current_hit, prewarm_b_next_hit;
     logic prewarm_a;
     logic prewarm_b;
     logic prewarm_missing;
@@ -141,106 +162,10 @@ module ym2610_player_pcm_cache #(
     logic [19:0] a_need_logical, b_need_logical;
     integer i;
 
-    // Deterministic round-robin victim selection.  Prepared and prior command
-    // generations cover at most 36 slots, the six-lane live union at most 12,
-    // and an active ADPCM-B pair at most two.  A same-edge six-voice re-key can
-    // transiently add 12 more tags, for at most 62 protected slots.  The
-    // production 64-entry cache therefore always has an eligible destination.
-    // replace_ptr starts the search and advances past the actual victim.
-    always_comb begin
-        replacement_slot = replace_ptr;
-        replacement_found = 1'b0;
-        for (integer victim_offset = 0; victim_offset < ENTRIES;
-             victim_offset = victim_offset + 1) begin
-            integer candidate_index;
-            logic [PTR_WIDTH-1:0] candidate_slot;
-            logic candidate_protected;
-
-            candidate_index = int'(replace_ptr) + victim_offset;
-            if (candidate_index >= ENTRIES)
-                candidate_index = candidate_index - ENTRIES;
-            candidate_slot = candidate_index[PTR_WIDTH-1:0];
-            candidate_protected = 1'b0;
-
-            if (mem_req || request_pending || mem_valid) begin
-                if (!live_a_transition) begin
-                    if (live_a_slots[candidate_slot])
-                        candidate_protected = 1'b1;
-                end else if (cache_valid[candidate_slot] &&
-                             !cache_space_b[candidate_slot]) begin
-                    // On a presentation transition, use the post-edge union
-                    // (new + old history 0..4), not the registered pre-edge
-                    // bitmap that still contains the dropped sixth address.
-                    if (cache_logical[candidate_slot] == adpcma_addr ||
-                        cache_logical[candidate_slot] ==
-                            adpcma_addr + 20'd1)
-                        candidate_protected = 1'b1;
-                    for (integer transition_lane = 0;
-                         transition_lane < 5;
-                         transition_lane = transition_lane + 1)
-                        if (live_a_valid[transition_lane] &&
-                            (cache_logical[candidate_slot] ==
-                                 live_a_addr[transition_lane] ||
-                             cache_logical[candidate_slot] ==
-                                 live_a_addr[transition_lane] + 20'd1))
-                            candidate_protected = 1'b1;
-                end
-                if (active && !adpcma_roe_n &&
-                    cache_valid[candidate_slot] &&
-                    !cache_space_b[candidate_slot]) begin
-                    if (cache_logical[candidate_slot] == adpcma_addr ||
-                        cache_logical[candidate_slot] == adpcma_addr + 20'd1)
-                        candidate_protected = 1'b1;
-                end
-                if (!live_b_transition) begin
-                    if (live_b_slots[candidate_slot])
-                        candidate_protected = 1'b1;
-                end else if (cache_valid[candidate_slot] &&
-                             cache_space_b[candidate_slot]) begin
-                    if (cache_logical[candidate_slot] == adpcmb_addr[19:0] ||
-                        cache_logical[candidate_slot] ==
-                            adpcmb_addr[19:0] + 20'd1)
-                        candidate_protected = 1'b1;
-                end
-
-                for (integer voice = 0; voice < 6; voice = voice + 1) begin
-                    if (prepared_a_valid[voice] &&
-                        (candidate_slot == prepared_a_current_slot[voice] ||
-                         candidate_slot == prepared_a_next_slot[voice]))
-                        candidate_protected = 1'b1;
-                    if (retired_a_valid[voice] &&
-                        (candidate_slot == retired_a_current_slot[voice] ||
-                         candidate_slot == retired_a_next_slot[voice]))
-                        candidate_protected = 1'b1;
-                    if (retired2_a_valid[voice] &&
-                        (candidate_slot == retired2_a_current_slot[voice] ||
-                         candidate_slot == retired2_a_next_slot[voice]))
-                        candidate_protected = 1'b1;
-
-                    // Include a key-on accepted on this response edge.  In
-                    // normal operation prewarm has no response outstanding,
-                    // but this makes the readiness transition atomic.
-                    if (write_accept && write_port &&
-                        write_address == 8'h00 && !write_data[7] &&
-                        write_data[voice] && cache_valid[candidate_slot] &&
-                        !cache_space_b[candidate_slot] &&
-                        (cache_logical[candidate_slot] ==
-                             {start_a[voice][11:0], 8'd0} ||
-                         cache_logical[candidate_slot] ==
-                             {start_a[voice][11:0], 8'd0} + 20'd1))
-                        candidate_protected = 1'b1;
-                end
-
-                if (!replacement_found && !candidate_protected) begin
-                    replacement_slot = candidate_slot;
-                    replacement_found = 1'b1;
-                end
-            end
-        end
-    end
-
-    // A response inherits live status from its captured logical address, not
-    // from whichever lane is visible when the byte returns.
+    // Protection is represented by resident slot indices.  Address/tag
+    // comparison happens only in the ordinary cache lookup paths; the victim
+    // scan consumes one protected bit per candidate and never re-compares a
+    // candidate tag against every live or prepared address.
     always_comb begin
         live_a_transition = active && !adpcma_roe_n &&
                             (!live_a_valid[0] ||
@@ -248,51 +173,205 @@ module ym2610_player_pcm_cache #(
         live_b_transition = active && !adpcmb_roe_n &&
                             (!live_b_valid ||
                              live_b_addr != adpcmb_addr[19:0]);
-    end
 
-    always_comb begin
-        response_live_b = 1'b0;
-        if (active && request_space_b) begin
-            if (!adpcmb_roe_n &&
-                (request_logical == adpcmb_addr[19:0] ||
-                 request_logical == adpcmb_addr[19:0] + 20'd1))
-                response_live_b = 1'b1;
-            if (live_b_valid && !live_b_transition &&
-                (request_logical == live_b_addr ||
-                 request_logical == live_b_addr + 20'd1))
-                response_live_b = 1'b1;
+        live_a_slots = '0;
+        for (integer live_lane = 0; live_lane < 6;
+             live_lane = live_lane + 1) begin
+            if (live_a_current_slot_valid[live_lane])
+                live_a_slots[live_a_current_slot[live_lane]] = 1'b1;
+            if (live_a_next_slot_valid[live_lane])
+                live_a_slots[live_a_next_slot[live_lane]] = 1'b1;
+        end
+        live_b_slots = '0;
+        if (live_b_current_slot_valid)
+            live_b_slots[live_b_current_slot] = 1'b1;
+        if (live_b_next_slot_valid)
+            live_b_slots[live_b_next_slot] = 1'b1;
+
+        // A replacement on the same edge as a presentation transition sees
+        // the post-transition six-lane union: new lane plus history 0..4.
+        live_a_victim_slots = live_a_slots;
+        if (!active) begin
+            live_a_victim_slots = '0;
+        end else if (live_a_transition) begin
+            live_a_victim_slots = '0;
+            if (a_current_hit)
+                live_a_victim_slots[a_current_slot] = 1'b1;
+            if (a_next_hit)
+                live_a_victim_slots[a_next_slot] = 1'b1;
+            for (integer victim_lane = 0; victim_lane < 5;
+                 victim_lane = victim_lane + 1) begin
+                if (live_a_current_slot_valid[victim_lane])
+                    live_a_victim_slots[
+                        live_a_current_slot[victim_lane]] = 1'b1;
+                if (live_a_next_slot_valid[victim_lane])
+                    live_a_victim_slots[
+                        live_a_next_slot[victim_lane]] = 1'b1;
+            end
+        end
+
+        live_b_victim_slots = live_b_slots;
+        if (!active) begin
+            live_b_victim_slots = '0;
+        end else if (live_b_transition) begin
+            live_b_victim_slots = '0;
+            if (b_current_hit)
+                live_b_victim_slots[b_current_slot] = 1'b1;
+            if (b_next_hit)
+                live_b_victim_slots[b_next_slot] = 1'b1;
         end
     end
 
     always_comb begin
-        response_live_a = 1'b0;
+        protected_slots = live_a_victim_slots | live_b_victim_slots;
+        for (integer voice = 0; voice < 6; voice = voice + 1) begin
+            if (prepared_a_valid[voice]) begin
+                protected_slots[prepared_a_current_slot[voice]] = 1'b1;
+                protected_slots[prepared_a_next_slot[voice]] = 1'b1;
+            end
+            if (retired_a_valid[voice]) begin
+                protected_slots[retired_a_current_slot[voice]] = 1'b1;
+                protected_slots[retired_a_next_slot[voice]] = 1'b1;
+            end
+            if (retired2_a_valid[voice]) begin
+                protected_slots[retired2_a_current_slot[voice]] = 1'b1;
+                protected_slots[retired2_a_next_slot[voice]] = 1'b1;
+            end
+
+            // Preserve same-edge key-on atomicity with already-resolved slot
+            // references instead of another candidate-wide tag match.
+            if (write_accept && write_port && write_address == 8'h00 &&
+                !write_data[7] && write_data[voice]) begin
+                if (prewarm_a_current_hit[voice])
+                    protected_slots[
+                        prewarm_a_current_slot[voice]] = 1'b1;
+                if (prewarm_a_next_hit[voice])
+                    protected_slots[prewarm_a_next_slot[voice]] = 1'b1;
+            end
+        end
+    end
+
+    // Deterministic round-robin victim selection.  Command generations cover
+    // at most 36 slots, the six-lane live union at most 12, active ADPCM-B at
+    // most two, and a same-edge six-voice key-on at most 12.  The production
+    // 64-entry cache therefore has progress even at the 62-slot upper bound.
+    // If a smaller parameterization protects every slot, replacement_found
+    // remains low rather than violating a live reservation.
+    always_comb begin
+        replacement_slot = replace_ptr;
+        replacement_found = 1'b0;
+        for (integer victim_offset = 0; victim_offset < ENTRIES;
+             victim_offset = victim_offset + 1) begin
+            integer candidate_index;
+            logic [PTR_WIDTH-1:0] candidate_slot;
+
+            candidate_index = int'(replace_ptr) + victim_offset;
+            if (candidate_index >= ENTRIES)
+                candidate_index = candidate_index - ENTRIES;
+            candidate_slot = candidate_index[PTR_WIDTH-1:0];
+            if ((mem_req || request_pending || mem_valid) &&
+                !replacement_found && !protected_slots[candidate_slot]) begin
+                replacement_slot = candidate_slot;
+                replacement_found = 1'b1;
+            end
+        end
+    end
+
+    // A response inherits live status from captured logical ownership.  The
+    // lane-match vector also installs the new resident slot into the correct
+    // post-transition history entry on the response edge.
+    always_comb begin
+        response_a_current_lane = 6'd0;
+        response_a_next_lane = 6'd0;
         if (active && !request_space_b) begin
-            if (!adpcma_roe_n &&
-                (request_logical == adpcma_addr ||
-                 request_logical == adpcma_addr + 20'd1))
-                response_live_a = 1'b1;
-            for (integer live_lane = 0; live_lane < 6;
-                 live_lane = live_lane + 1)
-                if (live_a_valid[live_lane] &&
-                    (!live_a_transition || live_lane < 5) &&
-                    (request_logical == live_a_addr[live_lane] ||
-                     request_logical == live_a_addr[live_lane] + 20'd1))
-                    response_live_a = 1'b1;
+            if (live_a_transition) begin
+                if (request_logical == adpcma_addr)
+                    response_a_current_lane[0] = 1'b1;
+                if (request_logical == adpcma_addr + 20'd1)
+                    response_a_next_lane[0] = 1'b1;
+                for (integer response_lane = 0; response_lane < 5;
+                     response_lane = response_lane + 1) begin
+                    if (live_a_valid[response_lane] &&
+                        request_logical == live_a_addr[response_lane])
+                        response_a_current_lane[response_lane + 1] = 1'b1;
+                    if (live_a_valid[response_lane] &&
+                        request_logical == live_a_addr[response_lane] + 20'd1)
+                        response_a_next_lane[response_lane + 1] = 1'b1;
+                end
+            end else begin
+                for (integer response_lane = 0; response_lane < 6;
+                     response_lane = response_lane + 1) begin
+                    if (live_a_valid[response_lane] &&
+                        request_logical == live_a_addr[response_lane])
+                        response_a_current_lane[response_lane] = 1'b1;
+                    if (live_a_valid[response_lane] &&
+                        request_logical == live_a_addr[response_lane] + 20'd1)
+                        response_a_next_lane[response_lane] = 1'b1;
+                end
+            end
         end
+        response_live_a = |response_a_current_lane |
+                          |response_a_next_lane;
+
+        response_b_current = 1'b0;
+        response_b_next = 1'b0;
+        if (active && request_space_b) begin
+            if (live_b_transition) begin
+                response_b_current = request_logical == adpcmb_addr[19:0];
+                response_b_next =
+                    request_logical == adpcmb_addr[19:0] + 20'd1;
+            end else if (live_b_valid) begin
+                response_b_current = request_logical == live_b_addr;
+                response_b_next = request_logical == live_b_addr + 20'd1;
+            end
+        end
+        response_live_b = response_b_current | response_b_next;
     end
 
-    function automatic logic contains(input logic space_b,
-                                      input logic [19:0] logical_addr);
-        logic found;
-        begin
-            found = 1'b0;
-            for (integer find_i = 0; find_i < ENTRIES; find_i = find_i + 1)
-                if (cache_valid[find_i] && cache_space_b[find_i] == space_b &&
-                    cache_logical[find_i] == logical_addr)
-                    found = 1'b1;
-            contains = found;
+    // Resolve all startup-byte hits and resident slots once.  These results
+    // serve both write_allow and the accepted key-on snapshot; the old design
+    // repeated the same 20-bit tag searches again in protection logic.
+    always_comb begin
+        prewarm_a_current_hit = 6'd0;
+        prewarm_a_next_hit = 6'd0;
+        prewarm_b_current_hit = 1'b0;
+        prewarm_b_next_hit = 1'b0;
+        for (integer voice = 0; voice < 6; voice = voice + 1) begin
+            prewarm_a_current_slot[voice] = '0;
+            prewarm_a_next_slot[voice] = '0;
         end
-    endfunction
+        for (integer startup_slot = 0; startup_slot < ENTRIES;
+             startup_slot = startup_slot + 1) begin
+            if (cache_valid[startup_slot]) begin
+                if (cache_space_b[startup_slot]) begin
+                    if (cache_logical[startup_slot] ==
+                        {start_b[11:0], 8'd0}) begin
+                        prewarm_b_current_hit = 1'b1;
+                    end
+                    if (cache_logical[startup_slot] ==
+                        {start_b[11:0], 8'd0} + 20'd1) begin
+                        prewarm_b_next_hit = 1'b1;
+                    end
+                end else begin
+                    for (integer voice = 0; voice < 6;
+                         voice = voice + 1) begin
+                        if (cache_logical[startup_slot] ==
+                            {start_a[voice][11:0], 8'd0}) begin
+                            prewarm_a_current_hit[voice] = 1'b1;
+                            prewarm_a_current_slot[voice] =
+                                startup_slot[PTR_WIDTH-1:0];
+                        end
+                        if (cache_logical[startup_slot] ==
+                            {start_a[voice][11:0], 8'd0} + 20'd1) begin
+                            prewarm_a_next_hit[voice] = 1'b1;
+                            prewarm_a_next_slot[voice] =
+                                startup_slot[PTR_WIDTH-1:0];
+                        end
+                    end
+                end
+            end
+        end
+    end
 
     always_comb begin
         a_current_hit = 1'b0;
@@ -301,6 +380,10 @@ module ym2610_player_pcm_cache #(
         b_next_hit = 1'b0;
         a_current_data = 8'd0;
         b_current_data = 8'd0;
+        a_current_slot = '0;
+        a_next_slot = '0;
+        b_current_slot = '0;
+        b_next_slot = '0;
         occupancy = 7'd0;
         for (integer lookup_i = 0; lookup_i < ENTRIES; lookup_i = lookup_i + 1) begin
             if (cache_valid[lookup_i]) begin
@@ -309,18 +392,24 @@ module ym2610_player_pcm_cache #(
                     cache_logical[lookup_i] == adpcma_addr) begin
                     a_current_hit = 1'b1;
                     a_current_data = cache_data[lookup_i];
+                    a_current_slot = lookup_i[PTR_WIDTH-1:0];
                 end
                 if (!cache_space_b[lookup_i] &&
-                    cache_logical[lookup_i] == adpcma_addr + 20'd1)
+                    cache_logical[lookup_i] == adpcma_addr + 20'd1) begin
                     a_next_hit = 1'b1;
+                    a_next_slot = lookup_i[PTR_WIDTH-1:0];
+                end
                 if (cache_space_b[lookup_i] &&
                     cache_logical[lookup_i] == adpcmb_addr[19:0]) begin
                     b_current_hit = 1'b1;
                     b_current_data = cache_data[lookup_i];
+                    b_current_slot = lookup_i[PTR_WIDTH-1:0];
                 end
                 if (cache_space_b[lookup_i] &&
-                    cache_logical[lookup_i] == adpcmb_addr[19:0] + 20'd1)
+                    cache_logical[lookup_i] == adpcmb_addr[19:0] + 20'd1) begin
                     b_next_hit = 1'b1;
+                    b_next_slot = lookup_i[PTR_WIDTH-1:0];
+                end
             end
         end
         adpcma_data = a_current_data;
@@ -359,14 +448,14 @@ module ym2610_player_pcm_cache #(
 
         if (prewarm_a) begin
             for (integer voice = 0; voice < 6; voice = voice + 1) begin
-                if (write_data[voice] && !contains(1'b0, {start_a[voice][11:0], 8'd0}) &&
+                if (write_data[voice] && !prewarm_a_current_hit[voice] &&
                     !need_valid) begin
                     need_valid = 1'b1;
                     need_required = 1'b1;
                     need_space_b = 1'b0;
                     need_logical = {start_a[voice][11:0], 8'd0};
                 end else if (write_data[voice] &&
-                             !contains(1'b0, {start_a[voice][11:0], 8'd0} + 20'd1) &&
+                             !prewarm_a_next_hit[voice] &&
                              !need_valid) begin
                     need_valid = 1'b1;
                     need_required = 1'b1;
@@ -374,17 +463,17 @@ module ym2610_player_pcm_cache #(
                     need_logical = {start_a[voice][11:0], 8'd0} + 20'd1;
                 end
                 if (write_data[voice] &&
-                    (!contains(1'b0, {start_a[voice][11:0], 8'd0}) ||
-                     !contains(1'b0, {start_a[voice][11:0], 8'd0} + 20'd1)))
+                    (!prewarm_a_current_hit[voice] ||
+                     !prewarm_a_next_hit[voice]))
                     prewarm_missing = 1'b1;
             end
         end else if (prewarm_b) begin
-            if (!contains(1'b1, {start_b[11:0], 8'd0})) begin
+            if (!prewarm_b_current_hit) begin
                 need_valid = 1'b1;
                 need_required = 1'b1;
                 need_space_b = 1'b1;
                 need_logical = {start_b[11:0], 8'd0};
-            end else if (!contains(1'b1, {start_b[11:0], 8'd0} + 20'd1)) begin
+            end else if (!prewarm_b_next_hit) begin
                 need_valid = 1'b1;
                 need_required = 1'b1;
                 need_space_b = 1'b1;
@@ -476,10 +565,14 @@ module ym2610_player_pcm_cache #(
             retired_a_valid <= 6'd0;
             retired2_a_valid <= 6'd0;
             live_a_valid <= 6'd0;
-            live_a_slots <= '0;
+            live_a_current_slot_valid <= 6'd0;
+            live_a_next_slot_valid <= 6'd0;
             live_b_valid <= 1'b0;
             live_b_addr <= 20'd0;
-            live_b_slots <= '0;
+            live_b_current_slot_valid <= 1'b0;
+            live_b_next_slot_valid <= 1'b0;
+            live_b_current_slot <= '0;
+            live_b_next_slot <= '0;
             request_count <= 32'd0;
             response_count <= 32'd0;
             adpcma_request_count <= 32'd0;
@@ -511,6 +604,8 @@ module ym2610_player_pcm_cache #(
                 retired2_a_current_slot[i] <= '0;
                 retired2_a_next_slot[i] <= '0;
                 live_a_addr[i] <= 20'd0;
+                live_a_current_slot[i] <= '0;
+                live_a_next_slot[i] <= '0;
             end
             for (i = 0; i < ENTRIES; i = i + 1) begin
                 cache_valid[i] <= 1'b0;
@@ -521,47 +616,37 @@ module ym2610_player_pcm_cache #(
         end else begin
             if (!active) begin
                 live_a_valid <= 6'd0;
-                live_a_slots <= '0;
+                live_a_current_slot_valid <= 6'd0;
+                live_a_next_slot_valid <= 6'd0;
             end else if (live_a_transition) begin
                 for (i = 5; i > 0; i = i - 1) begin
                     live_a_valid[i] <= live_a_valid[i-1];
                     live_a_addr[i] <= live_a_addr[i-1];
+                    live_a_current_slot_valid[i] <=
+                        live_a_current_slot_valid[i-1];
+                    live_a_next_slot_valid[i] <=
+                        live_a_next_slot_valid[i-1];
+                    live_a_current_slot[i] <= live_a_current_slot[i-1];
+                    live_a_next_slot[i] <= live_a_next_slot[i-1];
                 end
                 live_a_valid[0] <= 1'b1;
                 live_a_addr[0] <= adpcma_addr;
-                // The new active read plus the five immediately preceding
-                // reads are the complete six-lane current-address
-                // union after this edge.  Recompute slot protection exactly.
-                for (i = 0; i < ENTRIES; i = i + 1) begin
-                    live_a_slots[i] <= 1'b0;
-                    if (cache_valid[i] && !cache_space_b[i]) begin
-                        if (cache_logical[i] == adpcma_addr ||
-                            cache_logical[i] == adpcma_addr + 20'd1)
-                            live_a_slots[i] <= 1'b1;
-                        for (integer history_lane = 0; history_lane < 5;
-                             history_lane = history_lane + 1)
-                            if (live_a_valid[history_lane] &&
-                                (cache_logical[i] ==
-                                     live_a_addr[history_lane] ||
-                                 cache_logical[i] ==
-                                     live_a_addr[history_lane] + 20'd1))
-                                live_a_slots[i] <= 1'b1;
-                    end
-                end
+                live_a_current_slot_valid[0] <= a_current_hit;
+                live_a_next_slot_valid[0] <= a_next_hit;
+                live_a_current_slot[0] <= a_current_slot;
+                live_a_next_slot[0] <= a_next_slot;
             end
             if (!active) begin
                 live_b_valid <= 1'b0;
-                live_b_slots <= '0;
+                live_b_current_slot_valid <= 1'b0;
+                live_b_next_slot_valid <= 1'b0;
             end else if (live_b_transition) begin
                 live_b_valid <= 1'b1;
                 live_b_addr <= adpcmb_addr[19:0];
-                for (i = 0; i < ENTRIES; i = i + 1) begin
-                    live_b_slots[i] <= 1'b0;
-                    if (cache_valid[i] && cache_space_b[i] &&
-                        (cache_logical[i] == adpcmb_addr[19:0] ||
-                         cache_logical[i] == adpcmb_addr[19:0] + 20'd1))
-                        live_b_slots[i] <= 1'b1;
-                end
+                live_b_current_slot_valid <= b_current_hit;
+                live_b_next_slot_valid <= b_next_hit;
+                live_b_current_slot <= b_current_slot;
+                live_b_next_slot <= b_next_slot;
             end
             if (active && need_valid && map_hit && !offer_valid &&
                 !request_pending && !mem_ready) begin
@@ -598,24 +683,10 @@ module ym2610_player_pcm_cache #(
                                 prepared_a_valid[i] <= 1'b0;
                             end else begin
                                 prepared_a_valid[i] <= 1'b1;
-                                prepared_a_current_slot[i] <= '0;
-                                prepared_a_next_slot[i] <= '0;
-                                for (integer prepared_slot = 0;
-                                     prepared_slot < ENTRIES;
-                                     prepared_slot = prepared_slot + 1) begin
-                                    if (cache_valid[prepared_slot] &&
-                                        !cache_space_b[prepared_slot] &&
-                                        cache_logical[prepared_slot] ==
-                                            {start_a[i][11:0], 8'd0})
-                                        prepared_a_current_slot[i] <=
-                                            prepared_slot[PTR_WIDTH-1:0];
-                                    if (cache_valid[prepared_slot] &&
-                                        !cache_space_b[prepared_slot] &&
-                                        cache_logical[prepared_slot] ==
-                                            {start_a[i][11:0], 8'd0} + 20'd1)
-                                        prepared_a_next_slot[i] <=
-                                            prepared_slot[PTR_WIDTH-1:0];
-                                end
+                                prepared_a_current_slot[i] <=
+                                    prewarm_a_current_slot[i];
+                                prepared_a_next_slot[i] <=
+                                    prewarm_a_next_slot[i];
                             end
                         end
                     end
@@ -649,8 +720,28 @@ module ym2610_player_pcm_cache #(
                         cache_space_b[replacement_slot] <= request_space_b;
                         cache_logical[replacement_slot] <= request_logical;
                         cache_data[replacement_slot] <= mem_data;
-                        live_a_slots[replacement_slot] <= response_live_a;
-                        live_b_slots[replacement_slot] <= response_live_b;
+                        if (response_live_a) begin
+                            for (i = 0; i < 6; i = i + 1) begin
+                                if (response_a_current_lane[i]) begin
+                                    live_a_current_slot_valid[i] <= 1'b1;
+                                    live_a_current_slot[i] <= replacement_slot;
+                                end
+                                if (response_a_next_lane[i]) begin
+                                    live_a_next_slot_valid[i] <= 1'b1;
+                                    live_a_next_slot[i] <= replacement_slot;
+                                end
+                            end
+                        end
+                        if (response_live_b) begin
+                            if (response_b_current) begin
+                                live_b_current_slot_valid <= 1'b1;
+                                live_b_current_slot <= replacement_slot;
+                            end
+                            if (response_b_next) begin
+                                live_b_next_slot_valid <= 1'b1;
+                                live_b_next_slot <= replacement_slot;
+                            end
+                        end
                         if (replacement_slot == LAST_SLOT)
                             replace_ptr <= '0;
                         else
