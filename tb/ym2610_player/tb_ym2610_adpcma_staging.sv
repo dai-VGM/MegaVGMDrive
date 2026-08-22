@@ -16,7 +16,7 @@ module tb_ym2610_adpcma_staging;
         .rst(rst), .clk(clk), .cen(1'b1), .din(din), .write(write),
         .addr(addr), .start_addr_a(start_addr_a), .end_addr_a(end_addr_a),
         .up_start(up_start), .up_end(up_end), .flag_A(1'b0),
-        .overflow_A(1'b0)
+        .overflow_A(1'b0), .aon_accept(1'b0)
     );
 
     task write_reg;

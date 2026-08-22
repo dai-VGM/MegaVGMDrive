@@ -71,7 +71,8 @@ module ym2610_hw0_jt12_mmr(
     output  reg  [ 5:0] up_start,   // start register state valid by channel
     output  reg  [ 5:0] up_end,     // end register state valid by channel
     output  reg  [ 2:0] up_lracl,
-    output  reg         up_aon,     // There was a write AON register
+    output  reg         up_aon,     // Pending AON write, held until consumed
+    input               aon_accept, // Driver consumed the pending AON write
     // ADPCM-B
     output  reg         acmd_on_b,  // Control - Process start, Key On
     output  reg         acmd_rep_b, // Control - Repeat
@@ -267,6 +268,12 @@ always @(posedge clk) begin : memory_mapped_registers
         din_copy   <= 8'd0;
         part       <= 1'b0;
     end else begin
+        // Sparse external CEN may be low when clk_en is asserted.  Keep a
+        // reg00 command pending until the ADPCM-A driver consumes it at the
+        // serialized command-load point.
+        if( aon_accept || (!use_adpcm && clk_en) )
+            up_aon <= 1'b0;
+
         // WRITE IN REGISTERS
         if( write ) begin
 `ifdef VERBOSE_TB_LOG
@@ -429,7 +436,6 @@ always @(posedge clk) begin : memory_mapped_registers
             psg_wr_n <= 1'b1;
             pcm_wr   <= 1'b0;
             flag_ctl <= 'd0;
-            up_aon   <= 1'b0;
             acmd_up_b <= 1'b0;
         end
     end
@@ -448,8 +454,17 @@ always @(posedge clk, posedge rst)
             busy_cnt <= 5'd0;
         end
         else if(clk_en) begin
-            if( busy_cnt == 5'd31 ) busy <= 1'b0;
-            busy_cnt <= busy_cnt+5'd1;
+            if( busy_cnt == 5'd31 ) begin
+                // A single pending slot is lossless only if another legal
+                // data write cannot overwrite it.  Hold the public BUSY
+                // backpressure until the ADPCM-A driver acknowledges actual
+                // consumption.  Non-ADPCM configurations retain the legacy
+                // fixed 32-cycle BUSY behavior.
+                if( !use_adpcm || !up_aon )
+                    busy <= 1'b0;
+            end else begin
+                busy_cnt <= busy_cnt+5'd1;
+            end
         end
     end
 /* verilator tracing_on */

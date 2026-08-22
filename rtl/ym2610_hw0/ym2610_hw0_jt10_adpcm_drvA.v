@@ -46,6 +46,7 @@ module ym2610_hw0_jt10_adpcm_drvA(
 
     input   [7:0]   aon_cmd,    // ADPCM ON equivalent to key on for FM
     input           up_aon,
+    output          aon_accept,
 
     input   [7:0]   datain,
 
@@ -75,36 +76,15 @@ always @(posedge clk or negedge rst_n)
 
 reg [ 5:0] aon_sr, aoff_sr;
 
-reg [7:0] aon_cmd_cpy;
-reg aon_cmd_valid;
-reg up_aon_armed;
-
-// One held-high MMR update level is one command capture.  A low interval
-// rearms the mailbox even when external CEN is sparse; the actual capture
-// remains qualified by CEN.
-always @(posedge clk or negedge rst_n) begin
-    if( !rst_n ) begin
-        aon_cmd_cpy <= 8'd0;
-        aon_cmd_valid <= 1'b0;
-        up_aon_armed <= 1'b1;
-    end else begin
-        if( !up_aon )
-            up_aon_armed <= 1'b1;
-        else if( cen && up_aon_armed )
-            up_aon_armed <= 1'b0;
-
-        if( cen && up_aon && up_aon_armed ) begin
-            aon_cmd_cpy <= aon_cmd;
-            aon_cmd_valid <= 1'b1;
-        end else if( cur_ch[5] && cen6 && aon_cmd_valid ) begin
-            aon_cmd_valid <= 1'b0;
-        end
-    end
-end
-
+// The MMR owns the single pending slot and holds both fields stable.  Consume
+// it directly at the serialized command-load point, then acknowledge that
+// same edge.  There is no pulse-capture phase for sparse external CEN to miss.
+wire [7:0] aon_cmd_cpy = aon_cmd;
+wire aon_cmd_valid = up_aon;
 wire audit_command_valid = aon_cmd_valid;
-wire audit_pending_ack = 1'b0;
-wire audit_command_consume = cur_ch[5] && cen6 && aon_cmd_valid;
+wire audit_command_consume = cur_ch[5] && cen6 && audit_command_valid;
+wire audit_pending_ack = audit_command_consume;
+assign aon_accept = audit_command_consume;
 
 always @(posedge clk or negedge rst_n) begin
     if( !rst_n ) begin

@@ -198,6 +198,7 @@ wire [ 5:0] up_start, up_end;
 wire [ 7:0] aon_a, lracl;
 wire [ 5:0] atl_a;     // ADPCM Total Level
 wire        up_aon;
+wire        aon_accept;
 // APDCM-B
 wire        acmd_on_b;     // Control - Process start, Key On
 wire        acmd_rep_b;    // Control - Repeat
@@ -273,6 +274,7 @@ if( use_adpcm==1 ) begin: gen_adpcm
 
         .aon_cmd    ( aon_a         ),    // ADPCM ON equivalent to key on for FM
         .up_aon     ( up_aon        ),
+        .aon_accept ( aon_accept     ),
         // Flags
         .flags      ( adpcma_flags  ),
         .clr_flags  ( flag_ctl[5:0] ),
@@ -335,6 +337,7 @@ if( use_adpcm==1 ) begin: gen_adpcm
         .right      ( fm_snd_right  )
     );
 end else begin : gen_adpcm_no
+    assign aon_accept    = 1'b0;
     assign adpcmA_l     = 'd0;
     assign adpcmA_r     = 'd0;
     assign adpcmB_l     = 'd0;
@@ -412,6 +415,7 @@ ym2610_hw0_jt12_mmr #(.use_ssg(use_ssg),.num_ch(num_ch),.use_pcm(use_pcm),
     .up_end     ( up_end        ),   // write enable end address latch
     .up_lracl   ( up_lracl      ),
     .up_aon     ( up_aon        ),
+    .aon_accept ( aon_accept     ),
     // ADPCM-B
     .acmd_on_b  ( acmd_on_b     ),  // Control - Process start, Key On
     .acmd_rep_b ( acmd_rep_b    ),  // Control - Repeat
