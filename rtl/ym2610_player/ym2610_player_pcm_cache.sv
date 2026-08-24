@@ -482,9 +482,6 @@ module ym2610_player_pcm_cache #(
             end else if (a_current_hit && !a_next_hit) begin
                 a_need_valid = 1'b1;
                 a_need_logical = adpcma_next_logical;
-            end else if (!a_current_hit) begin
-                a_need_valid = 1'b1;
-                a_need_logical = adpcma_logical;
             end
 
             if (!adpcmb_roe_n && !b_current_hit) begin

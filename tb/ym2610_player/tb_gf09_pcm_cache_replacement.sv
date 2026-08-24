@@ -404,6 +404,8 @@ module tb_gf09_pcm_cache_replacement;
         end
     endtask
 
+    // Walk replacement state with the already-idle B client. This keeps the
+    // A live-history lanes untouched now that non-live A misses are rejected.
     task automatic fill_idle_a(
         input logic [19:0] logical_addr,
         input logic enter_live_after,
@@ -416,18 +418,18 @@ module tb_gf09_pcm_cache_replacement;
         integer guard;
         begin
             @(negedge clk);
-            adpcma_roe_n = 1'b1;
-            adpcma_addr = logical_addr;
+            adpcmb_addr = {4'd0, logical_addr};
             guard = 0;
-            while (!(dut.request_pending && !dut.request_space_b &&
+            while (!(dut.request_pending && dut.request_space_b &&
                      dut.request_logical[19:0] == logical_addr) &&
                    guard < 200) begin
                 @(negedge clk);
                 guard = guard + 1;
             end
-            check(dut.request_pending && !dut.request_space_b &&
+            check(dut.request_pending && dut.request_space_b &&
                   dut.request_logical[19:0] == logical_addr,
-                  "target A request was not accepted");
+                  "background B request was not accepted");
+            adpcmb_addr = {4'd0, B_IDLE};
             while (!mem_valid && guard < 240) begin
                 @(negedge clk);
                 guard = guard + 1;
@@ -441,16 +443,16 @@ module tb_gf09_pcm_cache_replacement;
             @(posedge clk);
             @(negedge clk);
             guard = 0;
-            while (find_a_slot(logical_addr) < 0 && guard < 200) begin
+            while (find_b_slot(logical_addr) < 0 && guard < 200) begin
                 @(negedge clk);
                 guard = guard + 1;
             end
-            if (find_a_slot(logical_addr) < 0) begin
-                $display("FAIL idle fill timeout address=%05x", logical_addr);
+            if (find_b_slot(logical_addr) < 0) begin
+                $display("FAIL background fill timeout address=%05x", logical_addr);
                 failures = failures + 1;
             end
             ptr_after = {26'd0, dut.replace_ptr};
-            check(find_a_slot(logical_addr) == destination_slot,
+            check(find_b_slot(logical_addr) == destination_slot,
                   "fill used unexpected destination slot");
             check(ptr_after == ((destination_slot + 1) % ENTRIES),
                   "replace_ptr did not advance past actual destination");
@@ -478,18 +480,18 @@ module tb_gf09_pcm_cache_replacement;
         integer guard;
         begin
             @(negedge clk);
-            adpcma_roe_n = 1'b1;
-            adpcma_addr = logical_addr;
+            adpcmb_addr = {4'd0, logical_addr};
             guard = 0;
-            while (!(dut.request_pending && !dut.request_space_b &&
+            while (!(dut.request_pending && dut.request_space_b &&
                      dut.request_logical[19:0] == logical_addr) &&
                    guard < 200) begin
                 @(negedge clk);
                 guard = guard + 1;
             end
-            check(dut.request_pending && !dut.request_space_b &&
+            check(dut.request_pending && dut.request_space_b &&
                   dut.request_logical[19:0] == logical_addr,
-                  "parked target A request was not accepted");
+                  "parked background B request was not accepted");
+            adpcmb_addr = {4'd0, B_IDLE};
             while (!mem_valid && guard < 240) begin
                 @(negedge clk);
                 guard = guard + 1;
@@ -503,16 +505,16 @@ module tb_gf09_pcm_cache_replacement;
             @(posedge clk);
             @(negedge clk);
             guard = 0;
-            while (find_a_slot(logical_addr) < 0 && guard < 200) begin
+            while (find_b_slot(logical_addr) < 0 && guard < 200) begin
                 @(negedge clk);
                 guard = guard + 1;
             end
-            if (find_a_slot(logical_addr) < 0) begin
+            if (find_b_slot(logical_addr) < 0) begin
                 $display("FAIL parked fill timeout address=%05x", logical_addr);
                 failures = failures + 1;
             end
             ptr_after = {26'd0, dut.replace_ptr};
-            check(find_a_slot(logical_addr) == destination_slot,
+            check(find_b_slot(logical_addr) == destination_slot,
                   "parked fill used unexpected destination slot");
             check(ptr_after == ((destination_slot + 1) % ENTRIES),
                   "parked fill pointer did not follow destination");
@@ -538,6 +540,9 @@ module tb_gf09_pcm_cache_replacement;
             active = 1'b1;
             map_enable = 1'b1;
             adpcma_addr = logical_addr;
+            adpcma_roe_n = 1'b0;
+            @(posedge clk);
+            @(negedge clk);
             adpcma_roe_n = 1'b1;
             guard = 0;
             while (!(dut.request_pending && !dut.request_space_b &&
@@ -571,21 +576,21 @@ module tb_gf09_pcm_cache_replacement;
         logic old_valid;
         logic [19:0] old_logical;
         begin
-            // A normal speculative fill moves ptr 0->1 and places a harmless
+            // A normal B background fill moves ptr 0->1 and places a harmless
             // entry in slot 0.  At the response negedge, immediately switch to
             // the pending key-on so no uncontrolled second fill is accepted.
             @(negedge clk);
             active = 1'b1;
-            adpcma_addr = INITIAL_DUMMY;
-            adpcma_roe_n = 1'b1;
+            adpcmb_addr = {4'd0, INITIAL_DUMMY};
             old_ptr = {26'd0, dut.replace_ptr};
             old_valid = dut.cache_valid[old_ptr];
             old_logical = dut.cache_logical[old_ptr];
-            wait_a_fill(INITIAL_DUMMY);
-            slot = find_a_slot(INITIAL_DUMMY);
+            wait_b_fill(INITIAL_DUMMY);
+            slot = find_b_slot(INITIAL_DUMMY);
             new_ptr = {26'd0, dut.replace_ptr};
             check(slot == 0, "initial dummy was not placed in slot 0");
             check(new_ptr == 1, "initial dummy did not move ptr to 1");
+            adpcmb_addr = {4'd0, B_IDLE};
             adpcma_addr = TARGET_CURRENT;
             begin_keyon();
         end
@@ -704,7 +709,7 @@ module tb_gf09_pcm_cache_replacement;
             check(slot == 2, "fixed replacement did not skip prepared pair");
             check(old_valid && old_logical == B_IDLE,
                   "fixed replacement did not select first eligible slot");
-            check(find_a_slot(20'h6f000) == slot,
+            check(find_b_slot(20'h6f000) == slot,
                   "incoming replacement response was not cached");
             check(find_a_slot(TARGET_CURRENT) == current_slot,
                   "0x07600 was evicted after key-on readiness");
@@ -895,7 +900,7 @@ module tb_gf09_pcm_cache_replacement;
                   "streaming victim did not reach protected slot 0");
             check(slot != current_slot && slot != next_slot,
                   "streaming victim did not skip historical current/next");
-            check(find_a_slot(other_addr) == slot,
+            check(find_b_slot(other_addr) == slot,
                   "streaming incoming response was not cached");
             check(find_a_slot(TARGET_CURRENT) == current_slot,
                   "historical current was evicted");
@@ -1006,7 +1011,7 @@ module tb_gf09_pcm_cache_replacement;
                   "transition-edge live response was selected as victim");
             check(find_a_slot(response_addr_logical) == response_slot,
                   "transition-edge live response was evicted");
-            check(find_a_slot(other_addr) == slot,
+            check(find_b_slot(other_addr) == slot,
                   "transition-edge skip dropped incoming fill");
             check(ptr_after == ((slot + 1) % ENTRIES),
                   "transition-edge skip pointer did not progress");
@@ -1020,6 +1025,7 @@ module tb_gf09_pcm_cache_replacement;
     task automatic run_six_channel_case;
         integer voice;
         integer n;
+        integer guard;
         integer slot;
         integer ptr_before;
         integer ptr_after;
@@ -1035,7 +1041,23 @@ module tb_gf09_pcm_cache_replacement;
             active = 1'b1;
             adpcma_addr = 20'h02000;
             adpcmb_addr = {4'd0, B_IDLE};
-            accept_keyon_mask(6'h3f);
+            write_valid = 1'b1;
+            write_accept = 1'b0;
+            write_port = 1'b1;
+            write_address = 8'h00;
+            write_data = 8'h3f;
+            #1;
+            guard = 0;
+            while (!write_allow && guard < 500) begin
+                @(negedge clk);
+                guard = guard + 1;
+            end
+            check(write_allow, "six-channel key-on prewarm did not complete");
+            write_accept = 1'b1;
+            @(posedge clk);
+            @(negedge clk);
+            write_valid = 1'b0;
+            write_accept = 1'b0;
 
             for (voice = 0; voice < 6; voice = voice + 1) begin
                 voice_current = 20'h02000 + voice * 20'h01000;
@@ -1070,7 +1092,7 @@ module tb_gf09_pcm_cache_replacement;
                   "six-channel scan did not skip all twelve prepared slots");
             check(old_valid && old_logical == B_IDLE,
                   "six-channel scan did not choose first eligible slot");
-            check(find_a_slot(20'h7a000) == 12,
+            check(find_b_slot(20'h7a000) == 12,
                   "six-channel incoming fill was dropped");
             check(ptr_after == 13,
                   "six-channel pointer did not advance after skipped victim");
@@ -1343,7 +1365,7 @@ module tb_gf09_pcm_cache_replacement;
             check(find_b_slot(B_IDLE) == 2 &&
                   find_b_slot(B_IDLE + 20'd1) == 3,
                   "redirected fill evicted active ADPCM-B data");
-            check(find_a_slot(20'h7e000) == slot,
+            check(find_b_slot(20'h7e000) == slot,
                   "redirected fill after active B pair was dropped");
             check(!adpcmb_underflow,
                   "active ADPCM-B protection case underflowed");

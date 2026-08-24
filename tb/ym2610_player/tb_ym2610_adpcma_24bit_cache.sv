@@ -31,6 +31,7 @@ module tb_ym2610_adpcma_24bit_cache;
     logic mem_armed = 1'b0;
     logic [ADDR_WIDTH-1:0] mem_captured;
     integer failures = 0;
+    integer a_mapper_requests = 0;
 
     always #5 clk = ~clk;
     assign map_req_ready = 1'b1;
@@ -63,6 +64,8 @@ module tb_ym2610_adpcma_24bit_cache;
     always_ff @(posedge clk) begin
         map_rsp_valid <= 1'b0;
         if (!reset && map_req_valid && map_req_ready) begin
+            if (!map_space_b)
+                a_mapper_requests <= a_mapper_requests + 1;
             map_rsp_valid <= 1'b1;
             map_rsp_hit <= 1'b1;
             map_rsp_file_addr <= map_logical_addr[ADDR_WIDTH-1:0];
@@ -182,11 +185,15 @@ module tb_ym2610_adpcma_24bit_cache;
             following = current + 24'd1;
             adpcma_bank = current[23:20];
             adpcma_addr = current[19:0];
-            adpcma_roe_n = 1'b1;
             guard = 0;
             while ((find_a(current[23:20], current[19:0]) < 0 ||
                     find_a(following[23:20], following[19:0]) < 0) &&
                    guard < 1000) begin
+                // Runtime current/next requests have a real owner only while
+                // JT10 asserts its A ROM read pulse.
+                adpcma_roe_n = 1'b0;
+                @(negedge clk);
+                adpcma_roe_n = 1'b1;
                 @(negedge clk);
                 guard = guard + 1;
             end
@@ -202,11 +209,24 @@ module tb_ym2610_adpcma_24bit_cache;
         integer voice;
         integer bank;
         integer vector_index;
+        integer request_baseline;
         logic [15:0] starts [0:5];
         logic [23:0] address_vectors [0:7];
 
         reset_cache();
+        request_baseline = a_mapper_requests;
+        adpcma_bank = 4'd0;
+        adpcma_addr = 20'd0;
+        adpcma_roe_n = 1'b1;
+        repeat (40) @(negedge clk);
+        check(a_mapper_requests == request_baseline,
+              "idle/non-live A generated a mapper request");
+        $display("ADPCMA24_IDLE_A mapper_requests=0 result=PASS");
+
+        request_baseline = a_mapper_requests;
         wait_pair(24'h0FFFFF);
+        check(a_mapper_requests >= request_baseline + 2,
+              "live A current/next mapper requests missing");
         boundary_next = 24'h0FFFFF + 24'd1;
         check(boundary_next == 24'h100000, "test arithmetic is wrong");
         check(find_a(4'h0, 20'hFFFFF) >= 0,

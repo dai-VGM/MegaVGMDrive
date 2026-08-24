@@ -63,6 +63,10 @@ module tb_ym2610_player_core;
     logic after_loop;
     logic post_loop_nonzero;
     logic [31:0] loop_sample_start;
+    integer timeout_limit;
+    integer runtime_target_samples;
+    integer runtime_audio_after_samples;
+    logic runtime_audio_after_seen;
 
     always #5 clk = ~clk;
 
@@ -152,6 +156,10 @@ module tb_ym2610_player_core;
             if ((adpcma_l != 0 || adpcma_r != 0) &&
                 (adpcmb_l != 0 || adpcmb_r != 0)) simultaneous_seen <= 1'b1;
             if (audio_l != 0 || audio_r != 0) final_seen <= 1'b1;
+            if (expected_lane == "RUNTIME" &&
+                parser_samples >= runtime_audio_after_samples &&
+                (audio_l != 0 || audio_r != 0))
+                runtime_audio_after_seen <= 1'b1;
             if (after_loop && (audio_l != 0 || audio_r != 0))
                 post_loop_nonzero <= 1'b1;
         end
@@ -208,6 +216,18 @@ module tb_ym2610_player_core;
         after_loop = 1'b0;
         post_loop_nonzero = 1'b0;
         loop_sample_start = 32'd0;
+        timeout_limit = 20_000_000;
+        runtime_target_samples = 90_000;
+        runtime_audio_after_samples = 70_000;
+        runtime_audio_after_seen = 1'b0;
+        if (expected_lane == "RUNTIME") begin
+            timeout_limit = 200_000_000;
+            if (!$value$plusargs("TARGET_SAMPLES=%d", runtime_target_samples))
+                runtime_target_samples = 90_000;
+            if (!$value$plusargs("AUDIO_AFTER_SAMPLES=%d",
+                                 runtime_audio_after_samples))
+                runtime_audio_after_samples = 70_000;
+        end
         repeat (8) @(posedge clk);
         hard_reset <= 1'b0;
         repeat (2) @(posedge clk);
@@ -223,7 +243,9 @@ module tb_ym2610_player_core;
                  high_adpcma_map_seen && adpcma_seen && final_seen) &&
                !(expected_lane == "NINJA_BASIC" && ls_play_seen &&
                  adpcma_seen && final_seen) &&
-               timeout < 20_000_000) begin
+               !(expected_lane == "RUNTIME" && ls_play_seen &&
+                 parser_samples >= runtime_target_samples) &&
+               timeout < timeout_limit) begin
             @(posedge clk);
             timeout = timeout + 1;
             if ((timeout % 1_000_000) == 0)
@@ -233,7 +255,7 @@ module tb_ym2610_player_core;
                     parser_writes);
         end
         repeat (4) @(posedge clk);
-        if (timeout >= 20_000_000) $fatal(1, "core timeout state=%0d pc=%08x", load_state, parser_pc);
+        if (timeout >= timeout_limit) $fatal(1, "core timeout state=%0d pc=%08x", load_state, parser_pc);
         if (expected_lane == "LOOP") begin
             after_loop = 1'b1;
             loop_sample_start = sample_edges;
@@ -365,6 +387,16 @@ module tb_ym2610_player_core;
             !(classification == 4'd2 && raw_variant_b && ls_play_seen &&
               adpcma_seen && final_seen))
             $fatal(1, "Ninja production-path acceptance missing");
+        if (expected_lane == "RUNTIME") begin
+            if (!(ls_play_seen && parser_samples >= runtime_target_samples &&
+                  final_seen && runtime_audio_after_seen))
+                $fatal(1, "bounded runtime/audio continuation missing");
+            $display("RUNTIME_PASS samples=%0d target=%0d audio_after=%0d reject=%02x A_under=%0d B_under=%0d range=%0d stale=%0d owner=%0d result=PASS",
+                parser_samples, runtime_target_samples,
+                runtime_audio_after_samples, reject_code,
+                adpcma_underflow, adpcmb_underflow, dut.pcm_range_error,
+                stale_response, owner_mismatch);
+        end
         $display("CORE_RESULT expect=%s class=%0d rawB=%0d writes=%0d samples=%0d descA=%0d descB=%0d pcm_req=%0d pcm_rsp=%0d Afetch=%0d/%0d Bfetch=%0d/%0d A_req=%0d B_req=%0d lastA=%05x lastB=%05x occupancy=%0d peakL=%0d peakR=%0d psg=%0d%0d%0d A=%0d B=%0d AB=%0d final=%0d play=%0d highA=%0d sample_edges=%0d audio_hash=%016x start=%0d result=PASS",
             expected_lane, classification, raw_variant_b,
             parser_writes, parser_samples,
