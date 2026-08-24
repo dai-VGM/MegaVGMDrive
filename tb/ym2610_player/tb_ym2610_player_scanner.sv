@@ -25,9 +25,12 @@ module tb_ym2610_player_scanner;
     logic [3:0] first_bad_semantic;
     logic [2:0] first_bad_target;
     logic [3:0] descriptor_a_count, descriptor_b_count;
-    logic map_space_b, map_hit;
-    logic [19:0] map_logical_addr;
-    logic [22:0] map_file_addr;
+    logic [6:0] descriptor_a_count_full;
+    logic [4:0] descriptor_b_count_full;
+    logic map_req_valid, map_req_ready, map_space_b;
+    logic [23:0] map_logical_addr;
+    logic map_rsp_valid, map_rsp_hit;
+    logic [22:0] map_rsp_file_addr;
     logic [7:0] memory [0:MAX_FILE-1];
     logic pending;
     logic [22:0] pending_addr;
@@ -73,8 +76,12 @@ module tb_ym2610_player_scanner;
         .first_bad_target(first_bad_target),
         .descriptor_a_count(descriptor_a_count),
         .descriptor_b_count(descriptor_b_count),
+        .descriptor_a_count_full(descriptor_a_count_full),
+        .descriptor_b_count_full(descriptor_b_count_full),
+        .map_req_valid(map_req_valid), .map_req_ready(map_req_ready),
         .map_space_b(map_space_b), .map_logical_addr(map_logical_addr),
-        .map_hit(map_hit), .map_file_addr(map_file_addr)
+        .map_rsp_valid(map_rsp_valid), .map_rsp_hit(map_rsp_hit),
+        .map_rsp_file_addr(map_rsp_file_addr)
     );
 
     always_ff @(posedge clk) begin
@@ -105,7 +112,8 @@ module tb_ym2610_player_scanner;
         pending_addr = 0;
         response_delay = 0;
         map_space_b = 1'b0;
-        map_logical_addr = 20'd0;
+        map_logical_addr = 24'd0;
+        map_req_valid = 1'b0;
         repeat (5) @(posedge clk);
         reset <= 1'b0;
         @(posedge clk);
@@ -127,13 +135,13 @@ module tb_ym2610_player_scanner;
             $fatal(1, "reject mismatch expected=%02x actual=%02x",
                 expected_reject[7:0], reject_code);
         if ($value$plusargs("EXPECT_DESC_A=%d", expected_desc_a) &&
-            descriptor_a_count !== expected_desc_a[3:0])
+            descriptor_a_count_full !== expected_desc_a[6:0])
             $fatal(1, "A descriptor mismatch expected=%0d actual=%0d",
-                expected_desc_a, descriptor_a_count);
+                expected_desc_a, descriptor_a_count_full);
         if ($value$plusargs("EXPECT_DESC_B=%d", expected_desc_b) &&
-            descriptor_b_count !== expected_desc_b[3:0])
+            descriptor_b_count_full !== expected_desc_b[4:0])
             $fatal(1, "B descriptor mismatch expected=%0d actual=%0d",
-                expected_desc_b, descriptor_b_count);
+                expected_desc_b, descriptor_b_count_full);
         map_vectors = 0;
         if ($value$plusargs("MAP=%s", map_filename)) begin
             map_fd = $fopen(map_filename, "r");
@@ -144,18 +152,28 @@ module tb_ym2610_player_scanner;
                     map_file_value, map_byte_value);
                 if (map_rc == 5) begin
                     map_space_b = map_space_value[0];
-                    map_logical_addr = map_logical_value[19:0];
-                    #1;
-                    if (map_hit !== map_hit_value[0])
-                        $fatal(1, "map hit mismatch space=%0d logical=%05x expected=%0d actual=%0d",
-                            map_space_value, map_logical_value, map_hit_value, map_hit);
+                    map_logical_addr = map_logical_value[23:0];
+                    map_req_valid = 1'b1;
+                    do @(posedge clk); while (!map_req_ready);
+                    #1 begin
+                        map_req_valid = 1'b0;
+                        // The serialized mapper must own a captured request;
+                        // live request inputs may change immediately after
+                        // the valid/ready acceptance edge.
+                        map_space_b = ~map_space_value[0];
+                        map_logical_addr = ~map_logical_value[23:0];
+                    end
+                    do @(posedge clk); while (!map_rsp_valid);
+                    if (map_rsp_hit !== map_hit_value[0])
+                        $fatal(1, "map hit mismatch space=%0d logical=%06x expected=%0d actual=%0d",
+                            map_space_value, map_logical_value, map_hit_value, map_rsp_hit);
                     if (map_hit_value &&
-                        (map_file_addr !== map_file_value[22:0] ||
-                         memory[map_file_addr] !== map_byte_value[7:0]))
-                        $fatal(1, "map byte mismatch space=%0d logical=%05x expected_file=%06x actual_file=%06x expected_byte=%02x actual_byte=%02x",
+                        (map_rsp_file_addr !== map_file_value[22:0] ||
+                         memory[map_rsp_file_addr] !== map_byte_value[7:0]))
+                        $fatal(1, "map byte mismatch space=%0d logical=%06x expected_file=%06x actual_file=%06x expected_byte=%02x actual_byte=%02x",
                             map_space_value, map_logical_value,
-                            map_file_value, map_file_addr,
-                            map_byte_value, memory[map_file_addr]);
+                            map_file_value, map_rsp_file_addr,
+                            map_byte_value, memory[map_rsp_file_addr]);
                     map_vectors = map_vectors + 1;
                 end
             end
@@ -168,7 +186,7 @@ module tb_ym2610_player_scanner;
             data_offset, chip_clock, variant_b, dual_chip, total_writes,
             port0_writes, port1_writes, b_only_writes, unknown_writes,
             total_samples, loop_target, loop_samples, end_pc,
-            descriptor_a_count, descriptor_b_count, first_bad_pc,
+            descriptor_a_count_full, descriptor_b_count_full, first_bad_pc,
             first_bad_port, first_bad_address, first_bad_data,
             first_bad_sample, first_bad_semantic, first_bad_target,
             command_count);

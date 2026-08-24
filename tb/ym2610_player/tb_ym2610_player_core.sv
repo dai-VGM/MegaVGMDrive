@@ -55,6 +55,7 @@ module tb_ym2610_player_core;
     logic sample_d;
     logic psg_a_seen, psg_b_seen, psg_c_seen, final_seen;
     logic adpcma_seen, adpcmb_seen, simultaneous_seen;
+    logic ls_play_seen, high_adpcma_map_seen;
     logic [63:0] audio_hash;
     logic [31:0] sample_edges;
     logic xz_seen;
@@ -69,8 +70,14 @@ module tb_ym2610_player_core;
         fnv_byte = (hash ^ value) * 64'h0000_0100_0000_01b3;
     endfunction
 
+`ifdef YM2610_NINJA_TEST
+    localparam int TEST_CACHE_ENTRIES = 64;
+`else
+    localparam int TEST_CACHE_ENTRIES = 16;
+`endif
+
     ym2610_player_core #(
-        .SYS_CLK_HZ(8_000_000), .CACHE_ENTRIES(16),
+        .SYS_CLK_HZ(8_000_000), .CACHE_ENTRIES(TEST_CACHE_ENTRIES),
         .ENABLE_YM2610B(YM2610B_ENABLE)
     ) dut (
         .clk(clk), .hard_reset(hard_reset), .soft_reset(soft_reset),
@@ -118,7 +125,8 @@ module tb_ym2610_player_core;
         if (mem_req && mem_ready && !pending) begin
             pending <= 1'b1;
             pending_addr <= mem_addr;
-            response_delay <= 12 + mem_addr[1:0];
+            response_delay <= $test$plusargs("FAST_MEM") ?
+                              0 : 12 + mem_addr[1:0];
         end
         if (pending) begin
             if (response_delay == 0) begin
@@ -129,6 +137,12 @@ module tb_ym2610_player_core;
         end
 
         sample_d <= audio_sample;
+        if (load_state == 4'd7)
+            ls_play_seen <= 1'b1;
+        if (dut.u_cache.map_req_valid && dut.u_cache.map_req_ready &&
+            !dut.u_cache.map_space_b &&
+            dut.u_cache.map_logical_addr[23:20] != 0)
+            high_adpcma_map_seen <= 1'b1;
         if (load_state == 4'd7) begin
             if (psg_a != 0) psg_a_seen <= 1'b1;
             if (psg_b != 0) psg_b_seen <= 1'b1;
@@ -185,6 +199,8 @@ module tb_ym2610_player_core;
         adpcma_seen = 1'b0;
         adpcmb_seen = 1'b0;
         simultaneous_seen = 1'b0;
+        ls_play_seen = 1'b0;
+        high_adpcma_map_seen = 1'b0;
         audio_hash = 64'hcbf2_9ce4_8422_2325;
         sample_edges = 0;
         xz_seen = 1'b0;
@@ -203,6 +219,10 @@ module tb_ym2610_player_core;
         timeout = 0;
         while (load_state != 4'd10 && load_state != 4'd9 &&
                !(expected_lane == "LOOP" && loop_count >= 1) &&
+               !(expected_lane == "NINJA" && ls_play_seen &&
+                 high_adpcma_map_seen && adpcma_seen && final_seen) &&
+               !(expected_lane == "NINJA_BASIC" && ls_play_seen &&
+                 adpcma_seen && final_seen) &&
                timeout < 20_000_000) begin
             @(posedge clk);
             timeout = timeout + 1;
@@ -308,7 +328,8 @@ module tb_ym2610_player_core;
             owner_mismatch || busy_timeout || write_while_busy)
             $fatal(1, "transport contract failure");
         if (xz_seen) $fatal(1, "relevant X/Z observed");
-        if (audio_l !== 0 || audio_r !== 0) $fatal(1, "end is not muted zero");
+        if (load_state == 4'd10 && (audio_l !== 0 || audio_r !== 0))
+            $fatal(1, "end is not muted zero");
         if (expected_lane == "FM" && !final_seen) $fatal(1, "FM final lane silent");
         if (expected_lane == "SSG" &&
             !(psg_a_seen && psg_b_seen && psg_c_seen && final_seen))
@@ -336,7 +357,15 @@ module tb_ym2610_player_core;
               psg_b_seen && psg_c_seen && adpcma_seen && adpcmb_seen &&
               final_seen))
             $fatal(1, "standard all-lane acceptance missing");
-        $display("CORE_RESULT expect=%s class=%0d rawB=%0d writes=%0d samples=%0d descA=%0d descB=%0d pcm_req=%0d pcm_rsp=%0d Afetch=%0d/%0d Bfetch=%0d/%0d A_req=%0d B_req=%0d lastA=%05x lastB=%05x occupancy=%0d peakL=%0d peakR=%0d psg=%0d%0d%0d A=%0d B=%0d AB=%0d final=%0d sample_edges=%0d audio_hash=%016x start=%0d result=PASS",
+        if (expected_lane == "NINJA" &&
+            !(classification == 4'd2 && raw_variant_b && ls_play_seen &&
+              high_adpcma_map_seen && adpcma_seen && final_seen))
+            $fatal(1, "Ninja >1MiB production-path acceptance missing");
+        if (expected_lane == "NINJA_BASIC" &&
+            !(classification == 4'd2 && raw_variant_b && ls_play_seen &&
+              adpcma_seen && final_seen))
+            $fatal(1, "Ninja production-path acceptance missing");
+        $display("CORE_RESULT expect=%s class=%0d rawB=%0d writes=%0d samples=%0d descA=%0d descB=%0d pcm_req=%0d pcm_rsp=%0d Afetch=%0d/%0d Bfetch=%0d/%0d A_req=%0d B_req=%0d lastA=%05x lastB=%05x occupancy=%0d peakL=%0d peakR=%0d psg=%0d%0d%0d A=%0d B=%0d AB=%0d final=%0d play=%0d highA=%0d sample_edges=%0d audio_hash=%016x start=%0d result=PASS",
             expected_lane, classification, raw_variant_b,
             parser_writes, parser_samples,
             descriptor_a_count, descriptor_b_count, pcm_requests, pcm_responses,
@@ -346,7 +375,8 @@ module tb_ym2610_player_core;
             adpcma_last_address, adpcmb_last_address,
             pcm_occupancy, peak_l, peak_r,
             psg_a_seen, psg_b_seen, psg_c_seen, adpcma_seen, adpcmb_seen,
-            simultaneous_seen, final_seen, sample_edges, audio_hash, start_count);
+            simultaneous_seen, final_seen, ls_play_seen, high_adpcma_map_seen,
+            sample_edges, audio_hash, start_count);
         $finish;
     end
 endmodule

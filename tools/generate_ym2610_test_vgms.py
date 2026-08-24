@@ -233,12 +233,12 @@ def fixtures() -> dict[str, bytes]:
     descriptor_a = {
         f"descriptor_a_{count}.vgm": vgm(
             descriptor_sequence(0x82, count) + b"\x66")
-        for count in (0, 1, 8, 9, 10, 11)
+        for count in (0, 1, 8, 9, 10, 11, 64, 65)
     }
     descriptor_b = {
         f"descriptor_b_{count}.vgm": vgm(
             descriptor_sequence(0x83, count) + b"\x66")
-        for count in (10, 11)
+        for count in (10, 11, 16, 17)
     }
     descriptor_mixed = vgm(descriptor_sequence(0x82, 10) +
                            descriptor_sequence(0x83, 3) + b"\x66")
@@ -257,6 +257,24 @@ def fixtures() -> dict[str, bytes]:
                                 bytes(range(32))) + b"\x66")
     b_overlap = vgm(block(0x83, 0x80000, 0, bytes(range(16))) +
                     block(0x83, 0x80000, 8, bytes(range(16))) + b"\x66")
+    wide_a = vgm(
+        block(0x82, 0x800000, 0x0FFFFE, bytes((0xA0, 0xA1, 0xA2, 0xA3))) +
+        block(0x82, 0x800000, 0x168B00, bytes(range(0x10, 0x20))) +
+        block(0x82, 0x800000, 0x16AFF0, bytes(range(0x20, 0x30))) +
+        block(0x82, 0x800000, 0x170000, bytes(range(0x30, 0x40))) +
+        block(0x82, 0x800000, 0x17EAF0, bytes(range(0x40, 0x50))) +
+        block(0x82, 0x800000, 0x301AFF, b"\x5A") + b"\x66")
+    a_exact_end = vgm(
+        block(0x82, 0x180000, 0x17FFF0, bytes(range(16))) + b"\x66")
+    a_last_address = vgm(
+        block(0x82, 0x1000000, 0xFFFFFF, b"\xC7") + b"\x66")
+    a_declared_overflow = vgm(
+        block(0x82, 0x180000, 0x17FFF8, bytes(range(16))) + b"\x66")
+    a_space_overflow = vgm(
+        block(0x82, 0x1000000, 0xFFFFF0, bytes(range(32))) + b"\x66")
+    a_declared_over_24 = vgm(
+        block(0x82, 0x1000001, 0, bytes(range(16))) + b"\x66")
+    a_zero_length = vgm(block(0x82, 0x800000, 0, b"") + b"\x66")
     result = {
         "standard_all_raw.vgm": standard_all,
         "standard_all_prepared.vgm": prepared(standard_all, "Synthetic", "YM2610 Standard"),
@@ -291,6 +309,13 @@ def fixtures() -> dict[str, bytes]:
         "empty_b_then_invalid.vgm": empty_b_then_invalid,
         "b_out_of_range.vgm": b_out_of_range,
         "b_overlap.vgm": b_overlap,
+        "wide_a_24bit.vgm": wide_a,
+        "a_exact_end.vgm": a_exact_end,
+        "a_last_address.vgm": a_last_address,
+        "a_declared_overflow.vgm": a_declared_overflow,
+        "a_space_overflow.vgm": a_space_overflow,
+        "a_declared_over_24.vgm": a_declared_over_24,
+        "a_zero_length.vgm": a_zero_length,
     }
     return result
 

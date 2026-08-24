@@ -5,7 +5,8 @@
 // leak a register write into JT10.
 module ym2610_player_scanner #(
     parameter int ADDR_WIDTH = 23,
-    parameter int MAX_DESCRIPTORS = 10,
+    parameter int MAX_A_DESCRIPTORS = 64,
+    parameter int MAX_B_DESCRIPTORS = 16,
     parameter ENABLE_YM2610B = 0
 ) (
     input  logic                  clk,
@@ -49,11 +50,16 @@ module ym2610_player_scanner #(
     output logic [2:0]            first_bad_target,
     output logic [3:0]            descriptor_a_count,
     output logic [3:0]            descriptor_b_count,
+    output logic [6:0]            descriptor_a_count_full,
+    output logic [4:0]            descriptor_b_count_full,
 
+    input  logic                  map_req_valid,
+    output logic                  map_req_ready,
     input  logic                  map_space_b,
-    input  logic [19:0]           map_logical_addr,
-    output logic                  map_hit,
-    output logic [ADDR_WIDTH-1:0] map_file_addr
+    input  logic [23:0]           map_logical_addr,
+    output logic                  map_rsp_valid,
+    output logic                  map_rsp_hit,
+    output logic [ADDR_WIDTH-1:0] map_rsp_file_addr
 );
     localparam logic [3:0] VARIANT_NONE        = 4'd0;
     localparam logic [3:0] VARIANT_STANDARD    = 4'd1;
@@ -70,13 +76,16 @@ module ym2610_player_scanner #(
     localparam logic [7:0] REJECT_BLOCK        = 8'h06;
     localparam logic [7:0] REJECT_RANGE        = 8'h07;
     localparam logic [7:0] REJECT_DESCRIPTOR   = 8'h08;
-    localparam logic [3:0] MAX_DESCRIPTOR_COUNT = MAX_DESCRIPTORS[3:0];
+    localparam logic [6:0] MAX_A_DESCRIPTOR_COUNT =
+        MAX_A_DESCRIPTORS[6:0];
+    localparam logic [4:0] MAX_B_DESCRIPTOR_COUNT =
+        MAX_B_DESCRIPTORS[4:0];
 
     typedef enum logic [4:0] {
         ST_IDLE, ST_HEADER, ST_VALIDATE, ST_COMMAND, ST_WRITE_ADDR,
         ST_WRITE_DATA, ST_WAIT_LO, ST_WAIT_HI, ST_BLOCK_MARK,
-        ST_BLOCK_TYPE, ST_BLOCK_SIZE, ST_BLOCK_META, ST_FINISH,
-        ST_FATAL, ST_DONE
+        ST_BLOCK_TYPE, ST_BLOCK_SIZE, ST_BLOCK_META, ST_DESC_READ,
+        ST_DESC_COMPARE, ST_DESC_STORE, ST_FINISH, ST_FATAL, ST_DONE
     } state_t;
 
     state_t state;
@@ -100,7 +109,6 @@ module ym2610_player_scanner #(
     logic first_bad_valid;
     logic first_bad_b_only;
     logic loop_boundary_seen;
-    integer i;
 
     logic compat_accepted;
     logic compat_b_only;
@@ -110,14 +118,45 @@ module ym2610_player_scanner #(
     wire compat_effective_accepted = compat_accepted ||
         (ENABLE_YM2610B && variant_b && compat_b_only);
 
-    logic [19:0] desc_a_logical [0:MAX_DESCRIPTORS-1];
-    logic [20:0] desc_a_length  [0:MAX_DESCRIPTORS-1];
-    logic [ADDR_WIDTH-1:0] desc_a_file [0:MAX_DESCRIPTORS-1];
-    logic [19:0] desc_b_logical [0:MAX_DESCRIPTORS-1];
-    logic [20:0] desc_b_length  [0:MAX_DESCRIPTORS-1];
-    logic [ADDR_WIDTH-1:0] desc_b_file [0:MAX_DESCRIPTORS-1];
+    // Descriptor payloads are packed into synchronous memories.  No memory
+    // clear is performed: the committed count is the validity boundary, which
+    // keeps the arrays eligible for Cyclone V block-RAM inference.
+    localparam int A_DESC_WIDTH = 24 + 25 + ADDR_WIDTH;
+    localparam int B_DESC_WIDTH = 20 + 21 + ADDR_WIDTH;
+    (* ramstyle = "M10K, no_rw_check" *)
+    logic [A_DESC_WIDTH-1:0] desc_a_mem [0:MAX_A_DESCRIPTORS-1];
+    (* ramstyle = "M10K, no_rw_check" *)
+    logic [B_DESC_WIDTH-1:0] desc_b_mem [0:MAX_B_DESCRIPTORS-1];
+    logic [A_DESC_WIDTH-1:0] desc_a_q;
+    logic [B_DESC_WIDTH-1:0] desc_b_q;
+    logic [5:0] descriptor_read_index;
+    logic descriptor_a_we, descriptor_b_we;
+    logic [5:0] descriptor_a_waddr;
+    logic [3:0] descriptor_b_waddr;
+    logic [A_DESC_WIDTH-1:0] descriptor_a_wdata;
+    logic [B_DESC_WIDTH-1:0] descriptor_b_wdata;
+
+    logic pending_desc_space_b;
+    logic [23:0] pending_desc_logical;
+    logic [24:0] pending_desc_length;
+    logic [ADDR_WIDTH-1:0] pending_desc_file;
+    logic [6:0] overlap_index;
     logic descriptors_committed;
-    logic descriptor_overlap;
+
+    typedef enum logic [1:0] {MAP_IDLE, MAP_READ, MAP_COMPARE} map_state_t;
+    map_state_t map_state;
+    logic map_request_space_b;
+    logic [23:0] map_request_logical;
+    logic [6:0] map_index;
+
+    wire [23:0] desc_a_start = desc_a_q[A_DESC_WIDTH-1 -: 24];
+    wire [24:0] desc_a_length =
+        desc_a_q[A_DESC_WIDTH-24-1 -: 25];
+    wire [ADDR_WIDTH-1:0] desc_a_file = desc_a_q[ADDR_WIDTH-1:0];
+    wire [19:0] desc_b_start = desc_b_q[B_DESC_WIDTH-1 -: 20];
+    wire [20:0] desc_b_length =
+        desc_b_q[B_DESC_WIDTH-20-1 -: 21];
+    wire [ADDR_WIDTH-1:0] desc_b_file = desc_b_q[ADDR_WIDTH-1:0];
 
     ym2610_player_compat u_compat (
         .port(pending_port), .address(pending_address), .data(mem_data),
@@ -157,62 +196,132 @@ module ym2610_player_scanner #(
         endcase
     end
 
-    always_comb begin
-        map_hit = 1'b0;
-        map_file_addr = '0;
-        if (descriptors_committed) begin
-            if (map_space_b) begin
-                for (integer map_i = 0; map_i < MAX_DESCRIPTORS; map_i = map_i + 1) begin
-                    if (!map_hit && map_i < descriptor_b_count &&
-                        map_logical_addr >= desc_b_logical[map_i] &&
-                        {1'b0, map_logical_addr} <
-                            ({1'b0, desc_b_logical[map_i]} + desc_b_length[map_i])) begin
-                        map_hit = 1'b1;
-                        map_file_addr = desc_b_file[map_i] +
-                            {{(ADDR_WIDTH-20){1'b0}},
-                             (map_logical_addr - desc_b_logical[map_i])};
-                    end
-                end
-            end else begin
-                for (integer map_i = 0; map_i < MAX_DESCRIPTORS; map_i = map_i + 1) begin
-                    if (!map_hit && map_i < descriptor_a_count &&
-                        map_logical_addr >= desc_a_logical[map_i] &&
-                        {1'b0, map_logical_addr} <
-                            ({1'b0, desc_a_logical[map_i]} + desc_a_length[map_i])) begin
-                        map_hit = 1'b1;
-                        map_file_addr = desc_a_file[map_i] +
-                            {{(ADDR_WIDTH-20){1'b0}},
-                             (map_logical_addr - desc_a_logical[map_i])};
-                    end
-                end
-            end
-        end
-    end
+    assign descriptor_a_count = descriptor_a_count_full > 7'd15 ?
+                                4'hf : descriptor_a_count_full[3:0];
+    assign descriptor_b_count = descriptor_b_count_full > 5'd15 ?
+                                4'hf : descriptor_b_count_full[3:0];
+    assign map_req_ready = descriptors_committed && map_state == MAP_IDLE;
 
     always_comb begin
-        descriptor_overlap = 1'b0;
-        if (block_type == 8'h82) begin
-            for (integer overlap_i = 0; overlap_i < MAX_DESCRIPTORS;
-                 overlap_i = overlap_i + 1) begin
-                if (overlap_i < descriptor_a_count &&
-                    !(({mem_data, block_logical_start[23:0]} +
-                       (block_size - 32'd8)) <= desc_a_logical[overlap_i] ||
-                      {mem_data, block_logical_start[23:0]} >=
-                       ({12'd0, desc_a_logical[overlap_i]} +
-                        {11'd0, desc_a_length[overlap_i]})))
-                    descriptor_overlap = 1'b1;
-            end
+        descriptor_read_index = 6'd0;
+        if (state == ST_DESC_READ)
+            descriptor_read_index = overlap_index[5:0];
+        else if (state == ST_DESC_COMPARE) begin
+            if ((!pending_desc_space_b && overlap_index + 7'd1 <
+                 descriptor_a_count_full) ||
+                (pending_desc_space_b && overlap_index + 7'd1 <
+                 {2'd0, descriptor_b_count_full}))
+                descriptor_read_index = overlap_index[5:0] + 6'd1;
+            else
+                descriptor_read_index = overlap_index[5:0];
+        end else if (map_state == MAP_READ)
+            descriptor_read_index = map_index[5:0];
+        else if (map_state == MAP_COMPARE) begin
+            if ((!map_request_space_b && map_index + 7'd1 <
+                 descriptor_a_count_full) ||
+                (map_request_space_b && map_index + 7'd1 <
+                 {2'd0, descriptor_b_count_full}))
+                descriptor_read_index = map_index[5:0] + 6'd1;
+            else
+                descriptor_read_index = map_index[5:0];
+        end
+
+        descriptor_a_we = state == ST_DESC_STORE && !pending_desc_space_b;
+        descriptor_b_we = state == ST_DESC_STORE && pending_desc_space_b;
+        descriptor_a_waddr = descriptor_a_count_full[5:0];
+        descriptor_b_waddr = descriptor_b_count_full[3:0];
+        descriptor_a_wdata = {pending_desc_logical,
+                              pending_desc_length,
+                              pending_desc_file};
+        descriptor_b_wdata = {pending_desc_logical[19:0],
+                              pending_desc_length[20:0],
+                              pending_desc_file};
+    end
+
+    always_ff @(posedge clk) begin
+        if (descriptor_a_we)
+            desc_a_mem[descriptor_a_waddr] <= descriptor_a_wdata;
+        if (descriptor_b_we)
+            desc_b_mem[descriptor_b_waddr] <= descriptor_b_wdata;
+        desc_a_q <= desc_a_mem[descriptor_read_index];
+        desc_b_q <= desc_b_mem[descriptor_read_index[3:0]];
+    end
+
+    // A single sequential engine serves runtime mapping after scan completion.
+    // Scanner overlap checks use the same RAM read data while mapping is idle.
+    always_ff @(posedge clk) begin
+        map_rsp_valid <= 1'b0;
+        if (reset || start) begin
+            map_state <= MAP_IDLE;
+            map_request_space_b <= 1'b0;
+            map_request_logical <= 24'd0;
+            map_index <= 7'd0;
+            map_rsp_hit <= 1'b0;
+            map_rsp_file_addr <= '0;
         end else begin
-            for (integer overlap_i = 0; overlap_i < MAX_DESCRIPTORS;
-                 overlap_i = overlap_i + 1) begin
-                if (overlap_i < descriptor_b_count &&
-                    !(({mem_data, block_logical_start[23:0]} +
-                       (block_size - 32'd8)) <= desc_b_logical[overlap_i] ||
-                      {mem_data, block_logical_start[23:0]} >=
-                       ({12'd0, desc_b_logical[overlap_i]} +
-                        {11'd0, desc_b_length[overlap_i]})))
-                    descriptor_overlap = 1'b1;
-            end
+            case (map_state)
+                MAP_IDLE: if (map_req_valid && map_req_ready) begin
+                    map_request_space_b <= map_space_b;
+                    map_request_logical <= map_logical_addr;
+                    map_index <= 7'd0;
+                    map_state <= MAP_READ;
+                end
+                MAP_READ: begin
+                    if ((map_request_space_b && descriptor_b_count_full == 0) ||
+                        (!map_request_space_b && descriptor_a_count_full == 0)) begin
+                        map_rsp_valid <= 1'b1;
+                        map_rsp_hit <= 1'b0;
+                        map_rsp_file_addr <= '0;
+                        map_state <= MAP_IDLE;
+                    end else begin
+                        map_state <= MAP_COMPARE;
+                    end
+                end
+                MAP_COMPARE: begin
+                    if (map_request_space_b) begin
+                        if (map_request_logical[23:20] == 0 &&
+                            map_request_logical[19:0] >= desc_b_start &&
+                            {1'b0, map_request_logical[19:0]} <
+                              ({1'b0, desc_b_start} + desc_b_length)) begin
+                            map_rsp_valid <= 1'b1;
+                            map_rsp_hit <= 1'b1;
+                            map_rsp_file_addr <= desc_b_file +
+                                (map_request_logical[19:0] - desc_b_start);
+                            map_state <= MAP_IDLE;
+                        end else if (map_index + 7'd1 >=
+                                     {2'd0, descriptor_b_count_full}) begin
+                            map_rsp_valid <= 1'b1;
+                            map_rsp_hit <= 1'b0;
+                            map_rsp_file_addr <= '0;
+                            map_state <= MAP_IDLE;
+                        end else begin
+                            map_index <= map_index + 7'd1;
+                            map_state <= MAP_COMPARE;
+                        end
+                    end else begin
+                        if ({1'b0, map_request_logical} >=
+                              {1'b0, desc_a_start} &&
+                            {1'b0, map_request_logical} <
+                              ({1'b0, desc_a_start} + desc_a_length)) begin
+                            map_rsp_valid <= 1'b1;
+                            map_rsp_hit <= 1'b1;
+                            map_rsp_file_addr <= desc_a_file +
+                                (map_request_logical - desc_a_start);
+                            map_state <= MAP_IDLE;
+                        end else if (map_index + 7'd1 >=
+                                     descriptor_a_count_full) begin
+                            map_rsp_valid <= 1'b1;
+                            map_rsp_hit <= 1'b0;
+                            map_rsp_file_addr <= '0;
+                            map_state <= MAP_IDLE;
+                        end else begin
+                            map_index <= map_index + 7'd1;
+                            map_state <= MAP_COMPARE;
+                        end
+                    end
+                end
+                default: map_state <= MAP_IDLE;
+            endcase
         end
     end
 
@@ -226,8 +335,8 @@ module ym2610_player_scanner #(
             classification <= VARIANT_NONE;
             reject_code <= REJECT_NONE;
             descriptors_committed <= 1'b0;
-            descriptor_a_count <= 4'd0;
-            descriptor_b_count <= 4'd0;
+            descriptor_a_count_full <= 7'd0;
+            descriptor_b_count_full <= 5'd0;
             original_size <= 32'd0;
             data_offset <= 32'd0;
             chip_clock <= 32'd0;
@@ -253,14 +362,11 @@ module ym2610_player_scanner #(
             first_bad_semantic <= 4'd0;
             first_bad_target <= 3'd0;
             loop_boundary_seen <= 1'b0;
-            for (i = 0; i < MAX_DESCRIPTORS; i = i + 1) begin
-                desc_a_logical[i] <= 20'd0;
-                desc_a_length[i] <= 21'd0;
-                desc_a_file[i] <= '0;
-                desc_b_logical[i] <= 20'd0;
-                desc_b_length[i] <= 21'd0;
-                desc_b_file[i] <= '0;
-            end
+            pending_desc_space_b <= 1'b0;
+            pending_desc_logical <= 24'd0;
+            pending_desc_length <= 25'd0;
+            pending_desc_file <= '0;
+            overlap_index <= 7'd0;
         end else begin
             if (mem_req && mem_ready)
                 read_pending <= 1'b1;
@@ -276,8 +382,8 @@ module ym2610_player_scanner #(
                 classification <= VARIANT_NONE;
                 reject_code <= REJECT_NONE;
                 descriptors_committed <= 1'b0;
-                descriptor_a_count <= 4'd0;
-                descriptor_b_count <= 4'd0;
+                descriptor_a_count_full <= 7'd0;
+                descriptor_b_count_full <= 5'd0;
                 total_samples <= 32'd0;
                 total_writes <= 32'd0;
                 port0_writes <= 32'd0;
@@ -465,57 +571,118 @@ module ym2610_player_scanner #(
                             3'd5: block_logical_start[15:8] <= mem_data;
                             3'd6: block_logical_start[23:16] <= mem_data;
                             3'd7: begin
-                                // An empty 0x83 block carries no B-ROM data or
-                                // descriptor.  Keep block framing strict, but
-                                // treat its ROM declaration as metadata only.
-                                if (block_type == 8'h83 && block_size == 32'd8) begin
-                                    scan_pc <= command_pc + 32'd7 + block_size;
-                                    state <= ST_COMMAND;
-                                end else if ((block_type == 8'h82 &&
-                                     block_rom_size != 32'h0010_0000) ||
-                                    (block_type == 8'h83 &&
-                                     block_rom_size != 32'h0008_0000) ||
-                                    ({mem_data, block_logical_start[23:0]} +
-                                     (block_size - 32'd8) >
-                                     (block_type == 8'h82 ? 32'h0010_0000 :
-                                                            32'h0008_0000)) ||
-                                    (command_pc + 32'd7 + block_size > original_size)) begin
+                                // Empty ROM blocks carry declarations only and
+                                // do not create zero-length descriptors.
+                                if ({1'b0, command_pc} + 33'd7 +
+                                    {1'b0, block_size} >
+                                    {1'b0, original_size}) begin
                                     reject_code <= REJECT_RANGE;
                                     state <= ST_FATAL;
-                                end else if (descriptor_overlap) begin
-                                    reject_code <= REJECT_DESCRIPTOR;
+                                end else if (block_size == 32'd8) begin
+                                    if (block_type == 8'h82 &&
+                                        (block_rom_size == 0 ||
+                                         block_rom_size > 32'h0100_0000 ||
+                                         mem_data != 0 ||
+                                         {8'd0, block_logical_start[23:0]} >
+                                           block_rom_size)) begin
+                                        reject_code <= REJECT_RANGE;
+                                        state <= ST_FATAL;
+                                    end else begin
+                                        scan_pc <= command_pc + 32'd7 + block_size;
+                                        state <= ST_COMMAND;
+                                    end
+                                end else if ((block_type == 8'h82 &&
+                                     (block_rom_size == 0 ||
+                                      block_rom_size > 32'h0100_0000 ||
+                                      mem_data != 0 ||
+                                      ({1'b0, mem_data,
+                                        block_logical_start[23:0]} +
+                                       {1'b0, block_size - 32'd8}) >
+                                      {1'b0, block_rom_size})) ||
+                                    (block_type == 8'h83 &&
+                                     (block_rom_size != 32'h0008_0000 ||
+                                      mem_data != 0 ||
+                                      |block_logical_start[23:20] ||
+                                      ({1'b0, mem_data,
+                                        block_logical_start[23:0]} +
+                                       {1'b0, block_size - 32'd8}) >
+                                      {1'b0, block_rom_size}))) begin
+                                    reject_code <= REJECT_RANGE;
                                     state <= ST_FATAL;
                                 end else if ((block_type == 8'h82 &&
-                                             descriptor_a_count >= MAX_DESCRIPTOR_COUNT) ||
+                                             descriptor_a_count_full >=
+                                               MAX_A_DESCRIPTOR_COUNT) ||
                                             (block_type == 8'h83 &&
-                                             descriptor_b_count >= MAX_DESCRIPTOR_COUNT)) begin
+                                             descriptor_b_count_full >=
+                                               MAX_B_DESCRIPTOR_COUNT)) begin
                                     reject_code <= REJECT_DESCRIPTOR;
                                     state <= ST_FATAL;
                                 end else begin
-                                    if (block_type == 8'h82) begin
-                                        desc_a_logical[descriptor_a_count[3:0]] <=
-                                            block_logical_start[19:0];
-                                        desc_a_length[descriptor_a_count[3:0]] <=
-                                            block_size[20:0] - 21'd8;
-                                        desc_a_file[descriptor_a_count[3:0]] <=
-                                            command_pc[ADDR_WIDTH-1:0] + 23'd15;
-                                        descriptor_a_count <= descriptor_a_count + 4'd1;
-                                    end else begin
-                                        desc_b_logical[descriptor_b_count[3:0]] <=
-                                            block_logical_start[19:0];
-                                        desc_b_length[descriptor_b_count[3:0]] <=
-                                            block_size[20:0] - 21'd8;
-                                        desc_b_file[descriptor_b_count[3:0]] <=
-                                            command_pc[ADDR_WIDTH-1:0] + 23'd15;
-                                        descriptor_b_count <= descriptor_b_count + 4'd1;
-                                    end
-                                    scan_pc <= command_pc + 32'd7 + block_size;
-                                    state <= ST_COMMAND;
+                                    pending_desc_space_b <= block_type == 8'h83;
+                                    pending_desc_logical <=
+                                        block_logical_start[23:0];
+                                    pending_desc_length <=
+                                        block_size[24:0] - 25'd8;
+                                    pending_desc_file <=
+                                        command_pc[ADDR_WIDTH-1:0] +
+                                        ADDR_WIDTH'(15);
+                                    overlap_index <= 7'd0;
+                                    if ((block_type == 8'h82 &&
+                                         descriptor_a_count_full == 0) ||
+                                        (block_type == 8'h83 &&
+                                         descriptor_b_count_full == 0))
+                                        state <= ST_DESC_STORE;
+                                    else
+                                        state <= ST_DESC_READ;
                                 end
                             end
                         endcase
                         if (block_meta_index != 3'd7)
                             block_meta_index <= block_meta_index + 3'd1;
+                    end
+                    ST_DESC_READ: state <= ST_DESC_COMPARE;
+                    ST_DESC_COMPARE: begin
+                        if (pending_desc_space_b) begin
+                            if (({1'b0, pending_desc_logical[19:0]} +
+                                 pending_desc_length[20:0] >
+                                 {1'b0, desc_b_start}) &&
+                                ({1'b0, pending_desc_logical[19:0]} <
+                                 ({1'b0, desc_b_start} + desc_b_length))) begin
+                                reject_code <= REJECT_DESCRIPTOR;
+                                state <= ST_FATAL;
+                            end else if (overlap_index + 7'd1 >=
+                                         {2'd0, descriptor_b_count_full}) begin
+                                state <= ST_DESC_STORE;
+                            end else begin
+                                overlap_index <= overlap_index + 7'd1;
+                                state <= ST_DESC_COMPARE;
+                            end
+                        end else begin
+                            if (({1'b0, pending_desc_logical} +
+                                 pending_desc_length >
+                                 {1'b0, desc_a_start}) &&
+                                ({1'b0, pending_desc_logical} <
+                                 ({1'b0, desc_a_start} + desc_a_length))) begin
+                                reject_code <= REJECT_DESCRIPTOR;
+                                state <= ST_FATAL;
+                            end else if (overlap_index + 7'd1 >=
+                                         descriptor_a_count_full) begin
+                                state <= ST_DESC_STORE;
+                            end else begin
+                                overlap_index <= overlap_index + 7'd1;
+                                state <= ST_DESC_COMPARE;
+                            end
+                        end
+                    end
+                    ST_DESC_STORE: begin
+                        if (pending_desc_space_b)
+                            descriptor_b_count_full <=
+                                descriptor_b_count_full + 5'd1;
+                        else
+                            descriptor_a_count_full <=
+                                descriptor_a_count_full + 7'd1;
+                        scan_pc <= command_pc + 32'd7 + block_size;
+                        state <= ST_COMMAND;
                     end
                     ST_FINISH: begin
                         busy <= 1'b0;

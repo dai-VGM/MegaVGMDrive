@@ -164,9 +164,10 @@ module ym2610_player_core #(
 
     logic cache_reset;
     logic cache_write_allow;
-    logic map_space_b, map_hit;
-    logic [19:0] map_logical_addr;
-    logic [ADDR_WIDTH-1:0] map_file_addr;
+    logic map_req_valid, map_req_ready, map_space_b;
+    logic [23:0] map_logical_addr;
+    logic map_rsp_valid, map_rsp_hit;
+    logic [ADDR_WIDTH-1:0] map_rsp_file_addr;
     logic pcm_req, pcm_ready, pcm_valid;
     logic [ADDR_WIDTH-1:0] pcm_addr;
     logic [7:0] pcm_data;
@@ -346,8 +347,11 @@ module ym2610_player_core #(
         .first_bad_target(scan_first_bad_target),
         .descriptor_a_count(descriptor_a_count),
         .descriptor_b_count(descriptor_b_count),
+        .descriptor_a_count_full(), .descriptor_b_count_full(),
+        .map_req_valid(map_req_valid), .map_req_ready(map_req_ready),
         .map_space_b(map_space_b), .map_logical_addr(map_logical_addr),
-        .map_hit(map_hit), .map_file_addr(map_file_addr)
+        .map_rsp_valid(map_rsp_valid), .map_rsp_hit(map_rsp_hit),
+        .map_rsp_file_addr(map_rsp_file_addr)
     );
 
     ym2610_player_parser #(.ADDR_WIDTH(ADDR_WIDTH)) u_parser (
@@ -395,9 +399,11 @@ module ym2610_player_core #(
         .adpcma_addr(adpcma_addr), .adpcma_bank(adpcma_bank),
         .adpcma_roe_n(adpcma_roe_n), .adpcma_data(adpcma_data),
         .adpcmb_addr(adpcmb_addr), .adpcmb_roe_n(adpcmb_roe_n),
-        .adpcmb_data(adpcmb_data), .map_space_b(map_space_b),
-        .map_logical_addr(map_logical_addr), .map_hit(map_hit),
-        .map_file_addr(map_file_addr), .mem_req(pcm_req), .mem_addr(pcm_addr),
+        .adpcmb_data(adpcmb_data), .map_req_valid(map_req_valid),
+        .map_req_ready(map_req_ready), .map_space_b(map_space_b),
+        .map_logical_addr(map_logical_addr), .map_rsp_valid(map_rsp_valid),
+        .map_rsp_hit(map_rsp_hit), .map_rsp_file_addr(map_rsp_file_addr),
+        .mem_req(pcm_req), .mem_addr(pcm_addr),
         .mem_ready(pcm_ready), .mem_valid(pcm_valid), .mem_data(pcm_data),
         .request_count(pcm_requests), .response_count(pcm_responses),
         .adpcma_request_count(adpcma_requests),

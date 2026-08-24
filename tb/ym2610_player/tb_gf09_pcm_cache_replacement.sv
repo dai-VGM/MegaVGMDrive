@@ -31,11 +31,12 @@ module tb_gf09_pcm_cache_replacement;
     logic [23:0] adpcmb_addr;
     logic adpcmb_roe_n;
     logic [7:0] adpcmb_data;
-    logic map_space_b;
-    logic [19:0] map_logical_addr;
-    logic map_hit;
+    logic map_req_valid, map_req_ready, map_space_b;
+    logic [23:0] map_logical_addr;
+    logic map_rsp_valid, map_rsp_hit;
     logic map_enable;
-    logic [ADDR_WIDTH-1:0] map_file_addr;
+    logic map_hold;
+    logic [ADDR_WIDTH-1:0] map_rsp_file_addr;
     logic mem_req;
     logic [ADDR_WIDTH-1:0] mem_addr;
     logic mem_ready;
@@ -74,8 +75,11 @@ module tb_gf09_pcm_cache_replacement;
         #5;
     end
 
-    assign map_hit = map_enable;
-    assign map_file_addr = {{(ADDR_WIDTH-20){1'b0}}, map_logical_addr};
+    // Most map_enable=0 setup windows intentionally return a speculative miss,
+    // matching the legacy combinational mapper fixture.  map_hold is used by
+    // the one transition-response case that needs to park an accepted-request
+    // candidate without misclassifying it as a range miss.
+    assign map_req_ready = map_enable || !map_hold;
     assign mem_ready = 1'b1;
 
     ym2610_player_pcm_cache #(
@@ -98,10 +102,13 @@ module tb_gf09_pcm_cache_replacement;
         .adpcmb_addr(adpcmb_addr),
         .adpcmb_roe_n(adpcmb_roe_n),
         .adpcmb_data(adpcmb_data),
+        .map_req_valid(map_req_valid),
+        .map_req_ready(map_req_ready),
         .map_space_b(map_space_b),
         .map_logical_addr(map_logical_addr),
-        .map_hit(map_hit),
-        .map_file_addr(map_file_addr),
+        .map_rsp_valid(map_rsp_valid),
+        .map_rsp_hit(map_rsp_hit),
+        .map_rsp_file_addr(map_rsp_file_addr),
         .mem_req(mem_req),
         .mem_addr(mem_addr),
         .mem_ready(mem_ready),
@@ -133,11 +140,20 @@ module tb_gf09_pcm_cache_replacement;
     // one response two clocks later; address/data ownership stays captured.
     always_ff @(posedge clk) begin
         if (reset) begin
+            map_rsp_valid <= 1'b0;
+            map_rsp_hit <= 1'b0;
+            map_rsp_file_addr <= '0;
             response_armed <= 1'b0;
             response_addr <= '0;
             mem_valid <= 1'b0;
             mem_data <= 8'd0;
         end else begin
+            map_rsp_valid <= 1'b0;
+            if (map_req_valid && map_req_ready) begin
+                map_rsp_valid <= 1'b1;
+                map_rsp_hit <= map_enable;
+                map_rsp_file_addr <= map_logical_addr[ADDR_WIDTH-1:0];
+            end
             mem_valid <= 1'b0;
             if (response_armed) begin
                 mem_valid <= 1'b1;
@@ -211,6 +227,7 @@ module tb_gf09_pcm_cache_replacement;
             reset = 1'b1;
             active = 1'b0;
             map_enable = 1'b1;
+            map_hold = 1'b0;
             write_valid = 1'b0;
             write_accept = 1'b0;
             write_port = 1'b0;
@@ -401,11 +418,28 @@ module tb_gf09_pcm_cache_replacement;
             @(negedge clk);
             adpcma_roe_n = 1'b1;
             adpcma_addr = logical_addr;
+            guard = 0;
+            while (!(dut.request_pending && !dut.request_space_b &&
+                     dut.request_logical[19:0] == logical_addr) &&
+                   guard < 200) begin
+                @(negedge clk);
+                guard = guard + 1;
+            end
+            check(dut.request_pending && !dut.request_space_b &&
+                  dut.request_logical[19:0] == logical_addr,
+                  "target A request was not accepted");
+            while (!mem_valid && guard < 240) begin
+                @(negedge clk);
+                guard = guard + 1;
+            end
+            check(mem_valid, "target A response did not arrive");
             #1;
             ptr_before = {26'd0, dut.replace_ptr};
             destination_slot = {26'd0, dut.replacement_slot};
             old_valid = dut.cache_valid[destination_slot];
             old_logical = dut.cache_logical[destination_slot];
+            @(posedge clk);
+            @(negedge clk);
             guard = 0;
             while (find_a_slot(logical_addr) < 0 && guard < 200) begin
                 @(negedge clk);
@@ -446,11 +480,28 @@ module tb_gf09_pcm_cache_replacement;
             @(negedge clk);
             adpcma_roe_n = 1'b1;
             adpcma_addr = logical_addr;
+            guard = 0;
+            while (!(dut.request_pending && !dut.request_space_b &&
+                     dut.request_logical[19:0] == logical_addr) &&
+                   guard < 200) begin
+                @(negedge clk);
+                guard = guard + 1;
+            end
+            check(dut.request_pending && !dut.request_space_b &&
+                  dut.request_logical[19:0] == logical_addr,
+                  "parked target A request was not accepted");
+            while (!mem_valid && guard < 240) begin
+                @(negedge clk);
+                guard = guard + 1;
+            end
+            check(mem_valid, "parked target A response did not arrive");
             #1;
             ptr_before = {26'd0, dut.replace_ptr};
             destination_slot = {26'd0, dut.replacement_slot};
             old_valid = dut.cache_valid[destination_slot];
             old_logical = dut.cache_logical[destination_slot];
+            @(posedge clk);
+            @(negedge clk);
             guard = 0;
             while (find_a_slot(logical_addr) < 0 && guard < 200) begin
                 @(negedge clk);
@@ -489,11 +540,14 @@ module tb_gf09_pcm_cache_replacement;
             adpcma_addr = logical_addr;
             adpcma_roe_n = 1'b1;
             guard = 0;
-            while (!dut.request_pending && guard < 100) begin
+            while (!(dut.request_pending && !dut.request_space_b &&
+                     dut.request_logical[19:0] == logical_addr) &&
+                   guard < 100) begin
                 @(negedge clk);
                 guard = guard + 1;
             end
-            check(dut.request_pending,
+            check(dut.request_pending && !dut.request_space_b &&
+                  dut.request_logical[19:0] == logical_addr,
                   "single-pulsed request was not accepted");
             active = 1'b0;
             #1;
@@ -891,12 +945,14 @@ module tb_gf09_pcm_cache_replacement;
             // allowing a fill.  Its response will return on the same edge as
             // the bus transitions to a different, already-resident address.
             map_enable = 1'b0;
+            map_hold = 1'b1;
             present_a_read(response_addr_logical);
             check(live_history_contains(response_addr_logical),
                   "transition setup did not record response address");
 
             @(negedge clk);
             map_enable = 1'b1;
+            map_hold = 1'b0;
             adpcma_addr = response_addr_logical;
             adpcma_roe_n = 1'b1;
             guard = 0;
@@ -1282,12 +1338,12 @@ module tb_gf09_pcm_cache_replacement;
             adpcmb_roe_n = 1'b1;
             fill_idle_a(20'h7e000, 1'b0, slot, old_valid, old_logical,
                         ptr_before, ptr_after);
-            check(ptr_before == 0 && slot == 4,
+            check(slot != 2 && slot != 3,
                   "redirected victim did not skip active ADPCM-B pair");
             check(find_b_slot(B_IDLE) == 2 &&
                   find_b_slot(B_IDLE + 20'd1) == 3,
                   "redirected fill evicted active ADPCM-B data");
-            check(find_a_slot(20'h7e000) == 4,
+            check(find_a_slot(20'h7e000) == slot,
                   "redirected fill after active B pair was dropped");
             check(!adpcmb_underflow,
                   "active ADPCM-B protection case underflowed");
@@ -1376,7 +1432,7 @@ module tb_gf09_pcm_cache_replacement;
             check(!write_allow,
                   "ADPCM-B command was allowed before prewarm");
             guard = 0;
-            while (!write_allow && guard < 300) begin
+            while (!write_allow && guard < 1000) begin
                 @(negedge clk);
                 guard = guard + 1;
             end
@@ -1410,6 +1466,7 @@ module tb_gf09_pcm_cache_replacement;
         reset = 1'b1;
         active = 1'b0;
         map_enable = 1'b1;
+        map_hold = 1'b0;
         write_valid = 1'b0;
         write_accept = 1'b0;
         write_port = 1'b0;
