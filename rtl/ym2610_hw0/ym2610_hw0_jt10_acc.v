@@ -31,17 +31,19 @@
 // ADPCM inputs
 // Full OP resolution
 // No PCM
-// 4 OP channels
+// 4 OP channels in YM2610 mode; six in YM2610B mode
 
 // ADPCM-A input is added for the time assigned to FM channel 0_10 (i.e. 3)
 
-// HW-0-only standard-YM2610 accumulator derivative.  It preserves the
-// pristine four-audible-FM-channel mix and opts both stereo accumulators into
-// the local jt12_single_acc reset port used by the verified Phase 0-4 tree.
+// HW-0 accumulator derivative.  The default mode preserves the pristine
+// four-audible-FM-channel YM2610 mix.  YM2610B mode adds the existing FM
+// carrier in the two ADPCM insertion slots, with saturation before the
+// existing per-frame stereo accumulators.
 module ym2610_hw0_jt10_acc(
     input               rst,
     input               clk,
     input               clk_en /* synthesis direct_enable */,
+    input               ym2610b_mode,
     input signed [13:0] op_result,
     input        [ 1:0] rl,
     input               zero,
@@ -75,8 +77,27 @@ end
 wire left_en = rl[1];
 wire right_en= rl[0];
 wire signed [15:0] opext = { {2{op_result[13]}}, op_result };
+wire signed [15:0] fm_input = opext >>> 1;
+wire signed [15:0] adpcmA_mix_l = (adpcmA_l <<< 2) + (adpcmA_l <<< 1);
+wire signed [15:0] adpcmA_mix_r = (adpcmA_r <<< 2) + (adpcmA_r <<< 1);
+wire signed [15:0] adpcmB_mix_l = adpcmB_l >>> 1;
+wire signed [15:0] adpcmB_mix_r = adpcmB_r >>> 1;
 reg  signed [15:0] acc_input_l, acc_input_r;
 reg acc_en_l, acc_en_r;
+wire fm_en_l = sum_en & left_en;
+wire fm_en_r = sum_en & right_en;
+
+function signed [15:0] saturate_17_to_16;
+    input signed [16:0] value;
+    begin
+        if (value > 17'sd32767)
+            saturate_17_to_16 = 16'sh7fff;
+        else if (value < -17'sd32768)
+            saturate_17_to_16 = 16'sh8000;
+        else
+            saturate_17_to_16 = value[15:0];
+    end
+endfunction
 
 // YM2610 mode:
 // uses channels 0 and 4 for ADPCM data, throwing away FM data for those channels
@@ -84,25 +105,51 @@ reg acc_en_l, acc_en_r;
 always @(*)
     case( {cur_op,cur_ch} )
         {2'd0,3'd0}: begin // ADPCM-A:
-            acc_input_l = (adpcmA_l <<< 2) + (adpcmA_l <<< 1);
-            acc_input_r = (adpcmA_r <<< 2) + (adpcmA_r <<< 1);
+            if (ym2610b_mode) begin
+                acc_input_l = saturate_17_to_16(
+                    $signed({adpcmA_mix_l[15], adpcmA_mix_l}) +
+                    (fm_en_l ? $signed({fm_input[15], fm_input}) : 17'sd0));
+                acc_input_r = saturate_17_to_16(
+                    $signed({adpcmA_mix_r[15], adpcmA_mix_r}) +
+                    (fm_en_r ? $signed({fm_input[15], fm_input}) : 17'sd0));
+            end else begin
+                acc_input_l = adpcmA_mix_l;
+                acc_input_r = adpcmA_mix_r;
+            end
             `ifndef NOMIX
             acc_en_l    = 1'b1;
             acc_en_r    = 1'b1;
             `else
-            acc_en_l    = 1'b0;
-            acc_en_r    = 1'b0;
+            acc_en_l    = ym2610b_mode && fm_en_l;
+            acc_en_r    = ym2610b_mode && fm_en_r;
+            if (ym2610b_mode) begin
+                acc_input_l = fm_input;
+                acc_input_r = fm_input;
+            end
             `endif
         end
         {2'd0,3'd4}: begin // ADPCM-B:
-            acc_input_l = adpcmB_l >>> 1; // Operator width is 14 bit, ADPCM-B is 16 bit
-            acc_input_r = adpcmB_r >>> 1; // accumulator width per input channel is 14 bit
+            if (ym2610b_mode) begin
+                acc_input_l = saturate_17_to_16(
+                    $signed({adpcmB_mix_l[15], adpcmB_mix_l}) +
+                    (fm_en_l ? $signed({fm_input[15], fm_input}) : 17'sd0));
+                acc_input_r = saturate_17_to_16(
+                    $signed({adpcmB_mix_r[15], adpcmB_mix_r}) +
+                    (fm_en_r ? $signed({fm_input[15], fm_input}) : 17'sd0));
+            end else begin
+                acc_input_l = adpcmB_mix_l;
+                acc_input_r = adpcmB_mix_r;
+            end
             `ifndef NOMIX
             acc_en_l    = 1'b1;
             acc_en_r    = 1'b1;
             `else
-            acc_en_l    = 1'b0;
-            acc_en_r    = 1'b0;
+            acc_en_l    = ym2610b_mode && fm_en_l;
+            acc_en_r    = ym2610b_mode && fm_en_r;
+            if (ym2610b_mode) begin
+                acc_input_l = fm_input;
+                acc_input_r = fm_input;
+            end
             `endif
         end
         default: begin
@@ -112,10 +159,10 @@ always @(*)
             // channels and made this arrangement
             // I suppose ADPCM-A would saturate if taken up a factor of 8 instead of 4
             // I'll leave it as it is but I think it is worth revisiting this:
-            acc_input_l = opext >>> 1;
-            acc_input_r = opext >>> 1;
-            acc_en_l    = sum_en & left_en;
-            acc_en_r    = sum_en & right_en;
+            acc_input_l = fm_input;
+            acc_input_r = fm_input;
+            acc_en_l    = fm_en_l;
+            acc_en_r    = fm_en_r;
         end
     endcase
 

@@ -197,6 +197,7 @@ module ym2610_hw0_top #(
 
     ym2610_hw0_jt10_wrapper u_jt10 (
         .clk(clk_sys), .rst(test_reset), .cen(jt10_cen),
+        .ym2610b_mode(1'b0),
         .bus_addr(bus_addr), .bus_din(bus_din),
         .bus_cs_n(bus_cs_n), .bus_wr_n(bus_wr_n),
         .bus_dout(bus_dout), .irq_n(irq_n),

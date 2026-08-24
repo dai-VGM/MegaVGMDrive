@@ -43,6 +43,11 @@ module golden_player_shell_v1_1_profile #(
     output logic [31:0]               scanner_start_count,
     output logic [31:0]               sound_write_count
 );
+`ifdef YM2610B_PLAYER
+    localparam ENABLE_YM2610B = 1;
+`else
+    localparam ENABLE_YM2610B = 0;
+`endif
     logic download_q;
     logic upload_session_armed;
     logic core_load_done_pulse;
@@ -99,7 +104,8 @@ module golden_player_shell_v1_1_profile #(
 
     ym2610_player_core #(
         .SYS_CLK_HZ(CLK_SYS_HZ),
-        .ADDR_WIDTH(VGM_ADDR_WIDTH)
+        .ADDR_WIDTH(VGM_ADDR_WIDTH),
+        .ENABLE_YM2610B(ENABLE_YM2610B)
     ) production_player (
         .clk(clk_sys),
         .hard_reset(reset),

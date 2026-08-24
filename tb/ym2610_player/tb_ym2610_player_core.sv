@@ -1,6 +1,11 @@
 `timescale 1ns/1ps
 
 module tb_ym2610_player_core;
+`ifdef YM2610B_TEST
+    localparam YM2610B_ENABLE = 1;
+`else
+    localparam YM2610B_ENABLE = 0;
+`endif
     localparam int MAX_FILE = 1 << 23;
     logic clk = 1'b0;
     logic hard_reset = 1'b1;
@@ -64,7 +69,10 @@ module tb_ym2610_player_core;
         fnv_byte = (hash ^ value) * 64'h0000_0100_0000_01b3;
     endfunction
 
-    ym2610_player_core #(.SYS_CLK_HZ(8_000_000), .CACHE_ENTRIES(16)) dut (
+    ym2610_player_core #(
+        .SYS_CLK_HZ(8_000_000), .CACHE_ENTRIES(16),
+        .ENABLE_YM2610B(YM2610B_ENABLE)
+    ) dut (
         .clk(clk), .hard_reset(hard_reset), .soft_reset(soft_reset),
         .ioctl_download(ioctl_download), .load_done_pulse(load_done_pulse),
         .file_size(file_size), .load_generation(8'd1),
@@ -316,6 +324,13 @@ module tb_ym2610_player_core;
             !(classification == 4'd2 && raw_variant_b && adpcma_seen &&
               adpcmb_seen && final_seen))
             $fatal(1, "B-compatible subset acceptance missing");
+        if (expected_lane == "BFM" &&
+            !(classification == 4'd2 && raw_variant_b && final_seen))
+            $fatal(1, "YM2610B FM-channel acceptance missing");
+        if (expected_lane == "BSIX" &&
+            !(classification == 4'd2 && raw_variant_b &&
+              b_only_writes != 0 && final_seen))
+            $fatal(1, "YM2610B six-FM acceptance missing");
         if (expected_lane == "STANDARD" &&
             !(classification == 4'd1 && !raw_variant_b && psg_a_seen &&
               psg_b_seen && psg_c_seen && adpcma_seen && adpcmb_seen &&

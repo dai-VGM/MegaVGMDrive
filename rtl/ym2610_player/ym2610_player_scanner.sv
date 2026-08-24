@@ -5,7 +5,8 @@
 // leak a register write into JT10.
 module ym2610_player_scanner #(
     parameter int ADDR_WIDTH = 23,
-    parameter int MAX_DESCRIPTORS = 10
+    parameter int MAX_DESCRIPTORS = 10,
+    parameter ENABLE_YM2610B = 0
 ) (
     input  logic                  clk,
     input  logic                  reset,
@@ -106,6 +107,8 @@ module ym2610_player_scanner #(
     logic compat_unknown;
     logic [3:0] compat_semantic;
     logic [2:0] compat_target;
+    wire compat_effective_accepted = compat_accepted ||
+        (ENABLE_YM2610B && variant_b && compat_b_only);
 
     logic [19:0] desc_a_logical [0:MAX_DESCRIPTORS-1];
     logic [20:0] desc_a_length  [0:MAX_DESCRIPTORS-1];
@@ -389,7 +392,7 @@ module ym2610_player_scanner #(
                             b_only_writes <= b_only_writes + 32'd1;
                         if (compat_unknown)
                             unknown_writes <= unknown_writes + 32'd1;
-                        if (!compat_accepted && !first_bad_valid) begin
+                        if (!compat_effective_accepted && !first_bad_valid) begin
                             first_bad_valid <= 1'b1;
                             first_bad_b_only <= compat_b_only;
                             first_bad_pc <= command_pc;

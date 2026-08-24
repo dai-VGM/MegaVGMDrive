@@ -1,0 +1,5 @@
+# Dedicated YM2610B bring-up revision.  The production YM2610 Golden Shell,
+# board assignments, source graph, DDRAM backend, and profile remain the
+# authority; this revision adds only the compile-time product capability.
+source MegaVGMPlayer_YM2610_MiSTer.qsf
+set_global_assignment -name VERILOG_MACRO "YM2610B_PLAYER=1"

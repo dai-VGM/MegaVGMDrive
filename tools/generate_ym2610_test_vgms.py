@@ -83,6 +83,59 @@ def fm_sequence() -> bytes:
     return bytes(sequence)
 
 
+def fm_channel_sequence(channel: int, *, frequency: int = 0x269) -> bytes:
+    """Four-operator algorithm-7 tone on one physical FM channel (0..5)."""
+    if not 0 <= channel < 6:
+        raise ValueError("FM channel must be in range 0..5")
+    port = 0 if channel < 3 else 1
+    low = channel % 3
+    selector = channel if channel < 3 else channel + 1
+    sequence = bytearray()
+    for operator_offset in (0, 4, 8, 12):
+        for register_base, value in (
+            (0x30, 0x01), (0x40, 0x18), (0x50, 0x1F),
+            (0x60, 0x08), (0x70, 0x04), (0x80, 0x0F),
+        ):
+            sequence += write(port, register_base + operator_offset + low, value)
+    sequence += write(port, 0xB0 + low, 0x07)
+    sequence += write(port, 0xB4 + low, 0xC0)
+    sequence += write(port, 0xA4 + low, (frequency >> 8) & 0x3F)
+    sequence += write(port, 0xA0 + low, frequency & 0xFF)
+    sequence += write(0, 0x28, 0xF0 | selector)
+    sequence += wait(2205)
+    sequence += write(0, 0x28, selector)
+    sequence += wait(128)
+    return bytes(sequence)
+
+
+def six_fm_sequence() -> bytes:
+    """Configure and key all six FM channels at distinct frequencies."""
+    sequence = bytearray()
+    selectors = (0, 1, 2, 4, 5, 6)
+    for channel in range(6):
+        port = 0 if channel < 3 else 1
+        low = channel % 3
+        frequency = 0x220 + channel * 0x29
+        for operator_offset in (0, 4, 8, 12):
+            for register_base, value in (
+                (0x30, 0x01), (0x40, 0x20), (0x50, 0x1F),
+                (0x60, 0x08), (0x70, 0x04), (0x80, 0x0F),
+            ):
+                sequence += write(port, register_base + operator_offset + low,
+                                  value)
+        sequence += write(port, 0xB0 + low, 0x07)
+        sequence += write(port, 0xB4 + low, 0xC0)
+        sequence += write(port, 0xA4 + low, (frequency >> 8) & 0x3F)
+        sequence += write(port, 0xA0 + low, frequency & 0xFF)
+    for selector in selectors:
+        sequence += write(0, 0x28, 0xF0 | selector)
+    sequence += wait(2205)
+    for selector in selectors:
+        sequence += write(0, 0x28, selector)
+    sequence += wait(128)
+    return bytes(sequence)
+
+
 def ssg_sequence() -> bytes:
     sequence = bytearray()
     for register, value in (
@@ -169,6 +222,14 @@ def fixtures() -> dict[str, bytes]:
     loop_body = fm_sequence()
     looping = vgm(loop_body + b"\x66", loop_command_offset=0)
     lifecycle = vgm(wait(16) + b"\x66")
+    ym2610b_fm = {
+        f"ym2610b_fm_ch{channel + 1}.vgm": vgm(
+            fm_channel_sequence(channel, frequency=0x220 + channel * 0x29) +
+            b"\x66", variant_b=True)
+        for channel in range(6)
+    }
+    ym2610b_six = vgm(six_fm_sequence() + b"\x66", variant_b=True)
+    ym2610_unflagged_extra = vgm(fm_channel_sequence(0) + b"\x66")
     descriptor_a = {
         f"descriptor_a_{count}.vgm": vgm(
             descriptor_sequence(0x82, count) + b"\x66")
@@ -214,6 +275,9 @@ def fixtures() -> dict[str, bytes]:
         "adpcma_b_simultaneous.vgm": simultaneous,
         "loop.vgm": looping,
         "lifecycle.vgm": lifecycle,
+        **ym2610b_fm,
+        "ym2610b_six_fm.vgm": ym2610b_six,
+        "ym2610_unflagged_extra_fm.vgm": ym2610_unflagged_extra,
         **descriptor_a,
         **descriptor_b,
         "descriptor_a10_b3.vgm": descriptor_mixed,

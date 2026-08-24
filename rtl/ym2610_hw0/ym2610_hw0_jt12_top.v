@@ -32,6 +32,7 @@ module ym2610_hw0_jt12_top (
     input           rst,        // rst should be at least 6 clk&cen cycles long
     input           clk,        // CPU clock
     (* direct_enable *) input cen,        // optional clock enable, if not needed leave as 1'b1
+    input           ym2610b_mode,
     input   [7:0]   din,
     input   [1:0]   addr,
     input           cs_n,
@@ -318,6 +319,7 @@ if( use_adpcm==1 ) begin: gen_adpcm
         .rst        ( rst           ),
         .clk        ( clk           ),
         .clk_en     ( clk_en        ),
+        .ym2610b_mode( ym2610b_mode ),
         .op_result  ( op_result_hd  ),
         .rl         ( rl            ),
         .zero       ( zero          ),

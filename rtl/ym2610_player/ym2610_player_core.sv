@@ -3,7 +3,8 @@
 module ym2610_player_core #(
     parameter int SYS_CLK_HZ = 20_000_000,
     parameter int ADDR_WIDTH = 23,
-    parameter int CACHE_ENTRIES = 64
+    parameter int CACHE_ENTRIES = 64,
+    parameter ENABLE_YM2610B = 0
 ) (
     input  logic                  clk,
     input  logic                  hard_reset,
@@ -320,7 +321,9 @@ module ym2610_player_core #(
         end
     end
 
-    ym2610_player_scanner #(.ADDR_WIDTH(ADDR_WIDTH)) u_scanner (
+    ym2610_player_scanner #(
+        .ADDR_WIDTH(ADDR_WIDTH), .ENABLE_YM2610B(ENABLE_YM2610B)
+    ) u_scanner (
         .clk(clk), .reset(scanner_reset), .start(scanner_start),
         .physical_size(file_size), .mem_req(scanner_req),
         .mem_addr(scanner_addr), .mem_ready(scanner_ready),
@@ -476,6 +479,7 @@ module ym2610_player_core #(
 
     ym2610_hw0_jt10_wrapper u_jt10 (
         .clk(clk), .rst(chip_reset), .cen(jt10_cen),
+        .ym2610b_mode(ENABLE_YM2610B && scan_variant_b),
         .bus_addr(bus_addr), .bus_din(bus_din), .bus_cs_n(bus_cs_n),
         .bus_wr_n(bus_wr_n), .bus_dout(bus_dout), .irq_n(irq_n),
         .snd_left(jt_left), .snd_right(jt_right), .snd_sample(jt_sample),

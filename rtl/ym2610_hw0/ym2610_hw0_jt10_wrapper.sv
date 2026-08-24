@@ -7,6 +7,7 @@ module ym2610_hw0_jt10_wrapper (
     input  logic               clk,
     input  logic               rst,
     input  logic               cen,
+    input  logic               ym2610b_mode,
     input  logic         [1:0] bus_addr,
     input  logic         [7:0] bus_din,
     input  logic               bus_cs_n,
@@ -88,6 +89,7 @@ module ym2610_hw0_jt10_wrapper (
         .use_pcm(0), .use_adpcm(1), .JT49_DIV(3)
     ) u_core (
         .rst(rst), .clk(clk), .cen(cen),
+        .ym2610b_mode(ym2610b_mode),
         .din(bus_din), .addr(bus_addr), .cs_n(bus_cs_n),
         .wr_n(bus_wr_n), .ladder(1'b0),
         .dout(bus_dout), .irq_n(irq_n), .en_hifi_pcm(1'b0),

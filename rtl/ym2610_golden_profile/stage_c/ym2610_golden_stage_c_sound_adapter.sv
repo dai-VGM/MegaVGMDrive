@@ -365,6 +365,7 @@ module ym2610_golden_stage_c_sound_adapter #(
         .rst(reset || core_reset),
         .clk(clk),
         .cen(cen),
+        .ym2610b_mode(1'b0),
         .din(core_bus_din),
         .addr(core_bus_addr),
         .cs_n(core_bus_cs_n),
