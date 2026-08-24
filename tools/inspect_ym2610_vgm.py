@@ -306,10 +306,11 @@ def _trace(data: bytes, source: pathlib.Path) -> Inspection:
                 pc = block_end
                 continue
             size_valid = (0 < logical_rom_size <= limit) if block_type == 0x82 \
-                else logical_rom_size == limit
+                else logical_rom_size > 0
             if (not size_valid or logical_start > logical_rom_size or
                     (length != 0 and logical_start >= limit) or
-                    logical_start + length > logical_rom_size):
+                    logical_start + length > logical_rom_size or
+                    logical_start + length > limit):
                 raise VGMError("BLOCK_RANGE", command_pc, opcode,
                                f"type {block_type:02X} logical range")
             if length == 0:

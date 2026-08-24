@@ -244,15 +244,23 @@ def fixtures() -> dict[str, bytes]:
                            descriptor_sequence(0x83, 3) + b"\x66")
     empty_b_512 = vgm(block(0x83, 0x80000, 0, b"") + b"\x66")
     empty_b_1m = vgm(block(0x83, 0x100000, 0, b"") + b"\x66")
-    valid_b = block(0x83, 0x80000, 0x100, bytes(range(16)))
-    invalid_b = block(0x83, 0x100000, 0x100, bytes(range(16)))
+    valid_b_512 = block(0x83, 0x80000, 0x100, bytes(range(16)))
+    valid_b_1m = block(0x83, 0x100000, 0x200, bytes(range(16)))
+    valid_b_8m = block(0x83, 0x800000, 0x300, bytes(range(16)))
+    b_declared_too_small = block(
+        0x83, 0x200, 0x1f8, bytes(range(16)))
+    b_above_window = block(
+        0x83, 0x100000, 0x90000, bytes(range(16)))
+    b_arithmetic_overflow = block(
+        0x83, 0xffffffff, 0xfffffff0, bytes(range(32)))
     malformed_b = vgm(b"\x67\x66\x83" + u32(7) + b"\0" * 7 + b"\x66")
     empty_b_with_a = vgm(
         block(0x82, 0x100000, 0, bytes(range(16))) +
         empty_b_1m[0x80:-1] +
         block(0x82, 0x100000, 0x100, bytes(range(16))) + b"\x66")
-    empty_b_then_valid = vgm(empty_b_1m[0x80:-1] + valid_b + b"\x66")
-    empty_b_then_invalid = vgm(empty_b_1m[0x80:-1] + invalid_b + b"\x66")
+    empty_b_then_valid = vgm(empty_b_1m[0x80:-1] + valid_b_512 + b"\x66")
+    empty_b_then_invalid = vgm(
+        empty_b_1m[0x80:-1] + b_declared_too_small + b"\x66")
     b_out_of_range = vgm(block(0x83, 0x80000, 0x7fff0,
                                 bytes(range(32))) + b"\x66")
     b_overlap = vgm(block(0x83, 0x80000, 0, bytes(range(16))) +
@@ -301,8 +309,14 @@ def fixtures() -> dict[str, bytes]:
         "descriptor_a10_b3.vgm": descriptor_mixed,
         "empty_b_512k.vgm": empty_b_512,
         "empty_b_1m.vgm": empty_b_1m,
-        "valid_b_512k.vgm": vgm(valid_b + b"\x66"),
-        "invalid_b_1m.vgm": vgm(invalid_b + b"\x66"),
+        "valid_b_512k.vgm": vgm(valid_b_512 + b"\x66"),
+        "valid_b_1m_low.vgm": vgm(valid_b_1m + b"\x66"),
+        "valid_b_8m_low.vgm": vgm(valid_b_8m + b"\x66"),
+        "b_declared_too_small.vgm": vgm(
+            b_declared_too_small + b"\x66"),
+        "b_above_window.vgm": vgm(b_above_window + b"\x66"),
+        "b_arithmetic_overflow.vgm": vgm(
+            b_arithmetic_overflow + b"\x66"),
         "malformed_b.vgm": malformed_b,
         "empty_b_with_a.vgm": empty_b_with_a,
         "empty_b_then_valid.vgm": empty_b_then_valid,

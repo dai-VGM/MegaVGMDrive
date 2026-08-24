@@ -600,13 +600,15 @@ module ym2610_player_scanner #(
                                        {1'b0, block_size - 32'd8}) >
                                       {1'b0, block_rom_size})) ||
                                     (block_type == 8'h83 &&
-                                     (block_rom_size != 32'h0008_0000 ||
-                                      mem_data != 0 ||
-                                      |block_logical_start[23:20] ||
+                                     (block_rom_size == 0 ||
                                       ({1'b0, mem_data,
                                         block_logical_start[23:0]} +
                                        {1'b0, block_size - 32'd8}) >
-                                      {1'b0, block_rom_size}))) begin
+                                      {1'b0, block_rom_size} ||
+                                      ({1'b0, mem_data,
+                                        block_logical_start[23:0]} +
+                                       {1'b0, block_size - 32'd8}) >
+                                      33'd524288))) begin
                                     reject_code <= REJECT_RANGE;
                                     state <= ST_FATAL;
                                 end else if ((block_type == 8'h82 &&

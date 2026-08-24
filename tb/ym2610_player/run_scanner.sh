@@ -121,7 +121,8 @@ vvp "$build_dir/scanner.vvp" \
   "+VGM=$build_dir/fixtures/a_zero_length.vgm" \
   +EXPECT_ACCEPTED=1 +EXPECT_REJECT=00 +EXPECT_DESC_A=0 +EXPECT_DESC_B=0
 
-# Empty 0x83 blocks are metadata only; nonempty B-ROM validation is unchanged.
+# Empty 0x83 blocks are metadata only. Nonempty blocks independently obey
+# their declared size and the player's current exclusive 0x080000 B window.
 vvp "$build_dir/scanner.vvp" \
   "+VGM=$build_dir/fixtures/empty_b_512k.vgm" \
   +EXPECT_ACCEPTED=1 +EXPECT_REJECT=00 +EXPECT_DESC_A=0 +EXPECT_DESC_B=0
@@ -132,7 +133,19 @@ vvp "$build_dir/scanner.vvp" \
   "+VGM=$build_dir/fixtures/valid_b_512k.vgm" \
   +EXPECT_ACCEPTED=1 +EXPECT_REJECT=00 +EXPECT_DESC_A=0 +EXPECT_DESC_B=1
 vvp "$build_dir/scanner.vvp" \
-  "+VGM=$build_dir/fixtures/invalid_b_1m.vgm" \
+  "+VGM=$build_dir/fixtures/valid_b_1m_low.vgm" \
+  +EXPECT_ACCEPTED=1 +EXPECT_REJECT=00 +EXPECT_DESC_A=0 +EXPECT_DESC_B=1
+vvp "$build_dir/scanner.vvp" \
+  "+VGM=$build_dir/fixtures/valid_b_8m_low.vgm" \
+  +EXPECT_ACCEPTED=1 +EXPECT_REJECT=00 +EXPECT_DESC_A=0 +EXPECT_DESC_B=1
+vvp "$build_dir/scanner.vvp" \
+  "+VGM=$build_dir/fixtures/b_declared_too_small.vgm" \
+  +EXPECT_ACCEPTED=0 +EXPECT_REJECT=07 +EXPECT_DESC_A=0 +EXPECT_DESC_B=0
+vvp "$build_dir/scanner.vvp" \
+  "+VGM=$build_dir/fixtures/b_above_window.vgm" \
+  +EXPECT_ACCEPTED=0 +EXPECT_REJECT=07 +EXPECT_DESC_A=0 +EXPECT_DESC_B=0
+vvp "$build_dir/scanner.vvp" \
+  "+VGM=$build_dir/fixtures/b_arithmetic_overflow.vgm" \
   +EXPECT_ACCEPTED=0 +EXPECT_REJECT=07 +EXPECT_DESC_A=0 +EXPECT_DESC_B=0
 vvp "$build_dir/scanner.vvp" \
   "+VGM=$build_dir/fixtures/malformed_b.vgm" \
@@ -152,6 +165,7 @@ vvp "$build_dir/scanner.vvp" \
 vvp "$build_dir/scanner.vvp" \
   "+VGM=$build_dir/fixtures/b_overlap.vgm" \
   +EXPECT_ACCEPTED=0 +EXPECT_REJECT=08 +EXPECT_DESC_A=0 +EXPECT_DESC_B=1
+echo "YM2610_B_DECLARED_SIZE_POLICY declared_512k=PASS declared_1m=PASS declared_8m=PASS declared_end=PASS player_window=PASS start_above=PASS overflow=PASS empty=PASS result=PASS"
 
 if [[ -f "/Users/daizo/Music/03 Olga Breeze.vgm" ]]; then
   PYTHONDONTWRITEBYTECODE=1 python3 - "$repo_dir" "/Users/daizo/Music/03 Olga Breeze.vgm" "$build_dir/olga.map" <<'PY'
