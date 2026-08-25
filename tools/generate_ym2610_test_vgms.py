@@ -194,6 +194,24 @@ def fixtures() -> dict[str, bytes]:
                   variant_b=True)
     dual = vgm(fm_sequence() + b"\x66", dual=True)
     unknown_register = vgm(write(0, 0x20, 0x12) + b"\x66")
+    adpcma_test_noop = vgm(write(1, 0x02, 0x00) + b"\x66")
+    fm_operator_hole_noop = vgm(
+        write(0, 0x43, 0x7F) + write(0, 0x47, 0x7F) +
+        write(0, 0x4B, 0x7F) + write(1, 0x43, 0x7F) +
+        write(1, 0x47, 0x7F) + write(1, 0x4B, 0x7F) + b"\x66")
+    fm_operator_hole_noop_b = vgm(
+        write(0, 0x43, 0x7F) + write(1, 0x43, 0x7F) + b"\x66",
+        variant_b=True)
+    fm_operator_insertion_slot_noop = vgm(
+        write(0, 0x44, 0x7F) + write(0, 0x48, 0x7F) +
+        write(0, 0x4C, 0x7F) + write(1, 0x44, 0x7F) +
+        write(1, 0x48, 0x7F) + write(1, 0x4C, 0x7F) + b"\x66")
+    fm_operator_insertion_slot_b = vgm(
+        write(0, 0x44, 0x7F) + write(1, 0x44, 0x7F) + b"\x66",
+        variant_b=True)
+    reserved_adpcma_03 = vgm(write(1, 0x03, 0x00) + b"\x66")
+    reserved_keyon_selector3 = vgm(write(0, 0x28, 0xF3) + b"\x66")
+    reserved_fm_frequency_hole = vgm(write(0, 0xA3, 0x12) + b"\x66")
     unsupported_opcode = vgm(b"\x50\x00\x66")
     block_out_of_range = vgm(
         block(0x82, 0x100000, 0xFFFF0, bytes(range(32))) + b"\x66")
@@ -302,6 +320,14 @@ def fixtures() -> dict[str, bytes]:
         "b_only_setup.vgm": b_setup,
         "dual_unsupported.vgm": dual,
         "unknown_register.vgm": unknown_register,
+        "adpcma_test_noop.vgm": adpcma_test_noop,
+        "fm_operator_hole_noop.vgm": fm_operator_hole_noop,
+        "fm_operator_hole_noop_b.vgm": fm_operator_hole_noop_b,
+        "fm_operator_insertion_slot_noop.vgm": fm_operator_insertion_slot_noop,
+        "fm_operator_insertion_slot_b.vgm": fm_operator_insertion_slot_b,
+        "reserved_adpcma_03.vgm": reserved_adpcma_03,
+        "reserved_keyon_selector3.vgm": reserved_keyon_selector3,
+        "reserved_fm_frequency_hole.vgm": reserved_fm_frequency_hole,
         "unsupported_opcode.vgm": unsupported_opcode,
         "block_out_of_range.vgm": block_out_of_range,
         "ssg_abc_raw.vgm": ssg,

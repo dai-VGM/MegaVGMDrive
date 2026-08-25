@@ -49,6 +49,9 @@ module ym2610_player_compat (
             target = 3'd0;
         end else if (port &&
                      (address == 8'h00 || address == 8'h01 ||
+                      // JT10 names 02 as the ADPCM-A test register and
+                      // deliberately gives it no state-update action.
+                      address == 8'h02 ||
                       (address >= 8'h08 && address <= 8'h0d) ||
                       (address >= 8'h10 && address <= 8'h15) ||
                       (address >= 8'h18 && address <= 8'h1d) ||
@@ -79,12 +82,20 @@ module ym2610_player_compat (
         end else if (address >= 8'h30 && address <= 8'h9f) begin
             semantic = SEM_FM_OP;
             target = {port, address[1:0]};
-            if (address[1:0] == 2'd1 || address[1:0] == 2'd2)
+            if (address[1:0] == 2'd0 ||
+                address[1:0] == 2'd1 || address[1:0] == 2'd2)
                 accepted = 1'b1;
-            else if (address[1:0] == 2'd0)
-                b_only = 1'b1;
-            else
-                unknown = 1'b1;
+            else begin
+                // Low selector 0 addresses the two FM slots that share the
+                // YM2610 output timeslots with ADPCM-A/B.  JT10 retains their
+                // register state, but its standard-YM2610 accumulator discards
+                // their FM output.  Operator writes are therefore harmless;
+                // key/frequency/channel-control access remains B-only below.
+                // Low selector 3 is the physical FM channel hole.  JT10
+                // explicitly clears every operator/channel update pulse for
+                // it, so real chip-initialization writes are harmless.
+                accepted = 1'b1;
+            end
         end else if ((address == 8'ha0 || address == 8'ha1 || address == 8'ha2 ||
                       address == 8'ha4 || address == 8'ha5 || address == 8'ha6 ||
                       address == 8'hb0 || address == 8'hb1 || address == 8'hb2 ||

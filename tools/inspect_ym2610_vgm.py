@@ -172,7 +172,7 @@ def classify_write(port: int, address: int, value: int) -> tuple[str, str, str |
                 return "fm-key", f"YM2610B extra FM channel code {selector}", "B_ONLY"
             return "fm-key", f"reserved FM channel code {selector}", "UNKNOWN"
     else:
-        if address in (0x00, 0x01, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D,
+        if address in (0x00, 0x01, 0x02, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D,
                        0x10, 0x11, 0x12, 0x13, 0x14, 0x15,
                        0x18, 0x19, 0x1A, 0x1B, 0x1C, 0x1D,
                        0x20, 0x21, 0x22, 0x23, 0x24, 0x25,
@@ -191,9 +191,13 @@ def classify_write(port: int, address: int, value: int) -> tuple[str, str, str |
             channel = selector + (3 if port else 0)
             return semantic, f"standard FM channel {channel}", None
         if selector == 0:
-            channel = 3 if port else 0
-            return semantic, f"YM2610B extra FM channel {channel}", "B_ONLY"
-        return semantic, "reserved FM channel selector 3", "UNKNOWN"
+            channel = 4 if port else 1
+            return semantic, (f"YM2610-hidden/YM2610B FM channel {channel} "
+                              "operator state"), None
+        # JT10 explicitly suppresses every operator/channel update when the
+        # low selector is 3.  Neo Geo initialization streams write these
+        # channel holes, so mirror the implemented no-op behavior.
+        return semantic, "ignored FM channel hole selector 3", None
 
     if address in (0xA0, 0xA1, 0xA2, 0xA4, 0xA5, 0xA6,
                    0xB0, 0xB1, 0xB2, 0xB4, 0xB5, 0xB6):

@@ -56,6 +56,25 @@ PY
   fi
 done
 
+# JT10-compatible Neo Geo no-op writes.  Port-1 register 02 is the ADPCM-A
+# test-register location; FM operator selector 3 is the physical channel hole;
+# operator selector 0 is an inaudible insertion-slot channel in YM2610 mode.
+# Both modes accept them, while key/frequency/control access to selector 0 and
+# semantically different reserved encodings remain strict scanner rejects.
+for fixture in adpcma_test_noop fm_operator_hole_noop fm_operator_hole_noop_b \
+               fm_operator_insertion_slot_noop fm_operator_insertion_slot_b; do
+  vvp "$build_dir/scanner.vvp" \
+    "+VGM=$build_dir/fixtures/$fixture.vgm" \
+    +EXPECT_ACCEPTED=1 +EXPECT_REJECT=00 +EXPECT_DESC_A=0 +EXPECT_DESC_B=0
+done
+for fixture in unknown_register reserved_adpcma_03 \
+               reserved_keyon_selector3 reserved_fm_frequency_hole; do
+  vvp "$build_dir/scanner.vvp" \
+    "+VGM=$build_dir/fixtures/$fixture.vgm" \
+    +EXPECT_ACCEPTED=0 +EXPECT_REJECT=04 +EXPECT_DESC_A=0 +EXPECT_DESC_B=0
+done
+echo "YM2610_NEO_GEO_NOOP_POLICY adpcma_test02=PASS fm_operator_slot0=PASS fm_operator_hole3=PASS keyon_selector3_reject=PASS adjacent_reserved_reject=PASS result=PASS"
+
 for count in 0 1 8 9 10 11 64; do
   vvp "$build_dir/scanner.vvp" \
     "+VGM=$build_dir/fixtures/descriptor_a_${count}.vgm" \
