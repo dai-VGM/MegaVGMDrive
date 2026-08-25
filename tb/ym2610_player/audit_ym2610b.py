@@ -24,6 +24,7 @@ ALLOWED_CHANGES = {
     "rtl/ym2610_hw0/ym2610_hw0_jt12_top.v",
     "rtl/ym2610_hw0/ym2610_hw0_top.sv",
     "rtl/ym2610_player/ym2610_player_core.sv",
+    "rtl/ym2610_player/ym2610_player_compat.sv",
     "rtl/ym2610_player/ym2610_player_pcm_cache.sv",
     "rtl/ym2610_player/ym2610_player_production_profile.sv",
     "rtl/ym2610_player/ym2610_player_scanner.sv",
@@ -58,7 +59,8 @@ def sha256(path: pathlib.Path) -> str:
 
 def main() -> int:
     branch = git("branch", "--show-current")
-    assert branch in ("ym2610b-bringup", "ym2610b-adpcma-24bit")
+    assert branch in ("ym2610b-bringup", "ym2610b-adpcma-24bit",
+                      "ym2610b-adpcmb-24bit")
     assert git("merge-base", "HEAD", BASE) == BASE
     assert git("rev-parse", "YM2610-2160-beta^{}") == BASE
     cache_sha = sha256(ROOT / "rtl/ym2610_player/ym2610_player_pcm_cache.sv")

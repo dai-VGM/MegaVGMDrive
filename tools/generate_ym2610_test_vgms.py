@@ -265,6 +265,17 @@ def fixtures() -> dict[str, bytes]:
                                 bytes(range(32))) + b"\x66")
     b_overlap = vgm(block(0x83, 0x80000, 0, bytes(range(16))) +
                     block(0x83, 0x80000, 8, bytes(range(16))) + b"\x66")
+    wide_b = vgm(
+        block(0x83, 0x800000, 0x07FFFE, bytes((0xB0, 0xB1, 0xB2, 0xB3))) +
+        block(0x83, 0x800000, 0x0FFFFE, bytes((0xC0, 0xC1, 0xC2, 0xC3))) +
+        block(0x83, 0x800000, 0x710300, bytes(range(0xD0, 0xE0))) +
+        block(0x83, 0x800000, 0x717AF0, bytes(range(0xE0, 0xF0))) + b"\x66")
+    b_exact_end = vgm(
+        block(0x83, 0x720000, 0x71FFF0, bytes(range(16))) + b"\x66")
+    b_declared_over_24 = vgm(
+        block(0x83, 0x1000001, 0, bytes(range(16))) + b"\x66")
+    b_space_overflow = vgm(
+        block(0x83, 0x1000000, 0xFFFFF0, bytes(range(32))) + b"\x66")
     wide_a = vgm(
         block(0x82, 0x800000, 0x0FFFFE, bytes((0xA0, 0xA1, 0xA2, 0xA3))) +
         block(0x82, 0x800000, 0x168B00, bytes(range(0x10, 0x20))) +
@@ -323,6 +334,10 @@ def fixtures() -> dict[str, bytes]:
         "empty_b_then_invalid.vgm": empty_b_then_invalid,
         "b_out_of_range.vgm": b_out_of_range,
         "b_overlap.vgm": b_overlap,
+        "wide_b_24bit.vgm": wide_b,
+        "b_exact_end.vgm": b_exact_end,
+        "b_declared_over_24.vgm": b_declared_over_24,
+        "b_space_overflow.vgm": b_space_overflow,
         "wide_a_24bit.vgm": wide_a,
         "a_exact_end.vgm": a_exact_end,
         "a_last_address.vgm": a_last_address,

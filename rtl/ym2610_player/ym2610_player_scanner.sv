@@ -122,7 +122,7 @@ module ym2610_player_scanner #(
     // clear is performed: the committed count is the validity boundary, which
     // keeps the arrays eligible for Cyclone V block-RAM inference.
     localparam int A_DESC_WIDTH = 24 + 25 + ADDR_WIDTH;
-    localparam int B_DESC_WIDTH = 20 + 21 + ADDR_WIDTH;
+    localparam int B_DESC_WIDTH = 24 + 25 + ADDR_WIDTH;
     (* ramstyle = "M10K, no_rw_check" *)
     logic [A_DESC_WIDTH-1:0] desc_a_mem [0:MAX_A_DESCRIPTORS-1];
     (* ramstyle = "M10K, no_rw_check" *)
@@ -153,9 +153,9 @@ module ym2610_player_scanner #(
     wire [24:0] desc_a_length =
         desc_a_q[A_DESC_WIDTH-24-1 -: 25];
     wire [ADDR_WIDTH-1:0] desc_a_file = desc_a_q[ADDR_WIDTH-1:0];
-    wire [19:0] desc_b_start = desc_b_q[B_DESC_WIDTH-1 -: 20];
-    wire [20:0] desc_b_length =
-        desc_b_q[B_DESC_WIDTH-20-1 -: 21];
+    wire [23:0] desc_b_start = desc_b_q[B_DESC_WIDTH-1 -: 24];
+    wire [24:0] desc_b_length =
+        desc_b_q[B_DESC_WIDTH-24-1 -: 25];
     wire [ADDR_WIDTH-1:0] desc_b_file = desc_b_q[ADDR_WIDTH-1:0];
 
     ym2610_player_compat u_compat (
@@ -233,8 +233,8 @@ module ym2610_player_scanner #(
         descriptor_a_wdata = {pending_desc_logical,
                               pending_desc_length,
                               pending_desc_file};
-        descriptor_b_wdata = {pending_desc_logical[19:0],
-                              pending_desc_length[20:0],
+        descriptor_b_wdata = {pending_desc_logical,
+                              pending_desc_length,
                               pending_desc_file};
     end
 
@@ -279,14 +279,14 @@ module ym2610_player_scanner #(
                 end
                 MAP_COMPARE: begin
                     if (map_request_space_b) begin
-                        if (map_request_logical[23:20] == 0 &&
-                            map_request_logical[19:0] >= desc_b_start &&
-                            {1'b0, map_request_logical[19:0]} <
+                        if ({1'b0, map_request_logical} >=
+                              {1'b0, desc_b_start} &&
+                            {1'b0, map_request_logical} <
                               ({1'b0, desc_b_start} + desc_b_length)) begin
                             map_rsp_valid <= 1'b1;
                             map_rsp_hit <= 1'b1;
                             map_rsp_file_addr <= desc_b_file +
-                                (map_request_logical[19:0] - desc_b_start);
+                                (map_request_logical - desc_b_start);
                             map_state <= MAP_IDLE;
                         end else if (map_index + 7'd1 >=
                                      {2'd0, descriptor_b_count_full}) begin
@@ -579,36 +579,24 @@ module ym2610_player_scanner #(
                                     reject_code <= REJECT_RANGE;
                                     state <= ST_FATAL;
                                 end else if (block_size == 32'd8) begin
-                                    if (block_type == 8'h82 &&
-                                        (block_rom_size == 0 ||
-                                         block_rom_size > 32'h0100_0000 ||
-                                         mem_data != 0 ||
-                                         {8'd0, block_logical_start[23:0]} >
-                                           block_rom_size)) begin
+                                    if (block_rom_size == 0 ||
+                                        block_rom_size > 32'h0100_0000 ||
+                                        mem_data != 0 ||
+                                        {8'd0, block_logical_start[23:0]} >
+                                          block_rom_size) begin
                                         reject_code <= REJECT_RANGE;
                                         state <= ST_FATAL;
                                     end else begin
                                         scan_pc <= command_pc + 32'd7 + block_size;
                                         state <= ST_COMMAND;
                                     end
-                                end else if ((block_type == 8'h82 &&
-                                     (block_rom_size == 0 ||
-                                      block_rom_size > 32'h0100_0000 ||
-                                      mem_data != 0 ||
-                                      ({1'b0, mem_data,
-                                        block_logical_start[23:0]} +
-                                       {1'b0, block_size - 32'd8}) >
-                                      {1'b0, block_rom_size})) ||
-                                    (block_type == 8'h83 &&
-                                     (block_rom_size == 0 ||
-                                      ({1'b0, mem_data,
-                                        block_logical_start[23:0]} +
-                                       {1'b0, block_size - 32'd8}) >
-                                      {1'b0, block_rom_size} ||
-                                      ({1'b0, mem_data,
-                                        block_logical_start[23:0]} +
-                                       {1'b0, block_size - 32'd8}) >
-                                      33'd524288))) begin
+                                end else if (block_rom_size == 0 ||
+                                    block_rom_size > 32'h0100_0000 ||
+                                    mem_data != 0 ||
+                                    ({1'b0, mem_data,
+                                      block_logical_start[23:0]} +
+                                     {1'b0, block_size - 32'd8}) >
+                                    {1'b0, block_rom_size}) begin
                                     reject_code <= REJECT_RANGE;
                                     state <= ST_FATAL;
                                 end else if ((block_type == 8'h82 &&
@@ -645,10 +633,10 @@ module ym2610_player_scanner #(
                     ST_DESC_READ: state <= ST_DESC_COMPARE;
                     ST_DESC_COMPARE: begin
                         if (pending_desc_space_b) begin
-                            if (({1'b0, pending_desc_logical[19:0]} +
-                                 pending_desc_length[20:0] >
+                            if (({1'b0, pending_desc_logical} +
+                                 pending_desc_length >
                                  {1'b0, desc_b_start}) &&
-                                ({1'b0, pending_desc_logical[19:0]} <
+                                ({1'b0, pending_desc_logical} <
                                  ({1'b0, desc_b_start} + desc_b_length))) begin
                                 reject_code <= REJECT_DESCRIPTOR;
                                 state <= ST_FATAL;

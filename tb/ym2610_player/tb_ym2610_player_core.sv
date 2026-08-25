@@ -56,6 +56,7 @@ module tb_ym2610_player_core;
     logic psg_a_seen, psg_b_seen, psg_c_seen, final_seen;
     logic adpcma_seen, adpcmb_seen, simultaneous_seen;
     logic ls_play_seen, high_adpcma_map_seen;
+    logic high_adpcmb_map_seen, high_adpcmb_fill_seen, high_adpcmb_hit_seen;
     logic [63:0] audio_hash;
     logic [31:0] sample_edges;
     logic xz_seen;
@@ -147,6 +148,17 @@ module tb_ym2610_player_core;
             !dut.u_cache.map_space_b &&
             dut.u_cache.map_logical_addr[23:20] != 0)
             high_adpcma_map_seen <= 1'b1;
+        if (dut.u_cache.map_req_valid && dut.u_cache.map_req_ready &&
+            dut.u_cache.map_space_b &&
+            dut.u_cache.map_logical_addr >= 24'h080000)
+            high_adpcmb_map_seen <= 1'b1;
+        if (mem_valid && dut.u_cache.request_pending &&
+            dut.u_cache.request_space_b &&
+            dut.u_cache.request_logical >= 24'h080000)
+            high_adpcmb_fill_seen <= 1'b1;
+        if (!dut.adpcmb_roe_n && dut.u_cache.b_current_hit &&
+            dut.adpcmb_addr >= 24'h080000)
+            high_adpcmb_hit_seen <= 1'b1;
         if (load_state == 4'd7) begin
             if (psg_a != 0) psg_a_seen <= 1'b1;
             if (psg_b != 0) psg_b_seen <= 1'b1;
@@ -156,7 +168,7 @@ module tb_ym2610_player_core;
             if ((adpcma_l != 0 || adpcma_r != 0) &&
                 (adpcmb_l != 0 || adpcmb_r != 0)) simultaneous_seen <= 1'b1;
             if (audio_l != 0 || audio_r != 0) final_seen <= 1'b1;
-            if (expected_lane == "RUNTIME" &&
+            if ((expected_lane == "RUNTIME" || expected_lane == "NEOGEO") &&
                 parser_samples >= runtime_audio_after_samples &&
                 (audio_l != 0 || audio_r != 0))
                 runtime_audio_after_seen <= 1'b1;
@@ -209,6 +221,9 @@ module tb_ym2610_player_core;
         simultaneous_seen = 1'b0;
         ls_play_seen = 1'b0;
         high_adpcma_map_seen = 1'b0;
+        high_adpcmb_map_seen = 1'b0;
+        high_adpcmb_fill_seen = 1'b0;
+        high_adpcmb_hit_seen = 1'b0;
         audio_hash = 64'hcbf2_9ce4_8422_2325;
         sample_edges = 0;
         xz_seen = 1'b0;
@@ -220,7 +235,7 @@ module tb_ym2610_player_core;
         runtime_target_samples = 90_000;
         runtime_audio_after_samples = 70_000;
         runtime_audio_after_seen = 1'b0;
-        if (expected_lane == "RUNTIME") begin
+        if (expected_lane == "RUNTIME" || expected_lane == "NEOGEO") begin
             timeout_limit = 200_000_000;
             if (!$value$plusargs("TARGET_SAMPLES=%d", runtime_target_samples))
                 runtime_target_samples = 90_000;
@@ -228,6 +243,8 @@ module tb_ym2610_player_core;
                                  runtime_audio_after_samples))
                 runtime_audio_after_samples = 70_000;
         end
+        if (expected_lane == "NINJA")
+            timeout_limit = 400_000_000;
         repeat (8) @(posedge clk);
         hard_reset <= 1'b0;
         repeat (2) @(posedge clk);
@@ -243,7 +260,8 @@ module tb_ym2610_player_core;
                  high_adpcma_map_seen && adpcma_seen && final_seen) &&
                !(expected_lane == "NINJA_BASIC" && ls_play_seen &&
                  adpcma_seen && final_seen) &&
-               !(expected_lane == "RUNTIME" && ls_play_seen &&
+               !((expected_lane == "RUNTIME" || expected_lane == "NEOGEO") &&
+                 ls_play_seen &&
                  parser_samples >= runtime_target_samples) &&
                timeout < timeout_limit) begin
             @(posedge clk);
@@ -396,6 +414,26 @@ module tb_ym2610_player_core;
                 runtime_audio_after_samples, reject_code,
                 adpcma_underflow, adpcmb_underflow, dut.pcm_range_error,
                 stale_response, owner_mismatch);
+        end
+        if (expected_lane == "NEOGEO") begin
+            $display("NEOGEO_STATUS class=%0d rawB=%0d play=%0d samples=%0d jt10_accept=%0d highB_map=%0d highB_fill=%0d highB_hit=%0d B_audio=%0d final=%0d audio_after=%0d range=%0d",
+                classification, raw_variant_b, ls_play_seen, parser_samples,
+                dut.bus_accepted, high_adpcmb_map_seen,
+                high_adpcmb_fill_seen, high_adpcmb_hit_seen,
+                adpcmb_seen, final_seen, runtime_audio_after_seen,
+                dut.pcm_range_error);
+            if (!((classification == 4'd1 || classification == 4'd2) &&
+                  ls_play_seen &&
+                  parser_samples >= runtime_target_samples &&
+                  high_adpcmb_map_seen && high_adpcmb_fill_seen &&
+                  high_adpcmb_hit_seen && adpcmb_seen && final_seen &&
+                  runtime_audio_after_seen && dut.bus_accepted != 0))
+                $fatal(1, "Neo Geo high-B production-path acceptance missing");
+            $display("NEOGEO_PASS samples=%0d target=%0d jt10_accept=%0d highB_map=%0d highB_fill=%0d highB_hit=%0d B_audio=%0d final=%0d range=%0d result=PASS",
+                parser_samples, runtime_target_samples, dut.bus_accepted,
+                high_adpcmb_map_seen, high_adpcmb_fill_seen,
+                high_adpcmb_hit_seen, adpcmb_seen, final_seen,
+                dut.pcm_range_error);
         end
         $display("CORE_RESULT expect=%s class=%0d rawB=%0d writes=%0d samples=%0d descA=%0d descB=%0d pcm_req=%0d pcm_rsp=%0d Afetch=%0d/%0d Bfetch=%0d/%0d A_req=%0d B_req=%0d lastA=%05x lastB=%05x occupancy=%0d peakL=%0d peakR=%0d psg=%0d%0d%0d A=%0d B=%0d AB=%0d final=%0d play=%0d highA=%0d sample_edges=%0d audio_hash=%016x start=%0d result=PASS",
             expected_lane, classification, raw_variant_b,

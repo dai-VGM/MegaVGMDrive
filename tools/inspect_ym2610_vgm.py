@@ -301,12 +301,11 @@ def _trace(data: bytes, source: pathlib.Path) -> Inspection:
             logical_rom_size = le32(data, payload)
             logical_start = le32(data, payload + 4)
             length = block_size - 8
-            limit = 0x1000000 if block_type == 0x82 else 0x80000
+            limit = 0x1000000
             if length == 0 and block_type == 0x83:
                 pc = block_end
                 continue
-            size_valid = (0 < logical_rom_size <= limit) if block_type == 0x82 \
-                else logical_rom_size > 0
+            size_valid = 0 < logical_rom_size <= limit
             if (not size_valid or logical_start > logical_rom_size or
                     (length != 0 and logical_start >= limit) or
                     logical_start + length > logical_rom_size or
@@ -427,7 +426,7 @@ def main(argv: list[str] | None = None) -> int:
         rng = random.Random(0x2610)
         payload = args.vgm.read_bytes()
         samples: dict[str, list[dict[str, int]]] = {"A": [], "B": []}
-        for space, limit in (("A", 0x1000000), ("B", 0x80000)):
+        for space, limit in (("A", 0x1000000), ("B", 0x1000000)):
             candidates = [rng.randrange(limit) for _ in range(args.rom_samples * 8)]
             for address in candidates:
                 mapped = map_rom(result.descriptors, space, address)

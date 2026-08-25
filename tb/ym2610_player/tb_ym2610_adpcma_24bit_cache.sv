@@ -32,6 +32,7 @@ module tb_ym2610_adpcma_24bit_cache;
     logic [ADDR_WIDTH-1:0] mem_captured;
     integer failures = 0;
     integer a_mapper_requests = 0;
+    integer b_mapper_requests = 0;
 
     always #5 clk = ~clk;
     assign map_req_ready = 1'b1;
@@ -66,6 +67,8 @@ module tb_ym2610_adpcma_24bit_cache;
         if (!reset && map_req_valid && map_req_ready) begin
             if (!map_space_b)
                 a_mapper_requests <= a_mapper_requests + 1;
+            else
+                b_mapper_requests <= b_mapper_requests + 1;
             map_rsp_valid <= 1'b1;
             map_rsp_hit <= 1'b1;
             map_rsp_file_addr <= map_logical_addr[ADDR_WIDTH-1:0];
@@ -103,6 +106,18 @@ module tb_ym2610_adpcma_24bit_cache;
         end
     endfunction
 
+    function automatic integer find_b(input logic [23:0] logical);
+        integer slot;
+        begin
+            find_b = -1;
+            for (slot = 0; slot < 64; slot = slot + 1)
+                if (dut.cache_valid[slot] && dut.cache_space_b[slot] &&
+                    dut.cache_bank[slot] == logical[23:20] &&
+                    dut.cache_logical[slot] == logical[19:0])
+                    find_b = slot;
+        end
+    endfunction
+
     task automatic check(input logic condition, input string message);
         if (!condition) begin
             $display("FAIL %s", message);
@@ -118,10 +133,42 @@ module tb_ym2610_adpcma_24bit_cache;
             write_valid = 1'b0;
             write_accept = 1'b0;
             adpcma_roe_n = 1'b1;
+            adpcmb_roe_n = 1'b1;
             repeat (3) @(posedge clk);
             @(negedge clk);
             reset = 1'b0;
             active = 1'b1;
+        end
+    endtask
+
+    task automatic set_b_start(input logic [15:0] start_value);
+        begin
+            accepted_write(1'b0, 8'h12, start_value[7:0]);
+            accepted_write(1'b0, 8'h13, start_value[15:8]);
+        end
+    endtask
+
+    task automatic accept_b_keyon;
+        integer guard;
+        begin
+            @(negedge clk);
+            write_valid = 1'b1;
+            write_accept = 1'b0;
+            write_port = 1'b0;
+            write_address = 8'h10;
+            write_data = 8'h80;
+            guard = 0;
+            #1;
+            while (!write_allow && guard < 3000) begin
+                @(negedge clk);
+                guard = guard + 1;
+            end
+            check(write_allow, "serialized B prewarm timeout");
+            write_accept = 1'b1;
+            @(posedge clk);
+            @(negedge clk);
+            write_valid = 1'b0;
+            write_accept = 1'b0;
         end
     endtask
 
@@ -141,6 +188,26 @@ module tb_ym2610_adpcma_24bit_cache;
             @(negedge clk);
             write_valid = 1'b0;
             write_accept = 1'b0;
+        end
+    endtask
+
+    task automatic wait_b_pair(input logic [23:0] current);
+        integer guard;
+        logic [23:0] following;
+        begin
+            following = current + 24'd1;
+            adpcmb_addr = current;
+            guard = 0;
+            while ((find_b(current) < 0 || find_b(following) < 0) &&
+                   guard < 1000) begin
+                adpcmb_roe_n = 1'b0;
+                @(negedge clk);
+                adpcmb_roe_n = 1'b1;
+                @(negedge clk);
+                guard = guard + 1;
+            end
+            check(find_b(current) >= 0, "B current fill missing");
+            check(find_b(following) >= 0, "B next fill missing");
         end
     endtask
 
@@ -212,6 +279,7 @@ module tb_ym2610_adpcma_24bit_cache;
         integer request_baseline;
         logic [15:0] starts [0:5];
         logic [23:0] address_vectors [0:7];
+        logic [23:0] b_address_vectors [0:9];
 
         reset_cache();
         request_baseline = a_mapper_requests;
@@ -337,6 +405,48 @@ module tb_ym2610_adpcma_24bit_cache;
               find_a(4'h1, 20'h7EA01) >= 0,
               "reload did not rearm serialized prewarm");
         $display("ADPCMA24_RESET_RELOAD_PREWARM stale=0 rearm=1 result=PASS");
+
+        b_address_vectors[0] = 24'h07FFFE;
+        b_address_vectors[1] = 24'h07FFFF;
+        b_address_vectors[2] = 24'h080000;
+        b_address_vectors[3] = 24'h080001;
+        b_address_vectors[4] = 24'h0FFFFE;
+        b_address_vectors[5] = 24'h0FFFFF;
+        b_address_vectors[6] = 24'h100000;
+        b_address_vectors[7] = 24'h100001;
+        b_address_vectors[8] = 24'h710300;
+        b_address_vectors[9] = 24'h717AFF;
+        for (vector_index = 0; vector_index < 10;
+             vector_index = vector_index + 1) begin
+            reset_cache();
+            wait_b_pair(b_address_vectors[vector_index]);
+            adpcmb_roe_n = 1'b0;
+            #1 check(dut.b_current_hit && dut.b_next_hit,
+                     "required wide B vector is not zero-wait");
+            @(negedge clk);
+            adpcmb_roe_n = 1'b1;
+        end
+        check(24'h07FFFF + 24'd1 == 24'h080000,
+              "B 0x07FFFF boundary arithmetic is wrong");
+        check(24'h0FFFFF + 24'd1 == 24'h100000,
+              "B 0x0FFFFF boundary arithmetic is wrong");
+        $display("ADPCMB24_REQUIRED_VECTORS count=10 cache_fill_hit=PASS zero_wait=PASS");
+
+        reset_cache();
+        wait_b_pair(24'h0FFFFF);
+        check(find_b(24'h0FFFFF) >= 0 && find_b(24'h100000) >= 0,
+              "B full-width +1 carry target missing");
+        if (find_b(24'h100000) >= 0)
+            check(dut.cache_bank[find_b(24'h100000)] == 4'h1,
+                  "B boundary carry did not update bank tag");
+        $display("ADPCMB24_BOUNDARY current=0FFFFF next=100000 result=PASS");
+
+        reset_cache();
+        set_b_start(16'h7103);
+        accept_b_keyon();
+        check(find_b(24'h710300) >= 0 && find_b(24'h710301) >= 0,
+              "wide B serialized prewarm truncated its start");
+        $display("ADPCMB24_PREWARM address=710300 serialized=1 result=PASS");
 
         if (failures != 0)
             $fatal(1, "ADPCMA24_CACHE_FAIL failures=%0d", failures);

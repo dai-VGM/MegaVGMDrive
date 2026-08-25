@@ -29,7 +29,7 @@ result = inspect(source)
 payload = source.read_bytes()
 rng = random.Random(0x2610)
 rows = []
-for space, limit, tag in (("A", 0x100000, 0), ("B", 0x80000, 1)):
+for space, limit, tag in (("A", 0x100000, 0), ("B", 0x1000000, 1)):
     descriptors = [d for d in result.descriptors if d.space == space]
     for descriptor in descriptors:
         for logical in (descriptor.logical_start, descriptor.logical_end - 1):
@@ -122,7 +122,7 @@ vvp "$build_dir/scanner.vvp" \
   +EXPECT_ACCEPTED=1 +EXPECT_REJECT=00 +EXPECT_DESC_A=0 +EXPECT_DESC_B=0
 
 # Empty 0x83 blocks are metadata only. Nonempty blocks independently obey
-# their declared size and the player's current exclusive 0x080000 B window.
+# their declared size and the full 24-bit logical B contract.
 vvp "$build_dir/scanner.vvp" \
   "+VGM=$build_dir/fixtures/empty_b_512k.vgm" \
   +EXPECT_ACCEPTED=1 +EXPECT_REJECT=00 +EXPECT_DESC_A=0 +EXPECT_DESC_B=0
@@ -143,7 +143,7 @@ vvp "$build_dir/scanner.vvp" \
   +EXPECT_ACCEPTED=0 +EXPECT_REJECT=07 +EXPECT_DESC_A=0 +EXPECT_DESC_B=0
 vvp "$build_dir/scanner.vvp" \
   "+VGM=$build_dir/fixtures/b_above_window.vgm" \
-  +EXPECT_ACCEPTED=0 +EXPECT_REJECT=07 +EXPECT_DESC_A=0 +EXPECT_DESC_B=0
+  +EXPECT_ACCEPTED=1 +EXPECT_REJECT=00 +EXPECT_DESC_A=0 +EXPECT_DESC_B=1
 vvp "$build_dir/scanner.vvp" \
   "+VGM=$build_dir/fixtures/b_arithmetic_overflow.vgm" \
   +EXPECT_ACCEPTED=0 +EXPECT_REJECT=07 +EXPECT_DESC_A=0 +EXPECT_DESC_B=0
@@ -165,7 +165,44 @@ vvp "$build_dir/scanner.vvp" \
 vvp "$build_dir/scanner.vvp" \
   "+VGM=$build_dir/fixtures/b_overlap.vgm" \
   +EXPECT_ACCEPTED=0 +EXPECT_REJECT=08 +EXPECT_DESC_A=0 +EXPECT_DESC_B=1
-echo "YM2610_B_DECLARED_SIZE_POLICY declared_512k=PASS declared_1m=PASS declared_8m=PASS declared_end=PASS player_window=PASS start_above=PASS overflow=PASS empty=PASS result=PASS"
+PYTHONDONTWRITEBYTECODE=1 python3 - "$repo_dir" \
+  "$build_dir/fixtures/wide_b_24bit.vgm" "$build_dir/wide-b.map" <<'PY'
+import pathlib
+import sys
+
+sys.path.insert(0, str(pathlib.Path(sys.argv[1]) / "tools"))
+from inspect_ym2610_vgm import inspect, map_rom
+
+source = pathlib.Path(sys.argv[2])
+target = pathlib.Path(sys.argv[3])
+result = inspect(source)
+payload = source.read_bytes()
+addresses = (0x07FFFE, 0x07FFFF, 0x080000, 0x080001,
+             0x0FFFFE, 0x0FFFFF, 0x100000, 0x100001,
+             0x710300, 0x71030F, 0x717AF0, 0x717AFF,
+             0x080002, 0x700000, 0x717B00)
+rows = []
+for address in addresses:
+    mapped = map_rom(result.descriptors, "B", address)
+    rows.append((1, address, int(mapped is not None), mapped or 0,
+                 payload[mapped] if mapped is not None else 0))
+target.write_text("".join(
+    f"{space} {logical:06x} {hit} {file:06x} {byte:02x}\n"
+    for space, logical, hit, file, byte in rows))
+PY
+vvp "$build_dir/scanner.vvp" \
+  "+VGM=$build_dir/fixtures/wide_b_24bit.vgm" \
+  "+MAP=$build_dir/wide-b.map" \
+  +EXPECT_ACCEPTED=1 +EXPECT_REJECT=00 +EXPECT_DESC_A=0 +EXPECT_DESC_B=4
+vvp "$build_dir/scanner.vvp" \
+  "+VGM=$build_dir/fixtures/b_exact_end.vgm" \
+  +EXPECT_ACCEPTED=1 +EXPECT_REJECT=00 +EXPECT_DESC_A=0 +EXPECT_DESC_B=1
+for fixture in b_declared_over_24 b_space_overflow; do
+  vvp "$build_dir/scanner.vvp" \
+    "+VGM=$build_dir/fixtures/$fixture.vgm" \
+    +EXPECT_ACCEPTED=0 +EXPECT_REJECT=07 +EXPECT_DESC_A=0 +EXPECT_DESC_B=0
+done
+echo "YM2610_B_DECLARED_SIZE_POLICY declared_512k=PASS declared_1m=PASS declared_8m=PASS declared_end=PASS logical_24bit=PASS start_above_old_window=PASS overflow=PASS empty=PASS result=PASS"
 
 if [[ -f "/Users/daizo/Music/03 Olga Breeze.vgm" ]]; then
   PYTHONDONTWRITEBYTECODE=1 python3 - "$repo_dir" "/Users/daizo/Music/03 Olga Breeze.vgm" "$build_dir/olga.map" <<'PY'
@@ -182,7 +219,7 @@ result = inspect(source)
 payload = source.read_bytes()
 rng = random.Random(0x2610)
 rows = []
-for space, limit, tag in (("A", 0x100000, 0), ("B", 0x80000, 1)):
+for space, limit, tag in (("A", 0x100000, 0), ("B", 0x1000000, 1)):
     descriptors = [d for d in result.descriptors if d.space == space]
     for descriptor in descriptors:
         for logical in (descriptor.logical_start, descriptor.logical_end - 1):

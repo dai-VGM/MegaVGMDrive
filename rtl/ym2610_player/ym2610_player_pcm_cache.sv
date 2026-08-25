@@ -1,7 +1,7 @@
 `timescale 1ns/1ps
 
 // Shared zero-wait PCM cache. ADPCM-A tags retain JT10's complete logical
-// {bank[3:0],addr[19:0]} address. ADPCM-B keeps its existing 20-bit contract.
+// {bank[3:0],addr[19:0]} address. ADPCM-B uses the same split 24-bit tag.
 // Live decoder lookup remains parallel; only parser key-on prewarm is scanned
 // one resident slot at a time.
 module ym2610_player_pcm_cache #(
@@ -99,7 +99,7 @@ module ym2610_player_pcm_cache #(
     logic live_a_transition;
 
     logic live_b_valid;
-    logic [19:0] live_b_addr;
+    logic [23:0] live_b_addr;
     logic live_b_current_slot_valid, live_b_next_slot_valid;
     logic [PTR_WIDTH-1:0] live_b_current_slot, live_b_next_slot;
     logic [ENTRIES-1:0] live_b_slots, live_b_victim_slots;
@@ -191,6 +191,8 @@ module ym2610_player_pcm_cache #(
 
     wire [23:0] adpcma_logical = {adpcma_bank, adpcma_addr};
     wire [23:0] adpcma_next_logical = adpcma_logical + 24'd1;
+    wire [23:0] adpcmb_next_logical = adpcmb_addr + 24'd1;
+    wire [23:0] adpcmb_ahead_logical = adpcmb_addr + 24'd7;
     wire pipeline_idle = !lookup_offer_valid && !map_pending &&
                          !offer_valid && !request_pending;
 
@@ -213,7 +215,7 @@ module ym2610_player_pcm_cache #(
 
         if (prewarm_space_b)
             prewarm_current_logical =
-                {4'd0, prewarm_start_b[11:0], 8'd0} +
+                {prewarm_start_b, 8'd0} +
                 {21'd0, prewarm_b_offset};
         else
             prewarm_current_logical =
@@ -226,14 +228,13 @@ module ym2610_player_pcm_cache #(
             cache_space_b[prewarm_scan_slot] == prewarm_space_b &&
             cache_logical[prewarm_scan_slot] ==
               prewarm_current_logical[19:0] &&
-            (prewarm_space_b || cache_bank[prewarm_scan_slot] ==
-                                prewarm_current_logical[23:20]);
+            cache_bank[prewarm_scan_slot] ==
+              prewarm_current_logical[23:20];
         prewarm_scan_next_match =
             cache_valid[prewarm_scan_slot] &&
             cache_space_b[prewarm_scan_slot] == prewarm_space_b &&
             cache_logical[prewarm_scan_slot] == prewarm_next_logical[19:0] &&
-            (prewarm_space_b || cache_bank[prewarm_scan_slot] ==
-                                prewarm_next_logical[23:20]);
+            cache_bank[prewarm_scan_slot] == prewarm_next_logical[23:20];
 
         if (prewarm_space_b) begin
             prewarm_current_found = prewarm_b_current_hit ||
@@ -254,7 +255,7 @@ module ym2610_player_pcm_cache #(
     end
 
     // Live decoder lookup stays fully parallel and zero-wait. A compares a
-    // split bank tag plus low tag; B never pays for an unnecessary bank tag.
+    // split bank tag plus low tag in both address spaces.
     always_comb begin
         a_current_hit = 1'b0;
         a_next_hit = 1'b0;
@@ -285,18 +286,21 @@ module ym2610_player_pcm_cache #(
                     a_next_slot = lookup_i[PTR_WIDTH-1:0];
                 end
                 if (cache_space_b[lookup_i] &&
+                    cache_bank[lookup_i] == adpcmb_addr[23:20] &&
                     cache_logical[lookup_i] == adpcmb_addr[19:0]) begin
                     b_current_hit = 1'b1;
                     b_current_data = cache_data[lookup_i];
                     b_current_slot = lookup_i[PTR_WIDTH-1:0];
                 end
                 if (cache_space_b[lookup_i] &&
-                    cache_logical[lookup_i] == adpcmb_addr[19:0] + 20'd1) begin
+                    cache_bank[lookup_i] == adpcmb_next_logical[23:20] &&
+                    cache_logical[lookup_i] == adpcmb_next_logical[19:0]) begin
                     b_next_hit = 1'b1;
                     b_next_slot = lookup_i[PTR_WIDTH-1:0];
                 end
                 if (cache_space_b[lookup_i] &&
-                    cache_logical[lookup_i] == adpcmb_addr[19:0] + 20'd7)
+                    cache_bank[lookup_i] == adpcmb_ahead_logical[23:20] &&
+                    cache_logical[lookup_i] == adpcmb_ahead_logical[19:0])
                     b_ahead_hit = 1'b1;
             end
         end
@@ -309,7 +313,7 @@ module ym2610_player_pcm_cache #(
             (!live_a_valid[0] || live_a_addr[0] != adpcma_addr ||
              live_a_bank[0] != adpcma_bank);
         live_b_transition = active && !adpcmb_roe_n &&
-            (!live_b_valid || live_b_addr != adpcmb_addr[19:0]);
+            (!live_b_valid || live_b_addr != adpcmb_addr);
 
         live_a_slots = '0;
         for (integer lane = 0; lane < 6; lane = lane + 1) begin
@@ -434,12 +438,11 @@ module ym2610_player_pcm_cache #(
         response_b_next = 1'b0;
         if (active && request_space_b) begin
             if (live_b_transition) begin
-                response_b_current = request_logical[19:0] == adpcmb_addr[19:0];
-                response_b_next = request_logical[19:0] ==
-                                  adpcmb_addr[19:0] + 20'd1;
+                response_b_current = request_logical == adpcmb_addr;
+                response_b_next = request_logical == adpcmb_addr + 24'd1;
             end else if (live_b_valid) begin
-                response_b_current = request_logical[19:0] == live_b_addr;
-                response_b_next = request_logical[19:0] == live_b_addr + 20'd1;
+                response_b_current = request_logical == live_b_addr;
+                response_b_next = request_logical == live_b_addr + 24'd1;
             end
         end
         response_live_b = response_b_current | response_b_next;
@@ -463,7 +466,7 @@ module ym2610_player_pcm_cache #(
         a_need_logical = adpcma_logical;
         b_need_valid = 1'b0;
         b_need_required = 1'b0;
-        b_need_logical = {4'd0, adpcmb_addr[19:0]};
+        b_need_logical = adpcmb_addr;
 
         if (prewarm_state == PW_REFILL_CURRENT ||
             prewarm_state == PW_REFILL_NEXT) begin
@@ -487,20 +490,20 @@ module ym2610_player_pcm_cache #(
             if (!adpcmb_roe_n && !b_current_hit) begin
                 b_need_valid = 1'b1;
                 b_need_required = 1'b1;
-                b_need_logical = {4'd0, adpcmb_addr[19:0]};
+                b_need_logical = adpcmb_addr;
             end else if (b_current_hit && !b_next_hit) begin
                 b_need_valid = 1'b1;
-                b_need_logical = {4'd0, adpcmb_addr[19:0] + 20'd1};
+                b_need_logical = adpcmb_addr + 24'd1;
             end else if (b_current_hit && b_next_hit && !b_ahead_hit &&
                          live_b_valid) begin
                 // The serialized descriptor mapper adds a few clocks before
                 // DDR acceptance.  An eight-byte startup runway keeps this
                 // speculative refill seven bytes ahead of the live decoder.
                 b_need_valid = 1'b1;
-                b_need_logical = {4'd0, adpcmb_addr[19:0] + 20'd7};
+                b_need_logical = adpcmb_addr + 24'd7;
             end else if (!b_current_hit) begin
                 b_need_valid = 1'b1;
-                b_need_logical = {4'd0, adpcmb_addr[19:0]};
+                b_need_logical = adpcmb_addr;
             end
 
             if (a_need_valid || b_need_valid) begin
@@ -581,7 +584,7 @@ module ym2610_player_pcm_cache #(
             live_a_current_slot_valid <= 6'd0;
             live_a_next_slot_valid <= 6'd0;
             live_b_valid <= 1'b0;
-            live_b_addr <= 20'd0;
+            live_b_addr <= 24'd0;
             live_b_current_slot_valid <= 1'b0;
             live_b_next_slot_valid <= 1'b0;
             live_b_current_slot <= '0;
@@ -880,8 +883,7 @@ module ym2610_player_pcm_cache #(
                         cache_valid[replacement_slot] <= 1'b1;
                         cache_space_b[replacement_slot] <= request_space_b;
                         cache_logical[replacement_slot] <= request_logical[19:0];
-                        cache_bank[replacement_slot] <= request_space_b ? 4'd0 :
-                                                        request_logical[23:20];
+                        cache_bank[replacement_slot] <= request_logical[23:20];
                         cache_data[replacement_slot] <= mem_data;
 
                         if (request_prewarm) begin
@@ -966,7 +968,7 @@ module ym2610_player_pcm_cache #(
                 end
                 if (live_b_transition) begin
                     live_b_valid <= 1'b1;
-                    live_b_addr <= adpcmb_addr[19:0];
+                    live_b_addr <= adpcmb_addr;
                     live_b_current_slot_valid <= b_current_hit;
                     live_b_next_slot_valid <= b_next_hit;
                     live_b_current_slot <= b_current_slot;
@@ -1011,7 +1013,7 @@ module ym2610_player_pcm_cache #(
             if (active && !adpcmb_roe_n) begin
                 adpcmb_request_count <= adpcmb_request_count + 32'd1;
                 adpcmb_last_address <= adpcmb_addr[19:0];
-                if (!b_current_hit || |adpcmb_addr[23:19])
+                if (!b_current_hit)
                     adpcmb_underflow <= 1'b1;
             end
         end
