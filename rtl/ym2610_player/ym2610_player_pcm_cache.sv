@@ -127,7 +127,7 @@ module ym2610_player_pcm_cache #(
     logic replacement_found;
 
     logic [15:0] start_a [0:5];
-    logic [15:0] start_b;
+    logic [15:0] start_b, end_b;
     // Serialized selected-voice prewarm.
     typedef enum logic [2:0] {
         PW_IDLE, PW_WAIT_IDLE, PW_SCAN, PW_REFILL_CURRENT,
@@ -146,6 +146,12 @@ module ym2610_player_pcm_cache #(
     logic prewarm_b_current_hit, prewarm_b_next_hit;
     logic [2:0] prewarm_b_offset;
     logic [PTR_WIDTH-1:0] prewarm_b_current_slot, prewarm_b_next_slot;
+    logic [7:0] prewarm_b_runway_valid;
+    logic [PTR_WIDTH-1:0] prewarm_b_runway_slot [0:7];
+    logic prewarm_b_repeat;
+    logic repeat_b_protected;
+    logic [PTR_WIDTH-1:0] repeat_b_runway_slot [0:7];
+    logic [23:0] repeat_b_start_logical, repeat_b_end_logical;
     logic prewarm_a, prewarm_b;
     logic [23:0] prewarm_current_logical, prewarm_next_logical;
     logic prewarm_scan_current_match, prewarm_scan_next_match;
@@ -237,8 +243,26 @@ module ym2610_player_pcm_cache #(
 
     wire [23:0] adpcma_logical = {adpcma_bank, adpcma_addr};
     wire [23:0] adpcma_next_logical = adpcma_logical + 24'd1;
-    wire [23:0] adpcmb_next_logical = adpcmb_addr + 24'd1;
-    wire [23:0] adpcmb_ahead_logical = adpcmb_addr + 24'd7;
+    function automatic [23:0] b_offset_logical(
+        input logic [23:0] base,
+        input logic [3:0] offset
+    );
+        logic [24:0] extended;
+        logic [24:0] wrapped;
+        begin
+            extended = {1'b0, base} + {21'd0, offset};
+            wrapped = extended;
+            if (repeat_b_protected && base >= repeat_b_start_logical &&
+                base <= repeat_b_end_logical &&
+                extended > {1'b0, repeat_b_end_logical})
+                wrapped = {1'b0, repeat_b_start_logical} +
+                          extended - {1'b0, repeat_b_end_logical} - 25'd1;
+            b_offset_logical = wrapped[23:0];
+        end
+    endfunction
+
+    wire [23:0] adpcmb_next_logical = b_offset_logical(adpcmb_addr, 4'd1);
+    wire [23:0] adpcmb_ahead_logical = b_offset_logical(adpcmb_addr, 4'd7);
     wire pipeline_idle = !lookup_offer_valid && !map_pending &&
                          !offer_valid && !request_pending;
 
@@ -427,7 +451,15 @@ module ym2610_player_pcm_cache #(
                 protected_slots[prewarm_b_current_slot] = 1'b1;
             if (prewarm_b_next_hit)
                 protected_slots[prewarm_b_next_slot] = 1'b1;
+            for (integer byte_index = 0; byte_index < 8;
+                 byte_index = byte_index + 1)
+                if (prewarm_b_runway_valid[byte_index])
+                    protected_slots[prewarm_b_runway_slot[byte_index]] = 1'b1;
         end
+        if (repeat_b_protected)
+            for (integer byte_index = 0; byte_index < 8;
+                 byte_index = byte_index + 1)
+                protected_slots[repeat_b_runway_slot[byte_index]] = 1'b1;
     end
 
     always_comb begin
@@ -485,10 +517,11 @@ module ym2610_player_pcm_cache #(
         if (active && request_space_b) begin
             if (live_b_transition) begin
                 response_b_current = request_logical == adpcmb_addr;
-                response_b_next = request_logical == adpcmb_addr + 24'd1;
+                response_b_next = request_logical == adpcmb_next_logical;
             end else if (live_b_valid) begin
                 response_b_current = request_logical == live_b_addr;
-                response_b_next = request_logical == live_b_addr + 24'd1;
+                response_b_next = request_logical ==
+                                  b_offset_logical(live_b_addr, 4'd1);
             end
         end
         response_live_b = response_b_current | response_b_next;
@@ -539,14 +572,14 @@ module ym2610_player_pcm_cache #(
                 b_need_logical = adpcmb_addr;
             end else if (b_current_hit && !b_next_hit) begin
                 b_need_valid = 1'b1;
-                b_need_logical = adpcmb_addr + 24'd1;
+                b_need_logical = adpcmb_next_logical;
             end else if (b_current_hit && b_next_hit && !b_ahead_hit &&
                          live_b_valid) begin
                 // The serialized descriptor mapper adds a few clocks before
                 // DDR acceptance.  An eight-byte startup runway keeps this
                 // speculative refill seven bytes ahead of the live decoder.
                 b_need_valid = 1'b1;
-                b_need_logical = adpcmb_addr + 24'd7;
+                b_need_logical = adpcmb_ahead_logical;
             end else if (!b_current_hit) begin
                 b_need_valid = 1'b1;
                 b_need_logical = adpcmb_addr;
@@ -636,6 +669,7 @@ module ym2610_player_pcm_cache #(
             live_b_current_slot <= '0;
             live_b_next_slot <= '0;
             start_b <= 16'd0;
+            end_b <= 16'd0;
 
             prewarm_state <= PW_IDLE;
             prewarm_space_b <= 1'b0;
@@ -650,6 +684,11 @@ module ym2610_player_pcm_cache #(
             prewarm_b_offset <= 3'd0;
             prewarm_b_current_slot <= '0;
             prewarm_b_next_slot <= '0;
+            prewarm_b_runway_valid <= 8'd0;
+            prewarm_b_repeat <= 1'b0;
+            repeat_b_protected <= 1'b0;
+            repeat_b_start_logical <= 24'd0;
+            repeat_b_end_logical <= 24'd0;
 
             lookup_offer_valid <= 1'b0;
             lookup_offer_space_b <= 1'b0;
@@ -726,8 +765,12 @@ module ym2610_player_pcm_cache #(
                 cache_bank[i] <= 4'd0;
                 cache_data[i] <= 8'd0;
             end
+            for (i = 0; i < 8; i = i + 1) begin
+                prewarm_b_runway_slot[i] <= '0;
+                repeat_b_runway_slot[i] <= '0;
+            end
         end else begin
-            // Start-register shadows change only on accepted bus writes.
+            // Start/range shadows change only on accepted bus writes.
             if (write_accept) begin
                 if (write_port && write_address >= 8'h10 &&
                     write_address <= 8'h15)
@@ -739,6 +782,30 @@ module ym2610_player_pcm_cache #(
                     start_b[7:0] <= write_data;
                 if (!write_port && write_address == 8'h13)
                     start_b[15:8] <= write_data;
+                if (!write_port && write_address == 8'h14)
+                    end_b[7:0] <= write_data;
+                if (!write_port && write_address == 8'h15)
+                    end_b[15:8] <= write_data;
+
+                // Retain exactly the eight slots prepared for a repeated B
+                // command. Any accepted stop/reset or replacement start ends
+                // the prior ownership; a repeat start installs the new set.
+                if (!write_port && write_address == 8'h10 &&
+                    write_data[7] && !write_data[0]) begin
+                    if (prewarm_b_repeat && &prewarm_b_runway_valid) begin
+                        repeat_b_protected <= 1'b1;
+                        repeat_b_start_logical <= {prewarm_start_b, 8'd0};
+                        repeat_b_end_logical <= {end_b, 8'hff};
+                        for (i = 0; i < 8; i = i + 1)
+                            repeat_b_runway_slot[i] <=
+                                prewarm_b_runway_slot[i];
+                    end else begin
+                        repeat_b_protected <= 1'b0;
+                    end
+                end else if (!write_port && write_address == 8'h10 &&
+                             write_data[0]) begin
+                    repeat_b_protected <= 1'b0;
+                end
             end
 
             // Capture a key-on before bus acceptance, then drain any older
@@ -754,6 +821,8 @@ module ym2610_player_pcm_cache #(
                 prewarm_b_current_hit <= 1'b0;
                 prewarm_b_next_hit <= 1'b0;
                 prewarm_b_offset <= 3'd0;
+                prewarm_b_runway_valid <= 8'd0;
+                prewarm_b_repeat <= prewarm_b && write_data[4];
                 for (i = 0; i < 6; i = i + 1)
                     prewarm_start_a[i] <= start_a[i];
                 if (pipeline_idle)
@@ -771,6 +840,9 @@ module ym2610_player_pcm_cache #(
                             if (prewarm_space_b) begin
                                 prewarm_b_current_hit <= 1'b1;
                                 prewarm_b_current_slot <= prewarm_scan_slot;
+                                prewarm_b_runway_valid[prewarm_b_offset] <= 1'b1;
+                                prewarm_b_runway_slot[prewarm_b_offset] <=
+                                    prewarm_scan_slot;
                             end else begin
                                 prewarm_a_current_hit[prewarm_voice] <= 1'b1;
                                 prewarm_a_current_slot[prewarm_voice] <=
@@ -781,6 +853,11 @@ module ym2610_player_pcm_cache #(
                             if (prewarm_space_b) begin
                                 prewarm_b_next_hit <= 1'b1;
                                 prewarm_b_next_slot <= prewarm_scan_slot;
+                                prewarm_b_runway_valid[
+                                    prewarm_b_offset + 3'd1] <= 1'b1;
+                                prewarm_b_runway_slot[
+                                    prewarm_b_offset + 3'd1] <=
+                                    prewarm_scan_slot;
                             end else begin
                                 prewarm_a_next_hit[prewarm_voice] <= 1'b1;
                                 prewarm_a_next_slot[prewarm_voice] <=
@@ -937,9 +1014,18 @@ module ym2610_player_pcm_cache #(
                                 if (request_prewarm_next) begin
                                     prewarm_b_next_hit <= 1'b1;
                                     prewarm_b_next_slot <= replacement_slot;
+                                    prewarm_b_runway_valid[
+                                        prewarm_b_offset + 3'd1] <= 1'b1;
+                                    prewarm_b_runway_slot[
+                                        prewarm_b_offset + 3'd1] <=
+                                        replacement_slot;
                                 end else begin
                                     prewarm_b_current_hit <= 1'b1;
                                     prewarm_b_current_slot <= replacement_slot;
+                                    prewarm_b_runway_valid[prewarm_b_offset]
+                                        <= 1'b1;
+                                    prewarm_b_runway_slot[prewarm_b_offset] <=
+                                        replacement_slot;
                                 end
                             end else if (request_prewarm_next) begin
                                 prewarm_a_next_hit[request_prewarm_voice] <= 1'b1;

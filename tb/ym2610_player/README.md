@@ -22,8 +22,9 @@ python3 tb/ym2610_player/audit_profile.py
 ```
 
 The audio runner models a variable 12–15-cycle byte response. Its cache is made
-smaller than hardware (16 rather than 64 entries) to stress replacement while
-keeping simulation practical. The committed QIP uses the 64-entry default.
+smaller than hardware (32 rather than 64 entries) to stress replacement while
+leaving room for the eight-slot repeated-B reservation and simultaneous A
+owners. The committed QIP uses the 64-entry default.
 
 `run_scanner.sh` compares RTL descriptor lookup against the independent Python
 mapping at every descriptor boundary, explicit gaps and 256 deterministic

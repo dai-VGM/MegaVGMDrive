@@ -78,7 +78,7 @@ module tb_ym2610_player_core;
 `ifdef YM2610_NINJA_TEST
     localparam int TEST_CACHE_ENTRIES = 64;
 `else
-    localparam int TEST_CACHE_ENTRIES = 16;
+    localparam int TEST_CACHE_ENTRIES = 32;
 `endif
 
     ym2610_player_core #(
@@ -245,6 +245,8 @@ module tb_ym2610_player_core;
         end
         if (expected_lane == "NINJA")
             timeout_limit = 400_000_000;
+        if ($value$plusargs("TIMEOUT_LIMIT=%d", timeout_limit))
+            $display("CORE_TIMEOUT_LIMIT cycles=%0d", timeout_limit);
         repeat (8) @(posedge clk);
         hard_reset <= 1'b0;
         repeat (2) @(posedge clk);

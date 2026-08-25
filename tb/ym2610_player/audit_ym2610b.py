@@ -12,6 +12,7 @@ import subprocess
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 BASE = "1ec8b7f5c6a085f7a00ff2dd3bf0d1476e2fe0c1"
 BRINGUP_COMMIT = "49c88dd3a9c9259d19bee67e95eb4684f1eda436"
+METAL_SLUG_LAB_COMMIT = "9e71694800076a308a6aca1e969ca0bb9adaabec"
 CACHE_SHA = "5d799058123d28e2560bb081ccbacd2f81cc34e1f5b52fa273f28a3062ae6a49"
 HANDOFF_FILES = (
     "rtl/ym2610_hw0/ym2610_hw0_jt12_mmr.v",
@@ -39,6 +40,9 @@ ALLOWED_CHANGES = {
     "tb/ym2610_player/run_ym2610b.sh",
     "tb/ym2610_player/audit_ym2610b.py",
     "tb/ym2610_player/elaborate_ym2610b_top.py",
+    "tb/ym2610_player/README.md",
+    "tb/ym2610_player/run_ms_adpcmb_repeat_boundary.sh",
+    "tb/ym2610_player/tb_ms_adpcmb_boundary_pending_repro.sv",
     "tools/inspect_ym2610_vgm.py",
     "hw/ym2610_player/MegaVGMPlayer_YM2610B_Bringup_MiSTer.qpf",
     "hw/ym2610_player/MegaVGMPlayer_YM2610B_Bringup_MiSTer.qsf",
@@ -60,7 +64,10 @@ def sha256(path: pathlib.Path) -> str:
 def main() -> int:
     branch = git("branch", "--show-current")
     assert branch in ("ym2610b-bringup", "ym2610b-adpcma-24bit",
-                      "ym2610b-adpcmb-24bit")
+                      "ym2610b-adpcmb-24bit",
+                      "ym2610b-metal-slug-first-reject-uart-lab")
+    audit_base = (METAL_SLUG_LAB_COMMIT if
+                  branch == "ym2610b-metal-slug-first-reject-uart-lab" else BASE)
     assert git("merge-base", "HEAD", BASE) == BASE
     assert git("rev-parse", "YM2610-2160-beta^{}") == BASE
     cache_sha = sha256(ROOT / "rtl/ym2610_player/ym2610_player_pcm_cache.sv")
@@ -75,14 +82,14 @@ def main() -> int:
                          "prepared_a_current_slot", "replace_ptr"):
             assert contract in cache_text
     assert not git("diff", "--name-only", BASE, "--", *HANDOFF_FILES)
-    assert not git("diff", "--name-only", BASE, "--", "rtl/emu.sv",
+    assert not git("diff", "--name-only", audit_base, "--", "rtl/emu.sv",
                    "rtl/golden_player_shell", "rtl/golden_player_shell_v1_1")
     assert not git("diff", "--name-only", BASE, "--",
                    "hw/ym2610_player/MegaVGMPlayer_YM2610_MiSTer.qpf",
                    "hw/ym2610_player/MegaVGMPlayer_YM2610_MiSTer.qsf",
                    "hw/ym2610_player/files_ym2610_player.qip")
 
-    changed = git("diff", "--name-only", BASE).splitlines()
+    changed = git("diff", "--name-only", audit_base).splitlines()
     assert set(changed) <= ALLOWED_CHANGES, set(changed) - ALLOWED_CHANGES
     assert not any("ym2151" in name.lower() or "segapcm" in name.lower()
                    for name in changed)
