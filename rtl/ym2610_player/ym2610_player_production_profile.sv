@@ -65,6 +65,27 @@ module golden_player_shell_v1_1_profile #(
     logic [31:0] core_parser_command_count;
     logic core_fatal;
     logic [7:0] core_fatal_code;
+`ifdef YM2610B_METAL_SLUG_REJECT_UART_LAB
+    logic [3:0] core_classification;
+    logic [31:0] core_parser_pc;
+    logic [31:0] core_parser_samples;
+    logic [31:0] core_loop_count;
+    logic lab_ym_port;
+    logic [7:0] lab_ym_register, lab_ym_value, lab_bus_dout;
+    logic [3:0] lab_bus_state;
+    logic [15:0] lab_bus_watchdog;
+    logic [23:0] lab_adpcma_logical, lab_adpcmb_logical;
+    logic lab_a_current_hit, lab_a_next_hit;
+    logic lab_b_current_hit, lab_b_next_hit;
+    logic lab_request_active, lab_request_pending, lab_request_space_b;
+    logic [23:0] lab_request_logical;
+    logic lab_response_valid, lab_response_hit, lab_response_space_b;
+    logic [VGM_ADDR_WIDTH-1:0] lab_response_file_addr;
+    logic lab_last_fill_valid, lab_last_fill_space_b;
+    logic [23:0] lab_last_fill_logical;
+    logic lab_uart_tx;
+    logic core_busy_timeout;
+`endif
 `ifdef YM2610_GF_RG1_PROBE
     logic core_range_fault_valid;
     logic [19:0] core_range_fault_addr;
@@ -132,18 +153,34 @@ module golden_player_shell_v1_1_profile #(
         .parser_command_count(core_parser_command_count),
         .fatal_active(core_fatal),
         .fatal_code(core_fatal_code),
+`ifdef YM2610B_METAL_SLUG_REJECT_UART_LAB
+        .classification(core_classification),
+`else
         .classification(),
+`endif
         .raw_variant_b(),
         .reject_code(),
         .original_size(),
+`ifdef YM2610B_METAL_SLUG_REJECT_UART_LAB
+        .parser_pc(core_parser_pc),
+`else
         .parser_pc(),
+`endif
         .parser_opcode(),
         .wait_remaining(),
+`ifdef YM2610B_METAL_SLUG_REJECT_UART_LAB
+        .parser_samples(core_parser_samples),
+`else
         .parser_samples(),
+`endif
         .parser_writes(),
         .port0_writes(),
         .port1_writes(),
+`ifdef YM2610B_METAL_SLUG_REJECT_UART_LAB
+        .loop_count(core_loop_count),
+`else
         .loop_count(),
+`endif
         .descriptor_a_count(),
         .descriptor_b_count(),
         .b_only_writes(),
@@ -181,7 +218,11 @@ module golden_player_shell_v1_1_profile #(
         .adpcmb_underflow(),
         .stale_response(),
         .owner_mismatch(),
+`ifdef YM2610B_METAL_SLUG_REJECT_UART_LAB
+        .busy_timeout(core_busy_timeout),
+`else
         .busy_timeout(),
+`endif
         .write_while_busy(),
         .memory_timeout(),
         .memory_request_held(),
@@ -208,6 +249,31 @@ module golden_player_shell_v1_1_profile #(
         .adpcma_r(),
         .adpcmb_l(),
         .adpcmb_r()
+`ifdef YM2610B_METAL_SLUG_REJECT_UART_LAB
+        ,.lab_ym_port(lab_ym_port),
+        .lab_ym_register(lab_ym_register),
+        .lab_ym_value(lab_ym_value),
+        .lab_bus_state(lab_bus_state),
+        .lab_bus_dout(lab_bus_dout),
+        .lab_bus_watchdog(lab_bus_watchdog),
+        .lab_adpcma_logical(lab_adpcma_logical),
+        .lab_adpcmb_logical(lab_adpcmb_logical),
+        .lab_a_current_hit(lab_a_current_hit),
+        .lab_a_next_hit(lab_a_next_hit),
+        .lab_b_current_hit(lab_b_current_hit),
+        .lab_b_next_hit(lab_b_next_hit),
+        .lab_request_active(lab_request_active),
+        .lab_request_pending(lab_request_pending),
+        .lab_request_space_b(lab_request_space_b),
+        .lab_request_logical(lab_request_logical),
+        .lab_response_valid(lab_response_valid),
+        .lab_response_hit(lab_response_hit),
+        .lab_response_file_addr(lab_response_file_addr),
+        .lab_response_space_b(lab_response_space_b),
+        .lab_last_fill_valid(lab_last_fill_valid),
+        .lab_last_fill_space_b(lab_last_fill_space_b),
+        .lab_last_fill_logical(lab_last_fill_logical)
+`endif
     );
 
     assign file_read_request = core_mem_req;
@@ -243,7 +309,41 @@ module golden_player_shell_v1_1_profile #(
     );
     assign profile_status = {core_fatal, 3'd0, core_fatal_code,
                              core_load_state};
+`ifdef YM2610B_METAL_SLUG_REJECT_UART_LAB
+    ym2610b_metal_slug_reject_serial_observer #(
+        .CLK_HZ(CLK_SYS_HZ), .BAUD(115_200)
+    ) u_metal_slug_reject_observer (
+        .clk(clk_sys), .reset(reset || download_active),
+        .capture(core_fatal && core_fatal_code >= 8'h09),
+        .reject_code(core_fatal_code),
+        .classification(core_classification),
+        .sample_count(core_parser_samples), .vgm_pc(core_parser_pc),
+        .loop_count(core_loop_count), .ym_port(lab_ym_port),
+        .ym_register(lab_ym_register), .ym_value(lab_ym_value),
+        .bus_state(lab_bus_state), .bus_dout(lab_bus_dout),
+        .busy_timeout(core_busy_timeout),
+        .bus_watchdog(lab_bus_watchdog),
+        .adpcma_logical(lab_adpcma_logical),
+        .adpcmb_logical(lab_adpcmb_logical),
+        .a_current_hit(lab_a_current_hit), .a_next_hit(lab_a_next_hit),
+        .b_current_hit(lab_b_current_hit), .b_next_hit(lab_b_next_hit),
+        .request_active(lab_request_active),
+        .request_pending(lab_request_pending),
+        .request_space_b(lab_request_space_b),
+        .request_logical(lab_request_logical),
+        .response_valid(lab_response_valid),
+        .response_hit(lab_response_hit),
+        .response_space_b(lab_response_space_b),
+        .response_file_addr(lab_response_file_addr),
+        .last_fill_valid(lab_last_fill_valid),
+        .last_fill_space_b(lab_last_fill_space_b),
+        .last_fill_logical(lab_last_fill_logical),
+        .uart_tx(lab_uart_tx), .frozen(), .sent()
+    );
+    assign debug_page_data = {15'd0, lab_uart_tx};
+`else
     assign debug_page_data = 16'd0;
+`endif
     assign parser_start_count = core_start_count;
     assign scanner_start_count = core_scanner_start_count;
     assign sound_write_count = core_parser_command_count;

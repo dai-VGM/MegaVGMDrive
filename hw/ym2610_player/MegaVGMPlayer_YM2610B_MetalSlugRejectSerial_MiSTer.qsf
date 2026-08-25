@@ -1,0 +1,8 @@
+# Metal Slug YM2610B first-reject UART lab. Never release as production.
+# Inherit the normal YM2610B production shell/project before adding one
+# passive observer source and its lab-only macro.
+source MegaVGMPlayer_YM2610B_Bringup_MiSTer.qsf
+
+source check_metal_slug_reject_ddram_base.tcl
+set_global_assignment -name VERILOG_MACRO "YM2610B_METAL_SLUG_REJECT_UART_LAB=1"
+set_global_assignment -name SYSTEMVERILOG_FILE ../../rtl/ym2610_player_lab/ym2610b_metal_slug_reject_serial_observer.sv

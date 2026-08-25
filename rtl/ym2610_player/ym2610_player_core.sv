@@ -109,6 +109,31 @@ module ym2610_player_core #(
     output logic signed [15:0]    adpcma_r,
     output logic signed [15:0]    adpcmb_l,
     output logic signed [15:0]    adpcmb_r
+`ifdef YM2610B_METAL_SLUG_REJECT_UART_LAB
+    ,output logic                 lab_ym_port,
+    output logic [7:0]            lab_ym_register,
+    output logic [7:0]            lab_ym_value,
+    output logic [3:0]            lab_bus_state,
+    output logic [7:0]            lab_bus_dout,
+    output logic [15:0]           lab_bus_watchdog,
+    output logic [23:0]           lab_adpcma_logical,
+    output logic [23:0]           lab_adpcmb_logical,
+    output logic                  lab_a_current_hit,
+    output logic                  lab_a_next_hit,
+    output logic                  lab_b_current_hit,
+    output logic                  lab_b_next_hit,
+    output logic                  lab_request_active,
+    output logic                  lab_request_pending,
+    output logic                  lab_request_space_b,
+    output logic [23:0]           lab_request_logical,
+    output logic                  lab_response_valid,
+    output logic                  lab_response_hit,
+    output logic [ADDR_WIDTH-1:0] lab_response_file_addr,
+    output logic                  lab_response_space_b,
+    output logic                  lab_last_fill_valid,
+    output logic                  lab_last_fill_space_b,
+    output logic [23:0]           lab_last_fill_logical
+`endif
 );
     localparam logic [3:0] LS_WAIT       = 4'd0;
     localparam logic [3:0] LS_LOAD       = 4'd1;
@@ -199,6 +224,11 @@ module ym2610_player_core #(
     logic [31:0] sample_accum;
     logic [32:0] sample_sum;
     logic [7:0] bus_dout;
+`ifdef YM2610B_METAL_SLUG_REJECT_UART_LAB
+    logic lab_bus_current_port;
+    logic [7:0] lab_bus_current_address;
+    logic [7:0] lab_bus_current_data;
+`endif
     logic [1:0] bus_addr;
     logic [7:0] bus_din;
     logic bus_cs_n, bus_wr_n;
@@ -269,6 +299,14 @@ module ym2610_player_core #(
                                 first_bad_data : parser_unsupported_opcode;
     assign fatal_active = load_state == LS_REJECT;
     assign fatal_code = reject_code;
+`ifdef YM2610B_METAL_SLUG_REJECT_UART_LAB
+    assign lab_ym_port = lab_bus_current_port;
+    assign lab_ym_register = lab_bus_current_address;
+    assign lab_ym_value = lab_bus_current_data;
+    assign lab_bus_dout = bus_dout;
+    assign lab_adpcma_logical = {adpcma_bank, adpcma_addr};
+    assign lab_adpcmb_logical = adpcmb_addr;
+`endif
     assign player_heartbeat = arbiter_response_count;
     assign ddr_heartbeat = scanner_memory_requests + parser_memory_requests +
                            pcm_memory_requests + arbiter_response_count;
@@ -387,6 +425,13 @@ module ym2610_player_core #(
         .bus_wr_n(bus_wr_n), .bus_dout(bus_dout),
         .busy_timeout(busy_timeout), .write_while_busy(write_while_busy),
         .accepted_count(bus_accepted)
+`ifdef YM2610B_METAL_SLUG_REJECT_UART_LAB
+        ,.lab_state(lab_bus_state),
+        .lab_current_port(lab_bus_current_port),
+        .lab_current_address(lab_bus_current_address),
+        .lab_current_data(lab_bus_current_data),
+        .lab_watchdog(lab_bus_watchdog)
+`endif
     );
 
     ym2610_player_pcm_cache #(
@@ -422,6 +467,23 @@ module ym2610_player_core #(
         .last_logical_addr(pcm_last_address),
         .adpcma_last_address(adpcma_last_address),
         .adpcmb_last_address(adpcmb_last_address)
+`ifdef YM2610B_METAL_SLUG_REJECT_UART_LAB
+        ,.lab_a_current_hit(lab_a_current_hit),
+        .lab_a_next_hit(lab_a_next_hit),
+        .lab_b_current_hit(lab_b_current_hit),
+        .lab_b_next_hit(lab_b_next_hit),
+        .lab_request_active(lab_request_active),
+        .lab_request_pending(lab_request_pending),
+        .lab_request_space_b(lab_request_space_b),
+        .lab_request_logical(lab_request_logical),
+        .lab_response_valid(lab_response_valid),
+        .lab_response_hit(lab_response_hit),
+        .lab_response_file_addr(lab_response_file_addr),
+        .lab_response_space_b(lab_response_space_b),
+        .lab_last_fill_valid(lab_last_fill_valid),
+        .lab_last_fill_space_b(lab_last_fill_space_b),
+        .lab_last_fill_logical(lab_last_fill_logical)
+`endif
 `ifdef YM2610_GF_RG1_PROBE
         ,.range_fault_valid(cache_range_fault_valid),
         .range_fault_addr(cache_range_fault_addr),

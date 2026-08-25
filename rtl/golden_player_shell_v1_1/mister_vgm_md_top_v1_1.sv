@@ -693,7 +693,13 @@ module mister_vgm_md_top #(
     assign player_last_cmd_debug = '0;
     assign vgm_unsupported_opcode = '0;
     assign vgm_unsupported_pc = '0;
+`ifdef YM2610B_METAL_SLUG_REJECT_UART_LAB
+    // Lab-only passive conduit from the profile observer to the existing
+    // top-level UART pin. It has no functional-shell fanout.
+    assign vgm_player_error_code = {7'd0, profile_debug_page_data[0]};
+`else
     assign vgm_player_error_code = '0;
+`endif
     assign vgm_error_pc_debug = '0;
     assign vgm_error_cmd_debug = '0;
     assign vgm_error_session_id = '0;

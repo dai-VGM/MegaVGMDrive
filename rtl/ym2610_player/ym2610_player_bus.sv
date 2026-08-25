@@ -19,6 +19,13 @@ module ym2610_player_bus (
     output logic       busy_timeout,
     output logic       write_while_busy,
     output logic [31:0] accepted_count
+`ifdef YM2610B_METAL_SLUG_REJECT_UART_LAB
+    ,output logic [3:0]  lab_state,
+    output logic         lab_current_port,
+    output logic [7:0]   lab_current_address,
+    output logic [7:0]   lab_current_data,
+    output logic [15:0]  lab_watchdog
+`endif
 );
     typedef enum logic [3:0] {
         ST_IDLE, ST_CLEAR_SETUP, ST_CLEAR_SAMPLE, ST_ADDR_SETUP,
@@ -30,6 +37,15 @@ module ym2610_player_bus (
     logic [7:0] current_address;
     logic [7:0] current_data;
     logic [15:0] watchdog;
+
+`ifdef YM2610B_METAL_SLUG_REJECT_UART_LAB
+    // Passive lab taps only. These outputs have no functional fanout.
+    assign lab_state = state;
+    assign lab_current_port = current_port;
+    assign lab_current_address = current_address;
+    assign lab_current_data = current_data;
+    assign lab_watchdog = watchdog;
+`endif
 
     always_comb request_ready = (state == ST_IDLE) && !busy_timeout;
 

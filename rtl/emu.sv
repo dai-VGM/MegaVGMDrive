@@ -539,6 +539,9 @@ module emu
     wire audio_gate_open;
     wire audio_muted;
     wire vgm_player_error;
+`ifdef YM2610B_METAL_SLUG_REJECT_UART_LAB
+    wire metal_slug_lab_uart_tx;
+`endif
 
     ///////// Default values for ports not used in this baseline /////////
 
@@ -553,7 +556,13 @@ module emu
          !vgm_scan_term_be_debug[3]) ? 2'd2 :
         (player_busy && audio_gate_open && !audio_muted && !vgm_player_error) ? 2'd2 :
                                                                               2'd0;
+`ifdef YM2610B_METAL_SLUG_REJECT_UART_LAB
+    assign UART_RTS = 1'b0;
+    assign UART_TXD = metal_slug_lab_uart_tx;
+    assign UART_DTR = 1'b0;
+`else
     assign {UART_RTS, UART_TXD, UART_DTR} = 3'b000;
+`endif
     assign {SD_SCK, SD_MOSI, SD_CS} = 'Z;
     assign {SDRAM_DQ, SDRAM_A, SDRAM_BA, SDRAM_CLK, SDRAM_CKE,
             SDRAM_DQML, SDRAM_DQMH, SDRAM_nWE, SDRAM_nCAS,
@@ -803,6 +812,9 @@ module emu
     wire  [7:0] vgm_unsupported_opcode;
     wire [17:0] vgm_unsupported_pc;
     wire  [7:0] vgm_player_error_code;
+`ifdef YM2610B_METAL_SLUG_REJECT_UART_LAB
+    assign metal_slug_lab_uart_tx = vgm_player_error_code[0];
+`endif
     wire [17:0] vgm_error_pc_debug;
     wire  [7:0] vgm_error_cmd_debug;
     wire [31:0] vgm_error_session_id;

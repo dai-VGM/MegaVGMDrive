@@ -61,6 +61,23 @@ module ym2610_player_pcm_cache #(
     output logic [19:0]           last_logical_addr,
     output logic [19:0]           adpcma_last_address,
     output logic [19:0]           adpcmb_last_address
+`ifdef YM2610B_METAL_SLUG_REJECT_UART_LAB
+    ,output logic                 lab_a_current_hit,
+    output logic                  lab_a_next_hit,
+    output logic                  lab_b_current_hit,
+    output logic                  lab_b_next_hit,
+    output logic                  lab_request_active,
+    output logic                  lab_request_pending,
+    output logic                  lab_request_space_b,
+    output logic [23:0]           lab_request_logical,
+    output logic                  lab_response_valid,
+    output logic                  lab_response_hit,
+    output logic [ADDR_WIDTH-1:0] lab_response_file_addr,
+    output logic                  lab_response_space_b,
+    output logic                  lab_last_fill_valid,
+    output logic                  lab_last_fill_space_b,
+    output logic [23:0]           lab_last_fill_logical
+`endif
 `ifdef YM2610_GF_RG1_PROBE
     ,output logic                 range_fault_valid,
     output logic [19:0]           range_fault_addr,
@@ -188,6 +205,35 @@ module ym2610_player_pcm_cache #(
     logic [5:0] response_a_current_lane, response_a_next_lane;
     logic response_b_current, response_b_next;
     integer i;
+
+`ifdef YM2610B_METAL_SLUG_REJECT_UART_LAB
+    // Existing cache decisions exported as passive lab observations. The
+    // only added state records the most recent successful production fill.
+    assign lab_a_current_hit = a_current_hit;
+    assign lab_a_next_hit = a_next_hit;
+    assign lab_b_current_hit = b_current_hit;
+    assign lab_b_next_hit = b_next_hit;
+    assign lab_request_active = map_req_valid;
+    assign lab_request_pending = map_pending;
+    assign lab_request_space_b = map_pending ? map_pending_space_b : map_space_b;
+    assign lab_request_logical = map_pending ? map_pending_logical : map_logical_addr;
+    assign lab_response_valid = map_rsp_valid;
+    assign lab_response_hit = map_rsp_hit;
+    assign lab_response_file_addr = map_rsp_file_addr;
+    assign lab_response_space_b = map_pending_space_b;
+
+    always_ff @(posedge clk) begin
+        if (reset) begin
+            lab_last_fill_valid <= 1'b0;
+            lab_last_fill_space_b <= 1'b0;
+            lab_last_fill_logical <= 24'd0;
+        end else if (mem_valid && request_pending && replacement_found) begin
+            lab_last_fill_valid <= 1'b1;
+            lab_last_fill_space_b <= request_space_b;
+            lab_last_fill_logical <= request_logical;
+        end
+    end
+`endif
 
     wire [23:0] adpcma_logical = {adpcma_bank, adpcma_addr};
     wire [23:0] adpcma_next_logical = adpcma_logical + 24'd1;
