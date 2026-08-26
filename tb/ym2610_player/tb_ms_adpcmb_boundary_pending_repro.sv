@@ -323,8 +323,16 @@ module tb_ms_adpcmb_boundary_pending_repro;
         b_keyon(16'h0300, 16'h0300, 1'b0);
         check(!dut.repeat_b_protected,
               "non-repeat key-on installed persistent protection");
+        check(dut.prepared_b_protected,
+              "non-repeat key-on did not retain handoff protection");
+        for (n = 0; n < 8; n = n + 1)
+            check(dut.protected_slots[dut.prewarm_b_runway_slot[n]],
+                  "non-repeat handoff exposed a startup victim slot");
         check_runway(24'h030000, "non-repeat key-on");
-        for (n = 0; n < 96; n = n + 1)
+        pulse_b(24'h030000);
+        check(!dut.prepared_b_protected,
+              "first legal B read did not release handoff protection");
+        for (n = 1; n < 96; n = n + 1)
             pulse_b(24'h030000 + n[23:0]);
         check(find_b(24'h030000) < 0,
               "non-repeat startup byte remained permanently protected");

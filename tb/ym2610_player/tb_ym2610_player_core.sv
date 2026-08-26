@@ -1,6 +1,11 @@
 `timescale 1ns/1ps
 
 module tb_ym2610_player_core;
+`ifdef YM2610_PRODUCTION_TIMING
+    localparam int TEST_SYS_CLK_HZ = 20_000_000;
+`else
+    localparam int TEST_SYS_CLK_HZ = 8_000_000;
+`endif
 `ifdef YM2610B_TEST
     localparam YM2610B_ENABLE = 1;
 `else
@@ -49,6 +54,7 @@ module tb_ym2610_player_core;
     logic pending;
     logic [22:0] pending_addr;
     integer response_delay;
+    integer response_base_delay;
     integer fd, count, timeout;
     string filename;
     string expected_lane;
@@ -68,6 +74,10 @@ module tb_ym2610_player_core;
     integer runtime_target_samples;
     integer runtime_audio_after_samples;
     logic runtime_audio_after_seen;
+`ifdef YM2610_DADDY_AUDIT
+    logic daddy_keyon_seen;
+    logic daddy_first_read_seen;
+`endif
 
     always #5 clk = ~clk;
 
@@ -82,7 +92,7 @@ module tb_ym2610_player_core;
 `endif
 
     ym2610_player_core #(
-        .SYS_CLK_HZ(8_000_000), .CACHE_ENTRIES(TEST_CACHE_ENTRIES),
+        .SYS_CLK_HZ(TEST_SYS_CLK_HZ), .CACHE_ENTRIES(TEST_CACHE_ENTRIES),
         .ENABLE_YM2610B(YM2610B_ENABLE)
     ) dut (
         .clk(clk), .hard_reset(hard_reset), .soft_reset(soft_reset),
@@ -131,7 +141,7 @@ module tb_ym2610_player_core;
             pending <= 1'b1;
             pending_addr <= mem_addr;
             response_delay <= $test$plusargs("FAST_MEM") ?
-                              0 : 12 + mem_addr[1:0];
+                              0 : response_base_delay + mem_addr[1:0];
         end
         if (pending) begin
             if (response_delay == 0) begin
@@ -200,6 +210,47 @@ module tb_ym2610_player_core;
         end
     end
 
+`ifdef YM2610_DADDY_AUDIT
+    always_ff @(posedge clk) begin
+        if (hard_reset) begin
+            daddy_keyon_seen <= 1'b0;
+            daddy_first_read_seen <= 1'b0;
+        end else begin
+            if (dut.cache_write_accept && !dut.parser_write_port &&
+                dut.parser_write_address == 8'h10 &&
+                dut.parser_write_data == 8'h80) begin
+                daddy_keyon_seen <= 1'b1;
+                $display("DADDY_CACHE_ACCEPT sample=%0d pc=%08x start=%04x end=%04x b_addr=%06x hit=%0d ptr=%0d runway=%02x",
+                    parser_samples, parser_pc, dut.u_cache.start_b,
+                    dut.u_cache.end_b, dut.adpcmb_addr,
+                    dut.u_cache.b_current_hit, dut.u_cache.replace_ptr,
+                    dut.u_cache.prewarm_b_runway_valid);
+            end
+            if (daddy_keyon_seen && dut.u_cache.map_req_valid &&
+                dut.u_cache.map_req_ready && dut.u_cache.map_space_b)
+                $display("DADDY_MAP sample=%0d logical=%06x required=%0d prewarm=%0d b_addr=%06x roe=%0d",
+                    parser_samples, dut.u_cache.map_logical_addr,
+                    dut.u_cache.lookup_offer_required,
+                    dut.u_cache.lookup_offer_prewarm, dut.adpcmb_addr,
+                    dut.adpcmb_roe_n);
+            if (daddy_keyon_seen && dut.u_jt10.u_core.acmd_up_b)
+                $display("DADDY_MMR_START sample=%0d start=%04x end=%04x addr=%06x cen55=%0d",
+                    parser_samples, dut.u_jt10.u_core.astart_b,
+                    dut.u_jt10.u_core.aend_b, dut.adpcmb_addr,
+                    dut.u_jt10.u_core.clk_en_55);
+            if (daddy_keyon_seen && !daddy_first_read_seen &&
+                !dut.adpcmb_roe_n) begin
+                daddy_first_read_seen <= 1'b1;
+                $display("DADDY_FIRST_READ sample=%0d addr=%06x current=%0d next=%0d pending=%0d req=%06x ptr=%0d",
+                    parser_samples, dut.adpcmb_addr,
+                    dut.u_cache.b_current_hit, dut.u_cache.b_next_hit,
+                    dut.u_cache.request_pending, dut.u_cache.request_logical,
+                    dut.u_cache.replace_ptr);
+            end
+        end
+    end
+`endif
+
     initial begin
         if (!$value$plusargs("VGM=%s", filename)) $fatal(1, "missing +VGM");
         if (!$value$plusargs("EXPECT=%s", expected_lane)) expected_lane = "NONE";
@@ -211,6 +262,9 @@ module tb_ym2610_player_core;
         pending = 1'b0;
         pending_addr = 0;
         response_delay = 0;
+        response_base_delay = 12;
+        if ($value$plusargs("MEM_DELAY=%d", response_base_delay))
+            $display("CORE_MEMORY_DELAY base=%0d", response_base_delay);
         sample_d = 1'b0;
         psg_a_seen = 1'b0;
         psg_b_seen = 1'b0;

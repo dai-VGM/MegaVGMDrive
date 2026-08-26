@@ -149,6 +149,7 @@ module ym2610_player_pcm_cache #(
     logic [7:0] prewarm_b_runway_valid;
     logic [PTR_WIDTH-1:0] prewarm_b_runway_slot [0:7];
     logic prewarm_b_repeat;
+    logic prepared_b_protected;
     logic repeat_b_protected;
     logic [PTR_WIDTH-1:0] repeat_b_runway_slot [0:7];
     logic [23:0] repeat_b_start_logical, repeat_b_end_logical;
@@ -456,6 +457,13 @@ module ym2610_player_pcm_cache #(
                 if (prewarm_b_runway_valid[byte_index])
                     protected_slots[prewarm_b_runway_slot[byte_index]] = 1'b1;
         end
+        // Bus request acceptance precedes JT10's serialized MMR/counter
+        // consumption.  Reuse the resolved prewarm slot indices across that
+        // handoff so A or B replacement cannot invalidate the new runway.
+        if (prepared_b_protected)
+            for (integer byte_index = 0; byte_index < 8;
+                 byte_index = byte_index + 1)
+                protected_slots[prewarm_b_runway_slot[byte_index]] = 1'b1;
         if (repeat_b_protected)
             for (integer byte_index = 0; byte_index < 8;
                  byte_index = byte_index + 1)
@@ -566,23 +574,28 @@ module ym2610_player_pcm_cache #(
                 a_need_logical = adpcma_next_logical;
             end
 
-            if (!adpcmb_roe_n && !b_current_hit) begin
-                b_need_valid = 1'b1;
-                b_need_required = 1'b1;
-                b_need_logical = adpcmb_addr;
-            end else if (b_current_hit && !b_next_hit) begin
-                b_need_valid = 1'b1;
-                b_need_logical = adpcmb_next_logical;
-            end else if (b_current_hit && b_next_hit && !b_ahead_hit &&
-                         live_b_valid) begin
-                // The serialized descriptor mapper adds a few clocks before
-                // DDR acceptance.  An eight-byte startup runway keeps this
-                // speculative refill seven bytes ahead of the live decoder.
-                b_need_valid = 1'b1;
-                b_need_logical = adpcmb_ahead_logical;
-            end else if (!b_current_hit) begin
-                b_need_valid = 1'b1;
-                b_need_logical = adpcmb_addr;
+            // While a start command is between bus acceptance and its first
+            // decoder read, the old JT10 cursor is not runtime ownership.
+            // Keep the serialized lookup pipeline free of stale speculation.
+            if (!prepared_b_protected) begin
+                if (!adpcmb_roe_n && !b_current_hit) begin
+                    b_need_valid = 1'b1;
+                    b_need_required = 1'b1;
+                    b_need_logical = adpcmb_addr;
+                end else if (b_current_hit && !b_next_hit) begin
+                    b_need_valid = 1'b1;
+                    b_need_logical = adpcmb_next_logical;
+                end else if (b_current_hit && b_next_hit && !b_ahead_hit &&
+                             live_b_valid) begin
+                    // The serialized descriptor mapper adds a few clocks
+                    // before DDR acceptance. An eight-byte startup runway
+                    // keeps this speculative refill seven bytes ahead.
+                    b_need_valid = 1'b1;
+                    b_need_logical = adpcmb_ahead_logical;
+                end else if (!b_current_hit) begin
+                    b_need_valid = 1'b1;
+                    b_need_logical = adpcmb_addr;
+                end
             end
 
             if (a_need_valid || b_need_valid) begin
@@ -686,6 +699,7 @@ module ym2610_player_pcm_cache #(
             prewarm_b_next_slot <= '0;
             prewarm_b_runway_valid <= 8'd0;
             prewarm_b_repeat <= 1'b0;
+            prepared_b_protected <= 1'b0;
             repeat_b_protected <= 1'b0;
             repeat_b_start_logical <= 24'd0;
             repeat_b_end_logical <= 24'd0;
@@ -792,6 +806,7 @@ module ym2610_player_pcm_cache #(
                 // the prior ownership; a repeat start installs the new set.
                 if (!write_port && write_address == 8'h10 &&
                     write_data[7] && !write_data[0]) begin
+                    prepared_b_protected <= &prewarm_b_runway_valid;
                     if (prewarm_b_repeat && &prewarm_b_runway_valid) begin
                         repeat_b_protected <= 1'b1;
                         repeat_b_start_logical <= {prewarm_start_b, 8'd0};
@@ -804,13 +819,23 @@ module ym2610_player_pcm_cache #(
                     end
                 end else if (!write_port && write_address == 8'h10 &&
                              write_data[0]) begin
+                    prepared_b_protected <= 1'b0;
                     repeat_b_protected <= 1'b0;
                 end
             end
 
+            // The first legal current-byte read transfers protection to the
+            // existing live-B current/next slot snapshot on this same edge.
+            if (prepared_b_protected && prewarm_state == PW_IDLE &&
+                !adpcmb_roe_n &&
+                adpcmb_addr == {prewarm_start_b, 8'd0})
+                prepared_b_protected <= 1'b0;
+
             // Capture a key-on before bus acceptance, then drain any older
             // lookup/fetch and scan only the selected voices.
             if (prewarm_state == PW_IDLE && (prewarm_a || prewarm_b)) begin
+                if (prewarm_b)
+                    prepared_b_protected <= 1'b0;
                 prewarm_space_b <= prewarm_b;
                 prewarm_remaining <= prewarm_b ? 6'b000001 : write_data[5:0];
                 prewarm_voice <= prewarm_b ? 3'd0 : first_voice(write_data[5:0]);

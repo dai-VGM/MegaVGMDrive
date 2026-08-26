@@ -73,7 +73,13 @@ always @(posedge clk or negedge rst_n)
     if(!rst_n) decoder_cen <= 1'b0;
     else decoder_cen <= cen;
 
-always @(posedge clk) roe_n <= ~(adv & cen55 & (chon | restart));
+// acmd_up_b can remain asserted until the MMR's next serialized clear point.
+// If cen55 lands inside that lifetime, u_cnt deliberately keeps restart
+// armed and has not loaded astart yet.  Do not publish a restart request for
+// that stale cursor; the first cen55 after command-update clears reloads the
+// address and requests the legal start byte on the same edge.
+always @(posedge clk)
+    roe_n <= ~(adv & cen55 & (chon | (restart & ~acmd_up_b)));
 
 jt10_adpcmb_cnt u_cnt(
     .rst_n       ( rst_n           ),

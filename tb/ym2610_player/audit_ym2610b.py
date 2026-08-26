@@ -13,6 +13,7 @@ ROOT = pathlib.Path(__file__).resolve().parents[2]
 BASE = "1ec8b7f5c6a085f7a00ff2dd3bf0d1476e2fe0c1"
 BRINGUP_COMMIT = "49c88dd3a9c9259d19bee67e95eb4684f1eda436"
 METAL_SLUG_LAB_COMMIT = "9e71694800076a308a6aca1e969ca0bb9adaabec"
+DADDY_MULK_BASE = "0bfed9b56d7e2a42aa0857f4a315d51564604a73"
 CACHE_SHA = "5d799058123d28e2560bb081ccbacd2f81cc34e1f5b52fa273f28a3062ae6a49"
 HANDOFF_FILES = (
     "rtl/ym2610_hw0/ym2610_hw0_jt12_mmr.v",
@@ -24,6 +25,7 @@ ALLOWED_CHANGES = {
     "rtl/ym2610_hw0/ym2610_hw0_jt10_wrapper.sv",
     "rtl/ym2610_hw0/ym2610_hw0_jt12_top.v",
     "rtl/ym2610_hw0/ym2610_hw0_top.sv",
+    "rtl/genesis_audio/jt10_ym2610/adpcm/jt10_adpcm_drvB.v",
     "rtl/ym2610_player/ym2610_player_core.sv",
     "rtl/ym2610_player/ym2610_player_compat.sv",
     "rtl/ym2610_player/ym2610_player_pcm_cache.sv",
@@ -43,6 +45,8 @@ ALLOWED_CHANGES = {
     "tb/ym2610_player/README.md",
     "tb/ym2610_player/run_ms_adpcmb_repeat_boundary.sh",
     "tb/ym2610_player/tb_ms_adpcmb_boundary_pending_repro.sv",
+    "tb/ym2610_player/run_daddy_mulk_adpcmb_startup.sh",
+    "tb/ym2610_player/tb_daddy_mulk_adpcmb_startup.sv",
     "tools/inspect_ym2610_vgm.py",
     "hw/ym2610_player/MegaVGMPlayer_YM2610B_Bringup_MiSTer.qpf",
     "hw/ym2610_player/MegaVGMPlayer_YM2610B_Bringup_MiSTer.qsf",
@@ -65,9 +69,14 @@ def main() -> int:
     branch = git("branch", "--show-current")
     assert branch in ("ym2610b-bringup", "ym2610b-adpcma-24bit",
                       "ym2610b-adpcmb-24bit",
-                      "ym2610b-metal-slug-first-reject-uart-lab")
-    audit_base = (METAL_SLUG_LAB_COMMIT if
-                  branch == "ym2610b-metal-slug-first-reject-uart-lab" else BASE)
+                      "ym2610b-metal-slug-first-reject-uart-lab",
+                      "ym2610b-daddy-mulk-adpcmb-startup")
+    if branch == "ym2610b-metal-slug-first-reject-uart-lab":
+        audit_base = METAL_SLUG_LAB_COMMIT
+    elif branch == "ym2610b-daddy-mulk-adpcmb-startup":
+        audit_base = DADDY_MULK_BASE
+    else:
+        audit_base = BASE
     assert git("merge-base", "HEAD", BASE) == BASE
     assert git("rev-parse", "YM2610-2160-beta^{}") == BASE
     cache_sha = sha256(ROOT / "rtl/ym2610_player/ym2610_player_pcm_cache.sv")
