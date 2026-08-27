@@ -3016,12 +3016,32 @@ module segapcm_sound_module #(
 		        (lab_jt_raw_req_src_st == 4'd15) &&
 		        !lab_jt_selected_raw_skid &&
 		        !lab_jt_selected_early_prefetch;
+		    // State 15 is JT's non-required lookahead.  A request on only one
+		    // side of the descriptor set is outside the loaded PCM image; a
+		    // miss with descriptors on both sides is a normal sparse-ROM gap
+		    // and remains serviceable as synthetic 0x80 data below.
+		    wire lab_jt_map_outside_descriptor_envelope =
+		        (smoke_type80_table_count_i != 5'd0) &&
+		        !lab_jt_payload_table_hit_next &&
+		        (lab_jt_payload_any_below_next ^
+		         lab_jt_payload_any_above_next);
+		    wire lab_jt_selected_speculative_unserviceable =
+		        lab_jt_selected_raw_skid &&
+		        (lab_jt_raw_skid_st_i == 4'd15) &&
+		        lab_jt_map_outside_descriptor_envelope;
+		    wire lab_jt_deferred_speculative_unserviceable =
+		        lab_jt_raw_defer_state15 &&
+		        lab_jt_map_outside_descriptor_envelope;
+		    wire lab_jt_speculative_unserviceable_retire_event =
+		        lab_jt_selected_speculative_unserviceable ||
+		        lab_jt_deferred_speculative_unserviceable;
 		    wire lab_jt_raw_skid_capture =
 		        lab_jt_raw_request_eligible &&
 		        (((lab_jt_selected_raw_skid ||
 		           lab_jt_selected_early_prefetch) &&
 		          !lab_jt_raw_matches_selected) ||
-		         lab_jt_raw_defer_state15);
+		         (lab_jt_raw_defer_state15 &&
+		          !lab_jt_deferred_speculative_unserviceable));
 	            wire lab_jt_raw_skid_coalesce =
 	                lab_jt_raw_request_eligible &&
 	                (lab_jt_selected_raw_skid ||
@@ -3070,7 +3090,8 @@ module segapcm_sound_module #(
 		        lab_jt_raw_skid_capture &&
 		        lab_jt_raw_skid_valid_i &&
 		        !(lab_jt_selected_raw_skid &&
-		          lab_jt_ddr_request_queue_accept);
+		          (lab_jt_ddr_request_queue_accept ||
+		           lab_jt_selected_speculative_unserviceable));
 		            always_ff @(posedge clk) begin
 		                if (reset || loaded_payload_clear) begin
 		                    lab_jt_raw_skid_valid_i <= 1'b0;
@@ -3083,7 +3104,8 @@ module segapcm_sound_module #(
 		                    lab_jt_raw_skid_overflow_count_i <= 32'd0;
 		                end else begin
 		                    if (lab_jt_selected_raw_skid &&
-		                        lab_jt_ddr_request_queue_accept)
+		                        (lab_jt_ddr_request_queue_accept ||
+		                         lab_jt_selected_speculative_unserviceable))
 		                        lab_jt_raw_skid_valid_i <= 1'b0;
 		                    if (lab_jt_raw_skid_capture &&
 		                        !lab_jt_raw_skid_overflow) begin
