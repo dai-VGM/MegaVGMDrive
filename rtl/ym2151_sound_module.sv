@@ -53,22 +53,21 @@ module ym2151_sound_module #(
     wire signed [15:0] jt51_xright;
     wire jt51_busy = jt51_dout[7];
     wire jt51_addr_write =
-        (write_state == WR_ADDR_WAIT) && jt51_cen_p1;
+        !reset && (write_state == WR_ADDR_WAIT) && jt51_cen_p1;
     wire jt51_data_write =
-        (write_state == WR_DATA_WAIT) && jt51_cen_p1 && !jt51_busy;
+        !reset && (write_state == WR_DATA_WAIT) && jt51_cen_p1 && !jt51_busy;
 
-    assign ym2151_cmd_ready = (write_state == WR_IDLE) && !jt51_busy;
+    assign ym2151_cmd_ready =
+        !reset && (write_state == WR_IDLE) && !jt51_busy;
     assign audio_l = jt51_xleft;
     assign audio_r = jt51_xright;
     assign audio_sample_valid = jt51_sample;
 
     always_ff @(posedge clk) begin
-        if (reset) begin
-            cen_accum <= 32'd0;
-            jt51_cen <= 1'b0;
-            jt51_cen_p1 <= 1'b0;
-            jt51_cen_phase <= 1'b0;
-        end else if (cen_accum >= (CLK_SYS_HZ - YM2151_CLK_HZ)) begin
+        // JT51's internal reset shift registers require enabled clocks while
+        // rst is asserted. Keep the normal fractional CEN/P1 sequence running;
+        // the gates above and write sequencer below still block all commands.
+        if (cen_accum >= (CLK_SYS_HZ - YM2151_CLK_HZ)) begin
             cen_accum <= cen_accum + YM2151_CLK_HZ - CLK_SYS_HZ;
             jt51_cen <= 1'b1;
             jt51_cen_phase <= ~jt51_cen_phase;

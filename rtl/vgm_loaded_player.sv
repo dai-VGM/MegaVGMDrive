@@ -164,6 +164,9 @@ module vgm_loaded_player #(
     output logic                  pcm_oob,
     output logic [31:0]           pcm_oob_count,
     output logic [31:0]           wait_ticks_consumed_debug,
+    // Canonical positive-wait indication. All supported VGM wait forms reach
+    // ST_WAIT_SAMPLES with their decoded duration in wait_remaining.
+    output logic                  positive_wait_active_debug,
     output logic [31:0]           dac_stream_cmd_count,
     output logic [31:0]           dac_stream_wait_samples_total,
     output logic [31:0]           dac_stream_clk_cycles_total,
@@ -364,6 +367,8 @@ module vgm_loaded_player #(
     logic [31:0] pcm_pos;
     logic [15:0] segapcm_pending_addr;
     logic [15:0] wait_remaining;
+    assign positive_wait_active_debug =
+        (state == ST_WAIT_SAMPLES) && (wait_remaining != 16'd0);
     logic vgm_wait_tick_d;
     logic start_d;
     logic dac_stream_measure_active;

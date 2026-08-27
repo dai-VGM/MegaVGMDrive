@@ -1084,9 +1084,13 @@ module mister_vgm_md_top #(
             logic signed [15:0] md_audio_r;
             logic md_audio_sample_valid;
             logic md_audio_session_active;
+            logic signed [15:0] ym2151_audio_raw_l;
+            logic signed [15:0] ym2151_audio_raw_r;
             logic signed [15:0] ym2151_audio_l;
             logic signed [15:0] ym2151_audio_r;
             logic ym2151_audio_sample_valid;
+            logic positive_wait_active_debug;
+            logic ym2151_prewait_mute_active;
             logic signed [15:0] segapcm_audio_l;
             logic signed [15:0] segapcm_audio_r;
             logic segapcm_audio_sample_valid;
@@ -4039,6 +4043,7 @@ module mister_vgm_md_top #(
                 .pcm_oob               (vgm_pcm_oob),
                 .pcm_oob_count         (vgm_pcm_oob_count),
                 .wait_ticks_consumed_debug(vgm_wait_ticks_consumed_debug),
+                .positive_wait_active_debug(positive_wait_active_debug),
                 .dac_stream_cmd_count  (dac_stream_cmd_count),
                 .dac_stream_wait_samples_total(dac_stream_wait_samples_total),
                 .dac_stream_clk_cycles_total(dac_stream_clk_cycles_total),
@@ -4119,6 +4124,19 @@ module mister_vgm_md_top #(
                 .raw_sample_valid           (ym2203_raw_sample_valid)
             );
 
+            // Re-arm with the loaded-player lifecycle and release permanently
+            // when that player reaches its first canonical positive VGM wait.
+            ym2151_prewait_audio_gate ym2151_audio_gate (
+                .clk                    (clk),
+                .reset_or_rearm         (mode5_loaded_player_reset),
+                .positive_wait_active   (positive_wait_active_debug),
+                .raw_audio_l            (ym2151_audio_raw_l),
+                .raw_audio_r            (ym2151_audio_raw_r),
+                .audible_audio_l        (ym2151_audio_l),
+                .audible_audio_r        (ym2151_audio_r),
+                .mute_active            (ym2151_prewait_mute_active)
+            );
+
             if (YM2151_EXPERIMENTAL_MODE) begin : ym2151_sound_enabled
 `ifdef MEGAVGMDRIVE_SEGAPCM_AUDIO_STUB_BUILD
 `ifdef MEGAVGMDRIVE_SEGAPCM_C0_JT51_LAB_BUILD
@@ -4132,14 +4150,14 @@ module mister_vgm_md_top #(
                     .ym2151_cmd_reg     (ym2151_cmd_reg),
                     .ym2151_cmd_data    (ym2151_cmd_data),
                     .ym2151_cmd_ready   (ym2151_cmd_ready),
-                    .audio_l            (ym2151_audio_l),
-                    .audio_r            (ym2151_audio_r),
+                    .audio_l            (ym2151_audio_raw_l),
+                    .audio_r            (ym2151_audio_raw_r),
                     .audio_sample_valid (ym2151_audio_sample_valid)
                 );
 `else
                 assign ym2151_cmd_ready = 1'b1;
-                assign ym2151_audio_l = 16'sd0;
-                assign ym2151_audio_r = 16'sd0;
+                assign ym2151_audio_raw_l = 16'sd0;
+                assign ym2151_audio_raw_r = 16'sd0;
                 assign ym2151_audio_sample_valid = 1'b0;
 `endif
 `else
@@ -4153,8 +4171,8 @@ module mister_vgm_md_top #(
                     .ym2151_cmd_reg     (ym2151_cmd_reg),
                     .ym2151_cmd_data    (ym2151_cmd_data),
                     .ym2151_cmd_ready   (ym2151_cmd_ready),
-                    .audio_l            (ym2151_audio_l),
-                    .audio_r            (ym2151_audio_r),
+                    .audio_l            (ym2151_audio_raw_l),
+                    .audio_r            (ym2151_audio_raw_r),
                     .audio_sample_valid (ym2151_audio_sample_valid)
                 );
 `endif
@@ -4428,8 +4446,8 @@ module mister_vgm_md_top #(
                 };
             end else begin : ym2151_sound_disabled
                 assign ym2151_cmd_ready = 1'b1;
-                assign ym2151_audio_l = 16'sd0;
-                assign ym2151_audio_r = 16'sd0;
+                assign ym2151_audio_raw_l = 16'sd0;
+                assign ym2151_audio_raw_r = 16'sd0;
                 assign ym2151_audio_sample_valid = 1'b0;
                 assign segapcm_audio_l = 16'sd0;
                 assign segapcm_audio_r = 16'sd0;
