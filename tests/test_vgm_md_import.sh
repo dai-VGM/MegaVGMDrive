@@ -170,9 +170,9 @@ assert_prepared() {
 
 sha256_file() {
 	if command -v shasum >/dev/null 2>&1; then
-		shasum -a 256 "$1" | awk '{print $1}'
+		shasum -a 256 < "$1" | awk '{print $1}'
 	else
-		sha256sum "$1" | awk '{print $1}'
+		sha256sum < "$1" | awk '{print $1}'
 	fi
 }
 
@@ -327,6 +327,62 @@ run_helper "$case_root/inbox" "$case_root/out"
 assert_prepared "ZIP VGZ input" \
 	"$case_root/out/Zip VGZ Collection/Zip GZ Game/Zip Compressed.vgm" \
 	"$zip_vgz_body" "Zip GZ Game" "Zip Compressed"
+
+# Info-ZIP interprets entry operands as wildcard patterns. Every path returned
+# by `unzip -Z1` must instead be extracted literally, including nested paths,
+# whitespace, quotes, parentheses, brackets, '*'/'?', and backslashes.
+case_root=$TEST_ROOT/zip_literal_names
+mkdir -p "$case_root/inbox" "$case_root/archive/Special [Set] (Live)"
+literal_vgm_rel="Special [Set] (Live)/01 O'Brien [Intro] * ? \\ Mix.vgm"
+literal_vgz_rel="Special [Set] (Live)/02 O'Brien [Voice] * ? \\ Mix.vgz"
+literal_vgm_body=$case_root/archive/$literal_vgm_rel
+literal_vgz_body=$case_root/literal_vgz_body.vgm
+make_body "$literal_vgm_body" 317
+make_body "$literal_vgz_body" 509
+gzip -c "$literal_vgz_body" > "$case_root/archive/$literal_vgz_rel"
+(CDPATH= cd -- "$case_root/archive" &&
+	zip -q "$case_root/inbox/Literal [Archive].zip" \
+		"$literal_vgm_rel" "$literal_vgz_rel")
+run_helper "$case_root/inbox" "$case_root/out"
+assert_prepared "ZIP literal-name VGM" \
+	"$case_root/out/Literal [Archive]/${literal_vgm_rel%.[vV][gG][mM]}.vgm" \
+	"$literal_vgm_body" "Special [Set] (Live)" \
+	"01 O'Brien [Intro] * ? \\ Mix"
+assert_prepared "ZIP literal-name VGZ" \
+	"$case_root/out/Literal [Archive]/${literal_vgz_rel%.[vV][gG][zZ]}.vgm" \
+	"$literal_vgz_body" "Special [Set] (Live)" \
+	"02 O'Brien [Voice] * ? \\ Mix"
+if find "$case_root/out" -type f -name '*.tmp.*' -print |
+	grep . >/dev/null 2>&1; then
+	fail "literal ZIP extraction left a temporary file"
+fi
+pass "ZIP literal-name cleanup"
+
+# A bad VGZ body must fail without replacing an existing destination or
+# leaving either the extracted VGZ or destination-side temporary file behind.
+case_root=$TEST_ROOT/zip_bad_vgz_cleanup
+mkdir -p "$case_root/inbox" "$case_root/archive/Bad [Set]" \
+	"$case_root/out/Bad [Archive]/Bad [Set]"
+bad_vgz_rel='Bad [Set]/03 Bad [Voice].vgz'
+printf 'not a gzip stream\n' > "$case_root/archive/$bad_vgz_rel"
+(CDPATH= cd -- "$case_root/archive" &&
+	zip -q "$case_root/inbox/Bad [Archive].zip" "$bad_vgz_rel")
+bad_vgz_output="$case_root/out/Bad [Archive]/Bad [Set]/03 Bad [Voice].vgm"
+printf 'existing destination remains intact\n' > "$bad_vgz_output"
+bad_vgz_existing_hash=$(sha256_file "$bad_vgz_output")
+if sh "$HELPER" "$case_root/inbox/Bad [Archive].zip" "$case_root/out" \
+	>"$TEST_ROOT/bad_vgz.log" 2>&1; then
+	fail "bad ZIP VGZ unexpectedly succeeded"
+fi
+grep -F "failed to expand zip vgz entry:" "$TEST_ROOT/bad_vgz.log" >/dev/null ||
+	fail "bad ZIP VGZ did not report decompression failure"
+assert_eq "$bad_vgz_existing_hash" "$(sha256_file "$bad_vgz_output")" \
+	"bad ZIP VGZ preserves existing destination"
+if find "$case_root/out" -type f \( -name '*.tmp.*' -o -name '*.vgz' \) -print |
+	grep . >/dev/null 2>&1; then
+	fail "bad ZIP VGZ left an extracted or destination-side temporary file"
+fi
+pass "failed ZIP VGZ cleanup preserves existing output"
 
 # A newer legacy cache file without metadata must not be skipped.
 case_root=$TEST_ROOT/legacy_cache

@@ -53,7 +53,7 @@ if ! command -v unzip >/dev/null 2>&1; then
 	exit 1
 fi
 
-for required_tool in awk od dd wc cp mv; do
+for required_tool in awk od dd wc cp mv sed; do
 	if ! command -v "$required_tool" >/dev/null 2>&1; then
 		echo "$required_tool command not found" >&2
 		exit 1
@@ -551,6 +551,26 @@ expand_vgz_file() {
 	fi
 }
 
+escape_unzip_entry_pattern() {
+	# Info-ZIP treats an entry operand as a wildcard pattern even when the
+	# shell argument is quoted. Escape its pattern metacharacters so names from
+	# `unzip -Z1` are selected literally (for example "Track [Voice].vgz").
+	euep_entry=$1
+	printf '%s\n' "$euep_entry" |
+		sed -e 's/\\/\\\\/g' \
+			-e 's/\[/[[]/g' \
+			-e 's/\*/[*]/g' \
+			-e 's/?/[?]/g'
+}
+
+extract_zip_entry() {
+	eze_zip_file=$1
+	eze_entry=$2
+	eze_output=$3
+	eze_pattern=$(escape_unzip_entry_pattern "$eze_entry") || return 1
+	unzip -p "$eze_zip_file" "$eze_pattern" > "$eze_output"
+}
+
 copy_zip_vgm_entry() {
 	zip_file=$1
 	collection=$2
@@ -563,7 +583,7 @@ copy_zip_vgm_entry() {
 	fi
 
 	tmp_file=$(prepare_tmp "$dst_file") || return 1
-	if unzip -p "$zip_file" "$entry" > "$tmp_file"; then
+	if extract_zip_entry "$zip_file" "$entry" "$tmp_file"; then
 		finish_prepared_tmp "$tmp_file" "$dst_file"
 	else
 		echo "failed to extract zip entry: $zip_file :: $entry" >&2
@@ -584,11 +604,19 @@ expand_zip_vgz_entry() {
 	fi
 
 	tmp_file=$(prepare_tmp "$dst_file") || return 1
-	if unzip -p "$zip_file" "$entry" | gzip -dc > "$tmp_file"; then
-		finish_prepared_tmp "$tmp_file" "$dst_file"
+	compressed_tmp=$tmp_file.vgz
+	if extract_zip_entry "$zip_file" "$entry" "$compressed_tmp"; then
+		if gzip -dc "$compressed_tmp" > "$tmp_file"; then
+			rm -f "$compressed_tmp"
+			finish_prepared_tmp "$tmp_file" "$dst_file"
+		else
+			echo "failed to expand zip vgz entry: $zip_file :: $entry" >&2
+			rm -f "$tmp_file" "$compressed_tmp"
+			return 1
+		fi
 	else
-		echo "failed to expand zip vgz entry: $zip_file :: $entry" >&2
-		rm -f "$tmp_file"
+		echo "failed to extract zip vgz entry: $zip_file :: $entry" >&2
+		rm -f "$tmp_file" "$compressed_tmp"
 		return 1
 	fi
 }
