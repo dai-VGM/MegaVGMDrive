@@ -779,7 +779,13 @@ module emu
         "V,v",`BUILD_DATE
     };
 
+`ifdef MEGAVGMDRIVE_PLAYLIST_STATUS_PHASE1B
+    wire [127:0] status;
+    wire [127:0] status_in;
+    wire         status_set;
+`else
     wire [31:0] status;
+`endif
     wire  [1:0] buttons;
     wire        forced_scandoubler;
     wire        direct_video;
@@ -1316,6 +1322,10 @@ module emu
         .HPS_BUS(HPS_BUS),
         .buttons(buttons),
         .status(status),
+`ifdef MEGAVGMDRIVE_PLAYLIST_STATUS_PHASE1B
+        .status_in(status_in),
+        .status_set(status_set),
+`endif
         .status_menumask({direct_video}),
         .forced_scandoubler(forced_scandoubler),
         .video_rotated(1'b0),
@@ -1728,6 +1738,33 @@ module emu
     wire               startup_reset_active;
     wire               startup_waiting;
     wire               startup_done;
+
+`ifdef MEGAVGMDRIVE_PLAYLIST_STATUS_PHASE1B
+    wire [31:0] playlist_status_session_debug;
+    wire  [2:0] playlist_status_state_debug;
+    wire  [7:0] playlist_status_error_debug;
+
+    megavgm_playlist_status_export playlist_status_export (
+        .clk                    (clk_sys),
+        .reset                  (reset),
+        .hps_status             (status),
+        .playback_session_id    (mode5_playback_session_id),
+        .vgm_load_busy          (vgm_load_busy),
+        .player_busy            (player_busy),
+        .player_done            (player_done),
+        .done_session_id        (mode5_done_session_id),
+        .vgm_load_error         (vgm_load_error),
+        .vgm_load_overflow      (vgm_load_overflow),
+        .vgm_player_error       (vgm_player_error),
+        .vgm_player_error_code  (vgm_player_error_code),
+        .error_session_id       (vgm_error_session_id),
+        .status_in              (status_in),
+        .status_set             (status_set),
+        .exported_session_id    (playlist_status_session_debug),
+        .exported_state         (playlist_status_state_debug),
+        .exported_error_code    (playlist_status_error_debug)
+    );
+`endif
 
 `ifdef MODE5_VGM_BACKEND
     localparam int VGM_MODE5_BACKEND_PARAM = `MODE5_VGM_BACKEND;

@@ -1,0 +1,6 @@
+# Phase 1B inherits the released v1.0.2 YM2151/SegaPCM project unchanged.
+source MegaVGMPlayer_v1.0.2_RC_MiSTer.qsf
+
+# Add only the versioned FPGA-to-Main playback status endpoint.
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/megavgm_playlist_status_export.sv
+set_global_assignment -name VERILOG_MACRO "MEGAVGMDRIVE_PLAYLIST_STATUS_PHASE1B=1"

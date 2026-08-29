@@ -26,6 +26,8 @@ module tb_mode5_load_while_playing_session;
     wire vgm_load_overflow;
     wire vgm_header_valid;
     wire vgm_player_error;
+    wire [7:0] vgm_player_error_code;
+    wire [31:0] vgm_error_session_id;
     wire mode5_sound_reset_active;
     wire mode5_player_start_pulse_debug;
     wire [31:0] mode5_load_begin_count;
@@ -42,6 +44,54 @@ module tb_mode5_load_while_playing_session;
     wire [7:0] mode5_done_pc_debug;
     wire [7:0] mode5_done_cmd_debug;
     logic end_only_file = 1'b0;
+
+    wire [127:0] phase1b_status_in;
+    wire phase1b_status_set;
+    wire [31:0] phase1b_session;
+    wire [2:0] phase1b_state;
+    wire [7:0] phase1b_error;
+    logic [31:0] phase1b_seen_session = 32'd0;
+    logic [4:0] phase1b_seen_states = 5'd0;
+
+    megavgm_playlist_status_export phase1b_status (
+        .clk(clk),
+        .reset(!reset_n),
+        .hps_status(128'h0123456789abcdef_fedcba9876543210),
+        .playback_session_id(mode5_playback_session_id),
+        .vgm_load_busy(vgm_load_busy),
+        .player_busy(player_busy),
+        .player_done(player_done),
+        .done_session_id(mode5_done_session_id),
+        .vgm_load_error(vgm_load_error),
+        .vgm_load_overflow(vgm_load_overflow),
+        .vgm_player_error(vgm_player_error),
+        .vgm_player_error_code(vgm_player_error_code),
+        .error_session_id(vgm_error_session_id),
+        .status_in(phase1b_status_in),
+        .status_set(phase1b_status_set),
+        .exported_session_id(phase1b_session),
+        .exported_state(phase1b_state),
+        .exported_error_code(phase1b_error)
+    );
+
+    always @(posedge clk) begin
+        if (phase1b_status_set) begin
+            if (phase1b_status_in[127:120] != 8'h4d ||
+                phase1b_status_in[119:112] != 8'd1 ||
+                phase1b_status_in[63:0] != 64'hfedcba9876543210) begin
+                $display("FAIL Phase 1B record/header/merge %032h",
+                         phase1b_status_in);
+                $fatal(1);
+            end
+            if (phase1b_seen_session != phase1b_status_in[111:80]) begin
+                phase1b_seen_session <= phase1b_status_in[111:80];
+                phase1b_seen_states <=
+                    5'b00001 << phase1b_status_in[79:77];
+            end else begin
+                phase1b_seen_states[phase1b_status_in[79:77]] <= 1'b1;
+            end
+        end
+    end
 
     localparam int TEST_TIMEOUT_CYCLES = 100_000;
 
@@ -97,10 +147,10 @@ module tb_mode5_load_while_playing_session;
         .vgm_player_error               (vgm_player_error),
         .vgm_unsupported_opcode         (),
         .vgm_unsupported_pc             (),
-        .vgm_player_error_code          (),
+        .vgm_player_error_code          (vgm_player_error_code),
         .vgm_error_pc_debug            (),
         .vgm_error_cmd_debug           (),
-        .vgm_error_session_id          (),
+        .vgm_error_session_id          (vgm_error_session_id),
         .vgm_player_state_debug        (),
         .vgm_mem_rd_req_debug          (),
         .vgm_mem_rd_ready_debug        (),
@@ -350,6 +400,12 @@ module tb_mode5_load_while_playing_session;
         wait_for_player_start_count(32'd2);
         wait_for_running("second file running");
 
+        if (phase1b_seen_session != 32'd2 ||
+            !phase1b_seen_states[1] || !phase1b_seen_states[2] ||
+            phase1b_state != 3'd2 || phase1b_error != 8'd0) begin
+            fail_now("Phase 1B replacement LOADING/PLAYING");
+        end
+
         repeat (512) begin
             @(posedge clk);
             if (mode5_player_start_count != 32'd2 ||
@@ -377,6 +433,13 @@ module tb_mode5_load_while_playing_session;
             mode5_done_cmd_debug != 8'h66) begin
             fail_now("end debug fields");
         end
+        repeat (8) @(posedge clk);
+        if (phase1b_seen_session != 32'd3 ||
+            !phase1b_seen_states[1] || !phase1b_seen_states[2] ||
+            !phase1b_seen_states[3] || phase1b_state != 3'd3 ||
+            phase1b_error != 8'd0) begin
+            fail_now("Phase 1B normal 0x66 ENDED");
+        end
 
         repeat (128) @(posedge clk);
         if (mode5_player_start_count != 32'd3 ||
@@ -391,6 +454,13 @@ module tb_mode5_load_while_playing_session;
         wait_for_sound_reset_count(32'd4);
         wait_for_player_start_count(32'd4);
         wait_for_running("post-done file B running");
+
+        if (phase1b_seen_session != 32'd4 ||
+            !phase1b_seen_states[1] || !phase1b_seen_states[2] ||
+            phase1b_seen_states[3] || phase1b_seen_states[4] ||
+            phase1b_state != 3'd2) begin
+            fail_now("Phase 1B stale ENDED cleared");
+        end
 
         repeat (2048) begin
             @(posedge clk);
