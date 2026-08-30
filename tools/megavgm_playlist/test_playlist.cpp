@@ -1,0 +1,284 @@
+#include "playlist.h"
+
+#include <cassert>
+#include <cerrno>
+#include <fcntl.h>
+#include <iostream>
+#include <sstream>
+#include <string>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <utility>
+#include <vector>
+
+using namespace megavgm_playlist;
+using megavgm_autoplay2::PlaybackState;
+using megavgm_autoplay2::PlaybackStatus;
+using megavgm_autoplay2::Runtime;
+using megavgm_autoplay2::StatusReadResult;
+
+namespace {
+
+struct Frame {
+	StatusReadResult result;
+	PlaybackStatus status;
+	const char *detail;
+	bool main_available;
+};
+
+PlaybackStatus status(std::uint32_t session, PlaybackState state,
+		std::uint8_t error = 0)
+{
+	return {1, session, state, error};
+}
+
+Frame ok(std::uint32_t session, PlaybackState state, std::uint8_t error = 0,
+		bool main_available = true)
+{
+	return {StatusReadResult::Ok, status(session, state, error), "",
+		main_available};
+}
+
+class ScriptRuntime final : public Runtime {
+public:
+	explicit ScriptRuntime(std::vector<Frame> frames)
+		: frames_(std::move(frames))
+	{
+		assert(!frames_.empty());
+	}
+
+	StatusReadResult read_status(PlaybackStatus &value,
+			std::string &detail) override
+	{
+		const Frame &frame = current();
+		value = frame.status;
+		detail = frame.detail;
+		if (position_ + 1 < frames_.size()) position_++;
+		return frame.result;
+	}
+
+	bool main_available(std::string &detail) override
+	{
+		if (!current().main_available) {
+			detail = "simulated Main exit";
+			return false;
+		}
+		detail.clear();
+		return true;
+	}
+
+	bool issue_load(const std::string &path, std::string &detail) override
+	{
+		std::string command;
+		if (!megavgm_autoplay2::build_load_command(path, command, detail))
+			return false;
+		commands.push_back(command);
+		return true;
+	}
+
+	std::uint64_t monotonic_ms() override { return now_ms_; }
+
+	void sleep_ms(std::uint32_t milliseconds) override
+	{
+		now_ms_ += milliseconds;
+	}
+
+	std::vector<std::string> commands;
+
+private:
+	const Frame &current() const
+	{
+		return frames_[position_ < frames_.size() ? position_ : frames_.size() - 1];
+	}
+
+	std::vector<Frame> frames_;
+	std::size_t position_ = 0;
+	std::uint64_t now_ms_ = 0;
+};
+
+PlaylistConfig fast_config()
+{
+	PlaylistConfig config;
+	config.session_timeout_ms = 5;
+	config.playing_timeout_ms = 5;
+	config.end_timeout_ms = 5;
+	config.poll_interval_ms = 1;
+	config.main_probe_interval_ms = 1;
+	return config;
+}
+
+std::vector<Track> three_tracks()
+{
+	return {
+		{"01 Opening [JP].vgm", "/music/01 Opening [JP].vgm"},
+		{"02 Stage (Arcade).vgm", "/music/02 Stage (Arcade).vgm"},
+		{"03 æ¥æ¬èª Ending.vgm", "/music/03 æ¥æ¬èª Ending.vgm"}
+	};
+}
+
+PlaylistResult execute(std::vector<Frame> frames, std::vector<Track> tracks,
+		ScriptRuntime **out_runtime = nullptr, std::string *out_log = nullptr)
+{
+	auto *runtime = new ScriptRuntime(std::move(frames));
+	std::ostringstream log;
+	const PlaylistResult result = run(*runtime, fast_config(), tracks, log);
+	if (out_log) *out_log = log.str();
+	if (out_runtime) *out_runtime = runtime;
+	else delete runtime;
+	return result;
+}
+
+void test_three_tracks_and_duplicate_end()
+{
+	ScriptRuntime *runtime = nullptr;
+	std::string log;
+	const std::vector<Track> tracks = three_tracks();
+	const PlaylistResult result = execute({
+		ok(9, PlaybackState::Ended),
+		ok(10, PlaybackState::Loading),
+		ok(10, PlaybackState::Playing),
+		ok(10, PlaybackState::Ended),
+		ok(10, PlaybackState::Ended),
+		ok(10, PlaybackState::Ended),
+		ok(11, PlaybackState::Loading),
+		ok(11, PlaybackState::Playing),
+		ok(11, PlaybackState::Ended),
+		ok(11, PlaybackState::Ended),
+		ok(12, PlaybackState::Playing),
+		ok(12, PlaybackState::Ended)
+	}, tracks, &runtime, &log);
+
+	assert(result == PlaylistResult::Complete);
+	assert(runtime->commands.size() == 3);
+	for (std::size_t i = 0; i < tracks.size(); ++i)
+		assert(runtime->commands[i] == "load_file 1 " + tracks[i].path + "\n");
+	assert(log.find("session=10 PLAYING") != std::string::npos);
+	assert(log.find("session=10 ENDED") != std::string::npos);
+	assert(log.find("session=11 ENDED") != std::string::npos);
+	assert(log.find("session=12 ENDED") != std::string::npos);
+	assert(log.find("PLAYLIST COMPLETE") != std::string::npos);
+	delete runtime;
+}
+
+void test_manual_suspension()
+{
+	ScriptRuntime *runtime = nullptr;
+	std::string log;
+	const PlaylistResult result = execute({
+		ok(20, PlaybackState::Ended),
+		ok(21, PlaybackState::Playing),
+		ok(22, PlaybackState::Loading)
+	}, three_tracks(), &runtime, &log);
+	assert(result == PlaylistResult::Suspended);
+	assert(runtime->commands.size() == 1);
+	assert(log.find("PLAYLIST SUSPENDED: manual/external load detected") !=
+		std::string::npos);
+	delete runtime;
+}
+
+void test_fatal_skips_to_next()
+{
+	ScriptRuntime *runtime = nullptr;
+	std::string log;
+	const std::vector<Track> tracks = {
+		{"01 Bad.vgm", "/music/01 Bad.vgm"},
+		{"02 Good.vgm", "/music/02 Good.vgm"}
+	};
+	const PlaylistResult result = execute({
+		ok(30, PlaybackState::Ended),
+		ok(31, PlaybackState::Loading),
+		ok(31, PlaybackState::Fatal, 0x0c),
+		ok(31, PlaybackState::Fatal, 0x0c),
+		ok(32, PlaybackState::Playing),
+		ok(32, PlaybackState::Ended)
+	}, tracks, &runtime, &log);
+	assert(result == PlaylistResult::Complete);
+	assert(runtime->commands.size() == 2);
+	assert(log.find("FATAL session=31 error=0C path=/music/01 Bad.vgm -- skipping") !=
+		std::string::npos);
+	assert(log.find("skipped=1") != std::string::npos);
+	delete runtime;
+}
+
+void test_missing_and_timeout()
+{
+	assert(execute({
+		{StatusReadResult::Missing, {}, "not found", true}
+	}, three_tracks()) == PlaylistResult::StatusFileMissing);
+
+	assert(execute({
+		ok(40, PlaybackState::Ended)
+	}, three_tracks()) == PlaylistResult::TrackSessionTimeout);
+
+	assert(execute({
+		ok(40, PlaybackState::Ended),
+		ok(41, PlaybackState::Loading, 0, false)
+	}, three_tracks()) == PlaylistResult::ActiveMainUnavailable);
+}
+
+void create_file(const std::string &path)
+{
+	const int fd = open(path.c_str(), O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC, 0600);
+	assert(fd >= 0);
+	assert(close(fd) == 0);
+}
+
+void test_discovery_and_ordering()
+{
+	char directory_template[] = "/tmp/megavgm_playlist_test.XXXXXX";
+	char *directory_name = mkdtemp(directory_template);
+	assert(directory_name);
+	const std::string directory(directory_name);
+	const std::vector<std::string> files = {
+		"10 Finale.vgm",
+		"02 Stage (Arcade).vgm",
+		"01 [Opening] æ¥æ¬èª.vgm",
+		".hidden.vgm",
+		"03 helper.vgm.tmp",
+		"04 Upper.VGM"
+	};
+	for (const std::string &name : files) create_file(directory + '/' + name);
+	assert(mkdir((directory + "/00 Directory.vgm").c_str(), 0700) == 0);
+
+	std::vector<Track> tracks;
+	std::string detail;
+	assert(discover_directory(directory, tracks, detail) == DiscoveryResult::Ok);
+	assert(tracks.size() == 3);
+	assert(tracks[0].name == "01 [Opening] æ¥æ¬èª.vgm");
+	assert(tracks[1].name == "02 Stage (Arcade).vgm");
+	assert(tracks[2].name == "10 Finale.vgm");
+	for (const Track &track : tracks)
+		assert(track.path == directory + '/' + track.name);
+
+	for (const std::string &name : files)
+		assert(unlink((directory + '/' + name).c_str()) == 0);
+	assert(rmdir((directory + "/00 Directory.vgm").c_str()) == 0);
+	assert(rmdir(directory.c_str()) == 0);
+}
+
+void test_empty_directory()
+{
+	char directory_template[] = "/tmp/megavgm_playlist_empty.XXXXXX";
+	char *directory_name = mkdtemp(directory_template);
+	assert(directory_name);
+	std::vector<Track> tracks;
+	std::string detail;
+	assert(discover_directory(directory_name, tracks, detail) ==
+		DiscoveryResult::Empty);
+	assert(!detail.empty());
+	assert(rmdir(directory_name) == 0);
+}
+
+} // namespace
+
+int main()
+{
+	test_three_tracks_and_duplicate_end();
+	test_manual_suspension();
+	test_fatal_skips_to_next();
+	test_missing_and_timeout();
+	test_discovery_and_ordering();
+	test_empty_directory();
+	std::cout << "megavgm_playlist host tests: PASS\n";
+	return 0;
+}
