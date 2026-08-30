@@ -975,6 +975,7 @@ module emu
     wire [17:0] vgm_loop_pc_debug;
     wire        vgm_loop_valid_debug;
     wire        vgm_loop_taken_debug;
+    wire        vgm_loop_jump_pulse_debug;
     wire        vgm_end_command_seen;
     wire        vgm_restarted_from_data_start;
     wire        vgm_pcm_oob;
@@ -1743,6 +1744,10 @@ module emu
     wire [31:0] playlist_status_session_debug;
     wire  [2:0] playlist_status_state_debug;
     wire  [7:0] playlist_status_error_debug;
+`ifdef MEGAVGMDRIVE_PLAYLIST_LOOP_PHASE1E
+    wire        playlist_status_loop_valid_debug;
+    wire [15:0] playlist_status_loop_count_debug;
+`endif
 
     megavgm_playlist_status_export playlist_status_export (
         .clk                    (clk_sys),
@@ -1758,11 +1763,19 @@ module emu
         .vgm_player_error       (vgm_player_error),
         .vgm_player_error_code  (vgm_player_error_code),
         .error_session_id       (vgm_error_session_id),
+`ifdef MEGAVGMDRIVE_PLAYLIST_LOOP_PHASE1E
+        .player_loop_valid      (vgm_loop_valid_debug),
+        .player_loop_jump_pulse (vgm_loop_jump_pulse_debug),
+`endif
         .status_in              (status_in),
         .status_set             (status_set),
         .exported_session_id    (playlist_status_session_debug),
         .exported_state         (playlist_status_state_debug),
         .exported_error_code    (playlist_status_error_debug)
+`ifdef MEGAVGMDRIVE_PLAYLIST_LOOP_PHASE1E
+        , .exported_loop_valid  (playlist_status_loop_valid_debug)
+        , .exported_loop_count  (playlist_status_loop_count_debug)
+`endif
     );
 `endif
 
@@ -1999,6 +2012,7 @@ module emu
         .vgm_loop_pc_debug     (vgm_loop_pc_debug),
         .vgm_loop_valid_debug  (vgm_loop_valid_debug),
         .vgm_loop_taken_debug  (vgm_loop_taken_debug),
+        .vgm_loop_jump_pulse_debug(vgm_loop_jump_pulse_debug),
         .vgm_end_command_seen  (vgm_end_command_seen),
         .vgm_restarted_from_data_start(vgm_restarted_from_data_start),
         .vgm_pcm_oob           (vgm_pcm_oob),

@@ -159,6 +159,7 @@ module vgm_loaded_player #(
     output logic [ADDR_WIDTH-1:0] loop_pc_debug,
     output logic                  loop_valid_debug,
     output logic                  loop_taken_debug,
+    output logic                  loop_jump_pulse_debug,
     output logic                  end_command_seen,
     output logic                  restarted_from_data_start,
     output logic                  pcm_oob,
@@ -1418,6 +1419,7 @@ module vgm_loaded_player #(
             loop_pc_debug <= '0;
             loop_valid_debug <= 1'b0;
             loop_taken_debug <= 1'b0;
+            loop_jump_pulse_debug <= 1'b0;
             end_command_seen <= 1'b0;
             restarted_from_data_start <= 1'b0;
             pcm_oob <= 1'b0;
@@ -1524,6 +1526,7 @@ module vgm_loaded_player #(
             copy_ca_increment_debug_i <= 1'b0;
             copy_transition_next_payload_debug_i <= 1'b0;
             scan_finish_taken_debug_i <= 1'b0;
+            loop_jump_pulse_debug <= 1'b0;
 
             previous_state_debug_i <= state;
             if (state != ST_IDLE) begin
@@ -3132,6 +3135,7 @@ module vgm_loaded_player #(
                                     end_command_seen <= 1'b1;
                                     if (loop_valid) begin
                                         loop_taken_debug <= 1'b1;
+                                        loop_jump_pulse_debug <= 1'b1;
                                         pc <= loop_pc;
                                         current_pc_debug <= loop_pc;
                                         request_byte(loop_pc, ST_FETCH_CMD);

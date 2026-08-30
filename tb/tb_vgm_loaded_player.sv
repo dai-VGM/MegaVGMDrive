@@ -40,6 +40,7 @@ module tb_vgm_loaded_player;
     wire [7:0] loop_pc_debug;
     wire loop_valid_debug;
     wire loop_taken_debug;
+    wire loop_jump_pulse_debug;
     wire end_command_seen;
     wire restarted_from_data_start;
     wire pcm_oob;
@@ -54,6 +55,8 @@ module tb_vgm_loaded_player;
     integer ym_count = 0;
     integer psg_count = 0;
     integer dac_count = 0;
+    integer loop_jump_count = 0;
+    logic loop_jump_pulse_d = 1'b0;
     logic [7:0] dac_data0 = 8'h00;
     logic [7:0] dac_data1 = 8'h00;
 
@@ -112,6 +115,7 @@ module tb_vgm_loaded_player;
         .loop_pc_debug       (loop_pc_debug),
         .loop_valid_debug    (loop_valid_debug),
         .loop_taken_debug    (loop_taken_debug),
+        .loop_jump_pulse_debug(loop_jump_pulse_debug),
         .end_command_seen    (end_command_seen),
         .restarted_from_data_start(restarted_from_data_start),
         .pcm_oob             (pcm_oob),
@@ -124,6 +128,22 @@ module tb_vgm_loaded_player;
     );
 
     always #5 clk = ~clk;
+
+    always_ff @(posedge clk) begin
+        if (reset) begin
+            loop_jump_count <= 0;
+            loop_jump_pulse_d <= 1'b0;
+        end else begin
+            if (loop_jump_pulse_debug) begin
+                if (loop_jump_pulse_d) begin
+                    $display("FAIL loop jump pulse wider than one clock");
+                    $fatal(1);
+                end
+                loop_jump_count <= loop_jump_count + 1;
+            end
+            loop_jump_pulse_d <= loop_jump_pulse_debug;
+        end
+    end
 
     always_ff @(posedge clk) begin
         if (reset) begin
@@ -538,9 +558,11 @@ module tb_vgm_loaded_player;
 
         // Allow the additional four atomic SegaPCM clock header reads.
         repeat (120) @(posedge clk);
-        if (!done || !end_command_seen || loop_taken_debug || loop_valid_debug || player_error) begin
-            $display("FAIL end_no_loop done=%0b end=%0b loop_taken=%0b loop_valid=%0b error=%0b",
-                     done, end_command_seen, loop_taken_debug, loop_valid_debug, player_error);
+        if (!done || !end_command_seen || loop_taken_debug || loop_valid_debug ||
+            loop_jump_count != 0 || player_error) begin
+            $display("FAIL end_no_loop done=%0b end=%0b loop_taken=%0b loop_valid=%0b loop_jumps=%0d error=%0b",
+                     done, end_command_seen, loop_taken_debug, loop_valid_debug,
+                     loop_jump_count, player_error);
             $finish;
         end
 
@@ -571,11 +593,12 @@ module tb_vgm_loaded_player;
 
         repeat (120) @(posedge clk);
         if (!header_valid || !end_command_seen || !loop_valid_debug ||
-            !loop_taken_debug || loop_pc_debug != 8'h48 ||
+            !loop_taken_debug || loop_jump_count < 2 || loop_pc_debug != 8'h48 ||
             psg_count == 0 || psg_cmd_data != 8'ha5 || done || player_error) begin
-            $display("FAIL end_loop header=%0b end=%0b loop_valid=%0b loop_taken=%0b loop_pc=%02h psg_count=%0d psg=%02h done=%0b error=%0b",
+            $display("FAIL end_loop header=%0b end=%0b loop_valid=%0b loop_taken=%0b loop_jumps=%0d loop_pc=%02h psg_count=%0d psg=%02h done=%0b error=%0b",
                      header_valid, end_command_seen, loop_valid_debug, loop_taken_debug,
-                     loop_pc_debug, psg_count, psg_cmd_data, done, player_error);
+                     loop_jump_count, loop_pc_debug, psg_count, psg_cmd_data,
+                     done, player_error);
             $finish;
         end
 

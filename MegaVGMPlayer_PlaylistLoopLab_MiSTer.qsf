@@ -1,0 +1,5 @@
+# Phase 1E inherits the hardware-proven Phase 1B status lab project.
+source MegaVGMPlayer_PlaylistStatusLab_MiSTer.qsf
+
+# Change only the status record to v2 and add native-loop telemetry.
+set_global_assignment -name VERILOG_MACRO "MEGAVGMDRIVE_PLAYLIST_LOOP_PHASE1E=1"

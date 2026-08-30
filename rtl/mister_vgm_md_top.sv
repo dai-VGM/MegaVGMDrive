@@ -302,6 +302,7 @@ module mister_vgm_md_top #(
     output logic [VGM_LOAD_ADDR_WIDTH-1:0] vgm_loop_pc_debug,
     output logic              vgm_loop_valid_debug,
     output logic              vgm_loop_taken_debug,
+    output logic              vgm_loop_jump_pulse_debug,
     output logic              vgm_end_command_seen,
     output logic              vgm_restarted_from_data_start,
     output logic              vgm_pcm_oob,
@@ -4038,6 +4039,7 @@ module mister_vgm_md_top #(
                 .loop_pc_debug         (vgm_loop_pc_debug),
                 .loop_valid_debug      (vgm_loop_valid_debug),
                 .loop_taken_debug      (vgm_loop_taken_debug),
+                .loop_jump_pulse_debug (vgm_loop_jump_pulse_debug),
                 .end_command_seen      (vgm_end_command_seen),
                 .restarted_from_data_start(vgm_restarted_from_data_start),
                 .pcm_oob               (vgm_pcm_oob),
@@ -4893,6 +4895,7 @@ module mister_vgm_md_top #(
             assign vgm_loop_pc_debug = '0;
             assign vgm_loop_valid_debug = 1'b0;
             assign vgm_loop_taken_debug = 1'b0;
+            assign vgm_loop_jump_pulse_debug = 1'b0;
             assign vgm_end_command_seen = 1'b0;
             assign vgm_restarted_from_data_start = 1'b0;
             assign vgm_pcm_oob = 1'b0;
