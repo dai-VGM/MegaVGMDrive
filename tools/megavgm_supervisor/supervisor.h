@@ -48,7 +48,10 @@ public:
 	virtual OperationResult verify_modified_main(int pid,
 		const std::string &modified_sha256) = 0;
 	virtual OperationResult load_rbf() = 0;
-	virtual OperationResult verify_megavgm_core(int modified_pid) = 0;
+	virtual OperationResult reacquire_modified_main(int previous_pid,
+		const std::string &modified_sha256, int &current_pid) = 0;
+	virtual OperationResult verify_megavgm_core(int &modified_pid,
+		const std::string &modified_sha256) = 0;
 	virtual OperationResult start_playlist(const std::string &directory,
 		int &pid) = 0;
 	virtual OperationResult verify_playlist(int pid) = 0;
@@ -56,6 +59,8 @@ public:
 	virtual OperationResult stop_playlist(int pid) = 0;
 	virtual OperationResult cleanup_playlist_state() = 0;
 	virtual OperationResult stop_modified_main(int pid) = 0;
+	virtual OperationResult stop_all_modified_mains(
+		const std::string &modified_sha256) = 0;
 	virtual OperationResult unmount_modified_main() = 0;
 	virtual OperationResult verify_stock_path(const std::string &stock_sha256) = 0;
 	virtual OperationResult start_stock_main(int &pid) = 0;

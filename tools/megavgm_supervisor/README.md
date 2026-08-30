@@ -52,10 +52,20 @@ The RBF is loaded through the existing Main-owned `/dev/MiSTer_cmd`
 The Phase 1F controller remains the sole owner of `load_file`, sessions,
 loop policy, and NEXT/PREV.
 
+MiSTer Main intentionally restarts itself after an RBF load. The process that
+accepted `load_core` exits after forking a successor, and the successor runs
+the same Main binary with the requested RBF as an argument. The supervisor
+therefore reacquires Main ownership by executable SHA-256 and exact RBF argv;
+it does not treat the initially launched PID as permanent. A missing successor
+is accepted as a crash only after a bounded stabilization window.
+
 If the modified Main or playlist process exits unexpectedly, S1 stops the
 remaining process, removes controller runtime files, unmounts the bind,
 verifies the uncovered stock file hash, and restores stock Main. A stock hash
 mismatch is a hard failure: S1 will not execute an unverified path.
+Before unmounting, rollback repeatedly stops every MiSTer process whose
+executable SHA matches the modified Main or whose executable is the active bind
+target. This prevents a verified successor from keeping the bind busy.
 
 S1 deliberately does not detect a manually loaded non-MegaVGM core. Use the
 explicit `exit` command to restore stock Main after such a load. Core-change

@@ -3,6 +3,7 @@
 #include "runtime_support.h"
 
 #include <string>
+#include <vector>
 
 namespace megavgm_supervisor {
 
@@ -36,7 +37,10 @@ public:
 	OperationResult verify_modified_main(int pid,
 		const std::string &modified_sha256) override;
 	OperationResult load_rbf() override;
-	OperationResult verify_megavgm_core(int modified_pid) override;
+	OperationResult reacquire_modified_main(int previous_pid,
+		const std::string &modified_sha256, int &current_pid) override;
+	OperationResult verify_megavgm_core(int &modified_pid,
+		const std::string &modified_sha256) override;
 	OperationResult start_playlist(const std::string &directory,
 		int &pid) override;
 	OperationResult verify_playlist(int pid) override;
@@ -44,6 +48,8 @@ public:
 	OperationResult stop_playlist(int pid) override;
 	OperationResult cleanup_playlist_state() override;
 	OperationResult stop_modified_main(int pid) override;
+	OperationResult stop_all_modified_mains(
+		const std::string &modified_sha256) override;
 	OperationResult unmount_modified_main() override;
 	OperationResult verify_stock_path(const std::string &stock_sha256) override;
 	OperationResult start_stock_main(int &pid) override;
@@ -63,6 +69,10 @@ private:
 		bool fifo_required);
 	bool is_mountpoint(const std::string &path, std::string &detail);
 	int find_main_by_sha256(const std::string &sha256, std::string &detail);
+	std::vector<int> find_mains_by_sha256(const std::string &sha256,
+		bool require_rbf_argument);
+	std::vector<int> find_mains_using_file(const std::string &path);
+	bool process_has_argument(int pid, const std::string &argument);
 	bool process_uses_file(const std::string &path);
 	bool process_has_open_file(const std::string &path);
 	bool wait_for(const std::function<bool()> &condition, int timeout_ms);

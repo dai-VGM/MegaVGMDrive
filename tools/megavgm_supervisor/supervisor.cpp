@@ -84,7 +84,15 @@ OperationResult Supervisor::enter(const std::string &playlist)
 	if (!result.ok) return rollback("status publication failed: " + result.detail);
 	result = runtime_.load_rbf();
 	if (!result.ok) return rollback("RBF load failed: " + result.detail);
-	result = runtime_.verify_megavgm_core(modified_pid_);
+	int successor_pid = -1;
+	result = runtime_.reacquire_modified_main(modified_pid_,
+		inputs.modified_sha256, successor_pid);
+	if (!result.ok)
+		return rollback("modified Main successor verification failed: " +
+			result.detail);
+	modified_pid_ = successor_pid;
+	result = runtime_.verify_megavgm_core(modified_pid_,
+		inputs.modified_sha256);
 	if (!result.ok) return rollback("MegaVGM core verification failed: " + result.detail);
 	result = check_exit_request();
 	if (!result.ok) return rollback(result.detail);
@@ -147,12 +155,13 @@ OperationResult Supervisor::rollback(const std::string &reason)
 	snapshot_.controller = "STOPPED";
 
 	bool modified_stopped = true;
-	if (modified_started_) {
-		const OperationResult stopped = runtime_.stop_modified_main(modified_pid_);
-		remember_failure(failures, "stop modified Main", stopped);
-		modified_stopped = stopped.ok || !runtime_.process_alive(modified_pid_);
+	if (modified_started_ || bind_mounted_) {
+		const OperationResult stopped = runtime_.stop_all_modified_mains(
+			snapshot_.modified_sha256);
+		remember_failure(failures, "stop all modified Main processes", stopped);
+		modified_stopped = stopped.ok;
 		if (!modified_stopped)
-			failures.push_back("modified Main remains alive; bind retained");
+			failures.push_back("verified modified Main remains alive; bind retained");
 		modified_started_ = !modified_stopped;
 		if (modified_stopped) modified_pid_ = -1;
 	}
@@ -210,8 +219,14 @@ OperationResult Supervisor::exit(const std::string &reason)
 OperationResult Supervisor::monitor_once()
 {
 	if (!active_) return OperationResult::failure("supervisor is not active");
-	if (!runtime_.process_alive(modified_pid_))
-		return rollback("modified Main exited unexpectedly");
+	if (!runtime_.process_alive(modified_pid_)) {
+		int successor_pid = -1;
+		const OperationResult successor = runtime_.reacquire_modified_main(
+			modified_pid_, snapshot_.modified_sha256, successor_pid);
+		if (!successor.ok)
+			return rollback("modified Main exited without a verified successor");
+		modified_pid_ = successor_pid;
+	}
 	if (!runtime_.process_alive(controller_pid_))
 		return rollback("playlist controller exited unexpectedly");
 	if (runtime_.exit_requested()) return rollback("explicit exit");

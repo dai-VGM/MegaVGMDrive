@@ -200,11 +200,39 @@ OperationResult LinuxRuntime::verify_inputs(const std::string &playlist,
 int LinuxRuntime::find_main_by_sha256(const std::string &sha256,
 	std::string &detail)
 {
-	DIR *directory = opendir("/proc");
-	if (!directory) {
-		detail = std::strerror(errno);
+	const std::vector<int> matches = find_mains_by_sha256(sha256, false);
+	if (matches.size() != 1) {
+		detail = matches.empty() ? "verified Main process not found" :
+			"multiple verified Main processes found";
 		return -1;
 	}
+	detail.clear();
+	return matches.front();
+}
+
+bool LinuxRuntime::process_has_argument(int pid, const std::string &argument)
+{
+	std::string command_line;
+	std::string detail;
+	if (!read_text_file(proc_path(pid, "cmdline"), command_line, detail, 16384))
+		return false;
+	std::size_t offset = 0;
+	while (offset < command_line.size()) {
+		const std::size_t end = command_line.find('\0', offset);
+		const std::size_t length = end == std::string::npos ?
+			command_line.size() - offset : end - offset;
+		if (command_line.compare(offset, length, argument) == 0) return true;
+		if (end == std::string::npos) break;
+		offset = end + 1;
+	}
+	return false;
+}
+
+std::vector<int> LinuxRuntime::find_mains_by_sha256(const std::string &sha256,
+	bool require_rbf_argument)
+{
+	DIR *directory = opendir("/proc");
+	if (!directory) return {};
 	std::vector<int> matches;
 	while (struct dirent *entry = readdir(directory)) {
 		if (!decimal_name(entry->d_name)) continue;
@@ -213,18 +241,32 @@ int LinuxRuntime::find_main_by_sha256(const std::string &sha256,
 		std::string ignored;
 		if (!read_text_file(proc_path(pid, "comm"), comm, ignored, 64) ||
 			trim(comm) != "MiSTer") continue;
+		if (require_rbf_argument && !process_has_argument(pid, paths_.rbf))
+			continue;
 		std::string digest;
 		if (sha256_file(proc_path(pid, "exe"), digest, ignored) && digest == sha256)
 			matches.push_back(pid);
 	}
 	closedir(directory);
-	if (matches.size() != 1) {
-		detail = matches.empty() ? "verified Main process not found" :
-			"multiple verified Main processes found";
-		return -1;
+	return matches;
+}
+
+std::vector<int> LinuxRuntime::find_mains_using_file(const std::string &path)
+{
+	DIR *directory = opendir("/proc");
+	if (!directory) return {};
+	std::vector<int> matches;
+	while (struct dirent *entry = readdir(directory)) {
+		if (!decimal_name(entry->d_name)) continue;
+		const int pid = std::atoi(entry->d_name);
+		std::string comm;
+		std::string ignored;
+		if (!read_text_file(proc_path(pid, "comm"), comm, ignored, 64) ||
+			trim(comm) != "MiSTer") continue;
+		if (same_file(path, proc_path(pid, "exe"))) matches.push_back(pid);
 	}
-	detail.clear();
-	return matches.front();
+	closedir(directory);
+	return matches;
 }
 
 bool LinuxRuntime::process_alive(int pid)
@@ -350,6 +392,29 @@ OperationResult LinuxRuntime::verify_modified_main(int pid,
 	return verify_process(pid, modified_sha256, "modified Main");
 }
 
+OperationResult LinuxRuntime::reacquire_modified_main(int previous_pid,
+	const std::string &modified_sha256, int &current_pid)
+{
+	current_pid = -1;
+	const bool found = wait_for([&]() {
+		std::vector<int> matches = find_mains_by_sha256(modified_sha256, true);
+		matches.erase(std::remove(matches.begin(), matches.end(), previous_pid),
+			matches.end());
+		if (matches.size() != 1) return false;
+		current_pid = matches.front();
+		return true;
+	}, 10000);
+	if (!found)
+		return OperationResult::failure(
+			"no unique SHA-verified Main successor with requested RBF argv");
+	OperationResult verified = verify_process(current_pid, modified_sha256,
+		"successor modified Main");
+	if (!verified.ok) return verified;
+	if (!process_has_argument(current_pid, paths_.rbf))
+		return OperationResult::failure("successor Main lost requested RBF argv");
+	return OperationResult::success();
+}
+
 OperationResult LinuxRuntime::load_rbf()
 {
 	for (const std::string &path : {paths_.core_name, paths_.megavgm_status}) {
@@ -391,13 +456,16 @@ OperationResult LinuxRuntime::load_rbf()
 	return OperationResult::success();
 }
 
-OperationResult LinuxRuntime::verify_megavgm_core(int modified_pid)
+OperationResult LinuxRuntime::verify_megavgm_core(int &modified_pid,
+	const std::string &modified_sha256)
 {
-	bool main_died = false;
 	const bool active = wait_for([&]() {
-		if (!process_alive(modified_pid)) {
-			main_died = true;
-			return true;
+		if (!process_alive(modified_pid) ||
+			!process_has_argument(modified_pid, paths_.rbf)) {
+			const std::vector<int> matches =
+				find_mains_by_sha256(modified_sha256, true);
+			if (matches.size() != 1) return false;
+			modified_pid = matches.front();
 		}
 		std::string name;
 		std::string detail;
@@ -411,9 +479,9 @@ OperationResult LinuxRuntime::verify_megavgm_core(int modified_pid)
 			status.find("session=") != std::string::npos &&
 			status.find("state=") != std::string::npos;
 	}, 10000);
-	if (main_died) return OperationResult::failure("modified Main exited during core load");
 	return active ? OperationResult::success() :
-		OperationResult::failure("MegaVGMPlayer CORENAME/status not observed");
+		OperationResult::failure(
+			"verified successor Main and MegaVGMPlayer CORENAME/status not observed");
 }
 
 OperationResult LinuxRuntime::remove_controller_path(const std::string &path,
@@ -508,6 +576,33 @@ OperationResult LinuxRuntime::cleanup_playlist_state()
 OperationResult LinuxRuntime::stop_modified_main(int pid)
 {
 	return stop_process(pid, "modified Main");
+}
+
+OperationResult LinuxRuntime::stop_all_modified_mains(
+	const std::string &modified_sha256)
+{
+	std::string last_failure;
+	for (int round = 0; round != 4; ++round) {
+		std::vector<int> matches = find_mains_by_sha256(modified_sha256, false);
+		const std::vector<int> bound = find_mains_using_file(paths_.stock_main);
+		matches.insert(matches.end(), bound.begin(), bound.end());
+		std::sort(matches.begin(), matches.end());
+		matches.erase(std::unique(matches.begin(), matches.end()), matches.end());
+		if (matches.empty()) return OperationResult::success();
+		for (int pid : matches) {
+			const OperationResult stopped = stop_process(pid, "modified Main");
+			if (!stopped.ok) last_failure = stopped.detail;
+		}
+	}
+	std::vector<int> remaining = find_mains_by_sha256(modified_sha256, false);
+	const std::vector<int> bound = find_mains_using_file(paths_.stock_main);
+	remaining.insert(remaining.end(), bound.begin(), bound.end());
+	std::sort(remaining.begin(), remaining.end());
+	remaining.erase(std::unique(remaining.begin(), remaining.end()),
+		remaining.end());
+	if (remaining.empty()) return OperationResult::success();
+	return OperationResult::failure(last_failure.empty() ?
+		"verified modified Main processes remain alive" : last_failure);
 }
 
 OperationResult LinuxRuntime::unmount_modified_main()
