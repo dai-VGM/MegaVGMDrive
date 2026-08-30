@@ -169,6 +169,7 @@ const char *playlist_result_name(PlaylistResult result)
 	case PlaylistResult::ActiveMainUnavailable: return "ACTIVE_MAIN_UNAVAILABLE";
 	case PlaylistResult::InvalidTrackPath: return "INVALID_TRACK_PATH";
 	case PlaylistResult::CommandWriteFailed: return "COMMAND_WRITE_FAILED";
+	case PlaylistResult::ControlIoError: return "CONTROL_IO_ERROR";
 	case PlaylistResult::TrackSessionTimeout: return "TRACK_SESSION_TIMEOUT";
 	case PlaylistResult::TrackNeverPlaying: return "TRACK_NEVER_PLAYING";
 	case PlaylistResult::TrackEndTimeout: return "TRACK_END_TIMEOUT";
@@ -234,7 +235,8 @@ DiscoveryResult discover_directory(const std::string &directory,
 }
 
 PlaylistResult run(Runtime &runtime, const PlaylistConfig &config,
-		const std::vector<Track> &tracks, std::ostream &log)
+		const std::vector<Track> &tracks, std::ostream &log,
+		ControllerIo *controller)
 {
 	Monitor monitor(runtime, config, log);
 	PlaybackStatus status;
@@ -242,8 +244,39 @@ PlaylistResult run(Runtime &runtime, const PlaylistConfig &config,
 	if (result != PlaylistResult::Complete) return result;
 	std::uint32_t baseline_session = status.session;
 	std::size_t skipped = 0;
+	std::size_t index = 0;
 
-	for (std::size_t index = 0; index < tracks.size(); ++index) {
+	auto control_error = [&](const char *operation,
+			const std::string &detail) -> PlaylistResult {
+		log << "CONTROL_IO_ERROR: " << operation;
+		if (!detail.empty()) log << ": " << detail;
+		log << '\n';
+		return PlaylistResult::ControlIoError;
+	};
+	auto publish = [&](const char *state, const Track &track,
+			std::uint32_t session, std::uint16_t loop_count) -> bool {
+		if (!controller) return true;
+		ControllerSnapshot snapshot;
+		snapshot.state = state;
+		snapshot.index = index < tracks.size() ? index + 1 : tracks.size();
+		snapshot.count = tracks.size();
+		snapshot.path = track.path;
+		snapshot.session = session;
+		snapshot.loop_count = loop_count;
+		std::string detail;
+		if (controller->publish(snapshot, detail)) return true;
+		control_error("status publish", detail);
+		return false;
+	};
+	auto discard_commands = [&]() -> bool {
+		if (!controller) return true;
+		std::string detail;
+		if (controller->discard_commands(detail)) return true;
+		control_error("command discard", detail);
+		return false;
+	};
+
+	while (index < tracks.size()) {
 		const Track &track = tracks[index];
 		log << '\n' << '[' << index + 1 << '/' << tracks.size() << "] "
 		    << track.name << '\n';
@@ -254,10 +287,15 @@ PlaylistResult run(Runtime &runtime, const PlaylistConfig &config,
 			log << "INVALID_TRACK_PATH: " << detail << '\n';
 			return PlaylistResult::InvalidTrackPath;
 		}
+		// Commands received before or during an owned load are ignored. This
+		// prevents rapid commands from creating overlapping Main transfers.
+		if (!discard_commands()) return PlaylistResult::ControlIoError;
 		if (!runtime.issue_load(track.path, detail)) {
 			log << "COMMAND_WRITE_FAILED: " << detail << '\n';
 			return PlaylistResult::CommandWriteFailed;
 		}
+		if (!publish("LOADING", track, baseline_session, 0))
+			return PlaylistResult::ControlIoError;
 
 		PlaybackStatus last_logged;
 		bool last_logged_valid = false;
@@ -270,6 +308,7 @@ PlaylistResult run(Runtime &runtime, const PlaylistConfig &config,
 		std::uint64_t deadline = runtime.monotonic_ms() + config.session_timeout_ms;
 
 		while (!have_session) {
+			if (!discard_commands()) return PlaylistResult::ControlIoError;
 			result = monitor.read(status);
 			if (result != PlaylistResult::Complete) return result;
 			if (status.session != baseline_session) {
@@ -282,6 +321,9 @@ PlaylistResult run(Runtime &runtime, const PlaylistConfig &config,
 				loop_limit_reached = playing && status.loop_valid &&
 					config.loop_limit != 0 &&
 					status.loop_count >= config.loop_limit;
+				if (!publish(megavgm_autoplay2::state_name(status.state), track,
+						status.session, status.loop_count))
+					return PlaylistResult::ControlIoError;
 			}
 			if (!have_session && deadline_reached(runtime, deadline,
 					config.session_timeout_ms)) {
@@ -294,10 +336,19 @@ PlaylistResult run(Runtime &runtime, const PlaylistConfig &config,
 		deadline = runtime.monotonic_ms() + config.playing_timeout_ms;
 		while (!playing && !fatal && !ended) {
 			monitor.sleep();
+			if (!discard_commands()) return PlaylistResult::ControlIoError;
 			result = monitor.read(status);
 			if (result != PlaylistResult::Complete) return result;
-			if (status.session != owned_session) return suspend(log);
+			if (status.session != owned_session) {
+				if (!publish("SUSPENDED", track, status.session,
+						status.loop_count))
+					return PlaylistResult::ControlIoError;
+				return suspend(log);
+			}
 			log_status(log, status, last_logged, last_logged_valid);
+			if (!publish(megavgm_autoplay2::state_name(status.state), track,
+					status.session, status.loop_count))
+				return PlaylistResult::ControlIoError;
 			fatal = is_fatal(status);
 			playing = status.state == PlaybackState::Playing;
 			ended = status.state == PlaybackState::Ended;
@@ -315,6 +366,7 @@ PlaylistResult run(Runtime &runtime, const PlaylistConfig &config,
 			log_fatal(log, index, tracks.size(), track, status);
 			baseline_session = owned_session;
 			skipped++;
+			index++;
 			continue;
 		}
 		if (ended && !playing) {
@@ -322,13 +374,41 @@ PlaylistResult run(Runtime &runtime, const PlaylistConfig &config,
 			return PlaylistResult::TrackNeverPlaying;
 		}
 
+		// A command already waiting when PLAYING is first observed belongs to
+		// the just-finished load window and is intentionally discarded.
+		if (!discard_commands()) return PlaylistResult::ControlIoError;
+		bool navigation_claimed = false;
+		NavigationCommand navigation = NavigationCommand::Next;
 		deadline = runtime.monotonic_ms() + config.end_timeout_ms;
 		while (!ended && !fatal && !loop_limit_reached) {
 			monitor.sleep();
+			if (controller) {
+				std::string control_detail;
+				const ControlPollResult control_result =
+					controller->poll_command(navigation, control_detail);
+				if (control_result == ControlPollResult::IoError)
+					return control_error("command read", control_detail);
+				if (control_result == ControlPollResult::Invalid) {
+					log << "CONTROL_IGNORED";
+					if (!control_detail.empty()) log << ": " << control_detail;
+					log << '\n';
+				} else if (control_result == ControlPollResult::Command) {
+					navigation_claimed = true;
+					break;
+				}
+			}
 			result = monitor.read(status);
 			if (result != PlaylistResult::Complete) return result;
-			if (status.session != owned_session) return suspend(log);
+			if (status.session != owned_session) {
+				if (!publish("SUSPENDED", track, status.session,
+						status.loop_count))
+					return PlaylistResult::ControlIoError;
+				return suspend(log);
+			}
 			log_status(log, status, last_logged, last_logged_valid);
+			if (!publish(megavgm_autoplay2::state_name(status.state), track,
+					status.session, status.loop_count))
+				return PlaylistResult::ControlIoError;
 			fatal = is_fatal(status);
 			ended = status.state == PlaybackState::Ended;
 			loop_limit_reached =
@@ -344,6 +424,26 @@ PlaylistResult run(Runtime &runtime, const PlaylistConfig &config,
 		}
 
 		baseline_session = owned_session;
+		if (navigation_claimed) {
+			log << "navigation=" << navigation_command_name(navigation) << '\n';
+			if (!publish(navigation_command_name(navigation), track,
+					owned_session, status.loop_count))
+				return PlaylistResult::ControlIoError;
+			if (navigation == NavigationCommand::Next) {
+				if (index + 1 >= tracks.size()) {
+					if (!publish("COMPLETE", track, owned_session,
+							status.loop_count))
+						return PlaylistResult::ControlIoError;
+					log << '\n' << "PLAYLIST COMPLETE\n";
+					if (skipped != 0) log << "skipped=" << skipped << '\n';
+					return PlaylistResult::Complete;
+				}
+				index++;
+			} else if (index != 0) {
+				index--;
+			}
+			continue;
+		}
 		if (fatal) {
 			log_fatal(log, index, tracks.size(), track, status);
 			skipped++;
@@ -351,8 +451,12 @@ PlaylistResult run(Runtime &runtime, const PlaylistConfig &config,
 		else if (loop_limit_reached) {
 			log << "loop limit reached=" << config.loop_limit << '\n';
 		}
+		index++;
 	}
 
+	if (!tracks.empty() &&
+	    !publish("COMPLETE", tracks.back(), baseline_session, status.loop_count))
+		return PlaylistResult::ControlIoError;
 	log << '\n' << "PLAYLIST COMPLETE\n";
 	if (skipped != 0) log << "skipped=" << skipped << '\n';
 	return PlaylistResult::Complete;

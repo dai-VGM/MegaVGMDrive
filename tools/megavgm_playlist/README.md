@@ -14,6 +14,25 @@ The default is `2`: after two accepted native VGM loop jumps, the controller
 loads the next track without forcing FPGA `ENDED`. `--loops 0` disables this
 policy and leaves native-loop tracks playing indefinitely.
 
+While the controller is running, use the local control client:
+
+```sh
+./megavgm_ctl next
+./megavgm_ctl prev
+```
+
+The client writes only `NEXT` or `PREV` to the controller-owned FIFO at
+`/tmp/megavgm_playlist.cmd`; it never opens `/dev/MiSTer_cmd`. `NEXT` loads the
+following track immediately. At the last track it completes the playlist
+without wrapping. `PREV` loads the preceding track; at the first track it
+deterministically restarts that first track.
+
+Commands are accepted only after the current controller-owned session reaches
+PLAYING. Additional commands received while its replacement track is loading
+are discarded, so Main transfers never overlap. A navigation command observed
+in the same poll interval as ENDED, FATAL, or the native-loop limit claims the
+single transition; the old session's later status is ignored.
+
 Discovery is intentionally limited to direct, non-hidden regular files whose
 names end in the exact case-sensitive suffix `.vgm`. Subdirectories, `.VGM`,
 dotfiles, and helper files with another final suffix are ignored. Tracks are
@@ -35,10 +54,25 @@ or elapsed playback time as an end detector. Loading the same VGM manually,
 without this controller, retains the FPGA player's normal infinite-loop
 behavior.
 
+The controller also atomically publishes a future-UI-friendly snapshot at
+`/tmp/megavgm_playlist.status`:
+
+```text
+state=PLAYING
+index=4
+count=10
+path=/media/fat/Music/04 Track.vgm
+session=27
+loop_count=1
+```
+
+`index` is one-based. This file summarizes controller ownership and does not
+replace or duplicate the raw FPGA/Main status interface.
+
 Build on MiSTer or with an ARM cross-compiler:
 
 ```sh
-make
+make                    # builds megavgm_playlist and megavgm_ctl
 ```
 
 Run host simulations:

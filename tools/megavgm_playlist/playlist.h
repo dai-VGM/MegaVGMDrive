@@ -2,6 +2,7 @@
 #define MEGAVGM_PLAYLIST_H
 
 #include "../megavgm_autoplay2/autoplay2.h"
+#include "playlist_control.h"
 
 #include <cstdint>
 #include <iosfwd>
@@ -32,6 +33,7 @@ enum class PlaylistResult {
 	ActiveMainUnavailable,
 	InvalidTrackPath,
 	CommandWriteFailed,
+	ControlIoError,
 	TrackSessionTimeout,
 	TrackNeverPlaying,
 	TrackEndTimeout
@@ -52,7 +54,7 @@ DiscoveryResult discover_directory(const std::string &directory,
 
 PlaylistResult run(megavgm_autoplay2::Runtime &runtime,
 		const PlaylistConfig &config, const std::vector<Track> &tracks,
-		std::ostream &log);
+		std::ostream &log, ControllerIo *controller = nullptr);
 
 const char *discovery_result_name(DiscoveryResult result);
 const char *playlist_result_name(PlaylistResult result);

@@ -52,10 +52,15 @@ int main(int argc, char **argv)
 	}
 
 	megavgm_autoplay2::PosixRuntime runtime;
+	megavgm_playlist::PosixControllerIo controller;
+	if (!controller.start(detail)) {
+		std::cerr << "CONTROL_SETUP_FAILED: " << detail << '\n';
+		return 1;
+	}
 	megavgm_playlist::PlaylistConfig config;
 	config.loop_limit = loop_limit;
 	const megavgm_playlist::PlaylistResult result =
-		megavgm_playlist::run(runtime, config, tracks, std::cout);
+		megavgm_playlist::run(runtime, config, tracks, std::cout, &controller);
 	if (result == megavgm_playlist::PlaylistResult::Complete) return 0;
 	if (result == megavgm_playlist::PlaylistResult::Suspended) return 3;
 	std::cerr << "PLAYLIST FAILED: "

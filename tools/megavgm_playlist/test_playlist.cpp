@@ -60,6 +60,7 @@ public:
 		const Frame &frame = current();
 		value = frame.status;
 		detail = frame.detail;
+		read_count++;
 		if (position_ + 1 < frames_.size()) position_++;
 		return frame.result;
 	}
@@ -91,6 +92,7 @@ public:
 	}
 
 	std::vector<std::string> commands;
+	std::size_t read_count = 0;
 
 private:
 	const Frame &current() const
@@ -101,6 +103,59 @@ private:
 	std::vector<Frame> frames_;
 	std::size_t position_ = 0;
 	std::uint64_t now_ms_ = 0;
+};
+
+struct ControlEvent {
+	std::size_t after_reads;
+	NavigationCommand command;
+};
+
+class ScriptController final : public ControllerIo {
+public:
+	ScriptController(ScriptRuntime &runtime, std::vector<ControlEvent> events)
+		: runtime_(runtime), events_(std::move(events))
+	{
+	}
+
+	ControlPollResult poll_command(NavigationCommand &command,
+			std::string &detail) override
+	{
+		if (position_ >= events_.size() ||
+		    events_[position_].after_reads > runtime_.read_count) {
+			detail.clear();
+			return ControlPollResult::None;
+		}
+		command = events_[position_++].command;
+		detail.clear();
+		return ControlPollResult::Command;
+	}
+
+	bool discard_commands(std::string &detail) override
+	{
+		while (position_ < events_.size() &&
+		       events_[position_].after_reads <= runtime_.read_count) {
+			position_++;
+			discarded++;
+		}
+		detail.clear();
+		return true;
+	}
+
+	bool publish(const ControllerSnapshot &snapshot,
+			std::string &detail) override
+	{
+		snapshots.push_back(snapshot);
+		detail.clear();
+		return true;
+	}
+
+	std::size_t discarded = 0;
+	std::vector<ControllerSnapshot> snapshots;
+
+private:
+	ScriptRuntime &runtime_;
+	std::vector<ControlEvent> events_;
+	std::size_t position_ = 0;
 };
 
 PlaylistConfig fast_config()
@@ -125,14 +180,19 @@ std::vector<Track> three_tracks()
 
 PlaylistResult execute(std::vector<Frame> frames, std::vector<Track> tracks,
 		ScriptRuntime **out_runtime = nullptr, std::string *out_log = nullptr,
-		std::uint16_t loop_limit = 2)
+		std::uint16_t loop_limit = 2,
+		std::vector<ControlEvent> control_events = {},
+		ScriptController **out_controller = nullptr)
 {
 	auto *runtime = new ScriptRuntime(std::move(frames));
+	auto *controller = new ScriptController(*runtime, std::move(control_events));
 	std::ostringstream log;
 	PlaylistConfig config = fast_config();
 	config.loop_limit = loop_limit;
-	const PlaylistResult result = run(*runtime, config, tracks, log);
+	const PlaylistResult result = run(*runtime, config, tracks, log, controller);
 	if (out_log) *out_log = log.str();
+	if (out_controller) *out_controller = controller;
+	else delete controller;
 	if (out_runtime) *out_runtime = runtime;
 	else delete runtime;
 	return result;
@@ -207,6 +267,155 @@ void test_loop_limit_zero_is_infinite()
 		loop_status(61, PlaybackState::Playing, true, 2),
 		loop_status(61, PlaybackState::Playing, true, 3)
 	}, tracks, nullptr, nullptr, 0) == PlaylistResult::TrackEndTimeout);
+}
+
+void test_next_during_track_two_and_stale_end()
+{
+	ScriptRuntime *runtime = nullptr;
+	ScriptController *controller = nullptr;
+	std::string log;
+	const std::vector<Track> tracks = three_tracks();
+	const PlaylistResult result = execute({
+		ok(9, PlaybackState::Ended),
+		ok(10, PlaybackState::Playing),
+		ok(10, PlaybackState::Ended),
+		ok(11, PlaybackState::Playing),
+		ok(11, PlaybackState::Playing),
+		ok(11, PlaybackState::Ended), // stale after NEXT is claimed
+		ok(12, PlaybackState::Playing),
+		ok(12, PlaybackState::Ended)
+	}, tracks, &runtime, &log, 2,
+		{{5, NavigationCommand::Next}}, &controller);
+	assert(result == PlaylistResult::Complete);
+	assert(runtime->commands.size() == 3);
+	assert(runtime->commands[1] == "load_file 1 " + tracks[1].path + "\n");
+	assert(runtime->commands[2] == "load_file 1 " + tracks[2].path + "\n");
+	assert(log.find("navigation=NEXT") != std::string::npos);
+	assert(log.find("PLAYLIST SUSPENDED") == std::string::npos);
+	bool saw_track_three = false;
+	for (const ControllerSnapshot &snapshot : controller->snapshots) {
+		if (snapshot.state == "PLAYING" && snapshot.index == 3 &&
+		    snapshot.session == 12 && snapshot.path == tracks[2].path)
+			saw_track_three = true;
+	}
+	assert(saw_track_three);
+	assert(!controller->snapshots.empty());
+	assert(controller->snapshots.back().state == "COMPLETE");
+	assert(controller->snapshots.back().index == 3);
+	assert(controller->snapshots.back().count == 3);
+	delete controller;
+	delete runtime;
+}
+
+void test_previous_during_track_three()
+{
+	ScriptRuntime *runtime = nullptr;
+	const std::vector<Track> tracks = three_tracks();
+	const PlaylistResult result = execute({
+		ok(9, PlaybackState::Ended),
+		ok(10, PlaybackState::Playing),
+		ok(10, PlaybackState::Ended),
+		ok(11, PlaybackState::Playing),
+		ok(11, PlaybackState::Ended),
+		ok(12, PlaybackState::Playing),
+		ok(12, PlaybackState::Playing),
+		ok(12, PlaybackState::Ended),
+		ok(13, PlaybackState::Playing),
+		ok(13, PlaybackState::Ended),
+		ok(14, PlaybackState::Playing),
+		ok(14, PlaybackState::Ended)
+	}, tracks, &runtime, nullptr, 2,
+		{{7, NavigationCommand::Previous}});
+	assert(result == PlaylistResult::Complete);
+	assert(runtime->commands.size() == 5);
+	assert(runtime->commands[2] == "load_file 1 " + tracks[2].path + "\n");
+	assert(runtime->commands[3] == "load_file 1 " + tracks[1].path + "\n");
+	assert(runtime->commands[4] == "load_file 1 " + tracks[2].path + "\n");
+	delete runtime;
+}
+
+void test_previous_restarts_first_track()
+{
+	ScriptRuntime *runtime = nullptr;
+	const std::vector<Track> tracks = {
+		{"01 [日本語] First.vgm", "/music/01 [日本語] First.vgm"}
+	};
+	const PlaylistResult result = execute({
+		ok(9, PlaybackState::Ended),
+		ok(10, PlaybackState::Playing),
+		ok(10, PlaybackState::Playing),
+		ok(10, PlaybackState::Ended),
+		ok(11, PlaybackState::Playing),
+		ok(11, PlaybackState::Ended)
+	}, tracks, &runtime, nullptr, 2,
+		{{3, NavigationCommand::Previous}});
+	assert(result == PlaylistResult::Complete);
+	assert(runtime->commands.size() == 2);
+	assert(runtime->commands[0] == runtime->commands[1]);
+	delete runtime;
+}
+
+void test_next_at_last_track_completes()
+{
+	ScriptRuntime *runtime = nullptr;
+	const std::vector<Track> tracks = {
+		{"Only.vgm", "/music/Only.vgm"}
+	};
+	const PlaylistResult result = execute({
+		ok(9, PlaybackState::Ended),
+		ok(10, PlaybackState::Playing),
+		ok(10, PlaybackState::Playing)
+	}, tracks, &runtime, nullptr, 2,
+		{{3, NavigationCommand::Next}});
+	assert(result == PlaylistResult::Complete);
+	assert(runtime->commands.size() == 1);
+	delete runtime;
+}
+
+void test_next_wins_loop_limit_race()
+{
+	ScriptRuntime *runtime = nullptr;
+	const std::vector<Track> tracks = {
+		{"01 Loop.vgm", "/music/01 Loop.vgm"},
+		{"02 Normal.vgm", "/music/02 Normal.vgm"}
+	};
+	const PlaylistResult result = execute({
+		loop_status(9, PlaybackState::Ended, false, 0),
+		loop_status(10, PlaybackState::Playing, true, 0),
+		loop_status(10, PlaybackState::Playing, true, 1),
+		loop_status(10, PlaybackState::Playing, true, 2),
+		loop_status(11, PlaybackState::Playing, false, 0),
+		loop_status(11, PlaybackState::Ended, false, 0)
+	}, tracks, &runtime, nullptr, 2,
+		{{3, NavigationCommand::Next}});
+	assert(result == PlaylistResult::Complete);
+	assert(runtime->commands.size() == 2);
+	delete runtime;
+}
+
+void test_rapid_next_is_ignored_during_owned_load()
+{
+	ScriptRuntime *runtime = nullptr;
+	ScriptController *controller = nullptr;
+	const std::vector<Track> tracks = three_tracks();
+	const PlaylistResult result = execute({
+		ok(9, PlaybackState::Ended),
+		ok(10, PlaybackState::Playing),
+		ok(10, PlaybackState::Playing),
+		ok(10, PlaybackState::Ended),
+		ok(11, PlaybackState::Playing),
+		ok(11, PlaybackState::Ended),
+		ok(12, PlaybackState::Playing),
+		ok(12, PlaybackState::Ended)
+	}, tracks, &runtime, nullptr, 2,
+		{{3, NavigationCommand::Next}, {3, NavigationCommand::Next}},
+		&controller);
+	assert(result == PlaylistResult::Complete);
+	assert(runtime->commands.size() == 3);
+	assert(runtime->commands[1] == "load_file 1 " + tracks[1].path + "\n");
+	assert(controller->discarded == 1);
+	delete controller;
+	delete runtime;
 }
 
 void test_three_tracks_and_duplicate_end()
@@ -377,6 +586,12 @@ int main()
 	test_native_loop_limit_and_stale_reset();
 	test_loop_counter_saturation_policy();
 	test_loop_limit_zero_is_infinite();
+	test_next_during_track_two_and_stale_end();
+	test_previous_during_track_three();
+	test_previous_restarts_first_track();
+	test_next_at_last_track_completes();
+	test_next_wins_loop_limit_race();
+	test_rapid_next_is_ignored_during_owned_load();
 	test_three_tracks_and_duplicate_end();
 	test_manual_suspension();
 	test_fatal_skips_to_next();
