@@ -38,10 +38,10 @@ enum class PlaylistResult {
 };
 
 struct PlaylistConfig {
+	std::uint16_t loop_limit = 2;
 	std::uint64_t session_timeout_ms = 60000;
 	std::uint64_t playing_timeout_ms = 60000;
-	// Zero intentionally disables normal playback timeout. A native-loop VGM
-	// therefore remains PLAYING until a future loop policy exists.
+	// Zero intentionally disables normal playback timeout.
 	std::uint64_t end_timeout_ms = 0;
 	std::uint32_t poll_interval_ms = 100;
 	std::uint32_t main_probe_interval_ms = 1000;

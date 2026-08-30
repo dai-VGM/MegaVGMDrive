@@ -161,8 +161,18 @@ void test_status_parser()
 	assert(parsed.state == PlaybackState::Playing);
 	assert(parsed.error == 0x0d);
 	assert(parse_status_text(
-		"version=2\nsession=1\nstate=ENDED\nerror=00\n",
+		"version=2\nsession=1\nstate=PLAYING\nerror=00\n"
+		"loop_valid=1\nloop_count=2\n",
+		parsed, detail) == StatusReadResult::Ok);
+	assert(parsed.version == 2);
+	assert(parsed.loop_valid);
+	assert(parsed.loop_count == 2);
+	assert(parse_status_text(
+		"version=3\nsession=1\nstate=ENDED\nerror=00\n",
 		parsed, detail) == StatusReadResult::UnsupportedVersion);
+	assert(parse_status_text(
+		"version=2\nsession=1\nstate=PLAYING\nerror=00\n",
+		parsed, detail) == StatusReadResult::Malformed);
 	assert(parse_status_text(
 		"version=1\nsession=x\nstate=ENDED\nerror=00\n",
 		parsed, detail) == StatusReadResult::Malformed);

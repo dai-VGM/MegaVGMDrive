@@ -39,6 +39,13 @@ Frame ok(std::uint32_t session, PlaybackState state, std::uint8_t error = 0,
 		main_available};
 }
 
+Frame loop_status(std::uint32_t session, PlaybackState state,
+		bool loop_valid, std::uint16_t loop_count, std::uint8_t error = 0)
+{
+	return {StatusReadResult::Ok,
+		{2, session, state, error, loop_valid, loop_count}, "", true};
+}
+
 class ScriptRuntime final : public Runtime {
 public:
 	explicit ScriptRuntime(std::vector<Frame> frames)
@@ -117,15 +124,89 @@ std::vector<Track> three_tracks()
 }
 
 PlaylistResult execute(std::vector<Frame> frames, std::vector<Track> tracks,
-		ScriptRuntime **out_runtime = nullptr, std::string *out_log = nullptr)
+		ScriptRuntime **out_runtime = nullptr, std::string *out_log = nullptr,
+		std::uint16_t loop_limit = 2)
 {
 	auto *runtime = new ScriptRuntime(std::move(frames));
 	std::ostringstream log;
-	const PlaylistResult result = run(*runtime, fast_config(), tracks, log);
+	PlaylistConfig config = fast_config();
+	config.loop_limit = loop_limit;
+	const PlaylistResult result = run(*runtime, config, tracks, log);
 	if (out_log) *out_log = log.str();
 	if (out_runtime) *out_runtime = runtime;
 	else delete runtime;
 	return result;
+}
+
+void test_native_loop_limit_and_stale_reset()
+{
+	ScriptRuntime *runtime = nullptr;
+	std::string log;
+	const std::vector<Track> tracks = {
+		{"01 Native Loop.vgm", "/music/01 Native Loop.vgm"},
+		{"02 Normal End.vgm", "/music/02 Normal End.vgm"}
+	};
+	const PlaylistResult result = execute({
+		loop_status(9, PlaybackState::Ended, false, 0),
+		loop_status(10, PlaybackState::Loading, false, 0),
+		loop_status(10, PlaybackState::Playing, true, 0),
+		loop_status(10, PlaybackState::Playing, true, 1),
+		loop_status(10, PlaybackState::Playing, true, 2),
+		loop_status(10, PlaybackState::Playing, true, 2),
+		loop_status(10, PlaybackState::Playing, true, 2),
+		loop_status(11, PlaybackState::Loading, false, 0),
+		loop_status(11, PlaybackState::Playing, false, 0),
+		loop_status(11, PlaybackState::Ended, false, 0)
+	}, tracks, &runtime, &log);
+
+	assert(result == PlaylistResult::Complete);
+	assert(runtime->commands.size() == 2);
+	assert(runtime->commands[0] == "load_file 1 " + tracks[0].path + "\n");
+	assert(runtime->commands[1] == "load_file 1 " + tracks[1].path + "\n");
+	assert(log.find("session=10 PLAYING loop_valid=1 loop_count=0") !=
+		std::string::npos);
+	assert(log.find("session=10 PLAYING loop_valid=1 loop_count=1") !=
+		std::string::npos);
+	assert(log.find("session=10 PLAYING loop_valid=1 loop_count=2") !=
+		std::string::npos);
+	assert(log.find("session=11 LOADING loop_valid=0 loop_count=0") !=
+		std::string::npos);
+	assert(log.find("loop limit reached=2") != std::string::npos);
+	delete runtime;
+}
+
+void test_loop_counter_saturation_policy()
+{
+	ScriptRuntime *runtime = nullptr;
+	const std::vector<Track> tracks = {
+		{"01 Saturated Loop.vgm", "/music/01 Saturated Loop.vgm"},
+		{"02 Next.vgm", "/music/02 Next.vgm"}
+	};
+	const PlaylistResult result = execute({
+		loop_status(50, PlaybackState::Ended, false, 0),
+		loop_status(51, PlaybackState::Playing, true, 65534),
+		loop_status(51, PlaybackState::Playing, true, 65535),
+		loop_status(51, PlaybackState::Playing, true, 65535),
+		loop_status(52, PlaybackState::Playing, false, 0),
+		loop_status(52, PlaybackState::Ended, false, 0)
+	}, tracks, &runtime, nullptr, 65535);
+	assert(result == PlaylistResult::Complete);
+	assert(runtime->commands.size() == 2);
+	delete runtime;
+}
+
+void test_loop_limit_zero_is_infinite()
+{
+	const std::vector<Track> tracks = {
+		{"01 Loop.vgm", "/music/01 Loop.vgm"}
+	};
+	assert(execute({
+		loop_status(60, PlaybackState::Ended, false, 0),
+		loop_status(61, PlaybackState::Playing, true, 0),
+		loop_status(61, PlaybackState::Playing, true, 1),
+		loop_status(61, PlaybackState::Playing, true, 2),
+		loop_status(61, PlaybackState::Playing, true, 3)
+	}, tracks, nullptr, nullptr, 0) == PlaylistResult::TrackEndTimeout);
 }
 
 void test_three_tracks_and_duplicate_end()
@@ -197,6 +278,26 @@ void test_fatal_skips_to_next()
 	assert(log.find("FATAL session=31 error=0C path=/music/01 Bad.vgm -- skipping") !=
 		std::string::npos);
 	assert(log.find("skipped=1") != std::string::npos);
+	delete runtime;
+}
+
+void test_fatal_before_loop_limit()
+{
+	ScriptRuntime *runtime = nullptr;
+	const std::vector<Track> tracks = {
+		{"01 Loop Fails.vgm", "/music/01 Loop Fails.vgm"},
+		{"02 Next.vgm", "/music/02 Next.vgm"}
+	};
+	const PlaylistResult result = execute({
+		loop_status(70, PlaybackState::Ended, false, 0),
+		loop_status(71, PlaybackState::Playing, true, 0),
+		loop_status(71, PlaybackState::Playing, true, 1),
+		loop_status(71, PlaybackState::Fatal, false, 0, 0x0d),
+		loop_status(72, PlaybackState::Playing, false, 0),
+		loop_status(72, PlaybackState::Ended, false, 0)
+	}, tracks, &runtime);
+	assert(result == PlaylistResult::Complete);
+	assert(runtime->commands.size() == 2);
 	delete runtime;
 }
 
@@ -273,9 +374,13 @@ void test_empty_directory()
 
 int main()
 {
+	test_native_loop_limit_and_stale_reset();
+	test_loop_counter_saturation_policy();
+	test_loop_limit_zero_is_infinite();
 	test_three_tracks_and_duplicate_end();
 	test_manual_suspension();
 	test_fatal_skips_to_next();
+	test_fatal_before_loop_limit();
 	test_missing_and_timeout();
 	test_discovery_and_ordering();
 	test_empty_directory();

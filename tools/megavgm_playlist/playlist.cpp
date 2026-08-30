@@ -107,7 +107,9 @@ void log_status(std::ostream &log, const PlaybackStatus &status,
 		PlaybackStatus &last, bool &last_valid)
 {
 	if (last_valid && last.session == status.session &&
-	    last.state == status.state && last.error == status.error)
+	    last.state == status.state && last.error == status.error &&
+	    last.loop_valid == status.loop_valid &&
+	    last.loop_count == status.loop_count)
 		return;
 	log << "session=" << status.session << ' '
 	    << megavgm_autoplay2::state_name(status.state);
@@ -115,6 +117,10 @@ void log_status(std::ostream &log, const PlaybackStatus &status,
 		log << " error=" << std::uppercase << std::hex << std::setw(2)
 		    << std::setfill('0') << static_cast<unsigned int>(status.error)
 		    << std::dec << std::nouppercase << std::setfill(' ');
+	}
+	if (status.version >= 2) {
+		log << " loop_valid=" << (status.loop_valid ? 1 : 0)
+		    << " loop_count=" << status.loop_count;
 	}
 	log << '\n';
 	last = status;
@@ -259,6 +265,7 @@ PlaylistResult run(Runtime &runtime, const PlaylistConfig &config,
 		bool playing = false;
 		bool ended = false;
 		bool fatal = false;
+		bool loop_limit_reached = false;
 		std::uint32_t owned_session = 0;
 		std::uint64_t deadline = runtime.monotonic_ms() + config.session_timeout_ms;
 
@@ -272,6 +279,9 @@ PlaylistResult run(Runtime &runtime, const PlaylistConfig &config,
 				fatal = is_fatal(status);
 				playing = status.state == PlaybackState::Playing;
 				ended = status.state == PlaybackState::Ended;
+				loop_limit_reached = playing && status.loop_valid &&
+					config.loop_limit != 0 &&
+					status.loop_count >= config.loop_limit;
 			}
 			if (!have_session && deadline_reached(runtime, deadline,
 					config.session_timeout_ms)) {
@@ -291,6 +301,9 @@ PlaylistResult run(Runtime &runtime, const PlaylistConfig &config,
 			fatal = is_fatal(status);
 			playing = status.state == PlaybackState::Playing;
 			ended = status.state == PlaybackState::Ended;
+			loop_limit_reached = playing && status.loop_valid &&
+				config.loop_limit != 0 &&
+				status.loop_count >= config.loop_limit;
 			if (!playing && !fatal && !ended &&
 			    deadline_reached(runtime, deadline, config.playing_timeout_ms)) {
 				log << "TRACK_NEVER_PLAYING\n";
@@ -310,7 +323,7 @@ PlaylistResult run(Runtime &runtime, const PlaylistConfig &config,
 		}
 
 		deadline = runtime.monotonic_ms() + config.end_timeout_ms;
-		while (!ended && !fatal) {
+		while (!ended && !fatal && !loop_limit_reached) {
 			monitor.sleep();
 			result = monitor.read(status);
 			if (result != PlaylistResult::Complete) return result;
@@ -318,7 +331,12 @@ PlaylistResult run(Runtime &runtime, const PlaylistConfig &config,
 			log_status(log, status, last_logged, last_logged_valid);
 			fatal = is_fatal(status);
 			ended = status.state == PlaybackState::Ended;
-			if (!ended && !fatal && deadline_reached(runtime, deadline,
+			loop_limit_reached =
+				(status.state == PlaybackState::Playing) &&
+				status.loop_valid && config.loop_limit != 0 &&
+				status.loop_count >= config.loop_limit;
+			if (!ended && !fatal && !loop_limit_reached &&
+			    deadline_reached(runtime, deadline,
 					config.end_timeout_ms)) {
 				log << "TRACK_END_TIMEOUT\n";
 				return PlaylistResult::TrackEndTimeout;
@@ -329,6 +347,9 @@ PlaylistResult run(Runtime &runtime, const PlaylistConfig &config,
 		if (fatal) {
 			log_fatal(log, index, tracks.size(), track, status);
 			skipped++;
+		}
+		else if (loop_limit_reached) {
+			log << "loop limit reached=" << config.loop_limit << '\n';
 		}
 	}
 

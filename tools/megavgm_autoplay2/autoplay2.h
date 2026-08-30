@@ -20,6 +20,8 @@ struct PlaybackStatus {
 	std::uint32_t session = 0;
 	PlaybackState state = PlaybackState::Idle;
 	std::uint8_t error = 0;
+	bool loop_valid = false;
+	std::uint16_t loop_count = 0;
 };
 
 enum class StatusReadResult {

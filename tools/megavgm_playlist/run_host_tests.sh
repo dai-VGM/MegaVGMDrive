@@ -16,4 +16,7 @@ trap 'rm -f "$test_bin" "$controller_bin"' EXIT HUP INT TERM
 	"$tool_dir/main.cpp" "$tool_dir/playlist.cpp" \
 	"$autoplay2_dir/autoplay2.cpp" -o "$controller_bin"
 "$controller_bin" >/dev/null 2>&1 && exit 1 || test "$?" -eq 2
+"$controller_bin" --loops nope /tmp >/dev/null 2>&1 && exit 1 || test "$?" -eq 2
+"$controller_bin" --loops 65536 /tmp >/dev/null 2>&1 && exit 1 || test "$?" -eq 2
+"$controller_bin" --loops 42949672960 /tmp >/dev/null 2>&1 && exit 1 || test "$?" -eq 2
 echo "megavgm_playlist CLI build/usage: PASS"

@@ -15,7 +15,8 @@
 namespace megavgm_autoplay2 {
 namespace {
 
-constexpr std::uint32_t kInterfaceVersion = 1;
+constexpr std::uint32_t kInterfaceVersionV1 = 1;
+constexpr std::uint32_t kInterfaceVersionV2 = 2;
 constexpr std::size_t kMaximumStatusBytes = 512;
 constexpr std::size_t kMaximumTrackPathBytes = 960;
 
@@ -178,6 +179,8 @@ StatusReadResult parse_status_text(const std::string &text,
 	bool have_session = false;
 	bool have_state = false;
 	bool have_error = false;
+	bool have_loop_valid = false;
+	bool have_loop_count = false;
 	PlaybackStatus parsed;
 
 	if (text.empty()) {
@@ -238,6 +241,20 @@ StatusReadResult parse_status_text(const std::string &text,
 			}
 			parsed.error = static_cast<std::uint8_t>(number);
 			have_error = true;
+		} else if (key == "loop_valid" && !have_loop_valid) {
+			if (!parse_unsigned(value, 10, 1, number)) {
+				detail = "invalid loop_valid";
+				return StatusReadResult::Malformed;
+			}
+			parsed.loop_valid = number != 0;
+			have_loop_valid = true;
+		} else if (key == "loop_count" && !have_loop_count) {
+			if (!parse_unsigned(value, 10, 0xffff, number)) {
+				detail = "invalid loop_count";
+				return StatusReadResult::Malformed;
+			}
+			parsed.loop_count = static_cast<std::uint16_t>(number);
+			have_loop_count = true;
 		} else {
 			detail = "unknown or duplicate key";
 			return StatusReadResult::Malformed;
@@ -248,7 +265,19 @@ StatusReadResult parse_status_text(const std::string &text,
 		detail = "incomplete status snapshot";
 		return StatusReadResult::Malformed;
 	}
-	if (parsed.version != kInterfaceVersion) {
+	if (parsed.version == kInterfaceVersionV1) {
+		if (have_loop_valid || have_loop_count) {
+			detail = "v1 status contains v2 loop fields";
+			return StatusReadResult::Malformed;
+		}
+		parsed.loop_valid = false;
+		parsed.loop_count = 0;
+	} else if (parsed.version == kInterfaceVersionV2) {
+		if (!have_loop_valid || !have_loop_count) {
+			detail = "v2 status is missing loop fields";
+			return StatusReadResult::Malformed;
+		}
+	} else {
 		detail = "unsupported interface version";
 		return StatusReadResult::UnsupportedVersion;
 	}
