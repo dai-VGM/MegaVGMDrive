@@ -97,7 +97,7 @@ int run_daemon(const megavgm_supervisor::Paths &paths,
 			break;
 		}
 		result = supervisor.monitor_once();
-		if (!result.ok) break;
+		if (!result.ok || !supervisor.active()) break;
 		usleep(200000);
 	}
 	if (!result.ok) std::cerr << result.detail << '\n';
@@ -153,10 +153,19 @@ int enter_mode(const megavgm_supervisor::Paths &paths,
 int exit_mode(const megavgm_supervisor::Paths &paths)
 {
 	megavgm_supervisor::OperationResult result =
-		megavgm_supervisor::send_exit_request(paths.supervisor_socket);
+		megavgm_supervisor::request_exit_or_classify(paths.supervisor_socket,
+			paths.supervisor_status);
 	if (!result.ok) {
 		std::cerr << "EXIT_FAILED: " << result.detail << '\n';
 		return 1;
+	}
+	if (result.detail == "RESTORE_IN_PROGRESS") {
+		std::cout << "RESTORE_IN_PROGRESS\n";
+		return 0;
+	}
+	if (result.detail == "ALREADY_STOPPED") {
+		std::cout << "ALREADY_STOPPED: STOCK MISTER RESTORED\n";
+		return 0;
 	}
 	for (int elapsed = 0; elapsed <= 30000; elapsed += 100) {
 		std::string status;

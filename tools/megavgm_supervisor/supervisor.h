@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <functional>
 #include <string>
 #include <vector>
@@ -56,11 +57,14 @@ public:
 		int &pid) = 0;
 	virtual OperationResult verify_playlist(int pid) = 0;
 	virtual bool process_alive(int pid) = 0;
+	virtual bool playlist_complete() = 0;
 	virtual OperationResult stop_playlist(int pid) = 0;
 	virtual OperationResult cleanup_playlist_state() = 0;
 	virtual OperationResult stop_modified_main(int pid) = 0;
-	virtual OperationResult stop_all_modified_mains(
+	virtual std::vector<int> modified_main_processes(
 		const std::string &modified_sha256) = 0;
+	virtual std::uint64_t monotonic_ms() = 0;
+	virtual void sleep_ms(unsigned int milliseconds) = 0;
 	virtual OperationResult unmount_modified_main() = 0;
 	virtual OperationResult verify_stock_path(const std::string &stock_sha256) = 0;
 	virtual OperationResult start_stock_main(int &pid) = 0;
@@ -81,7 +85,9 @@ public:
 
 private:
 	OperationResult check_exit_request();
-	OperationResult rollback(const std::string &reason);
+	OperationResult rollback(const std::string &reason,
+		bool orderly_restore = false);
+	OperationResult drain_modified_mains();
 	OperationResult publish();
 	void remember_failure(std::vector<std::string> &failures,
 		const std::string &operation, const OperationResult &result);

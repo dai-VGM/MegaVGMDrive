@@ -63,7 +63,10 @@ public:
 	OperationResult start_modified_main(int &pid) override
 	{
 		OperationResult result = call("start_modified_main");
-		if (result.ok) pid = 101;
+		if (result.ok) {
+			pid = 101;
+			initial_modified_alive = true;
+		}
 		return result;
 	}
 	OperationResult verify_modified_main(int, const std::string &) override
@@ -89,6 +92,7 @@ public:
 			(reacquire_count > 1 && runtime_successor_available)) {
 			current_pid = reacquire_count == 1 ? 102 : 103;
 			last_reacquired_pid = current_pid;
+			modified_alive = true;
 			return OperationResult::success();
 		}
 		return OperationResult::failure("no valid successor");
@@ -121,21 +125,46 @@ public:
 		calls.push_back("controller_alive");
 		return controller_alive;
 	}
+	bool playlist_complete() override
+	{
+		calls.push_back("playlist_complete");
+		return controller_complete;
+	}
 	OperationResult stop_playlist(int) override { return call("stop_playlist"); }
 	OperationResult cleanup_playlist_state() override
 	{
 		return call("cleanup_playlist_state");
 	}
-	OperationResult stop_modified_main(int) override
+	OperationResult stop_modified_main(int pid) override
 	{
-		return call("stop_modified_main");
+		OperationResult result = call("stop_modified_main");
+		stopped_modified_pids.push_back(pid);
+		if (result.ok) {
+			if (pid == 101) initial_modified_alive = false;
+			if (pid == 102 || pid == 103) modified_alive = false;
+		}
+		return result;
 	}
-	OperationResult stop_all_modified_mains(const std::string &) override
+	std::vector<int> modified_main_processes(const std::string &) override
 	{
-		return call("stop_all_modified_mains");
+		calls.push_back("modified_main_processes");
+		if (drain_scan_position < drain_scan_sequence.size())
+			return drain_scan_sequence[drain_scan_position++];
+		std::vector<int> processes;
+		if (initial_modified_alive) processes.push_back(101);
+		if (modified_alive) processes.push_back(last_reacquired_pid > 0 ?
+			last_reacquired_pid : 102);
+		return processes;
+	}
+	std::uint64_t monotonic_ms() override { return now_ms; }
+	void sleep_ms(unsigned int milliseconds) override
+	{
+		calls.push_back("sleep_ms");
+		now_ms += milliseconds;
 	}
 	OperationResult unmount_modified_main() override
 	{
+		unmount_at_ms = now_ms;
 		return call("unmount_modified_main");
 	}
 	OperationResult verify_stock_path(const std::string &) override
@@ -169,15 +198,21 @@ public:
 		return first_call != calls.end() && second_call != calls.end() &&
 			first_call < second_call;
 	}
+	std::size_t call_count(const std::string &operation) const
+	{
+		return static_cast<std::size_t>(std::count(calls.begin(), calls.end(),
+			operation));
+	}
 
 	std::vector<std::string> calls;
 	std::string fail_operation;
 	std::string cancel_after;
 	bool cancel = false;
 	bool exit_initial_on_load = true;
-	bool initial_modified_alive = true;
-	bool modified_alive = true;
+	bool initial_modified_alive = false;
+	bool modified_alive = false;
 	bool controller_alive = true;
+	bool controller_complete = false;
 	bool startup_successor_available = true;
 	bool successor_sha_valid = true;
 	bool successor_rbf_argument = true;
@@ -186,6 +221,11 @@ public:
 	int last_reacquire_previous_pid = -1;
 	int last_reacquired_pid = -1;
 	int verified_core_pid = -1;
+	std::uint64_t now_ms = 0;
+	std::vector<std::vector<int>> drain_scan_sequence;
+	std::size_t drain_scan_position = 0;
+	std::vector<int> stopped_modified_pids;
+	std::uint64_t unmount_at_ms = 0;
 };
 
 void expect_restored(const Supervisor &supervisor)
@@ -230,9 +270,9 @@ void test_modified_main_pid_replacement_without_successor()
 	Supervisor supervisor(runtime, publisher);
 	assert(!supervisor.enter("/music").ok);
 	expect_restored(supervisor);
-	assert(runtime.called("stop_all_modified_mains"));
+	assert(runtime.called("modified_main_processes"));
 	assert(runtime.called("unmount_modified_main"));
-	assert(runtime.called_before("stop_all_modified_mains",
+	assert(runtime.called_before("modified_main_processes",
 		"unmount_modified_main"));
 	assert(runtime.called("start_stock_main"));
 }
@@ -247,7 +287,7 @@ void test_modified_main_pid_replacement_rejects_invalid_successor()
 		Supervisor supervisor(runtime, publisher);
 		assert(!supervisor.enter("/music").ok);
 		expect_restored(supervisor);
-		assert(runtime.called("stop_all_modified_mains"));
+		assert(runtime.called("modified_main_processes"));
 	}
 }
 
@@ -260,9 +300,9 @@ void test_successful_exit()
 	assert(supervisor.exit().ok);
 	expect_restored(supervisor);
 	assert(runtime.called("stop_playlist"));
-	assert(runtime.called("stop_all_modified_mains"));
+	assert(runtime.called("stop_modified_main"));
 	assert(runtime.called("unmount_modified_main"));
-	assert(runtime.called_before("stop_all_modified_mains",
+	assert(runtime.called_before("stop_modified_main",
 		"unmount_modified_main"));
 	assert(runtime.called("verify_stock_main"));
 }
@@ -320,6 +360,62 @@ void test_playlist_controller_dies()
 	runtime.controller_alive = false;
 	assert(!supervisor.monitor_once().ok);
 	expect_restored(supervisor);
+	assert(supervisor.snapshot().detail.find("playlist controller exited unexpectedly") !=
+		std::string::npos);
+}
+
+void test_playlist_normal_complete_restores_stock()
+{
+	FakeRuntime runtime;
+	RecordingPublisher publisher;
+	Supervisor supervisor(runtime, publisher);
+	assert(supervisor.enter("/music").ok);
+	runtime.controller_complete = true;
+	runtime.controller_alive = false;
+	assert(supervisor.monitor_once().ok);
+	expect_restored(supervisor);
+	assert(!supervisor.active());
+	assert(supervisor.snapshot().detail.find("playlist completed normally") !=
+		std::string::npos);
+}
+
+void test_modified_main_drain_catches_late_successor()
+{
+	FakeRuntime runtime;
+	RecordingPublisher publisher;
+	Supervisor supervisor(runtime, publisher);
+	assert(supervisor.enter("/music").ok);
+	runtime.drain_scan_sequence = {
+		{102}, {}, {}, {}, {}, {}, {103}, {}, {}, {}, {}, {}, {}, {}, {}, {},
+		{}, {}, {}, {}, {}, {}, {}
+	};
+	assert(supervisor.exit().ok);
+	expect_restored(supervisor);
+	assert(std::find(runtime.stopped_modified_pids.begin(),
+		runtime.stopped_modified_pids.end(), 102) !=
+		runtime.stopped_modified_pids.end());
+	assert(std::find(runtime.stopped_modified_pids.begin(),
+		runtime.stopped_modified_pids.end(), 103) !=
+		runtime.stopped_modified_pids.end());
+	assert(runtime.now_ms >= 2200);
+	assert(runtime.unmount_at_ms >= 2200);
+	assert(runtime.called_before("stop_modified_main", "unmount_modified_main"));
+}
+
+void test_exit_races_with_normal_complete()
+{
+	FakeRuntime runtime;
+	RecordingPublisher publisher;
+	Supervisor supervisor(runtime, publisher);
+	assert(supervisor.enter("/music").ok);
+	runtime.controller_complete = true;
+	runtime.controller_alive = false;
+	runtime.cancel = true;
+	assert(supervisor.monitor_once().ok);
+	expect_restored(supervisor);
+	assert(!supervisor.active());
+	assert(runtime.call_count("unmount_modified_main") == 1);
+	assert(runtime.call_count("start_stock_main") == 1);
 }
 
 void test_exit_while_partially_initialized()
@@ -400,6 +496,45 @@ void test_exit_control_socket()
 	rmdir(directory.c_str());
 }
 
+void test_exit_classifies_missing_socket_during_restore()
+{
+	const std::string directory = temporary_directory();
+	const std::string socket_path = directory + "/missing.sock";
+	const std::string status_path = directory + "/status";
+	{
+		std::ofstream status(status_path);
+		status << "mode=SHUTTING_DOWN\nmain=MODIFIED\ncontroller=STOPPED\n";
+	}
+	OperationResult result = megavgm_supervisor::request_exit_or_classify(
+		socket_path, status_path);
+	assert(result.ok);
+	assert(result.detail == "RESTORE_IN_PROGRESS");
+	{
+		std::ofstream status(status_path);
+		status << "mode=STOCK\nmain=STOCK\ncontroller=STOPPED\n";
+	}
+	result = megavgm_supervisor::request_exit_or_classify(socket_path,
+		status_path);
+	assert(result.ok);
+	assert(result.detail == "ALREADY_STOPPED");
+	unlink(status_path.c_str());
+	rmdir(directory.c_str());
+}
+
+void test_failed_unmount_skips_stock_verification()
+{
+	FakeRuntime runtime;
+	RecordingPublisher publisher;
+	Supervisor supervisor(runtime, publisher);
+	assert(supervisor.enter("/music").ok);
+	runtime.fail_operation = "unmount_modified_main";
+	assert(!supervisor.exit().ok);
+	assert(supervisor.snapshot().mode == "FAILURE");
+	assert(supervisor.snapshot().main == "RESTORE_FAILED");
+	assert(!runtime.called("verify_stock_path"));
+	assert(!runtime.called("start_stock_main"));
+}
+
 void test_stock_restore_verification_mismatch()
 {
 	FakeRuntime runtime;
@@ -443,10 +578,15 @@ int main()
 	test_playlist_fails_to_start();
 	test_modified_main_dies();
 	test_playlist_controller_dies();
+	test_playlist_normal_complete_restores_stock();
+	test_modified_main_drain_catches_late_successor();
+	test_exit_races_with_normal_complete();
 	test_duplicate_supervisor_invocation();
 	test_exit_while_partially_initialized();
 	test_stale_lock_and_status_recovery();
 	test_exit_control_socket();
+	test_exit_classifies_missing_socket_during_restore();
+	test_failed_unmount_skips_stock_verification();
 	test_stock_restore_verification_mismatch();
 	test_sha256_implementation();
 	std::cout << "megavgm_supervisor host tests: PASS\n";

@@ -45,11 +45,14 @@ public:
 		int &pid) override;
 	OperationResult verify_playlist(int pid) override;
 	bool process_alive(int pid) override;
+	bool playlist_complete() override;
 	OperationResult stop_playlist(int pid) override;
 	OperationResult cleanup_playlist_state() override;
 	OperationResult stop_modified_main(int pid) override;
-	OperationResult stop_all_modified_mains(
+	std::vector<int> modified_main_processes(
 		const std::string &modified_sha256) override;
+	std::uint64_t monotonic_ms() override;
+	void sleep_ms(unsigned int milliseconds) override;
 	OperationResult unmount_modified_main() override;
 	OperationResult verify_stock_path(const std::string &stock_sha256) override;
 	OperationResult start_stock_main(int &pid) override;

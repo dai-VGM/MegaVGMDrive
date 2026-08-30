@@ -205,6 +205,34 @@ OperationResult send_exit_request(const std::string &path)
 	return ok ? OperationResult::success() : OperationResult::failure(detail);
 }
 
+bool status_is_restoring(const std::string &content)
+{
+	const std::string restoring = "mode=SHUTTING_DOWN\n";
+	return content.compare(0, restoring.size(), restoring) == 0;
+}
+
+OperationResult request_exit_or_classify(const std::string &socket_path,
+	const std::string &status_path)
+{
+	auto classify = [&]() -> OperationResult {
+		std::string status;
+		std::string detail;
+		if (!read_text_file(status_path, status, detail))
+			return OperationResult::failure("status unavailable: " + detail);
+		if (status_is_stock(status)) return {true, "ALREADY_STOPPED"};
+		if (status_is_restoring(status)) return {true, "RESTORE_IN_PROGRESS"};
+		return OperationResult::failure("restore is not already in progress");
+	};
+
+	OperationResult state = classify();
+	if (state.ok) return state;
+	OperationResult sent = send_exit_request(socket_path);
+	if (sent.ok) return {true, "EXIT_REQUESTED"};
+	state = classify();
+	if (state.ok) return state;
+	return OperationResult::failure("supervisor control unavailable: " + sent.detail);
+}
+
 bool read_text_file(const std::string &path, std::string &content,
 	std::string &detail, std::size_t maximum_size)
 {

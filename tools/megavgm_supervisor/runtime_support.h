@@ -46,8 +46,11 @@ private:
 };
 
 OperationResult send_exit_request(const std::string &path);
+OperationResult request_exit_or_classify(const std::string &socket_path,
+	const std::string &status_path);
 bool read_text_file(const std::string &path, std::string &content,
 	std::string &detail, std::size_t maximum_size = 65536);
 bool status_is_stock(const std::string &content);
+bool status_is_restoring(const std::string &content);
 
 } // namespace megavgm_supervisor

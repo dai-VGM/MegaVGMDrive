@@ -38,6 +38,11 @@ Exit and inspect status with:
 /media/fat/MegaVGMPlayer/megavgm_supervisor status
 ```
 
+`exit` is idempotent across automatic restoration. If a normal playlist
+completion already owns restore, it reports `RESTORE_IN_PROGRESS`; after stock
+mode is published it reports `ALREADY_STOPPED` instead of exposing a vanished
+control-socket error.
+
 Runtime files:
 
 ```text
@@ -59,13 +64,20 @@ therefore reacquires Main ownership by executable SHA-256 and exact RBF argv;
 it does not treat the initially launched PID as permanent. A missing successor
 is accepted as a crash only after a bounded stabilization window.
 
+The Phase 1F controller atomically publishes `state=COMPLETE` before returning
+success. A controller exit with that final state is a normal lifecycle event:
+S1 performs an orderly automatic restore and publishes stock mode. An exit
+without `COMPLETE` remains a failure and uses the same recovery path.
+
 If the modified Main or playlist process exits unexpectedly, S1 stops the
 remaining process, removes controller runtime files, unmounts the bind,
 verifies the uncovered stock file hash, and restores stock Main. A stock hash
 mismatch is a hard failure: S1 will not execute an unverified path.
 Before unmounting, rollback repeatedly stops every MiSTer process whose
 executable SHA matches the modified Main or whose executable is the active bind
-target. This prevents a verified successor from keeping the bind busy.
+target. It requires zero qualifying processes to remain continuously for 1.5
+seconds; a late double-fork successor resets that stability window and is also
+stopped. Stock SHA verification is never attempted after a failed unmount.
 
 S1 deliberately does not detect a manually loaded non-MegaVGM core. Use the
 explicit `exit` command to restore stock Main after such a load. Core-change

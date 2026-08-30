@@ -14,6 +14,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <time.h>
 #include <unistd.h>
 
 #ifdef __linux__
@@ -560,6 +561,16 @@ OperationResult LinuxRuntime::verify_playlist(int pid)
 		OperationResult::failure("playlist FIFO/status did not appear");
 }
 
+bool LinuxRuntime::playlist_complete()
+{
+	std::string content;
+	std::string detail;
+	if (!read_text_file(paths_.playlist_status, content, detail, 4096))
+		return false;
+	const std::string complete = "state=COMPLETE\n";
+	return content.compare(0, complete.size(), complete) == 0;
+}
+
 OperationResult LinuxRuntime::stop_playlist(int pid)
 {
 	return stop_process(pid, "playlist controller");
@@ -578,31 +589,29 @@ OperationResult LinuxRuntime::stop_modified_main(int pid)
 	return stop_process(pid, "modified Main");
 }
 
-OperationResult LinuxRuntime::stop_all_modified_mains(
+std::vector<int> LinuxRuntime::modified_main_processes(
 	const std::string &modified_sha256)
 {
-	std::string last_failure;
-	for (int round = 0; round != 4; ++round) {
-		std::vector<int> matches = find_mains_by_sha256(modified_sha256, false);
-		const std::vector<int> bound = find_mains_using_file(paths_.stock_main);
-		matches.insert(matches.end(), bound.begin(), bound.end());
-		std::sort(matches.begin(), matches.end());
-		matches.erase(std::unique(matches.begin(), matches.end()), matches.end());
-		if (matches.empty()) return OperationResult::success();
-		for (int pid : matches) {
-			const OperationResult stopped = stop_process(pid, "modified Main");
-			if (!stopped.ok) last_failure = stopped.detail;
-		}
-	}
 	std::vector<int> remaining = find_mains_by_sha256(modified_sha256, false);
 	const std::vector<int> bound = find_mains_using_file(paths_.stock_main);
 	remaining.insert(remaining.end(), bound.begin(), bound.end());
 	std::sort(remaining.begin(), remaining.end());
 	remaining.erase(std::unique(remaining.begin(), remaining.end()),
 		remaining.end());
-	if (remaining.empty()) return OperationResult::success();
-	return OperationResult::failure(last_failure.empty() ?
-		"verified modified Main processes remain alive" : last_failure);
+	return remaining;
+}
+
+std::uint64_t LinuxRuntime::monotonic_ms()
+{
+	struct timespec now = {};
+	if (clock_gettime(CLOCK_MONOTONIC, &now) < 0) return 0;
+	return static_cast<std::uint64_t>(now.tv_sec) * 1000u +
+		static_cast<std::uint64_t>(now.tv_nsec / 1000000u);
+}
+
+void LinuxRuntime::sleep_ms(unsigned int milliseconds)
+{
+	usleep(milliseconds * 1000u);
 }
 
 OperationResult LinuxRuntime::unmount_modified_main()

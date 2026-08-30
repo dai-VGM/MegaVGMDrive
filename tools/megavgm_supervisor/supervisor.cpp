@@ -125,7 +125,43 @@ void Supervisor::remember_failure(std::vector<std::string> &failures,
 	if (!result.ok) failures.push_back(operation + ": " + result.detail);
 }
 
-OperationResult Supervisor::rollback(const std::string &reason)
+OperationResult Supervisor::drain_modified_mains()
+{
+	constexpr std::uint64_t kDrainTimeoutMs = 30000;
+	constexpr std::uint64_t kStableZeroMs = 1500;
+	constexpr unsigned int kPollMs = 100;
+	const std::uint64_t deadline = runtime_.monotonic_ms() + kDrainTimeoutMs;
+	std::uint64_t zero_since = 0;
+	bool zero_window_active = false;
+	std::string last_failure;
+
+	while (runtime_.monotonic_ms() <= deadline) {
+		const std::vector<int> processes =
+			runtime_.modified_main_processes(snapshot_.modified_sha256);
+		if (!processes.empty()) {
+			zero_window_active = false;
+			for (int pid : processes) {
+				const OperationResult stopped = runtime_.stop_modified_main(pid);
+				if (!stopped.ok) last_failure = stopped.detail;
+			}
+		} else {
+			const std::uint64_t now = runtime_.monotonic_ms();
+			if (!zero_window_active) {
+				zero_since = now;
+				zero_window_active = true;
+			}
+			if (now - zero_since >= kStableZeroMs)
+				return OperationResult::success();
+		}
+		runtime_.sleep_ms(kPollMs);
+	}
+	return OperationResult::failure(last_failure.empty() ?
+		"modified Main drain did not reach a stable zero-process window" :
+		last_failure);
+}
+
+OperationResult Supervisor::rollback(const std::string &reason,
+	bool orderly_restore)
 {
 	active_ = false;
 	snapshot_.mode = "SHUTTING_DOWN";
@@ -156,9 +192,8 @@ OperationResult Supervisor::rollback(const std::string &reason)
 
 	bool modified_stopped = true;
 	if (modified_started_ || bind_mounted_) {
-		const OperationResult stopped = runtime_.stop_all_modified_mains(
-			snapshot_.modified_sha256);
-		remember_failure(failures, "stop all modified Main processes", stopped);
+		const OperationResult stopped = drain_modified_mains();
+		remember_failure(failures, "drain modified Main processes", stopped);
 		modified_stopped = stopped.ok;
 		if (!modified_stopped)
 			failures.push_back("verified modified Main remains alive; bind retained");
@@ -172,7 +207,7 @@ OperationResult Supervisor::rollback(const std::string &reason)
 	}
 
 	bool stock_restored = false;
-	if (stock_stopped_ && modified_stopped) {
+	if (stock_stopped_ && modified_stopped && !bind_mounted_) {
 		OperationResult verify = runtime_.verify_stock_path(snapshot_.stock_sha256);
 		remember_failure(failures, "verify restored stock path", verify);
 		if (verify.ok) {
@@ -207,13 +242,13 @@ OperationResult Supervisor::rollback(const std::string &reason)
 		failures.push_back("publish final status: " + status_result.detail);
 
 	if (!failures.empty()) return OperationResult::failure(snapshot_.detail);
-	if (reason == "explicit exit") return OperationResult::success();
+	if (orderly_restore) return OperationResult::success();
 	return OperationResult::failure(reason + "; stock Main restored");
 }
 
 OperationResult Supervisor::exit(const std::string &reason)
 {
-	return rollback(reason);
+	return rollback(reason, true);
 }
 
 OperationResult Supervisor::monitor_once()
@@ -227,8 +262,11 @@ OperationResult Supervisor::monitor_once()
 			return rollback("modified Main exited without a verified successor");
 		modified_pid_ = successor_pid;
 	}
-	if (!runtime_.process_alive(controller_pid_))
+	if (!runtime_.process_alive(controller_pid_)) {
+		if (runtime_.playlist_complete())
+			return rollback("playlist completed normally", true);
 		return rollback("playlist controller exited unexpectedly");
+	}
 	if (runtime_.exit_requested()) return rollback("explicit exit");
 	return OperationResult::success();
 }
