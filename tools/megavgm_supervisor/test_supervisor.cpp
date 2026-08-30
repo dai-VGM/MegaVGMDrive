@@ -125,6 +125,10 @@ public:
 				status_scenario == "ABSENT_THEN_READY";
 			controller_diagnostic.active_main_sha256 = "modified-hash";
 			controller_diagnostic.active_rbf_argv = "/fixed/playlist.rbf";
+			controller_diagnostic.trace_text =
+				"INITIAL_FPGA_SESSION=82 MISTER_CMD_WRITE=SUCCESS";
+			controller_diagnostic.main_load_file_text =
+				"version=1 pid=102 phase=TRANSFER_SUCCESS index=1 path=/music/01.vgm";
 			if (!controller_exec_success) {
 				controller_diagnostic.exec_state = "FAILED:ENOENT";
 				controller_diagnostic.exit_state = "EXIT_CODE_127";
@@ -306,6 +310,10 @@ void test_successful_enter()
 	assert(supervisor.snapshot().playlist_status_seen == "YES");
 	assert(supervisor.snapshot().active_main_sha256 == "modified-hash");
 	assert(supervisor.snapshot().active_rbf_argv == "/fixed/playlist.rbf");
+	assert(supervisor.snapshot().controller_trace.find(
+		"INITIAL_FPGA_SESSION=82") != std::string::npos);
+	assert(supervisor.snapshot().main_load_file.find(
+		"phase=TRANSFER_SUCCESS") != std::string::npos);
 }
 
 void test_status_absent_then_ready_before_controller_start()
@@ -580,11 +588,17 @@ void test_stale_lock_and_status_recovery()
 	snapshot.mode = "STARTING";
 	snapshot.main = "STOCK";
 	snapshot.controller = "STOPPED";
+	snapshot.controller_trace = "INITIAL_FPGA_SESSION=82";
+	snapshot.main_load_file = "phase=TRANSFER_SUCCESS";
 	assert(publisher.publish(snapshot).ok);
 	std::string content;
 	std::string detail;
 	assert(megavgm_supervisor::read_text_file(status_path, content, detail));
 	assert(content.find("mode=STARTING\n") != std::string::npos);
+	assert(content.find("controller_trace=INITIAL_FPGA_SESSION=82\n") !=
+		std::string::npos);
+	assert(content.find("main_load_file=phase=TRANSFER_SUCCESS\n") !=
+		std::string::npos);
 	assert(content.find("old=true") == std::string::npos);
 	unlink(status_path.c_str());
 	unlink(lock_path.c_str());

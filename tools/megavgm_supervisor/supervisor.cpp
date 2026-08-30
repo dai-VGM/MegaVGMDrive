@@ -32,6 +32,8 @@ void Supervisor::refresh_controller_diagnostics()
 	snapshot_.controller_exec = diagnostics.exec_state;
 	snapshot_.controller_exit = diagnostics.exit_state;
 	snapshot_.controller_stderr = diagnostics.stderr_text;
+	snapshot_.controller_trace = diagnostics.trace_text;
+	snapshot_.main_load_file = diagnostics.main_load_file_text;
 	snapshot_.megavgm_status_at_controller_launch =
 		diagnostics.megavgm_status_at_launch ? "YES" : "NO";
 	snapshot_.playlist_command_seen = diagnostics.command_fifo_seen ? "YES" : "NO";

@@ -56,6 +56,21 @@ std::string trim(std::string value)
 	return value;
 }
 
+void read_diagnostic_text(const std::string &path, std::string &destination,
+		std::size_t maximum_size)
+{
+	std::string content;
+	std::string detail;
+	if (!read_text_file(path, content, detail, maximum_size)) return;
+	for (char &character : content) {
+		const unsigned char value = static_cast<unsigned char>(character);
+		if (value == '\n' || value == '\r' || value == '\t') character = ' ';
+		else if (value < 0x20 || value == 0x7f) character = '?';
+	}
+	while (!content.empty() && content.back() == ' ') content.pop_back();
+	if (!content.empty()) destination = content;
+}
+
 } // namespace
 
 LinuxRuntime::LinuxRuntime(Paths paths, ControlServer &control)
@@ -528,10 +543,20 @@ OperationResult LinuxRuntime::launch_playlist(const std::string &directory,
 		close(exec_status[1]);
 		return OperationResult::failure(detail);
 	}
+	const int trace_log = open(paths_.playlist_trace.c_str(),
+		O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0600);
+	if (trace_log < 0) {
+		const std::string detail = std::strerror(errno);
+		close(error_log);
+		close(exec_status[0]);
+		close(exec_status[1]);
+		return OperationResult::failure(detail);
+	}
 	pid = fork();
 	if (pid < 0) {
 		const std::string detail = std::strerror(errno);
 		close(error_log);
+		close(trace_log);
 		close(exec_status[0]);
 		close(exec_status[1]);
 		return OperationResult::failure(detail);
@@ -544,12 +569,11 @@ OperationResult LinuxRuntime::launch_playlist(const std::string &directory,
 		};
 		if (chdir("/") < 0) report_exec_error(errno, 126);
 		const int input = open("/dev/null", O_RDONLY);
-		const int console = open("/dev/console", O_WRONLY);
-		if (input < 0 || console < 0 || dup2(input, STDIN_FILENO) < 0 ||
-			dup2(console, STDOUT_FILENO) < 0 || dup2(error_log, STDERR_FILENO) < 0)
+		if (input < 0 || dup2(input, STDIN_FILENO) < 0 ||
+			dup2(trace_log, STDOUT_FILENO) < 0 || dup2(error_log, STDERR_FILENO) < 0)
 			report_exec_error(errno, 126);
 		if (input > STDERR_FILENO) close(input);
-		if (console > STDERR_FILENO) close(console);
+		if (trace_log > STDERR_FILENO) close(trace_log);
 		if (error_log > STDERR_FILENO) close(error_log);
 		char loops[] = "--loops";
 		char count[] = "2";
@@ -560,6 +584,7 @@ OperationResult LinuxRuntime::launch_playlist(const std::string &directory,
 		report_exec_error(errno, 127);
 	}
 	close(error_log);
+	close(trace_log);
 	close(exec_status[1]);
 	controller_diagnostics_state_.pid = pid;
 	struct pollfd descriptor = {exec_status[0], POLLIN | POLLHUP, 0};
@@ -614,6 +639,10 @@ OperationResult LinuxRuntime::start_playlist(const std::string &directory,
 	result = remove_controller_path(paths_.playlist_status, false);
 	if (!result.ok) return result;
 	result = remove_controller_path(paths_.playlist_stderr, false);
+	if (!result.ok) return result;
+	result = remove_controller_path(paths_.playlist_trace, false);
+	if (!result.ok) return result;
+	result = remove_controller_path(paths_.main_load_file_status, false);
 	if (!result.ok) return result;
 	controller_diagnostics_state_ = ControllerDiagnostics{};
 	std::string readiness_detail;
@@ -670,22 +699,16 @@ void LinuxRuntime::update_controller_exit_status(int controller_pid)
 
 void LinuxRuntime::update_controller_stderr()
 {
-	const int fd = open(paths_.playlist_stderr.c_str(), O_RDONLY | O_CLOEXEC);
-	if (fd < 0) return;
-	char buffer[512];
-	ssize_t bytes;
-	do {
-		bytes = read(fd, buffer, sizeof(buffer));
-	} while (bytes < 0 && errno == EINTR);
-	close(fd);
-	if (bytes <= 0) return;
-	std::string content(buffer, static_cast<std::size_t>(bytes));
-	for (char &character : content) {
-		const unsigned char value = static_cast<unsigned char>(character);
-		if (value < 0x20 || value == 0x7f) character = ' ';
-	}
-	while (!content.empty() && content.back() == ' ') content.pop_back();
-	if (!content.empty()) controller_diagnostics_state_.stderr_text = content;
+	read_diagnostic_text(paths_.playlist_stderr,
+		controller_diagnostics_state_.stderr_text, 512);
+}
+
+void LinuxRuntime::update_boundary_diagnostics()
+{
+	read_diagnostic_text(paths_.playlist_trace,
+		controller_diagnostics_state_.trace_text, 4096);
+	read_diagnostic_text(paths_.main_load_file_status,
+		controller_diagnostics_state_.main_load_file_text, 2048);
 }
 
 ControllerDiagnostics LinuxRuntime::controller_diagnostics(int controller_pid,
@@ -694,6 +717,7 @@ ControllerDiagnostics LinuxRuntime::controller_diagnostics(int controller_pid,
 	if (controller_pid > 0) controller_diagnostics_state_.pid = controller_pid;
 	update_controller_exit_status(controller_pid);
 	update_controller_stderr();
+	update_boundary_diagnostics();
 	std::string digest;
 	std::string detail;
 	if (modified_pid > 0 &&
@@ -720,6 +744,7 @@ OperationResult LinuxRuntime::stop_playlist(int pid)
 	if (result.ok && controller_diagnostics_state_.exit_state == "NOT_OBSERVED")
 		controller_diagnostics_state_.exit_state = "SUPERVISOR_STOPPED";
 	update_controller_stderr();
+	update_boundary_diagnostics();
 	return result;
 }
 

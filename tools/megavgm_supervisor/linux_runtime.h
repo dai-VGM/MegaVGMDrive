@@ -18,12 +18,14 @@ struct Paths {
 	std::string playlist_command = "/tmp/megavgm_playlist.cmd";
 	std::string playlist_status = "/tmp/megavgm_playlist.status";
 	std::string playlist_stderr = "/tmp/megavgm_playlist.stderr";
+	std::string playlist_trace = "/tmp/megavgm_playlist.trace";
+	std::string main_load_file_status = "/tmp/megavgm_load_file.status";
 	std::string supervisor_lock = "/tmp/megavgm_supervisor.lock";
 	std::string supervisor_socket = "/tmp/megavgm_supervisor.sock";
 	std::string supervisor_status = "/tmp/megavgm_supervisor.status";
 	std::string supervisor_log = "/tmp/megavgm_supervisor.log";
 	std::string expected_modified_sha256 =
-		"04cafec381e7ecd49b1a4333be1fd7de0a9acf29a42e9c8342db299fb7c3bb1f";
+		"f06631728cbe8dd89aab6886d179bbaa1d51186ba07b75fb6d719fdffd5fcdda";
 };
 
 class LinuxRuntime : public Runtime {
@@ -84,6 +86,7 @@ private:
 	bool valid_megavgm_status(std::string &detail);
 	void update_controller_exit_status(int controller_pid);
 	void update_controller_stderr();
+	void update_boundary_diagnostics();
 	bool wait_for(const std::function<bool()> &condition, int timeout_ms);
 
 	Paths paths_;

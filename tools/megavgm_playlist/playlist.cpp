@@ -243,6 +243,7 @@ PlaylistResult run(Runtime &runtime, const PlaylistConfig &config,
 	PlaylistResult result = monitor.read(status);
 	if (result != PlaylistResult::Complete) return result;
 	std::uint32_t baseline_session = status.session;
+	log << "INITIAL_FPGA_SESSION=" << baseline_session << '\n';
 	std::size_t skipped = 0;
 	std::size_t index = 0;
 
@@ -280,6 +281,9 @@ PlaylistResult run(Runtime &runtime, const PlaylistConfig &config,
 		const Track &track = tracks[index];
 		log << '\n' << '[' << index + 1 << '/' << tracks.size() << "] "
 		    << track.name << '\n';
+		const std::uint64_t request_started_ms = runtime.monotonic_ms();
+		log << "LOAD_FILE_REQUEST path=" << track.path
+		    << " baseline_session=" << baseline_session << '\n';
 
 		std::string command;
 		std::string detail;
@@ -294,6 +298,7 @@ PlaylistResult run(Runtime &runtime, const PlaylistConfig &config,
 			log << "COMMAND_WRITE_FAILED: " << detail << '\n';
 			return PlaylistResult::CommandWriteFailed;
 		}
+		log << "MISTER_CMD_WRITE=SUCCESS path=" << track.path << '\n';
 		if (!publish("LOADING", track, baseline_session, 0))
 			return PlaylistResult::ControlIoError;
 
@@ -327,7 +332,11 @@ PlaylistResult run(Runtime &runtime, const PlaylistConfig &config,
 			}
 			if (!have_session && deadline_reached(runtime, deadline,
 					config.session_timeout_ms)) {
-				log << "TRACK_SESSION_TIMEOUT\n";
+				log << "TRACK_SESSION_TIMEOUT initial_session="
+				    << baseline_session << " fpga_session_after="
+				    << status.session << " elapsed_ms="
+				    << (runtime.monotonic_ms() - request_started_ms)
+				    << " path=" << track.path << '\n';
 				return PlaylistResult::TrackSessionTimeout;
 			}
 			if (!have_session) monitor.sleep();

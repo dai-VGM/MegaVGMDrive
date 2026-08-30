@@ -516,9 +516,22 @@ void test_missing_and_timeout()
 		{StatusReadResult::Missing, {}, "not found", true}
 	}, three_tracks()) == PlaylistResult::StatusFileMissing);
 
+	ScriptRuntime *runtime = nullptr;
+	std::string log;
+	const std::vector<Track> tracks = three_tracks();
 	assert(execute({
 		ok(40, PlaybackState::Ended)
-	}, three_tracks()) == PlaylistResult::TrackSessionTimeout);
+	}, tracks, &runtime, &log) == PlaylistResult::TrackSessionTimeout);
+	assert(runtime->commands.size() == 1);
+	assert(log.find("INITIAL_FPGA_SESSION=40") != std::string::npos);
+	assert(log.find("LOAD_FILE_REQUEST path=" + tracks[0].path +
+		" baseline_session=40") != std::string::npos);
+	assert(log.find("MISTER_CMD_WRITE=SUCCESS path=" + tracks[0].path) !=
+		std::string::npos);
+	assert(log.find("TRACK_SESSION_TIMEOUT initial_session=40 "
+		"fpga_session_after=40 elapsed_ms=5 path=" + tracks[0].path) !=
+		std::string::npos);
+	delete runtime;
 
 	assert(execute({
 		ok(40, PlaybackState::Ended),

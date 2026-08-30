@@ -25,6 +25,8 @@ struct ControllerDiagnostics {
 	std::string exec_state = "NOT_STARTED";
 	std::string exit_state = "NOT_OBSERVED";
 	std::string stderr_text;
+	std::string trace_text;
+	std::string main_load_file_text;
 	bool megavgm_status_at_launch = false;
 	bool command_fifo_seen = false;
 	bool status_seen = false;
@@ -44,6 +46,8 @@ struct Snapshot {
 	std::string controller_exec = "NOT_STARTED";
 	std::string controller_exit = "NOT_OBSERVED";
 	std::string controller_stderr;
+	std::string controller_trace;
+	std::string main_load_file;
 	std::string megavgm_status_at_controller_launch = "NO";
 	std::string playlist_command_seen = "NO";
 	std::string playlist_status_seen = "NO";

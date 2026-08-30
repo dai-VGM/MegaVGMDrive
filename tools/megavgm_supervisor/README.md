@@ -15,7 +15,7 @@ controller:    /media/fat/Scripts/megavgm_playlist
 The modified Main must have SHA-256:
 
 ```text
-04cafec381e7ecd49b1a4333be1fd7de0a9acf29a42e9c8342db299fb7c3bb1f
+f06631728cbe8dd89aab6886d179bbaa1d51186ba07b75fb6d719fdffd5fcdda
 ```
 
 Enter with one directory and the Phase 1E default of two native loops:
@@ -51,12 +51,19 @@ Runtime files:
 /tmp/megavgm_supervisor.status
 /tmp/megavgm_supervisor.log
 /tmp/megavgm_playlist.stderr
+/tmp/megavgm_playlist.trace
+/tmp/megavgm_load_file.status
 ```
 
 The supervisor status also preserves passive controller diagnostics across
 rollback: child PID, exec result, exit code or signal, concise captured stderr,
-MegaVGM status readiness at launch, controller FIFO/status observation, active
-modified-Main SHA-256, and the verified RBF argv.
+first-request trace, the last Main `load_file` boundary, MegaVGM status
+readiness at launch, controller FIFO/status observation, active modified-Main
+SHA-256, and the verified RBF argv. The request trace records the initial FPGA
+session, exact path, successful full FIFO write, session after the request, and
+timeout elapsed time. The Main boundary record distinguishes command parsing,
+file-open failure, transfer entry, and transfer success/failure without changing
+the transfer itself.
 
 The RBF is loaded through the existing Main-owned `/dev/MiSTer_cmd`
 `load_core` endpoint. The supervisor never programs the FPGA directly.

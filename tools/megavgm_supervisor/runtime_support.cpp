@@ -50,6 +50,8 @@ std::string snapshot_text(const Snapshot &snapshot)
 	     << "controller_exec=" << snapshot.controller_exec << '\n'
 	     << "controller_exit=" << snapshot.controller_exit << '\n'
 	     << "controller_stderr=" << snapshot.controller_stderr << '\n'
+	     << "controller_trace=" << snapshot.controller_trace << '\n'
+	     << "main_load_file=" << snapshot.main_load_file << '\n'
 	     << "megavgm_status_at_controller_launch="
 	     << snapshot.megavgm_status_at_controller_launch << '\n'
 	     << "playlist_command_seen=" << snapshot.playlist_command_seen << '\n'
@@ -95,6 +97,7 @@ OperationResult AtomicStatusPublisher::publish(const Snapshot &snapshot)
 		&snapshot.stock_sha256, &snapshot.modified_sha256,
 		&snapshot.controller_pid, &snapshot.controller_exec,
 		&snapshot.controller_exit, &snapshot.controller_stderr,
+		&snapshot.controller_trace, &snapshot.main_load_file,
 		&snapshot.megavgm_status_at_controller_launch,
 		&snapshot.playlist_command_seen, &snapshot.playlist_status_seen,
 		&snapshot.active_main_sha256, &snapshot.active_rbf_argv,
