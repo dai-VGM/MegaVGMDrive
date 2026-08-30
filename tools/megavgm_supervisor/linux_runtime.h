@@ -17,6 +17,7 @@ struct Paths {
 	std::string megavgm_status = "/tmp/MegaVGMPlayer.status";
 	std::string playlist_command = "/tmp/megavgm_playlist.cmd";
 	std::string playlist_status = "/tmp/megavgm_playlist.status";
+	std::string playlist_stderr = "/tmp/megavgm_playlist.stderr";
 	std::string supervisor_lock = "/tmp/megavgm_supervisor.lock";
 	std::string supervisor_socket = "/tmp/megavgm_supervisor.sock";
 	std::string supervisor_status = "/tmp/megavgm_supervisor.status";
@@ -44,6 +45,8 @@ public:
 	OperationResult start_playlist(const std::string &directory,
 		int &pid) override;
 	OperationResult verify_playlist(int pid) override;
+	ControllerDiagnostics controller_diagnostics(int controller_pid,
+		int modified_pid) override;
 	bool process_alive(int pid) override;
 	bool playlist_complete() override;
 	OperationResult stop_playlist(int pid) override;
@@ -78,10 +81,14 @@ private:
 	bool process_has_argument(int pid, const std::string &argument);
 	bool process_uses_file(const std::string &path);
 	bool process_has_open_file(const std::string &path);
+	bool valid_megavgm_status(std::string &detail);
+	void update_controller_exit_status(int controller_pid);
+	void update_controller_stderr();
 	bool wait_for(const std::function<bool()> &condition, int timeout_ms);
 
 	Paths paths_;
 	ControlServer &control_;
+	ControllerDiagnostics controller_diagnostics_state_;
 };
 
 } // namespace megavgm_supervisor

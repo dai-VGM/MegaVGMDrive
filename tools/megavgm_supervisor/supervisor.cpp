@@ -24,6 +24,22 @@ OperationResult Supervisor::publish()
 	return publisher_.publish(snapshot_);
 }
 
+void Supervisor::refresh_controller_diagnostics()
+{
+	const ControllerDiagnostics diagnostics =
+		runtime_.controller_diagnostics(controller_pid_, modified_pid_);
+	snapshot_.controller_pid = std::to_string(diagnostics.pid);
+	snapshot_.controller_exec = diagnostics.exec_state;
+	snapshot_.controller_exit = diagnostics.exit_state;
+	snapshot_.controller_stderr = diagnostics.stderr_text;
+	snapshot_.megavgm_status_at_controller_launch =
+		diagnostics.megavgm_status_at_launch ? "YES" : "NO";
+	snapshot_.playlist_command_seen = diagnostics.command_fifo_seen ? "YES" : "NO";
+	snapshot_.playlist_status_seen = diagnostics.status_seen ? "YES" : "NO";
+	snapshot_.active_main_sha256 = diagnostics.active_main_sha256;
+	snapshot_.active_rbf_argv = diagnostics.active_rbf_argv;
+}
+
 OperationResult Supervisor::check_exit_request()
 {
 	if (!runtime_.exit_requested()) return OperationResult::success();
@@ -102,9 +118,11 @@ OperationResult Supervisor::enter(const std::string &playlist)
 	if (!result.ok) return rollback("status publication failed: " + result.detail);
 	controller_state_touched_ = true;
 	result = runtime_.start_playlist(playlist, controller_pid_);
+	refresh_controller_diagnostics();
 	if (!result.ok) return rollback("playlist start failed: " + result.detail);
 	controller_started_ = true;
 	result = runtime_.verify_playlist(controller_pid_);
+	refresh_controller_diagnostics();
 	if (!result.ok) return rollback("playlist verification failed: " + result.detail);
 	result = check_exit_request();
 	if (!result.ok) return rollback(result.detail);
@@ -178,8 +196,9 @@ OperationResult Supervisor::rollback(const std::string &reason,
 
 	std::vector<std::string> failures;
 	if (controller_started_) {
-		remember_failure(failures, "stop playlist",
-			runtime_.stop_playlist(controller_pid_));
+		const OperationResult stopped = runtime_.stop_playlist(controller_pid_);
+		remember_failure(failures, "stop playlist", stopped);
+		refresh_controller_diagnostics();
 		controller_started_ = false;
 		controller_pid_ = -1;
 	}
@@ -263,6 +282,7 @@ OperationResult Supervisor::monitor_once()
 		modified_pid_ = successor_pid;
 	}
 	if (!runtime_.process_alive(controller_pid_)) {
+		refresh_controller_diagnostics();
 		if (runtime_.playlist_complete())
 			return rollback("playlist completed normally", true);
 		return rollback("playlist controller exited unexpectedly");

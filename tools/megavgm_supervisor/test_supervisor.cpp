@@ -11,6 +11,7 @@
 #include <vector>
 
 using megavgm_supervisor::AtomicStatusPublisher;
+using megavgm_supervisor::ControllerDiagnostics;
 using megavgm_supervisor::InstanceLock;
 using megavgm_supervisor::OperationResult;
 using megavgm_supervisor::Runtime;
@@ -100,17 +101,58 @@ public:
 	OperationResult verify_megavgm_core(int &pid, const std::string &) override
 	{
 		verified_core_pid = pid;
-		return call("verify_megavgm_core");
+		OperationResult result = call("verify_megavgm_core");
+		if (!result.ok) return result;
+		if (status_scenario == "ABSENT_THEN_READY") {
+			status_probe_count = 2;
+			return OperationResult::success();
+		}
+		status_probe_count = 1;
+		if (status_scenario == "NEVER")
+			return OperationResult::failure("status readiness timeout");
+		if (status_scenario == "MALFORMED")
+			return OperationResult::failure("malformed status");
+		return OperationResult::success();
 	}
 	OperationResult start_playlist(const std::string &, int &pid) override
 	{
 		OperationResult result = call("start_playlist");
-		if (result.ok) pid = 202;
+		if (result.ok) {
+			pid = 202;
+			controller_diagnostic.pid = pid;
+			controller_diagnostic.megavgm_status_at_launch =
+				status_scenario == "READY" ||
+				status_scenario == "ABSENT_THEN_READY";
+			controller_diagnostic.active_main_sha256 = "modified-hash";
+			controller_diagnostic.active_rbf_argv = "/fixed/playlist.rbf";
+			if (!controller_exec_success) {
+				controller_diagnostic.exec_state = "FAILED:ENOENT";
+				controller_diagnostic.exit_state = "EXIT_CODE_127";
+				controller_diagnostic.stderr_text = "exec: ENOENT";
+				return OperationResult::failure("controller exec failed");
+			}
+			controller_diagnostic.exec_state = "SUCCESS";
+		}
 		return result;
 	}
 	OperationResult verify_playlist(int) override
 	{
-		return call("verify_playlist");
+		OperationResult result = call("verify_playlist");
+		if (result.ok) {
+			controller_diagnostic.command_fifo_seen = true;
+			controller_diagnostic.status_seen = true;
+		}
+		return result;
+	}
+	ControllerDiagnostics controller_diagnostics(int controller_pid,
+		int) override
+	{
+		if (controller_pid > 0) controller_diagnostic.pid = controller_pid;
+		if (!controller_alive && controller_diagnostic.exit_state == "NOT_OBSERVED") {
+			controller_diagnostic.exit_state = controller_exit_state;
+			controller_diagnostic.stderr_text = controller_stderr;
+		}
+		return controller_diagnostic;
 	}
 	bool process_alive(int pid) override
 	{
@@ -130,7 +172,13 @@ public:
 		calls.push_back("playlist_complete");
 		return controller_complete;
 	}
-	OperationResult stop_playlist(int) override { return call("stop_playlist"); }
+	OperationResult stop_playlist(int) override
+	{
+		OperationResult result = call("stop_playlist");
+		if (result.ok && controller_diagnostic.exit_state == "NOT_OBSERVED")
+			controller_diagnostic.exit_state = "SUPERVISOR_STOPPED";
+		return result;
+	}
 	OperationResult cleanup_playlist_state() override
 	{
 		return call("cleanup_playlist_state");
@@ -213,6 +261,12 @@ public:
 	bool modified_alive = false;
 	bool controller_alive = true;
 	bool controller_complete = false;
+	bool controller_exec_success = true;
+	std::string controller_exit_state = "EXIT_CODE_1";
+	std::string controller_stderr = "PLAYLIST FAILED";
+	std::string status_scenario = "READY";
+	int status_probe_count = 0;
+	ControllerDiagnostics controller_diagnostic;
 	bool startup_successor_available = true;
 	bool successor_sha_valid = true;
 	bool successor_rbf_argument = true;
@@ -245,6 +299,61 @@ void test_successful_enter()
 	assert(supervisor.snapshot().mode == "MEGAVGM");
 	assert(supervisor.snapshot().main == "MODIFIED");
 	assert(supervisor.snapshot().controller == "RUNNING");
+	assert(supervisor.snapshot().controller_pid == "202");
+	assert(supervisor.snapshot().controller_exec == "SUCCESS");
+	assert(supervisor.snapshot().megavgm_status_at_controller_launch == "YES");
+	assert(supervisor.snapshot().playlist_command_seen == "YES");
+	assert(supervisor.snapshot().playlist_status_seen == "YES");
+	assert(supervisor.snapshot().active_main_sha256 == "modified-hash");
+	assert(supervisor.snapshot().active_rbf_argv == "/fixed/playlist.rbf");
+}
+
+void test_status_absent_then_ready_before_controller_start()
+{
+	FakeRuntime runtime;
+	runtime.status_scenario = "ABSENT_THEN_READY";
+	RecordingPublisher publisher;
+	Supervisor supervisor(runtime, publisher);
+	assert(supervisor.enter("/music").ok);
+	assert(runtime.status_probe_count == 2);
+	assert(runtime.called("start_playlist"));
+	assert(supervisor.snapshot().megavgm_status_at_controller_launch == "YES");
+}
+
+void test_status_never_ready_rolls_back()
+{
+	FakeRuntime runtime;
+	runtime.status_scenario = "NEVER";
+	RecordingPublisher publisher;
+	Supervisor supervisor(runtime, publisher);
+	assert(!supervisor.enter("/music").ok);
+	expect_restored(supervisor);
+	assert(!runtime.called("start_playlist"));
+}
+
+void test_malformed_status_rolls_back()
+{
+	FakeRuntime runtime;
+	runtime.status_scenario = "MALFORMED";
+	RecordingPublisher publisher;
+	Supervisor supervisor(runtime, publisher);
+	assert(!supervisor.enter("/music").ok);
+	expect_restored(supervisor);
+	assert(!runtime.called("start_playlist"));
+}
+
+void test_controller_exec_failure_rolls_back_with_diagnostics()
+{
+	FakeRuntime runtime;
+	runtime.controller_exec_success = false;
+	RecordingPublisher publisher;
+	Supervisor supervisor(runtime, publisher);
+	assert(!supervisor.enter("/music").ok);
+	expect_restored(supervisor);
+	assert(supervisor.snapshot().controller_pid == "202");
+	assert(supervisor.snapshot().controller_exec == "FAILED:ENOENT");
+	assert(supervisor.snapshot().controller_exit == "EXIT_CODE_127");
+	assert(supervisor.snapshot().controller_stderr == "exec: ENOENT");
 }
 
 void test_modified_main_pid_replacement_during_core_load()
@@ -362,6 +471,8 @@ void test_playlist_controller_dies()
 	expect_restored(supervisor);
 	assert(supervisor.snapshot().detail.find("playlist controller exited unexpectedly") !=
 		std::string::npos);
+	assert(supervisor.snapshot().controller_exit == "EXIT_CODE_1");
+	assert(supervisor.snapshot().controller_stderr == "PLAYLIST FAILED");
 }
 
 void test_playlist_normal_complete_restores_stock()
@@ -569,6 +680,10 @@ void test_sha256_implementation()
 int main()
 {
 	test_successful_enter();
+	test_status_absent_then_ready_before_controller_start();
+	test_status_never_ready_rolls_back();
+	test_malformed_status_rolls_back();
+	test_controller_exec_failure_rolls_back_with_diagnostics();
 	test_modified_main_pid_replacement_during_core_load();
 	test_modified_main_pid_replacement_without_successor();
 	test_modified_main_pid_replacement_rejects_invalid_successor();

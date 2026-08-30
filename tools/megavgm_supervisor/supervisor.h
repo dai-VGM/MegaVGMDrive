@@ -20,6 +20,18 @@ struct VerifiedInputs {
 	std::string modified_sha256;
 };
 
+struct ControllerDiagnostics {
+	int pid = -1;
+	std::string exec_state = "NOT_STARTED";
+	std::string exit_state = "NOT_OBSERVED";
+	std::string stderr_text;
+	bool megavgm_status_at_launch = false;
+	bool command_fifo_seen = false;
+	bool status_seen = false;
+	std::string active_main_sha256;
+	std::string active_rbf_argv;
+};
+
 struct Snapshot {
 	std::string mode = "STOCK";
 	std::string main = "STOCK";
@@ -28,6 +40,15 @@ struct Snapshot {
 	std::string playlist;
 	std::string stock_sha256;
 	std::string modified_sha256;
+	std::string controller_pid = "-1";
+	std::string controller_exec = "NOT_STARTED";
+	std::string controller_exit = "NOT_OBSERVED";
+	std::string controller_stderr;
+	std::string megavgm_status_at_controller_launch = "NO";
+	std::string playlist_command_seen = "NO";
+	std::string playlist_status_seen = "NO";
+	std::string active_main_sha256;
+	std::string active_rbf_argv;
 	std::string detail;
 };
 
@@ -56,6 +77,8 @@ public:
 	virtual OperationResult start_playlist(const std::string &directory,
 		int &pid) = 0;
 	virtual OperationResult verify_playlist(int pid) = 0;
+	virtual ControllerDiagnostics controller_diagnostics(int controller_pid,
+		int modified_pid) = 0;
 	virtual bool process_alive(int pid) = 0;
 	virtual bool playlist_complete() = 0;
 	virtual OperationResult stop_playlist(int pid) = 0;
@@ -88,6 +111,7 @@ private:
 	OperationResult rollback(const std::string &reason,
 		bool orderly_restore = false);
 	OperationResult drain_modified_mains();
+	void refresh_controller_diagnostics();
 	OperationResult publish();
 	void remember_failure(std::vector<std::string> &failures,
 		const std::string &operation, const OperationResult &result);

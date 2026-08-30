@@ -50,12 +50,24 @@ Runtime files:
 /tmp/megavgm_supervisor.sock
 /tmp/megavgm_supervisor.status
 /tmp/megavgm_supervisor.log
+/tmp/megavgm_playlist.stderr
 ```
+
+The supervisor status also preserves passive controller diagnostics across
+rollback: child PID, exec result, exit code or signal, concise captured stderr,
+MegaVGM status readiness at launch, controller FIFO/status observation, active
+modified-Main SHA-256, and the verified RBF argv.
 
 The RBF is loaded through the existing Main-owned `/dev/MiSTer_cmd`
 `load_core` endpoint. The supervisor never programs the FPGA directly.
 The Phase 1F controller remains the sole owner of `load_file`, sessions,
 loop policy, and NEXT/PREV.
+
+Before launching the controller, S1 waits up to ten seconds for both the core
+identity and a status record accepted by the same strict v1/v2 parser used by
+the controller. A missing or temporarily incomplete record may become ready
+within that bound; a persistently missing, malformed, or unsupported record
+causes safe rollback. This is a readiness predicate, not a fixed delay.
 
 MiSTer Main intentionally restarts itself after an RBF load. The process that
 accepted `load_core` exits after forking a successor, and the successor runs

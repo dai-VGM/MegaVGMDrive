@@ -1,6 +1,7 @@
 #include "linux_runtime.h"
 
 #include "sha256.h"
+#include "../megavgm_autoplay2/autoplay2.h"
 
 #include <algorithm>
 #include <cerrno>
@@ -10,6 +11,7 @@
 #include <dirent.h>
 #include <fcntl.h>
 #include <fstream>
+#include <poll.h>
 #include <sstream>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -473,16 +475,21 @@ OperationResult LinuxRuntime::verify_megavgm_core(int &modified_pid,
 		if (!read_text_file(paths_.core_name, name, detail, 256)) return false;
 		name = trim(name);
 		if (name != "MegaVGMPlayer" && name != "MegaVGMDrive") return false;
-		std::string status;
-		if (!read_text_file(paths_.megavgm_status, status, detail, 4096))
-			return false;
-		return status.find("version=") != std::string::npos &&
-			status.find("session=") != std::string::npos &&
-			status.find("state=") != std::string::npos;
+		return valid_megavgm_status(detail);
 	}, 10000);
 	return active ? OperationResult::success() :
 		OperationResult::failure(
 			"verified successor Main and MegaVGMPlayer CORENAME/status not observed");
+}
+
+bool LinuxRuntime::valid_megavgm_status(std::string &detail)
+{
+	std::string status_text;
+	if (!read_text_file(paths_.megavgm_status, status_text, detail, 512))
+		return false;
+	megavgm_autoplay2::PlaybackStatus status;
+	return megavgm_autoplay2::parse_status_text(status_text, status, detail) ==
+		megavgm_autoplay2::StatusReadResult::Ok;
 }
 
 OperationResult LinuxRuntime::remove_controller_path(const std::string &path,
@@ -504,26 +511,99 @@ OperationResult LinuxRuntime::remove_controller_path(const std::string &path,
 OperationResult LinuxRuntime::launch_playlist(const std::string &directory,
 	int &pid)
 {
+	int exec_status[2] = {-1, -1};
+	if (pipe(exec_status) < 0) return OperationResult::failure(std::strerror(errno));
+	if (fcntl(exec_status[0], F_SETFD, FD_CLOEXEC) < 0 ||
+		fcntl(exec_status[1], F_SETFD, FD_CLOEXEC) < 0) {
+		const std::string detail = std::strerror(errno);
+		close(exec_status[0]);
+		close(exec_status[1]);
+		return OperationResult::failure(detail);
+	}
+	const int error_log = open(paths_.playlist_stderr.c_str(),
+		O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0600);
+	if (error_log < 0) {
+		const std::string detail = std::strerror(errno);
+		close(exec_status[0]);
+		close(exec_status[1]);
+		return OperationResult::failure(detail);
+	}
 	pid = fork();
-	if (pid < 0) return OperationResult::failure(std::strerror(errno));
+	if (pid < 0) {
+		const std::string detail = std::strerror(errno);
+		close(error_log);
+		close(exec_status[0]);
+		close(exec_status[1]);
+		return OperationResult::failure(detail);
+	}
 	if (pid == 0) {
-		if (chdir("/") < 0) _exit(126);
+		close(exec_status[0]);
+		auto report_exec_error = [&](int error, int exit_code) {
+			while (write(exec_status[1], &error, sizeof(error)) < 0 && errno == EINTR) {}
+			_exit(exit_code);
+		};
+		if (chdir("/") < 0) report_exec_error(errno, 126);
 		const int input = open("/dev/null", O_RDONLY);
 		const int console = open("/dev/console", O_WRONLY);
 		if (input < 0 || console < 0 || dup2(input, STDIN_FILENO) < 0 ||
-			dup2(console, STDOUT_FILENO) < 0 || dup2(console, STDERR_FILENO) < 0)
-			_exit(126);
+			dup2(console, STDOUT_FILENO) < 0 || dup2(error_log, STDERR_FILENO) < 0)
+			report_exec_error(errno, 126);
 		if (input > STDERR_FILENO) close(input);
 		if (console > STDERR_FILENO) close(console);
+		if (error_log > STDERR_FILENO) close(error_log);
 		char loops[] = "--loops";
 		char count[] = "2";
 		char *const arguments[] = {
 			const_cast<char *>(paths_.playlist_binary.c_str()), loops, count,
 			const_cast<char *>(directory.c_str()), nullptr};
 		execv(paths_.playlist_binary.c_str(), arguments);
-		_exit(127);
+		report_exec_error(errno, 127);
 	}
-	return OperationResult::success();
+	close(error_log);
+	close(exec_status[1]);
+	controller_diagnostics_state_.pid = pid;
+	struct pollfd descriptor = {exec_status[0], POLLIN | POLLHUP, 0};
+	int poll_result;
+	do {
+		poll_result = poll(&descriptor, 1, 3000);
+	} while (poll_result < 0 && errno == EINTR);
+	if (poll_result <= 0) {
+		const std::string detail = poll_result == 0 ?
+			"controller exec status timeout" : std::strerror(errno);
+		kill(pid, SIGKILL);
+		waitpid(pid, nullptr, 0);
+		close(exec_status[0]);
+		controller_diagnostics_state_.exec_state = "FAILED:" + detail;
+		controller_diagnostics_state_.exit_state = "SIGNAL_9";
+		return OperationResult::failure(detail);
+	}
+	int exec_error = 0;
+	ssize_t bytes;
+	do {
+		bytes = read(exec_status[0], &exec_error, sizeof(exec_error));
+	} while (bytes < 0 && errno == EINTR);
+	close(exec_status[0]);
+	if (bytes == 0) {
+		controller_diagnostics_state_.exec_state = "SUCCESS";
+		return OperationResult::success();
+	}
+	if (bytes == static_cast<ssize_t>(sizeof(exec_error))) {
+		int wait_status = 0;
+		waitpid(pid, &wait_status, 0);
+		controller_diagnostics_state_.exec_state =
+			"FAILED:" + std::string(std::strerror(exec_error));
+		controller_diagnostics_state_.exit_state = WIFEXITED(wait_status) ?
+			"EXIT_CODE_" + std::to_string(WEXITSTATUS(wait_status)) : "UNKNOWN";
+		controller_diagnostics_state_.stderr_text =
+			"exec: " + std::string(std::strerror(exec_error));
+		return OperationResult::failure(
+			"controller exec failed: " + std::string(std::strerror(exec_error)));
+	}
+	kill(pid, SIGKILL);
+	waitpid(pid, nullptr, 0);
+	controller_diagnostics_state_.exec_state = "FAILED:invalid exec status";
+	controller_diagnostics_state_.exit_state = "SIGNAL_9";
+	return OperationResult::failure("invalid controller exec status");
 }
 
 OperationResult LinuxRuntime::start_playlist(const std::string &directory,
@@ -533,6 +613,12 @@ OperationResult LinuxRuntime::start_playlist(const std::string &directory,
 	if (!result.ok) return result;
 	result = remove_controller_path(paths_.playlist_status, false);
 	if (!result.ok) return result;
+	result = remove_controller_path(paths_.playlist_stderr, false);
+	if (!result.ok) return result;
+	controller_diagnostics_state_ = ControllerDiagnostics{};
+	std::string readiness_detail;
+	controller_diagnostics_state_.megavgm_status_at_launch =
+		valid_megavgm_status(readiness_detail);
 	return launch_playlist(directory, pid);
 }
 
@@ -546,10 +632,14 @@ OperationResult LinuxRuntime::verify_playlist(int pid)
 		}
 		struct stat command = {};
 		struct stat status = {};
-		if (lstat(paths_.playlist_command.c_str(), &command) < 0 ||
-			!S_ISFIFO(command.st_mode) ||
-			lstat(paths_.playlist_status.c_str(), &status) < 0 ||
-			!S_ISREG(status.st_mode)) return false;
+		if (lstat(paths_.playlist_command.c_str(), &command) == 0 &&
+			S_ISFIFO(command.st_mode))
+			controller_diagnostics_state_.command_fifo_seen = true;
+		if (lstat(paths_.playlist_status.c_str(), &status) == 0 &&
+			S_ISREG(status.st_mode))
+			controller_diagnostics_state_.status_seen = true;
+		if (!controller_diagnostics_state_.command_fifo_seen ||
+			!controller_diagnostics_state_.status_seen) return false;
 		std::string content;
 		std::string detail;
 		return read_text_file(paths_.playlist_status, content, detail) &&
@@ -559,6 +649,59 @@ OperationResult LinuxRuntime::verify_playlist(int pid)
 	if (died) return OperationResult::failure("playlist controller exited during startup");
 	return ready ? OperationResult::success() :
 		OperationResult::failure("playlist FIFO/status did not appear");
+}
+
+void LinuxRuntime::update_controller_exit_status(int controller_pid)
+{
+	if (controller_pid <= 0 ||
+		controller_diagnostics_state_.exit_state != "NOT_OBSERVED") return;
+	int wait_status = 0;
+	const pid_t waited = waitpid(controller_pid, &wait_status, WNOHANG);
+	if (waited != controller_pid) return;
+	if (WIFEXITED(wait_status))
+		controller_diagnostics_state_.exit_state =
+			"EXIT_CODE_" + std::to_string(WEXITSTATUS(wait_status));
+	else if (WIFSIGNALED(wait_status))
+		controller_diagnostics_state_.exit_state =
+			"SIGNAL_" + std::to_string(WTERMSIG(wait_status));
+	else
+		controller_diagnostics_state_.exit_state = "UNKNOWN";
+}
+
+void LinuxRuntime::update_controller_stderr()
+{
+	const int fd = open(paths_.playlist_stderr.c_str(), O_RDONLY | O_CLOEXEC);
+	if (fd < 0) return;
+	char buffer[512];
+	ssize_t bytes;
+	do {
+		bytes = read(fd, buffer, sizeof(buffer));
+	} while (bytes < 0 && errno == EINTR);
+	close(fd);
+	if (bytes <= 0) return;
+	std::string content(buffer, static_cast<std::size_t>(bytes));
+	for (char &character : content) {
+		const unsigned char value = static_cast<unsigned char>(character);
+		if (value < 0x20 || value == 0x7f) character = ' ';
+	}
+	while (!content.empty() && content.back() == ' ') content.pop_back();
+	if (!content.empty()) controller_diagnostics_state_.stderr_text = content;
+}
+
+ControllerDiagnostics LinuxRuntime::controller_diagnostics(int controller_pid,
+	int modified_pid)
+{
+	if (controller_pid > 0) controller_diagnostics_state_.pid = controller_pid;
+	update_controller_exit_status(controller_pid);
+	update_controller_stderr();
+	std::string digest;
+	std::string detail;
+	if (modified_pid > 0 &&
+		sha256_file(proc_path(modified_pid, "exe"), digest, detail))
+		controller_diagnostics_state_.active_main_sha256 = digest;
+	if (modified_pid > 0 && process_has_argument(modified_pid, paths_.rbf))
+		controller_diagnostics_state_.active_rbf_argv = paths_.rbf;
+	return controller_diagnostics_state_;
 }
 
 bool LinuxRuntime::playlist_complete()
@@ -573,7 +716,11 @@ bool LinuxRuntime::playlist_complete()
 
 OperationResult LinuxRuntime::stop_playlist(int pid)
 {
-	return stop_process(pid, "playlist controller");
+	OperationResult result = stop_process(pid, "playlist controller");
+	if (result.ok && controller_diagnostics_state_.exit_state == "NOT_OBSERVED")
+		controller_diagnostics_state_.exit_state = "SUPERVISOR_STOPPED";
+	update_controller_stderr();
+	return result;
 }
 
 OperationResult LinuxRuntime::cleanup_playlist_state()
