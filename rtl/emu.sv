@@ -1751,7 +1751,10 @@ module emu
 
     megavgm_playlist_status_export playlist_status_export (
         .clk                    (clk_sys),
-        .reset                  (reset),
+        // A valid status record is also the host automation readiness
+        // contract.  Do not publish IDLE while the mode-5 loader/backend is
+        // still held in the longer post-core-load reset.
+        .reset                  (vgm_reset),
         .hps_status             (status),
         .playback_session_id    (mode5_playback_session_id),
         .vgm_load_busy          (vgm_load_busy),
