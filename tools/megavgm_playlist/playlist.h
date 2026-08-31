@@ -41,6 +41,7 @@ enum class PlaylistResult {
 
 struct PlaylistConfig {
 	std::uint16_t loop_limit = 2;
+	std::size_t start_index = 0;
 	std::uint64_t session_timeout_ms = 60000;
 	std::uint64_t playing_timeout_ms = 60000;
 	// Zero intentionally disables normal playback timeout.

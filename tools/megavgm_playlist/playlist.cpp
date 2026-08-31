@@ -36,6 +36,25 @@ std::string join_path(const std::string &directory, const std::string &name)
 	return directory + '/' + name;
 }
 
+std::string parent_path(const std::string &path)
+{
+	const std::size_t separator = path.find_last_of('/');
+	if (separator == std::string::npos) return {};
+	return separator == 0 ? "/" : path.substr(0, separator);
+}
+
+bool find_track(const std::vector<Track> &tracks, const std::string &path,
+		std::size_t &index)
+{
+	for (std::size_t candidate = 0; candidate < tracks.size(); ++candidate) {
+		if (tracks[candidate].path == path) {
+			index = candidate;
+			return true;
+		}
+	}
+	return false;
+}
+
 PlaylistResult map_status_read_result(StatusReadResult result)
 {
 	switch (result) {
@@ -245,7 +264,10 @@ PlaylistResult run(Runtime &runtime, const PlaylistConfig &config,
 	std::uint32_t baseline_session = status.session;
 	log << "INITIAL_FPGA_SESSION=" << baseline_session << '\n';
 	std::size_t skipped = 0;
-	std::size_t index = 0;
+	std::vector<Track> active_tracks = tracks;
+	if (active_tracks.empty() || config.start_index >= active_tracks.size())
+		return PlaylistResult::InvalidTrackPath;
+	std::size_t index = config.start_index;
 
 	auto control_error = [&](const char *operation,
 			const std::string &detail) -> PlaylistResult {
@@ -259,8 +281,8 @@ PlaylistResult run(Runtime &runtime, const PlaylistConfig &config,
 		if (!controller) return true;
 		ControllerSnapshot snapshot;
 		snapshot.state = state;
-		snapshot.index = index < tracks.size() ? index + 1 : tracks.size();
-		snapshot.count = tracks.size();
+		snapshot.index = index < active_tracks.size() ? index + 1 : active_tracks.size();
+		snapshot.count = active_tracks.size();
 		snapshot.path = track.path;
 		snapshot.session = session;
 		snapshot.loop_count = loop_count;
@@ -277,9 +299,9 @@ PlaylistResult run(Runtime &runtime, const PlaylistConfig &config,
 		return false;
 	};
 
-	while (index < tracks.size()) {
-		const Track &track = tracks[index];
-		log << '\n' << '[' << index + 1 << '/' << tracks.size() << "] "
+	while (index < active_tracks.size()) {
+		const Track &track = active_tracks[index];
+		log << '\n' << '[' << index + 1 << '/' << active_tracks.size() << "] "
 		    << track.name << '\n';
 		const std::uint64_t request_started_ms = runtime.monotonic_ms();
 		log << "LOAD_FILE_REQUEST path=" << track.path
@@ -372,7 +394,7 @@ PlaylistResult run(Runtime &runtime, const PlaylistConfig &config,
 		}
 
 		if (fatal) {
-			log_fatal(log, index, tracks.size(), track, status);
+			log_fatal(log, index, active_tracks.size(), track, status);
 			baseline_session = owned_session;
 			skipped++;
 			index++;
@@ -387,14 +409,16 @@ PlaylistResult run(Runtime &runtime, const PlaylistConfig &config,
 		// the just-finished load window and is intentionally discarded.
 		if (!discard_commands()) return PlaylistResult::ControlIoError;
 		bool navigation_claimed = false;
-		NavigationCommand navigation = NavigationCommand::Next;
+		ControlCommand control_command;
+		std::vector<Track> replacement_tracks;
+		std::size_t replacement_index = 0;
 		deadline = runtime.monotonic_ms() + config.end_timeout_ms;
 		while (!ended && !fatal && !loop_limit_reached) {
 			monitor.sleep();
 			if (controller) {
 				std::string control_detail;
 				const ControlPollResult control_result =
-					controller->poll_command(navigation, control_detail);
+					controller->poll_command(control_command, control_detail);
 				if (control_result == ControlPollResult::IoError)
 					return control_error("command read", control_detail);
 				if (control_result == ControlPollResult::Invalid) {
@@ -402,6 +426,19 @@ PlaylistResult run(Runtime &runtime, const PlaylistConfig &config,
 					if (!control_detail.empty()) log << ": " << control_detail;
 					log << '\n';
 				} else if (control_result == ControlPollResult::Command) {
+					if (control_command.type == ControlCommandType::Play) {
+						const DiscoveryResult discovery = discover_directory(
+							parent_path(control_command.path), replacement_tracks,
+							control_detail);
+						if (discovery != DiscoveryResult::Ok ||
+						    !find_track(replacement_tracks, control_command.path,
+								replacement_index)) {
+							log << "CONTROL_IGNORED: invalid PLAY selection";
+							if (!control_detail.empty()) log << ": " << control_detail;
+							log << '\n';
+							continue;
+						}
+					}
 					navigation_claimed = true;
 					break;
 				}
@@ -434,12 +471,18 @@ PlaylistResult run(Runtime &runtime, const PlaylistConfig &config,
 
 		baseline_session = owned_session;
 		if (navigation_claimed) {
-			log << "navigation=" << navigation_command_name(navigation) << '\n';
-			if (!publish(navigation_command_name(navigation), track,
+			log << "navigation=" << control_command_name(control_command.type);
+			if (control_command.type == ControlCommandType::Play)
+				log << " path=" << control_command.path;
+			log << '\n';
+			if (!publish(control_command_name(control_command.type), track,
 					owned_session, status.loop_count))
 				return PlaylistResult::ControlIoError;
-			if (navigation == NavigationCommand::Next) {
-				if (index + 1 >= tracks.size()) {
+			if (control_command.type == ControlCommandType::Play) {
+				active_tracks = std::move(replacement_tracks);
+				index = replacement_index;
+			} else if (control_command.type == ControlCommandType::Next) {
+				if (index + 1 >= active_tracks.size()) {
 					if (!publish("COMPLETE", track, owned_session,
 							status.loop_count))
 						return PlaylistResult::ControlIoError;
@@ -454,7 +497,7 @@ PlaylistResult run(Runtime &runtime, const PlaylistConfig &config,
 			continue;
 		}
 		if (fatal) {
-			log_fatal(log, index, tracks.size(), track, status);
+			log_fatal(log, index, active_tracks.size(), track, status);
 			skipped++;
 		}
 		else if (loop_limit_reached) {
@@ -463,8 +506,9 @@ PlaylistResult run(Runtime &runtime, const PlaylistConfig &config,
 		index++;
 	}
 
-	if (!tracks.empty() &&
-	    !publish("COMPLETE", tracks.back(), baseline_session, status.loop_count))
+	if (!active_tracks.empty() &&
+	    !publish("COMPLETE", active_tracks.back(), baseline_session,
+		status.loop_count))
 		return PlaylistResult::ControlIoError;
 	log << '\n' << "PLAYLIST COMPLETE\n";
 	if (skipped != 0) log << "skipped=" << skipped << '\n';

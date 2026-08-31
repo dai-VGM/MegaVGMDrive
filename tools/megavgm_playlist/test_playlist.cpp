@@ -107,7 +107,8 @@ private:
 
 struct ControlEvent {
 	std::size_t after_reads;
-	NavigationCommand command;
+	ControlCommandType type;
+	std::string path;
 };
 
 class ScriptController final : public ControllerIo {
@@ -117,7 +118,7 @@ public:
 	{
 	}
 
-	ControlPollResult poll_command(NavigationCommand &command,
+	ControlPollResult poll_command(ControlCommand &command,
 			std::string &detail) override
 	{
 		if (position_ >= events_.size() ||
@@ -125,7 +126,9 @@ public:
 			detail.clear();
 			return ControlPollResult::None;
 		}
-		command = events_[position_++].command;
+		const ControlEvent &event = events_[position_++];
+		command.type = event.type;
+		command.path = event.path;
 		detail.clear();
 		return ControlPollResult::Command;
 	}
@@ -182,13 +185,15 @@ PlaylistResult execute(std::vector<Frame> frames, std::vector<Track> tracks,
 		ScriptRuntime **out_runtime = nullptr, std::string *out_log = nullptr,
 		std::uint16_t loop_limit = 2,
 		std::vector<ControlEvent> control_events = {},
-		ScriptController **out_controller = nullptr)
+		ScriptController **out_controller = nullptr,
+		std::size_t start_index = 0)
 {
 	auto *runtime = new ScriptRuntime(std::move(frames));
 	auto *controller = new ScriptController(*runtime, std::move(control_events));
 	std::ostringstream log;
 	PlaylistConfig config = fast_config();
 	config.loop_limit = loop_limit;
+	config.start_index = start_index;
 	const PlaylistResult result = run(*runtime, config, tracks, log, controller);
 	if (out_log) *out_log = log.str();
 	if (out_controller) *out_controller = controller;
@@ -197,6 +202,8 @@ PlaylistResult execute(std::vector<Frame> frames, std::vector<Track> tracks,
 	else delete runtime;
 	return result;
 }
+
+void create_file(const std::string &path);
 
 void test_native_loop_limit_and_stale_reset()
 {
@@ -285,7 +292,7 @@ void test_next_during_track_two_and_stale_end()
 		ok(12, PlaybackState::Playing),
 		ok(12, PlaybackState::Ended)
 	}, tracks, &runtime, &log, 2,
-		{{5, NavigationCommand::Next}}, &controller);
+		{{5, ControlCommandType::Next, {}}}, &controller);
 	assert(result == PlaylistResult::Complete);
 	assert(runtime->commands.size() == 3);
 	assert(runtime->commands[1] == "load_file 1 " + tracks[1].path + "\n");
@@ -325,7 +332,7 @@ void test_previous_during_track_three()
 		ok(14, PlaybackState::Playing),
 		ok(14, PlaybackState::Ended)
 	}, tracks, &runtime, nullptr, 2,
-		{{7, NavigationCommand::Previous}});
+		{{7, ControlCommandType::Previous, {}}});
 	assert(result == PlaylistResult::Complete);
 	assert(runtime->commands.size() == 5);
 	assert(runtime->commands[2] == "load_file 1 " + tracks[2].path + "\n");
@@ -348,7 +355,7 @@ void test_previous_restarts_first_track()
 		ok(11, PlaybackState::Playing),
 		ok(11, PlaybackState::Ended)
 	}, tracks, &runtime, nullptr, 2,
-		{{3, NavigationCommand::Previous}});
+		{{3, ControlCommandType::Previous, {}}});
 	assert(result == PlaylistResult::Complete);
 	assert(runtime->commands.size() == 2);
 	assert(runtime->commands[0] == runtime->commands[1]);
@@ -366,7 +373,7 @@ void test_next_at_last_track_completes()
 		ok(10, PlaybackState::Playing),
 		ok(10, PlaybackState::Playing)
 	}, tracks, &runtime, nullptr, 2,
-		{{3, NavigationCommand::Next}});
+		{{3, ControlCommandType::Next, {}}});
 	assert(result == PlaylistResult::Complete);
 	assert(runtime->commands.size() == 1);
 	delete runtime;
@@ -387,7 +394,7 @@ void test_next_wins_loop_limit_race()
 		loop_status(11, PlaybackState::Playing, false, 0),
 		loop_status(11, PlaybackState::Ended, false, 0)
 	}, tracks, &runtime, nullptr, 2,
-		{{3, NavigationCommand::Next}});
+		{{3, ControlCommandType::Next, {}}});
 	assert(result == PlaylistResult::Complete);
 	assert(runtime->commands.size() == 2);
 	delete runtime;
@@ -408,7 +415,8 @@ void test_rapid_next_is_ignored_during_owned_load()
 		ok(12, PlaybackState::Playing),
 		ok(12, PlaybackState::Ended)
 	}, tracks, &runtime, nullptr, 2,
-		{{3, NavigationCommand::Next}, {3, NavigationCommand::Next}},
+		{{3, ControlCommandType::Next, {}},
+		 {3, ControlCommandType::Next, {}}},
 		&controller);
 	assert(result == PlaylistResult::Complete);
 	assert(runtime->commands.size() == 3);

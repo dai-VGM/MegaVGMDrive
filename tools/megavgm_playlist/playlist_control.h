@@ -7,9 +7,15 @@
 
 namespace megavgm_playlist {
 
-enum class NavigationCommand {
+enum class ControlCommandType {
 	Next,
-	Previous
+	Previous,
+	Play
+};
+
+struct ControlCommand {
+	ControlCommandType type = ControlCommandType::Next;
+	std::string path;
 };
 
 enum class ControlPollResult {
@@ -31,7 +37,7 @@ struct ControllerSnapshot {
 class ControllerIo {
 public:
 	virtual ~ControllerIo() = default;
-	virtual ControlPollResult poll_command(NavigationCommand &command,
+	virtual ControlPollResult poll_command(ControlCommand &command,
 			std::string &detail) = 0;
 	virtual bool discard_commands(std::string &detail) = 0;
 	virtual bool publish(const ControllerSnapshot &snapshot,
@@ -46,14 +52,14 @@ public:
 	~PosixControllerIo() override;
 
 	bool start(std::string &detail);
-	ControlPollResult poll_command(NavigationCommand &command,
+	ControlPollResult poll_command(ControlCommand &command,
 			std::string &detail) override;
 	bool discard_commands(std::string &detail) override;
 	bool publish(const ControllerSnapshot &snapshot,
 			std::string &detail) override;
 
 private:
-	ControlPollResult parse_buffered_command(NavigationCommand &command,
+	ControlPollResult parse_buffered_command(ControlCommand &command,
 			std::string &detail);
 	bool drain_fd(std::string &detail);
 
@@ -68,8 +74,10 @@ private:
 };
 
 bool send_navigation_command(const std::string &command_path,
-		NavigationCommand command, std::string &detail);
-const char *navigation_command_name(NavigationCommand command);
+		ControlCommandType command, std::string &detail);
+bool send_play_command(const std::string &command_path,
+		const std::string &path, std::string &detail);
+const char *control_command_name(ControlCommandType command);
 
 } // namespace megavgm_playlist
 

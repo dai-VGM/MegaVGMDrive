@@ -41,17 +41,25 @@ int main()
 		assert(S_ISFIFO(attributes.st_mode));
 
 		assert(send_navigation_command(command_path,
-			NavigationCommand::Next, detail));
-		NavigationCommand command = NavigationCommand::Previous;
+			ControlCommandType::Next, detail));
+		ControlCommand command;
 		assert(controller.poll_command(command, detail) ==
 			ControlPollResult::Command);
-		assert(command == NavigationCommand::Next);
+		assert(command.type == ControlCommandType::Next);
 
 		assert(send_navigation_command(command_path,
-			NavigationCommand::Previous, detail));
+			ControlCommandType::Previous, detail));
 		assert(controller.poll_command(command, detail) ==
 			ControlPollResult::Command);
-		assert(command == NavigationCommand::Previous);
+		assert(command.type == ControlCommandType::Previous);
+
+		const std::string play_path =
+			"/media/fat/MegaVGMDrive/01 Arcade/[日本語] Stage.vgm";
+		assert(send_play_command(command_path, play_path, detail));
+		assert(controller.poll_command(command, detail) ==
+			ControlPollResult::Command);
+		assert(command.type == ControlCommandType::Play);
+		assert(command.path == play_path);
 
 		const int writer = open(command_path.c_str(),
 			O_WRONLY | O_NONBLOCK | O_CLOEXEC);
@@ -67,9 +75,9 @@ int main()
 		// The controller can discard a rapid command burst during its owned
 		// load window, matching the Phase 1F serialization policy.
 		assert(send_navigation_command(command_path,
-			NavigationCommand::Next, detail));
+			ControlCommandType::Next, detail));
 		assert(send_navigation_command(command_path,
-			NavigationCommand::Next, detail));
+			ControlCommandType::Next, detail));
 		assert(controller.poll_command(command, detail) ==
 			ControlPollResult::Command);
 		assert(controller.discard_commands(detail));

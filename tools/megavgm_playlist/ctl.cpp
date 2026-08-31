@@ -6,24 +6,30 @@
 int main(int argc, char **argv)
 {
 	std::signal(SIGPIPE, SIG_IGN);
-	if (argc != 2) {
-		std::cerr << "Usage: megavgm_ctl next|prev\n";
+	if (argc < 2 || argc > 3) {
+		std::cerr << "Usage: megavgm_ctl next|prev|play <absolute-vgm-path>\n";
 		return 2;
 	}
 
-	megavgm_playlist::NavigationCommand command;
 	const std::string argument(argv[1]);
-	if (argument == "next") command = megavgm_playlist::NavigationCommand::Next;
-	else if (argument == "prev")
-		command = megavgm_playlist::NavigationCommand::Previous;
+	std::string detail;
+	bool sent = false;
+	if (argc == 2 && argument == "next")
+		sent = megavgm_playlist::send_navigation_command(
+			"/tmp/megavgm_playlist.cmd",
+			megavgm_playlist::ControlCommandType::Next, detail);
+	else if (argc == 2 && argument == "prev")
+		sent = megavgm_playlist::send_navigation_command(
+			"/tmp/megavgm_playlist.cmd",
+			megavgm_playlist::ControlCommandType::Previous, detail);
+	else if (argc == 3 && argument == "play")
+		sent = megavgm_playlist::send_play_command(
+			"/tmp/megavgm_playlist.cmd", argv[2], detail);
 	else {
-		std::cerr << "Usage: megavgm_ctl next|prev\n";
+		std::cerr << "Usage: megavgm_ctl next|prev|play <absolute-vgm-path>\n";
 		return 2;
 	}
-
-	std::string detail;
-	if (!megavgm_playlist::send_navigation_command(
-			"/tmp/megavgm_playlist.cmd", command, detail)) {
+	if (!sent) {
 		std::cerr << "CONTROL_WRITE_FAILED: " << detail << '\n';
 		return 1;
 	}

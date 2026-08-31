@@ -12,7 +12,7 @@
 namespace megavgm_playlist {
 namespace {
 
-constexpr std::size_t kMaximumControlBuffer = 256;
+constexpr std::size_t kMaximumControlBuffer = 4096;
 
 bool write_all(int fd, const char *data, std::size_t size, std::string &detail)
 {
@@ -44,9 +44,14 @@ std::string snapshot_text(const ControllerSnapshot &snapshot)
 
 } // namespace
 
-const char *navigation_command_name(NavigationCommand command)
+const char *control_command_name(ControlCommandType command)
 {
-	return command == NavigationCommand::Next ? "NEXT" : "PREV";
+	switch (command) {
+	case ControlCommandType::Next: return "NEXT";
+	case ControlCommandType::Previous: return "PREV";
+	case ControlCommandType::Play: return "PLAY";
+	}
+	return "UNKNOWN";
 }
 
 PosixControllerIo::PosixControllerIo(std::string command_path,
@@ -109,21 +114,30 @@ bool PosixControllerIo::start(std::string &detail)
 }
 
 ControlPollResult PosixControllerIo::parse_buffered_command(
-		NavigationCommand &command, std::string &detail)
+		ControlCommand &command, std::string &detail)
 {
 	const std::size_t newline = input_buffer_.find('\n');
 	if (newline == std::string::npos) {
 		if (input_buffer_.size() <= kMaximumControlBuffer)
 			return ControlPollResult::None;
 		input_buffer_.clear();
-		detail = "command exceeds 256 bytes";
+		detail = "command exceeds 4096 bytes";
 		return ControlPollResult::Invalid;
 	}
 	std::string line = input_buffer_.substr(0, newline);
 	input_buffer_.erase(0, newline + 1);
 	if (!line.empty() && line.back() == '\r') line.pop_back();
-	if (line == "NEXT") command = NavigationCommand::Next;
-	else if (line == "PREV") command = NavigationCommand::Previous;
+	command.path.clear();
+	if (line == "NEXT") command.type = ControlCommandType::Next;
+	else if (line == "PREV") command.type = ControlCommandType::Previous;
+	else if (line.compare(0, 5, "PLAY ") == 0 && line.size() > 5) {
+		command.type = ControlCommandType::Play;
+		command.path = line.substr(5);
+		if (command.path.size() > 4090 || command.path.front() != '/') {
+			detail = "invalid PLAY path";
+			return ControlPollResult::Invalid;
+		}
+	}
 	else {
 		detail = "unknown command: " + line;
 		return ControlPollResult::Invalid;
@@ -132,7 +146,7 @@ ControlPollResult PosixControllerIo::parse_buffered_command(
 	return ControlPollResult::Command;
 }
 
-ControlPollResult PosixControllerIo::poll_command(NavigationCommand &command,
+ControlPollResult PosixControllerIo::poll_command(ControlCommand &command,
 		std::string &detail)
 {
 	ControlPollResult result = parse_buffered_command(command, detail);
@@ -226,14 +240,41 @@ bool PosixControllerIo::publish(const ControllerSnapshot &snapshot,
 }
 
 bool send_navigation_command(const std::string &command_path,
-		NavigationCommand command, std::string &detail)
+		ControlCommandType command, std::string &detail)
 {
+	if (command == ControlCommandType::Play) {
+		detail = "PLAY requires a path";
+		return false;
+	}
 	const int fd = open(command_path.c_str(), O_WRONLY | O_NONBLOCK | O_CLOEXEC);
 	if (fd < 0) {
 		detail = std::strerror(errno);
 		return false;
 	}
-	const std::string text = std::string(navigation_command_name(command)) + '\n';
+	const std::string text = std::string(control_command_name(command)) + '\n';
+	bool ok = write_all(fd, text.data(), text.size(), detail);
+	if (close(fd) < 0 && ok) {
+		detail = std::strerror(errno);
+		ok = false;
+	}
+	return ok;
+}
+
+bool send_play_command(const std::string &command_path,
+		const std::string &path, std::string &detail)
+{
+	if (path.empty() || path.size() > 4090 || path.front() != '/' ||
+	    path.find('\n') != std::string::npos ||
+	    path.find('\r') != std::string::npos) {
+		detail = "invalid PLAY path";
+		return false;
+	}
+	const int fd = open(command_path.c_str(), O_WRONLY | O_NONBLOCK | O_CLOEXEC);
+	if (fd < 0) {
+		detail = std::strerror(errno);
+		return false;
+	}
+	const std::string text = "PLAY " + path + '\n';
 	bool ok = write_all(fd, text.data(), text.size(), detail);
 	if (close(fd) < 0 && ok) {
 		detail = std::strerror(errno);

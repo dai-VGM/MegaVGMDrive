@@ -44,8 +44,11 @@ public:
 		return OperationResult::success();
 	}
 
-	OperationResult verify_inputs(const std::string &, VerifiedInputs &inputs) override
+	OperationResult verify_inputs(const std::string &playlist,
+		const std::string &start_file, VerifiedInputs &inputs) override
 	{
+		verified_playlist = playlist;
+		verified_start_file = start_file;
 		OperationResult result = call("verify_inputs");
 		if (result.ok) {
 			inputs.stock_sha256 = "stock-hash";
@@ -114,8 +117,11 @@ public:
 			return OperationResult::failure("malformed status");
 		return OperationResult::success();
 	}
-	OperationResult start_playlist(const std::string &, int &pid) override
+	OperationResult start_playlist(const std::string &directory,
+		const std::string &start_file, int &pid) override
 	{
+		started_playlist = directory;
+		started_start_file = start_file;
 		OperationResult result = call("start_playlist");
 		if (result.ok) {
 			pid = 202;
@@ -284,6 +290,10 @@ public:
 	std::size_t drain_scan_position = 0;
 	std::vector<int> stopped_modified_pids;
 	std::uint64_t unmount_at_ms = 0;
+	std::string verified_playlist;
+	std::string verified_start_file;
+	std::string started_playlist;
+	std::string started_start_file;
 };
 
 void expect_restored(const Supervisor &supervisor)
@@ -314,6 +324,21 @@ void test_successful_enter()
 		"INITIAL_FPGA_SESSION=82") != std::string::npos);
 	assert(supervisor.snapshot().main_load_file.find(
 		"phase=TRANSFER_SUCCESS") != std::string::npos);
+}
+
+void test_selected_file_is_only_forwarded_to_controller()
+{
+	FakeRuntime runtime;
+	RecordingPublisher publisher;
+	Supervisor supervisor(runtime, publisher);
+	const std::string directory = "/music/Album";
+	const std::string selected = directory + "/03 Selected.vgm";
+	assert(supervisor.enter(directory, selected).ok);
+	assert(runtime.verified_playlist == directory);
+	assert(runtime.verified_start_file == selected);
+	assert(runtime.started_playlist == directory);
+	assert(runtime.started_start_file == selected);
+	assert(supervisor.snapshot().playlist == directory);
 }
 
 void test_status_absent_then_ready_before_controller_start()
@@ -694,6 +719,7 @@ void test_sha256_implementation()
 int main()
 {
 	test_successful_enter();
+	test_selected_file_is_only_forwarded_to_controller();
 	test_status_absent_then_ready_before_controller_start();
 	test_status_never_ready_rolls_back();
 	test_malformed_status_rolls_back();

@@ -67,6 +67,7 @@ public:
 	virtual ~Runtime() = default;
 
 	virtual OperationResult verify_inputs(const std::string &playlist,
+		const std::string &start_file,
 		VerifiedInputs &inputs) = 0;
 	virtual OperationResult stop_stock_main(const std::string &stock_sha256) = 0;
 	virtual OperationResult bind_modified_main() = 0;
@@ -79,6 +80,7 @@ public:
 	virtual OperationResult verify_megavgm_core(int &modified_pid,
 		const std::string &modified_sha256) = 0;
 	virtual OperationResult start_playlist(const std::string &directory,
+		const std::string &start_file,
 		int &pid) = 0;
 	virtual OperationResult verify_playlist(int pid) = 0;
 	virtual ControllerDiagnostics controller_diagnostics(int controller_pid,
@@ -104,7 +106,8 @@ class Supervisor {
 public:
 	Supervisor(Runtime &runtime, StatusPublisher &publisher);
 
-	OperationResult enter(const std::string &playlist);
+	OperationResult enter(const std::string &playlist,
+		const std::string &start_file = {});
 	OperationResult exit(const std::string &reason = "explicit exit");
 	OperationResult monitor_once();
 	bool active() const { return active_; }

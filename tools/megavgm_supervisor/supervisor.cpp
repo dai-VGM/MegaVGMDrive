@@ -48,7 +48,8 @@ OperationResult Supervisor::check_exit_request()
 	return OperationResult::failure("exit requested during initialization");
 }
 
-OperationResult Supervisor::enter(const std::string &playlist)
+OperationResult Supervisor::enter(const std::string &playlist,
+	const std::string &start_file)
 {
 	snapshot_ = Snapshot{};
 	snapshot_.mode = "STARTING";
@@ -59,7 +60,7 @@ OperationResult Supervisor::enter(const std::string &playlist)
 	if (!result.ok) return result;
 
 	VerifiedInputs inputs;
-	result = runtime_.verify_inputs(playlist, inputs);
+	result = runtime_.verify_inputs(playlist, start_file, inputs);
 	if (!result.ok) return rollback("prerequisite verification failed: " + result.detail);
 	snapshot_.stock_sha256 = inputs.stock_sha256;
 	snapshot_.modified_sha256 = inputs.modified_sha256;
@@ -119,7 +120,7 @@ OperationResult Supervisor::enter(const std::string &playlist)
 	result = publish();
 	if (!result.ok) return rollback("status publication failed: " + result.detail);
 	controller_state_touched_ = true;
-	result = runtime_.start_playlist(playlist, controller_pid_);
+	result = runtime_.start_playlist(playlist, start_file, controller_pid_);
 	refresh_controller_diagnostics();
 	if (!result.ok) return rollback("playlist start failed: " + result.detail);
 	controller_started_ = true;

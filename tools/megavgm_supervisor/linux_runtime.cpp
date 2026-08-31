@@ -171,7 +171,7 @@ bool LinuxRuntime::process_has_open_file(const std::string &path)
 }
 
 OperationResult LinuxRuntime::verify_inputs(const std::string &playlist,
-	VerifiedInputs &inputs)
+	const std::string &start_file, VerifiedInputs &inputs)
 {
 	if (geteuid() != 0) return OperationResult::failure("root privileges required");
 	if (playlist.empty() || playlist.size() > 4096 ||
@@ -181,6 +181,23 @@ OperationResult LinuxRuntime::verify_inputs(const std::string &playlist,
 	struct stat directory = {};
 	if (stat(playlist.c_str(), &directory) < 0 || !S_ISDIR(directory.st_mode))
 		return OperationResult::failure("playlist directory is unavailable");
+	if (!start_file.empty()) {
+		if (start_file.size() > 4090 || start_file.front() != '/' ||
+		    start_file.find('\n') != std::string::npos ||
+		    start_file.find('\r') != std::string::npos)
+			return OperationResult::failure("invalid initial VGM file");
+		struct stat selected = {};
+		if (stat(start_file.c_str(), &selected) < 0 ||
+		    !S_ISREG(selected.st_mode))
+			return OperationResult::failure("initial VGM file is unavailable");
+		const std::size_t separator = start_file.find_last_of('/');
+		if (separator == std::string::npos ||
+		    start_file.substr(0, separator) != playlist ||
+		    start_file.size() < 4 ||
+		    start_file.compare(start_file.size() - 4, 4, ".vgm") != 0)
+			return OperationResult::failure(
+				"initial VGM file is not a direct playlist member");
+	}
 
 	for (const std::string &path : {paths_.stock_main, paths_.modified_main,
 		paths_.playlist_binary}) {
@@ -524,7 +541,7 @@ OperationResult LinuxRuntime::remove_controller_path(const std::string &path,
 }
 
 OperationResult LinuxRuntime::launch_playlist(const std::string &directory,
-	int &pid)
+	const std::string &start_file, int &pid)
 {
 	int exec_status[2] = {-1, -1};
 	if (pipe(exec_status) < 0) return OperationResult::failure(std::strerror(errno));
@@ -577,10 +594,19 @@ OperationResult LinuxRuntime::launch_playlist(const std::string &directory,
 		if (error_log > STDERR_FILENO) close(error_log);
 		char loops[] = "--loops";
 		char count[] = "2";
-		char *const arguments[] = {
-			const_cast<char *>(paths_.playlist_binary.c_str()), loops, count,
-			const_cast<char *>(directory.c_str()), nullptr};
-		execv(paths_.playlist_binary.c_str(), arguments);
+		if (start_file.empty()) {
+			char *const arguments[] = {
+				const_cast<char *>(paths_.playlist_binary.c_str()), loops, count,
+				const_cast<char *>(directory.c_str()), nullptr};
+			execv(paths_.playlist_binary.c_str(), arguments);
+		} else {
+			char start_option[] = "--start-file";
+			char *const arguments[] = {
+				const_cast<char *>(paths_.playlist_binary.c_str()), loops, count,
+				start_option, const_cast<char *>(start_file.c_str()),
+				const_cast<char *>(directory.c_str()), nullptr};
+			execv(paths_.playlist_binary.c_str(), arguments);
+		}
 		report_exec_error(errno, 127);
 	}
 	close(error_log);
@@ -632,7 +658,7 @@ OperationResult LinuxRuntime::launch_playlist(const std::string &directory,
 }
 
 OperationResult LinuxRuntime::start_playlist(const std::string &directory,
-	int &pid)
+	const std::string &start_file, int &pid)
 {
 	OperationResult result = remove_controller_path(paths_.playlist_command, true);
 	if (!result.ok) return result;
@@ -648,7 +674,7 @@ OperationResult LinuxRuntime::start_playlist(const std::string &directory,
 	std::string readiness_detail;
 	controller_diagnostics_state_.megavgm_status_at_launch =
 		valid_megavgm_status(readiness_detail);
-	return launch_playlist(directory, pid);
+	return launch_playlist(directory, start_file, pid);
 }
 
 OperationResult LinuxRuntime::verify_playlist(int pid)
