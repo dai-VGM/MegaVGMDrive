@@ -137,6 +137,10 @@ module mister_vgm_md_top #(
     input  logic [7:0]        ioctl_dout,
     input  logic [15:0]       ioctl_index,
     output logic              ioctl_wait,
+    // Authoritative host-load readiness. This becomes true only after the
+    // mode-5 control, session edge detector, and selected storage backend have
+    // all left this wrapper's internal power-on reset.
+    output logic              mode5_load_ready,
 
     // REGION_MODE=5 loader/player status for hardware debug colors.
     output logic              vgm_load_busy,
@@ -711,6 +715,12 @@ module mister_vgm_md_top #(
     assign external_reset = reset_sync[2];
 
     assign reset = external_reset | !por_done;
+
+    // A download rising edge is accepted by both the mode-5 lifecycle logic
+    // and its backend only in their non-reset branches. DDRAM_BUSY is handled
+    // after acceptance through the backend FIFO and ioctl_wait backpressure;
+    // it is therefore not a startup-readiness prerequisite.
+    assign mode5_load_ready = (REGION_MODE == 5) && !reset;
 
     assign startup_reset_active = !por_done ||
                                   player_reset_active ||

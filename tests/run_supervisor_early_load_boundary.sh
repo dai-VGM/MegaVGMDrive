@@ -13,7 +13,7 @@ STATUS_EXPORT_BLOCK=$(sed -n \
 	'/megavgm_playlist_status_export playlist_status_export (/,/^[[:space:]]*);/p' \
 	"$REPO_ROOT/rtl/emu.sv")
 printf '%s\n' "$STATUS_EXPORT_BLOCK" | \
-	grep -Eq '\.reset[[:space:]]*\(vgm_reset\),'
+	grep -Eq '\.reset[[:space:]]*\(vgm_reset \| !mode5_load_ready\),'
 
 iverilog -g2012 -DMEGAVGMDRIVE_PLAYLIST_LOOP_PHASE1E=1 \
 	-s tb_supervisor_early_load_boundary \

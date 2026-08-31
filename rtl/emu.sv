@@ -1739,6 +1739,7 @@ module emu
     wire               startup_reset_active;
     wire               startup_waiting;
     wire               startup_done;
+    wire               mode5_load_ready;
 
 `ifdef MEGAVGMDRIVE_PLAYLIST_STATUS_PHASE1B
     wire [31:0] playlist_status_session_debug;
@@ -1752,9 +1753,9 @@ module emu
     megavgm_playlist_status_export playlist_status_export (
         .clk                    (clk_sys),
         // A valid status record is also the host automation readiness
-        // contract.  Do not publish IDLE while the mode-5 loader/backend is
-        // still held in the longer post-core-load reset.
-        .reset                  (vgm_reset),
+        // contract. The outer reset alone is insufficient because md_sound
+        // has its own 25,000,000-cycle power-on reset after reset_n rises.
+        .reset                  (vgm_reset | !mode5_load_ready),
         .hps_status             (status),
         .playback_session_id    (mode5_playback_session_id),
         .vgm_load_busy          (vgm_load_busy),
@@ -1852,6 +1853,7 @@ module emu
         .ioctl_dout            (ioctl_dout),
         .ioctl_index           (ioctl_index),
         .ioctl_wait            (ioctl_wait),
+        .mode5_load_ready       (mode5_load_ready),
         .vgm_load_busy         (vgm_load_busy),
         .vgm_load_done         (vgm_load_done),
         .vgm_load_error        (vgm_load_error),
