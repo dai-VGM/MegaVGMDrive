@@ -52,6 +52,7 @@ sources=(
   rtl/ym2203_dynamic_cen.sv
   rtl/ym2203_sound_module.sv
   rtl/ym2151_sound_module.sv
+  rtl/ym2151_prewait_audio_gate.sv
   rtl/segapcm_sound_module.sv
   third_party/jtcores/cores/outrun/hdl/jtoutrun_pcm.v
   third_party/jtcores/modules/jtframe/hdl/ram/jtframe_dual_ram.v

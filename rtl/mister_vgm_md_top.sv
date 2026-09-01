@@ -138,8 +138,8 @@ module mister_vgm_md_top #(
     input  logic [15:0]       ioctl_index,
     output logic              ioctl_wait,
     // Authoritative host-load readiness. This becomes true only after the
-    // mode-5 control, session edge detector, and selected storage backend have
-    // all left this wrapper's internal power-on reset.
+    // mode-5 control, session edge detector, selected storage backend, and
+    // cold audio-output handoff have completed initialization.
     output logic              mode5_load_ready,
 
     // REGION_MODE=5 loader/player status for hardware debug colors.
@@ -717,10 +717,15 @@ module mister_vgm_md_top #(
     assign reset = external_reset | !por_done;
 
     // A download rising edge is accepted by both the mode-5 lifecycle logic
-    // and its backend only in their non-reset branches. DDRAM_BUSY is handled
-    // after acceptance through the backend FIFO and ioctl_wait backpressure;
-    // it is therefore not a startup-readiness prerequisite.
-    assign mode5_load_ready = (REGION_MODE == 5) && !reset;
+    // and its backend only in their non-reset branches. The fixed-region
+    // startup FSM also owns the board-output gate during cold initialization;
+    // accepting mode-5 playback before that gate is permanently open lets the
+    // parser consume the beginning of the first file while final audio is
+    // still forced to zero. DDRAM_BUSY remains normal per-byte backpressure.
+    wire mode5_cold_handoff_ready =
+        (startup_state == STARTUP_PLAYING) && audio_gate_open;
+    assign mode5_load_ready =
+        (REGION_MODE == 5) && !reset && mode5_cold_handoff_ready;
 
     assign startup_reset_active = !por_done ||
                                   player_reset_active ||
@@ -835,7 +840,14 @@ module mister_vgm_md_top #(
 
                 STARTUP_GATE_OPEN_WAIT: begin
                     audio_gate_open <= 1'b1;
-                    if (gate_to_start_count >= GATE_TO_START_CYCLES) begin
+                    // Loaded mode has its own file/session start sequence.
+                    // Once cold audio initialization has completed, keep the
+                    // outer gate open permanently and wait for the host load;
+                    // do not enter the fixed-region busy/retry loop.
+                    if (REGION_MODE == 5) begin
+                        start_sent <= 1'b0;
+                        startup_state <= STARTUP_PLAYING;
+                    end else if (gate_to_start_count >= GATE_TO_START_CYCLES) begin
                         start_pulse <= 1'b1;
                         start_sent <= 1'b1;
                         start_accept_counter <= 32'd0;
