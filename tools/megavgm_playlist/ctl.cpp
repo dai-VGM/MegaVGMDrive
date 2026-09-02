@@ -7,7 +7,7 @@ int main(int argc, char **argv)
 {
 	std::signal(SIGPIPE, SIG_IGN);
 	if (argc < 2 || argc > 3) {
-		std::cerr << "Usage: megavgm_ctl next|prev|play <path>|playlist <snapshot>\n";
+		std::cerr << "Usage: megavgm_ctl next|prev|play <path>|playlist <snapshot>|repeat off|one|all|shuffle on|off\n";
 		return 2;
 	}
 
@@ -28,8 +28,18 @@ int main(int argc, char **argv)
 	else if (argc == 3 && argument == "playlist")
 		sent = megavgm_playlist::send_playlist_command(
 			"/tmp/megavgm_playlist.cmd", argv[2], detail);
+	else if (argc == 3 && argument == "repeat") {
+		megavgm_playlist::RepeatMode mode;
+		if (megavgm_playlist::parse_repeat_mode(argv[2], mode))
+			sent = megavgm_playlist::send_repeat_command(
+				"/tmp/megavgm_playlist.cmd", mode, detail);
+	}
+	else if (argc == 3 && argument == "shuffle" &&
+			(std::string(argv[2]) == "on" || std::string(argv[2]) == "off"))
+		sent = megavgm_playlist::send_shuffle_command(
+			"/tmp/megavgm_playlist.cmd", std::string(argv[2]) == "on", detail);
 	else {
-		std::cerr << "Usage: megavgm_ctl next|prev|play <path>|playlist <snapshot>\n";
+		std::cerr << "Usage: megavgm_ctl next|prev|play <path>|playlist <snapshot>|repeat off|one|all|shuffle on|off\n";
 		return 2;
 	}
 	if (!sent) {

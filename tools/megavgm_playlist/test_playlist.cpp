@@ -6,6 +6,7 @@
 #include <fstream>
 #include <iostream>
 #include <limits.h>
+#include <set>
 #include <sstream>
 #include <string>
 #include <sys/stat.h>
@@ -111,18 +112,32 @@ struct ControlEvent {
 	std::size_t after_reads;
 	ControlCommandType type;
 	std::string path;
+	RepeatMode repeat = RepeatMode::Off;
+	bool shuffle = false;
 };
 
 class ScriptController final : public ControllerIo {
 public:
-	ScriptController(ScriptRuntime &runtime, std::vector<ControlEvent> events)
-		: runtime_(runtime), events_(std::move(events))
+	ScriptController(ScriptRuntime &runtime, std::vector<ControlEvent> events,
+			PlaybackPreferences preferences = {})
+		: initial_preferences(preferences), runtime_(runtime),
+		  events_(std::move(events))
 	{
 	}
 
 	ControlPollResult poll_command(ControlCommand &command,
 			std::string &detail) override
 	{
+		if (!retained_.empty()) {
+			const ControlEvent event = retained_.front();
+			retained_.erase(retained_.begin());
+			command.type = event.type;
+			command.path = event.path;
+			command.repeat = event.repeat;
+			command.shuffle = event.shuffle;
+			detail.clear();
+			return ControlPollResult::Command;
+		}
 		if (position_ >= events_.size() ||
 		    events_[position_].after_reads > runtime_.read_count) {
 			detail.clear();
@@ -131,6 +146,8 @@ public:
 		const ControlEvent &event = events_[position_++];
 		command.type = event.type;
 		command.path = event.path;
+		command.repeat = event.repeat;
+		command.shuffle = event.shuffle;
 		detail.clear();
 		return ControlPollResult::Command;
 	}
@@ -139,9 +156,29 @@ public:
 	{
 		while (position_ < events_.size() &&
 		       events_[position_].after_reads <= runtime_.read_count) {
+			if (events_[position_].type == ControlCommandType::Repeat ||
+			    events_[position_].type == ControlCommandType::Shuffle)
+				retained_.push_back(events_[position_]);
+			else
+				discarded++;
 			position_++;
-			discarded++;
 		}
+		detail.clear();
+		return true;
+	}
+
+	bool load_preferences(PlaybackPreferences &preferences,
+			std::string &detail) override
+	{
+		preferences = initial_preferences;
+		detail.clear();
+		return true;
+	}
+
+	bool save_preferences(const PlaybackPreferences &preferences,
+			std::string &detail) override
+	{
+		saved_preferences.push_back(preferences);
 		detail.clear();
 		return true;
 	}
@@ -156,11 +193,14 @@ public:
 
 	std::size_t discarded = 0;
 	std::vector<ControllerSnapshot> snapshots;
+	PlaybackPreferences initial_preferences;
+	std::vector<PlaybackPreferences> saved_preferences;
 
 private:
 	ScriptRuntime &runtime_;
 	std::vector<ControlEvent> events_;
 	std::size_t position_ = 0;
+	std::vector<ControlEvent> retained_;
 };
 
 PlaylistConfig fast_config()
@@ -189,15 +229,18 @@ PlaylistResult execute(std::vector<Frame> frames, std::vector<Track> tracks,
 		std::vector<ControlEvent> control_events = {},
 		ScriptController **out_controller = nullptr,
 		std::size_t start_index = 0,
-		const std::string &approved_root = {})
+		const std::string &approved_root = {},
+		PlaybackPreferences preferences = {}, RandomSource *random = nullptr)
 {
 	auto *runtime = new ScriptRuntime(std::move(frames));
-	auto *controller = new ScriptController(*runtime, std::move(control_events));
+	auto *controller = new ScriptController(*runtime, std::move(control_events),
+		preferences);
 	std::ostringstream log;
 	PlaylistConfig config = fast_config();
 	config.loop_limit = loop_limit;
 	config.start_index = start_index;
 	if (!approved_root.empty()) config.approved_root = approved_root;
+	config.random_source = random;
 	const PlaylistResult result = run(*runtime, config, tracks, log, controller);
 	if (out_log) *out_log = log.str();
 	if (out_controller) *out_controller = controller;
@@ -660,6 +703,104 @@ void test_playlist_snapshot_adopts_current_and_owns_auto_next()
 	assert(rmdir(root.c_str()) == 0);
 }
 
+class ZeroRandom final : public RandomSource {
+public:
+	std::uint32_t uniform(std::uint32_t) override { return 0; }
+};
+
+void test_repeat_one_non_loop_reloads_and_manual_next_works()
+{
+	ScriptRuntime *runtime = nullptr;
+	PlaybackPreferences preferences;
+	preferences.repeat = RepeatMode::One;
+	const std::vector<Track> tracks = {{"Only.vgm", "/music/Only.vgm"}};
+	assert(execute({
+		ok(9, PlaybackState::Ended),
+		ok(10, PlaybackState::Playing),
+		ok(10, PlaybackState::Ended),
+		ok(11, PlaybackState::Playing),
+		ok(11, PlaybackState::Playing)
+	}, tracks, &runtime, nullptr, 2,
+		{{5, ControlCommandType::Next, {}}}, nullptr, 0, {}, preferences) ==
+		PlaylistResult::Complete);
+	assert(runtime->commands.size() == 2);
+	assert(runtime->commands[0] == runtime->commands[1]);
+	delete runtime;
+}
+
+void test_repeat_one_native_loop_never_reloads_at_limit()
+{
+	ScriptRuntime *runtime = nullptr;
+	PlaybackPreferences preferences;
+	preferences.repeat = RepeatMode::One;
+	const std::vector<Track> tracks = {{"Loop.vgm", "/music/Loop.vgm"}};
+	assert(execute({
+		loop_status(9, PlaybackState::Ended, false, 0),
+		loop_status(10, PlaybackState::Playing, true, 0),
+		loop_status(10, PlaybackState::Playing, true, 2),
+		loop_status(10, PlaybackState::Playing, true, 20)
+	}, tracks, &runtime, nullptr, 2,
+		{{3, ControlCommandType::Next, {}}}, nullptr, 0, {}, preferences) ==
+		PlaylistResult::Complete);
+	assert(runtime->commands.size() == 1);
+	delete runtime;
+}
+
+void test_repeat_all_wrap_and_shuffle_bag()
+{
+	ScriptRuntime *runtime = nullptr;
+	PlaybackPreferences preferences;
+	preferences.repeat = RepeatMode::All;
+	const std::vector<Track> tracks = three_tracks();
+	assert(execute({
+		ok(9, PlaybackState::Ended),
+		ok(10, PlaybackState::Playing), ok(10, PlaybackState::Ended),
+		ok(11, PlaybackState::Playing), ok(11, PlaybackState::Ended),
+		ok(12, PlaybackState::Playing), ok(12, PlaybackState::Ended),
+		ok(13, PlaybackState::Playing), ok(13, PlaybackState::Playing)
+	}, tracks, &runtime, nullptr, 2, {}, nullptr, 0, {}, preferences) ==
+		PlaylistResult::TrackEndTimeout);
+	assert(runtime->commands.size() == 4);
+	assert(runtime->commands[3] == runtime->commands[0]);
+	delete runtime;
+
+	ZeroRandom random;
+	preferences.repeat = RepeatMode::Off;
+	preferences.shuffle = true;
+	assert(execute({
+		ok(20, PlaybackState::Ended),
+		ok(21, PlaybackState::Playing), ok(21, PlaybackState::Ended),
+		ok(22, PlaybackState::Playing), ok(22, PlaybackState::Ended),
+		ok(23, PlaybackState::Playing), ok(23, PlaybackState::Ended)
+	}, tracks, &runtime, nullptr, 2, {}, nullptr, 0, {}, preferences, &random) ==
+		PlaylistResult::Complete);
+	assert(runtime->commands.size() == 3);
+	std::set<std::string> unique(runtime->commands.begin(), runtime->commands.end());
+	assert(unique.size() == 3);
+	delete runtime;
+}
+
+void test_mode_command_survives_owned_load_discard()
+{
+	ScriptRuntime *runtime = nullptr;
+	ScriptController *controller = nullptr;
+	const std::vector<Track> tracks = {{"Loop.vgm", "/music/Loop.vgm"}};
+	assert(execute({
+		loop_status(9, PlaybackState::Ended, false, 0),
+		loop_status(10, PlaybackState::Playing, true, 2),
+		loop_status(10, PlaybackState::Playing, true, 3)
+	}, tracks, &runtime, nullptr, 2,
+		{{2, ControlCommandType::Repeat, {}, RepeatMode::One, false},
+		 {3, ControlCommandType::Next, {}}}, &controller) ==
+		PlaylistResult::Complete);
+	assert(runtime->commands.size() == 1);
+	assert(controller->saved_preferences.size() == 1);
+	assert(controller->saved_preferences[0].repeat == RepeatMode::One);
+	assert(controller->discarded == 0);
+	delete controller;
+	delete runtime;
+}
+
 } // namespace
 
 int main()
@@ -681,6 +822,10 @@ int main()
 	test_discovery_and_ordering();
 	test_empty_directory();
 	test_playlist_snapshot_adopts_current_and_owns_auto_next();
+	test_repeat_one_non_loop_reloads_and_manual_next_works();
+	test_repeat_one_native_loop_never_reloads_at_limit();
+	test_repeat_all_wrap_and_shuffle_bag();
+	test_mode_command_survives_owned_load_discard();
 	std::cout << "megavgm_playlist host tests: PASS\n";
 	return 0;
 }

@@ -269,6 +269,20 @@ PlaylistResult run(Runtime &runtime, const PlaylistConfig &config,
 	if (active_tracks.empty() || config.start_index >= active_tracks.size())
 		return PlaylistResult::InvalidTrackPath;
 	std::size_t index = config.start_index;
+	PlaybackPreferences preferences;
+	if (controller) {
+		std::string preference_detail;
+		if (!controller->load_preferences(preferences, preference_detail)) {
+			log << "PLAYBACK_MODE_DEFAULTS";
+			if (!preference_detail.empty()) log << ": " << preference_detail;
+			log << '\n';
+		}
+	}
+	XorShiftRandom default_random(static_cast<std::uint32_t>(
+		runtime.monotonic_ms() ^ baseline_session ^ 0xa511e9b3u));
+	RandomSource &random = config.random_source ? *config.random_source : default_random;
+	PlaybackTraversal traversal(random);
+	traversal.reset(active_tracks.size(), index, preferences);
 
 	auto control_error = [&](const char *operation,
 			const std::string &detail) -> PlaylistResult {
@@ -289,6 +303,9 @@ PlaylistResult run(Runtime &runtime, const PlaylistConfig &config,
 		snapshot.loop_count = loop_count;
 		snapshot.context = active_playlist_name.empty() ? "DIRECTORY" : "PLAYLIST";
 		snapshot.playlist = active_playlist_name;
+		snapshot.repeat = preferences.repeat;
+		snapshot.shuffle = preferences.shuffle;
+		snapshot.traversal = preferences.shuffle ? "SHUFFLE" : "ORDERED";
 		std::string detail;
 		if (controller->publish(snapshot, detail)) return true;
 		control_error("status publish", detail);
@@ -300,6 +317,42 @@ PlaylistResult run(Runtime &runtime, const PlaylistConfig &config,
 		if (controller->discard_commands(detail)) return true;
 		control_error("command discard", detail);
 		return false;
+	};
+	auto apply_mode_command = [&](const ControlCommand &command,
+			const Track &track, const char *state, std::uint32_t session,
+			std::uint16_t loop_count) -> bool {
+		if (command.type != ControlCommandType::Repeat &&
+		    command.type != ControlCommandType::Shuffle)
+			return false;
+		if (command.type == ControlCommandType::Repeat)
+			preferences.repeat = command.repeat;
+		else
+			preferences.shuffle = command.shuffle;
+		traversal.set_preferences(preferences, index);
+		log << "playback_mode repeat=" << repeat_mode_name(preferences.repeat)
+		    << " shuffle=" << (preferences.shuffle ? 1 : 0) << '\n';
+		if (controller) {
+			std::string save_detail;
+			if (!controller->save_preferences(preferences, save_detail)) {
+				log << "PLAYBACK_MODE_PERSIST_FAILED";
+				if (!save_detail.empty()) log << ": " << save_detail;
+				log << '\n';
+			}
+		}
+		return publish(state, track, session, loop_count);
+	};
+	auto loop_limit_applies = [&](const PlaybackStatus &value) -> bool {
+		return value.state == PlaybackState::Playing && value.loop_valid &&
+			config.loop_limit != 0 && value.loop_count >= config.loop_limit &&
+			preferences.repeat != RepeatMode::One;
+	};
+	auto complete = [&](const Track &track, std::uint32_t session,
+			std::uint16_t loop_count) -> PlaylistResult {
+		if (!publish("COMPLETE", track, session, loop_count))
+			return PlaylistResult::ControlIoError;
+		log << '\n' << "PLAYLIST COMPLETE\n";
+		if (skipped != 0) log << "skipped=" << skipped << '\n';
+		return PlaylistResult::Complete;
 	};
 
 	while (index < active_tracks.size()) {
@@ -348,9 +401,7 @@ PlaylistResult run(Runtime &runtime, const PlaylistConfig &config,
 				fatal = is_fatal(status);
 				playing = status.state == PlaybackState::Playing;
 				ended = status.state == PlaybackState::Ended;
-				loop_limit_reached = playing && status.loop_valid &&
-					config.loop_limit != 0 &&
-					status.loop_count >= config.loop_limit;
+				loop_limit_reached = loop_limit_applies(status);
 				if (!publish(megavgm_autoplay2::state_name(status.state), track,
 						status.session, status.loop_count))
 					return PlaylistResult::ControlIoError;
@@ -386,9 +437,7 @@ PlaylistResult run(Runtime &runtime, const PlaylistConfig &config,
 			fatal = is_fatal(status);
 			playing = status.state == PlaybackState::Playing;
 			ended = status.state == PlaybackState::Ended;
-			loop_limit_reached = playing && status.loop_valid &&
-				config.loop_limit != 0 &&
-				status.loop_count >= config.loop_limit;
+			loop_limit_reached = loop_limit_applies(status);
 			if (!playing && !fatal && !ended &&
 			    deadline_reached(runtime, deadline, config.playing_timeout_ms)) {
 				log << "TRACK_NEVER_PLAYING\n";
@@ -400,7 +449,11 @@ PlaylistResult run(Runtime &runtime, const PlaylistConfig &config,
 			log_fatal(log, index, active_tracks.size(), track, status);
 			baseline_session = owned_session;
 			skipped++;
-			index++;
+			std::size_t selected = index;
+			if (traversal.next(index, false, false, selected) ==
+					TraversalResult::Complete)
+				return complete(track, owned_session, status.loop_count);
+			index = selected;
 			continue;
 		}
 		if (ended && !playing) {
@@ -409,8 +462,37 @@ PlaylistResult run(Runtime &runtime, const PlaylistConfig &config,
 		}
 
 		// A command already waiting when PLAYING is first observed belongs to
-		// the just-finished load window and is intentionally discarded.
+		// the just-finished load window and is intentionally discarded. Mode
+		// commands are retained by ControllerIo because they are state changes,
+		// not overlapping load requests.
 		if (!discard_commands()) return PlaylistResult::ControlIoError;
+		if (controller) {
+			for (;;) {
+				ControlCommand retained;
+				std::string retained_detail;
+				const ControlPollResult retained_result =
+					controller->poll_command(retained, retained_detail);
+				if (retained_result == ControlPollResult::None) break;
+				if (retained_result == ControlPollResult::IoError)
+					return control_error("command read", retained_detail);
+				if (retained_result == ControlPollResult::Invalid) {
+					log << "CONTROL_IGNORED";
+					if (!retained_detail.empty()) log << ": " << retained_detail;
+					log << '\n';
+					continue;
+				}
+				if (retained.type == ControlCommandType::Repeat ||
+				    retained.type == ControlCommandType::Shuffle) {
+					if (!apply_mode_command(retained, track, "PLAYING",
+							owned_session, status.loop_count))
+						return PlaylistResult::ControlIoError;
+				} else {
+					// A navigation command cannot survive discard_commands().
+					log << "CONTROL_IGNORED: stale navigation after load\n";
+				}
+			}
+			loop_limit_reached = loop_limit_applies(status);
+		}
 		bool navigation_claimed = false;
 		ControlCommand control_command;
 		std::vector<Track> replacement_tracks;
@@ -430,6 +512,14 @@ PlaylistResult run(Runtime &runtime, const PlaylistConfig &config,
 					if (!control_detail.empty()) log << ": " << control_detail;
 					log << '\n';
 				} else if (control_result == ControlPollResult::Command) {
+					if (control_command.type == ControlCommandType::Repeat ||
+					    control_command.type == ControlCommandType::Shuffle) {
+						if (!apply_mode_command(control_command, track, "PLAYING",
+								owned_session, status.loop_count))
+							return PlaylistResult::ControlIoError;
+						loop_limit_reached = loop_limit_applies(status);
+						continue;
+					}
 					if (control_command.type == ControlCommandType::Play) {
 						const DiscoveryResult discovery = discover_directory(
 							parent_path(control_command.path), replacement_tracks,
@@ -465,6 +555,7 @@ PlaylistResult run(Runtime &runtime, const PlaylistConfig &config,
 							active_tracks = std::move(replacement_tracks);
 							index = replacement_index;
 							active_playlist_name = replacement_playlist_name;
+							traversal.reset(active_tracks.size(), index, preferences);
 							log << "navigation=PLAYLIST adopt_current=1 name="
 							    << active_playlist_name << " index=" << index + 1 << '\n';
 							if (!publish("PLAYING", track, owned_session,
@@ -491,10 +582,7 @@ PlaylistResult run(Runtime &runtime, const PlaylistConfig &config,
 				return PlaylistResult::ControlIoError;
 			fatal = is_fatal(status);
 			ended = status.state == PlaybackState::Ended;
-			loop_limit_reached =
-				(status.state == PlaybackState::Playing) &&
-				status.loop_valid && config.loop_limit != 0 &&
-				status.loop_count >= config.loop_limit;
+			loop_limit_reached = loop_limit_applies(status);
 			if (!ended && !fatal && !loop_limit_reached &&
 			    deadline_reached(runtime, deadline,
 					config.end_timeout_ms)) {
@@ -517,22 +605,22 @@ PlaylistResult run(Runtime &runtime, const PlaylistConfig &config,
 				active_tracks = std::move(replacement_tracks);
 				index = replacement_index;
 				active_playlist_name.clear();
+				traversal.reset(active_tracks.size(), index, preferences);
 			} else if (control_command.type == ControlCommandType::Playlist) {
 				active_tracks = std::move(replacement_tracks);
 				index = replacement_index;
 				active_playlist_name = replacement_playlist_name;
+				traversal.reset(active_tracks.size(), index, preferences);
 			} else if (control_command.type == ControlCommandType::Next) {
-				if (index + 1 >= active_tracks.size()) {
-					if (!publish("COMPLETE", track, owned_session,
-							status.loop_count))
-						return PlaylistResult::ControlIoError;
-					log << '\n' << "PLAYLIST COMPLETE\n";
-					if (skipped != 0) log << "skipped=" << skipped << '\n';
-					return PlaylistResult::Complete;
-				}
-				index++;
-			} else if (index != 0) {
-				index--;
+				std::size_t selected = index;
+				if (traversal.next(index, false, false, selected) ==
+						TraversalResult::Complete)
+					return complete(track, owned_session, status.loop_count);
+				index = selected;
+			} else {
+				std::size_t selected = index;
+				traversal.previous(index, selected);
+				index = selected;
 			}
 			continue;
 		}
@@ -543,16 +631,20 @@ PlaylistResult run(Runtime &runtime, const PlaylistConfig &config,
 		else if (loop_limit_reached) {
 			log << "loop limit reached=" << config.loop_limit << '\n';
 		}
-		index++;
+		std::size_t selected = index;
+		const TraversalResult advance = traversal.next(index, true,
+			status.loop_valid, selected);
+		if (advance == TraversalResult::Complete)
+			return complete(track, owned_session, status.loop_count);
+		// Repeat One with a native loop never reaches here because its loop limit
+		// is suppressed. Stay is retained as a defensive no-reload outcome.
+		if (advance == TraversalResult::Stay) continue;
+		index = selected;
 	}
 
-	if (!active_tracks.empty() &&
-	    !publish("COMPLETE", active_tracks.back(), baseline_session,
-		status.loop_count))
-		return PlaylistResult::ControlIoError;
-	log << '\n' << "PLAYLIST COMPLETE\n";
-	if (skipped != 0) log << "skipped=" << skipped << '\n';
-	return PlaylistResult::Complete;
+	return active_tracks.empty() ? PlaylistResult::InvalidTrackPath :
+		complete(active_tracks[index < active_tracks.size() ? index :
+			active_tracks.size() - 1], baseline_session, status.loop_count);
 }
 
 } // namespace megavgm_playlist

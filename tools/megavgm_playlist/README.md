@@ -19,6 +19,8 @@ While the controller is running, use the local control client:
 ```sh
 ./megavgm_ctl next
 ./megavgm_ctl prev
+./megavgm_ctl repeat off|one|all
+./megavgm_ctl shuffle on|off
 ```
 
 The client writes only `NEXT` or `PREV` to the controller-owned FIFO at
@@ -38,9 +40,11 @@ new queue without reloading that track; otherwise it performs one serialized
 replacement load. `NEXT`, `PREV`, native-loop advancement, and end-of-list
 behavior then operate only inside the copied snapshot.
 
-Commands are accepted only after the current controller-owned session reaches
-PLAYING. Additional commands received while its replacement track is loading
-are discarded, so Main transfers never overlap. A navigation command observed
+Navigation commands are accepted only after the current controller-owned
+session reaches PLAYING. Additional navigation received while its replacement
+track is loading is discarded, so Main transfers never overlap. Repeat and
+shuffle state changes survive that drain and are applied after the owned load.
+A navigation command observed
 in the same poll interval as ENDED, FATAL, or the native-loop limit claims the
 single transition; the old session's later status is ignored.
 
@@ -77,6 +81,9 @@ session=27
 loop_count=1
 context=PLAYLIST
 playlist=Favorites
+repeat=ALL
+shuffle=1
+traversal=SHUFFLE
 ```
 
 `context=DIRECTORY` with an empty `playlist` retains the legacy Browse/direct
@@ -85,6 +92,16 @@ playlist name so Remote can show the controller-owned context.
 
 `index` is one-based. This file summarizes controller ownership and does not
 replace or duplicate the raw FPGA/Main status interface.
+
+Repeat and shuffle are controller-owned preferences, atomically stored in
+`/media/fat/Scripts/.config/megavgm/playback_modes.conf`. Missing or malformed
+configuration uses `OFF` plus ordered traversal. Repeat One leaves a native
+loop running without reload and reloads the same index only after a non-loop
+ENDED event; manual NEXT/PREV/direct selection remain effective. Repeat All
+wraps at the queue boundary. Shuffle uses a permutation bag, excludes the
+current track when starting a cycle with multiple tracks, and PREV walks actual
+playback history. Disabling shuffle resumes ordered traversal from the current
+track's original queue index.
 
 Build on MiSTer or with an ARM cross-compiler:
 

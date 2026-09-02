@@ -34,7 +34,8 @@ int main()
 	const std::string status_path = directory + "/playlist.status";
 
 	{
-		PosixControllerIo controller(command_path, status_path);
+		const std::string preferences_path = directory + "/playback_modes.conf";
+		PosixControllerIo controller(command_path, status_path, preferences_path);
 		std::string detail;
 		assert(controller.start(detail));
 		struct stat attributes = {};
@@ -70,6 +71,16 @@ int main()
 		assert(command.type == ControlCommandType::Playlist);
 		assert(command.path == snapshot_command);
 
+		assert(send_repeat_command(command_path, RepeatMode::All, detail));
+		assert(controller.poll_command(command, detail) ==
+			ControlPollResult::Command);
+		assert(command.type == ControlCommandType::Repeat &&
+			command.repeat == RepeatMode::All);
+		assert(send_shuffle_command(command_path, true, detail));
+		assert(controller.poll_command(command, detail) ==
+			ControlPollResult::Command);
+		assert(command.type == ControlCommandType::Shuffle && command.shuffle);
+
 		const int writer = open(command_path.c_str(),
 			O_WRONLY | O_NONBLOCK | O_CLOEXEC);
 		assert(writer >= 0);
@@ -93,6 +104,18 @@ int main()
 		assert(controller.poll_command(command, detail) ==
 			ControlPollResult::None);
 
+		// Playback-mode state changes survive the owned-load navigation drain.
+		assert(send_repeat_command(command_path, RepeatMode::One, detail));
+		assert(send_navigation_command(command_path,
+			ControlCommandType::Next, detail));
+		assert(controller.discard_commands(detail));
+		assert(controller.poll_command(command, detail) ==
+			ControlPollResult::Command);
+		assert(command.type == ControlCommandType::Repeat &&
+			command.repeat == RepeatMode::One);
+		assert(controller.poll_command(command, detail) ==
+			ControlPollResult::None);
+
 		ControllerSnapshot snapshot;
 		snapshot.state = "PLAYING";
 		snapshot.index = 4;
@@ -102,17 +125,30 @@ int main()
 		snapshot.loop_count = 1;
 		snapshot.context = "PLAYLIST";
 		snapshot.playlist = "Favorites";
+		snapshot.repeat = RepeatMode::All;
+		snapshot.shuffle = true;
+		snapshot.traversal = "SHUFFLE";
 		assert(controller.publish(snapshot, detail));
 		assert(read_text(status_path) ==
 			"state=PLAYING\nindex=4\ncount=10\n"
 			"path=/media/fat/Music/[日本語] Stage.vgm\n"
 			"session=27\nloop_count=1\n"
-			"context=PLAYLIST\nplaylist=Favorites\n");
+			"context=PLAYLIST\nplaylist=Favorites\n"
+			"repeat=ALL\nshuffle=1\ntraversal=SHUFFLE\n");
+		PlaybackPreferences preferences;
+		assert(!controller.load_preferences(preferences, detail));
+		preferences.repeat = RepeatMode::One;
+		preferences.shuffle = true;
+		assert(controller.save_preferences(preferences, detail));
+		PlaybackPreferences loaded;
+		assert(controller.load_preferences(loaded, detail));
+		assert(loaded.repeat == RepeatMode::One && loaded.shuffle);
 		const std::string temporary = status_path + ".tmp." +
 			std::to_string(static_cast<unsigned long>(getpid()));
 		assert(access(temporary.c_str(), F_OK) != 0);
 	}
 	assert(access(command_path.c_str(), F_OK) != 0);
+	assert(unlink((directory + "/playback_modes.conf").c_str()) == 0);
 
 	// Never replace a non-FIFO object at the public control path.
 	const int regular_fd = open(command_path.c_str(),

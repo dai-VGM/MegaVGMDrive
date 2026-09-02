@@ -70,7 +70,10 @@ std::string snapshot_text(const ControllerSnapshot &snapshot)
 	     << "session=" << snapshot.session << '\n'
 	     << "loop_count=" << snapshot.loop_count << '\n'
 	     << "context=" << snapshot.context << '\n'
-	     << "playlist=" << snapshot.playlist << '\n';
+	     << "playlist=" << snapshot.playlist << '\n'
+	     << "repeat=" << repeat_mode_name(snapshot.repeat) << '\n'
+	     << "shuffle=" << (snapshot.shuffle ? 1 : 0) << '\n'
+	     << "traversal=" << snapshot.traversal << '\n';
 	return text.str();
 }
 
@@ -83,13 +86,16 @@ const char *control_command_name(ControlCommandType command)
 	case ControlCommandType::Previous: return "PREV";
 	case ControlCommandType::Play: return "PLAY";
 	case ControlCommandType::Playlist: return "PLAYLIST";
+	case ControlCommandType::Repeat: return "REPEAT";
+	case ControlCommandType::Shuffle: return "SHUFFLE";
 	}
 	return "UNKNOWN";
 }
 
 PosixControllerIo::PosixControllerIo(std::string command_path,
-		std::string status_path)
-	: command_path_(std::move(command_path)), status_path_(std::move(status_path))
+		std::string status_path, std::string preferences_path)
+	: command_path_(std::move(command_path)), status_path_(std::move(status_path)),
+	  preferences_path_(std::move(preferences_path))
 {
 }
 
@@ -161,6 +167,8 @@ ControlPollResult PosixControllerIo::parse_buffered_command(
 	input_buffer_.erase(0, newline + 1);
 	if (!line.empty() && line.back() == '\r') line.pop_back();
 	command.path.clear();
+	command.repeat = RepeatMode::Off;
+	command.shuffle = false;
 	if (line == "NEXT") command.type = ControlCommandType::Next;
 	else if (line == "PREV") command.type = ControlCommandType::Previous;
 	else if (line.compare(0, 5, "PLAY ") == 0 && line.size() > 5) {
@@ -181,6 +189,17 @@ ControlPollResult PosixControllerIo::parse_buffered_command(
 			return ControlPollResult::Invalid;
 		}
 	}
+	else if (line.compare(0, 7, "REPEAT ") == 0 && line.size() > 7) {
+		command.type = ControlCommandType::Repeat;
+		if (!parse_repeat_mode(line.substr(7), command.repeat)) {
+			detail = "invalid REPEAT mode";
+			return ControlPollResult::Invalid;
+		}
+	}
+	else if (line == "SHUFFLE ON" || line == "SHUFFLE OFF") {
+		command.type = ControlCommandType::Shuffle;
+		command.shuffle = line == "SHUFFLE ON";
+	}
 	else {
 		detail = "unknown command: " + line;
 		return ControlPollResult::Invalid;
@@ -192,6 +211,12 @@ ControlPollResult PosixControllerIo::parse_buffered_command(
 ControlPollResult PosixControllerIo::poll_command(ControlCommand &command,
 		std::string &detail)
 {
+	if (!retained_commands_.empty()) {
+		command = retained_commands_.front();
+		retained_commands_.pop_front();
+		detail.clear();
+		return ControlPollResult::Command;
+	}
 	ControlPollResult result = parse_buffered_command(command, detail);
 	if (result != ControlPollResult::None) return result;
 
@@ -240,8 +265,34 @@ bool PosixControllerIo::drain_fd(std::string &detail)
 
 bool PosixControllerIo::discard_commands(std::string &detail)
 {
+	char buffer[128];
+	for (;;) {
+		const ssize_t bytes = read(command_fd_, buffer, sizeof(buffer));
+		if (bytes > 0) {
+			input_buffer_.append(buffer, static_cast<std::size_t>(bytes));
+			continue;
+		}
+		if (bytes < 0 && errno == EINTR) continue;
+		if (bytes < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) break;
+		if (bytes == 0) break;
+		detail = std::strerror(errno);
+		return false;
+	}
+	for (;;) {
+		ControlCommand command;
+		std::string ignored;
+		const ControlPollResult result = parse_buffered_command(command, ignored);
+		if (result == ControlPollResult::None) break;
+		if (result == ControlPollResult::Command &&
+		    (command.type == ControlCommandType::Repeat ||
+		     command.type == ControlCommandType::Shuffle))
+			retained_commands_.push_back(command);
+	}
+	// A partial navigation command cannot be safely associated with a later
+	// load window. Mode commands are always short atomic FIFO writes.
 	input_buffer_.clear();
-	return drain_fd(detail);
+	detail.clear();
+	return true;
 }
 
 bool PosixControllerIo::publish(const ControllerSnapshot &snapshot,
@@ -282,10 +333,23 @@ bool PosixControllerIo::publish(const ControllerSnapshot &snapshot,
 	return true;
 }
 
+bool PosixControllerIo::load_preferences(PlaybackPreferences &preferences,
+		std::string &detail)
+{
+	return load_playback_preferences(preferences_path_, preferences, detail);
+}
+
+bool PosixControllerIo::save_preferences(
+		const PlaybackPreferences &preferences, std::string &detail)
+{
+	return save_playback_preferences(preferences_path_, preferences, detail);
+}
+
 bool send_navigation_command(const std::string &command_path,
 		ControlCommandType command, std::string &detail)
 {
-	if (command == ControlCommandType::Play || command == ControlCommandType::Playlist) {
+	if (command != ControlCommandType::Next &&
+	    command != ControlCommandType::Previous) {
 		detail = "PLAY requires a path";
 		return false;
 	}
@@ -295,6 +359,40 @@ bool send_navigation_command(const std::string &command_path,
 		return false;
 	}
 	const std::string text = std::string(control_command_name(command)) + '\n';
+	bool ok = write_all(fd, text.data(), text.size(), detail);
+	if (close(fd) < 0 && ok) {
+		detail = std::strerror(errno);
+		ok = false;
+	}
+	return ok;
+}
+
+bool send_repeat_command(const std::string &command_path, RepeatMode mode,
+		std::string &detail)
+{
+	const int fd = open(command_path.c_str(), O_WRONLY | O_NONBLOCK | O_CLOEXEC);
+	if (fd < 0) {
+		detail = std::strerror(errno);
+		return false;
+	}
+	const std::string text = std::string("REPEAT ") + repeat_mode_name(mode) + '\n';
+	bool ok = write_all(fd, text.data(), text.size(), detail);
+	if (close(fd) < 0 && ok) {
+		detail = std::strerror(errno);
+		ok = false;
+	}
+	return ok;
+}
+
+bool send_shuffle_command(const std::string &command_path, bool enabled,
+		std::string &detail)
+{
+	const int fd = open(command_path.c_str(), O_WRONLY | O_NONBLOCK | O_CLOEXEC);
+	if (fd < 0) {
+		detail = std::strerror(errno);
+		return false;
+	}
+	const std::string text = enabled ? "SHUFFLE ON\n" : "SHUFFLE OFF\n";
 	bool ok = write_all(fd, text.data(), text.size(), detail);
 	if (close(fd) < 0 && ok) {
 		detail = std::strerror(errno);
