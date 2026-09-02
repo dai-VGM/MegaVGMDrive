@@ -5,6 +5,7 @@
 #include <fcntl.h>
 #include <fstream>
 #include <iterator>
+#include <limits.h>
 #include <string>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -61,6 +62,14 @@ int main()
 		assert(command.type == ControlCommandType::Play);
 		assert(command.path == play_path);
 
+		const std::string snapshot_command =
+			"/tmp/megavgm_playlist.snapshot-controller-test";
+		assert(send_playlist_command(command_path, snapshot_command, detail));
+		assert(controller.poll_command(command, detail) ==
+			ControlPollResult::Command);
+		assert(command.type == ControlCommandType::Playlist);
+		assert(command.path == snapshot_command);
+
 		const int writer = open(command_path.c_str(),
 			O_WRONLY | O_NONBLOCK | O_CLOEXEC);
 		assert(writer >= 0);
@@ -91,11 +100,14 @@ int main()
 		snapshot.path = "/media/fat/Music/[日本語] Stage.vgm";
 		snapshot.session = 27;
 		snapshot.loop_count = 1;
+		snapshot.context = "PLAYLIST";
+		snapshot.playlist = "Favorites";
 		assert(controller.publish(snapshot, detail));
 		assert(read_text(status_path) ==
 			"state=PLAYING\nindex=4\ncount=10\n"
 			"path=/media/fat/Music/[日本語] Stage.vgm\n"
-			"session=27\nloop_count=1\n");
+			"session=27\nloop_count=1\n"
+			"context=PLAYLIST\nplaylist=Favorites\n");
 		const std::string temporary = status_path + ".tmp." +
 			std::to_string(static_cast<unsigned long>(getpid()));
 		assert(access(temporary.c_str(), F_OK) != 0);
@@ -117,8 +129,49 @@ int main()
 	assert(lstat(command_path.c_str(), &attributes) == 0);
 	assert(S_ISREG(attributes.st_mode));
 
+	const std::string music_root = directory + "/music";
+	assert(mkdir(music_root.c_str(), 0700) == 0);
+	const std::string first = music_root + "/01 First.vgm";
+	const std::string second = music_root + "/02 Second.vgm";
+	for (const std::string &path : {first, second}) {
+		const int fd = open(path.c_str(), O_WRONLY | O_CREAT | O_EXCL, 0600);
+		assert(fd >= 0);
+		assert(close(fd) == 0);
+	}
+	const std::string snapshot_path = directory + "/snapshot";
+	{
+		std::ofstream snapshot(snapshot_path);
+		snapshot << "MEGAVGM_PLAYLIST_V1\n"
+		         << "NAME Favorites\nSTART 1\nCOUNT 2\n"
+		         << "PATH " << first << '\n'
+		         << "PATH " << second << '\n';
+	}
+	PlaylistSnapshot loaded;
+	std::string detail;
+	assert(load_playlist_snapshot(snapshot_path, music_root, loaded, detail));
+	assert(loaded.name == "Favorites");
+	assert(loaded.start_index == 1);
+	assert(loaded.paths.size() == 2);
+	char first_real[PATH_MAX];
+	char second_real[PATH_MAX];
+	assert(realpath(first.c_str(), first_real));
+	assert(realpath(second.c_str(), second_real));
+	assert(loaded.paths[0] == first_real && loaded.paths[1] == second_real);
+	{
+		std::ofstream snapshot(snapshot_path, std::ios::trunc);
+		snapshot << "MEGAVGM_PLAYLIST_V1\n"
+		         << "NAME Favorites\nSTART 0\nCOUNT 2\n"
+		         << "PATH " << first << '\n'
+		         << "PATH " << first << '\n';
+	}
+	assert(!load_playlist_snapshot(snapshot_path, music_root, loaded, detail));
+
 	assert(unlink(command_path.c_str()) == 0);
 	assert(unlink(status_path.c_str()) == 0);
+	assert(unlink(snapshot_path.c_str()) == 0);
+	assert(unlink(first.c_str()) == 0);
+	assert(unlink(second.c_str()) == 0);
+	assert(rmdir(music_root.c_str()) == 0);
 	assert(rmdir(directory.c_str()) == 0);
 	return 0;
 }

@@ -48,6 +48,7 @@ struct PlaylistConfig {
 	std::uint64_t end_timeout_ms = 0;
 	std::uint32_t poll_interval_ms = 100;
 	std::uint32_t main_probe_interval_ms = 1000;
+	std::string approved_root = "/media/fat/MegaVGMDrive";
 };
 
 DiscoveryResult discover_directory(const std::string &directory,

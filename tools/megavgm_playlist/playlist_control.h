@@ -4,18 +4,26 @@
 #include <cstddef>
 #include <cstdint>
 #include <string>
+#include <vector>
 
 namespace megavgm_playlist {
 
 enum class ControlCommandType {
 	Next,
 	Previous,
-	Play
+	Play,
+	Playlist
 };
 
 struct ControlCommand {
 	ControlCommandType type = ControlCommandType::Next;
 	std::string path;
+};
+
+struct PlaylistSnapshot {
+	std::string name;
+	std::vector<std::string> paths;
+	std::size_t start_index = 0;
 };
 
 enum class ControlPollResult {
@@ -32,6 +40,8 @@ struct ControllerSnapshot {
 	std::string path;
 	std::uint32_t session = 0;
 	std::uint16_t loop_count = 0;
+	std::string context = "DIRECTORY";
+	std::string playlist;
 };
 
 class ControllerIo {
@@ -77,6 +87,11 @@ bool send_navigation_command(const std::string &command_path,
 		ControlCommandType command, std::string &detail);
 bool send_play_command(const std::string &command_path,
 		const std::string &path, std::string &detail);
+bool send_playlist_command(const std::string &command_path,
+		const std::string &snapshot_path, std::string &detail);
+bool load_playlist_snapshot(const std::string &snapshot_path,
+		const std::string &approved_root, PlaylistSnapshot &snapshot,
+		std::string &detail, bool consume = false);
 const char *control_command_name(ControlCommandType command);
 
 } // namespace megavgm_playlist

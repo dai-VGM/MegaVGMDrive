@@ -265,6 +265,7 @@ PlaylistResult run(Runtime &runtime, const PlaylistConfig &config,
 	log << "INITIAL_FPGA_SESSION=" << baseline_session << '\n';
 	std::size_t skipped = 0;
 	std::vector<Track> active_tracks = tracks;
+	std::string active_playlist_name;
 	if (active_tracks.empty() || config.start_index >= active_tracks.size())
 		return PlaylistResult::InvalidTrackPath;
 	std::size_t index = config.start_index;
@@ -286,6 +287,8 @@ PlaylistResult run(Runtime &runtime, const PlaylistConfig &config,
 		snapshot.path = track.path;
 		snapshot.session = session;
 		snapshot.loop_count = loop_count;
+		snapshot.context = active_playlist_name.empty() ? "DIRECTORY" : "PLAYLIST";
+		snapshot.playlist = active_playlist_name;
 		std::string detail;
 		if (controller->publish(snapshot, detail)) return true;
 		control_error("status publish", detail);
@@ -300,7 +303,7 @@ PlaylistResult run(Runtime &runtime, const PlaylistConfig &config,
 	};
 
 	while (index < active_tracks.size()) {
-		const Track &track = active_tracks[index];
+		const Track track = active_tracks[index];
 		log << '\n' << '[' << index + 1 << '/' << active_tracks.size() << "] "
 		    << track.name << '\n';
 		const std::uint64_t request_started_ms = runtime.monotonic_ms();
@@ -412,6 +415,7 @@ PlaylistResult run(Runtime &runtime, const PlaylistConfig &config,
 		ControlCommand control_command;
 		std::vector<Track> replacement_tracks;
 		std::size_t replacement_index = 0;
+		std::string replacement_playlist_name;
 		deadline = runtime.monotonic_ms() + config.end_timeout_ms;
 		while (!ended && !fatal && !loop_limit_reached) {
 			monitor.sleep();
@@ -436,6 +440,36 @@ PlaylistResult run(Runtime &runtime, const PlaylistConfig &config,
 							log << "CONTROL_IGNORED: invalid PLAY selection";
 							if (!control_detail.empty()) log << ": " << control_detail;
 							log << '\n';
+							continue;
+						}
+						replacement_playlist_name.clear();
+					} else if (control_command.type == ControlCommandType::Playlist) {
+						PlaylistSnapshot snapshot;
+						if (!load_playlist_snapshot(control_command.path,
+								config.approved_root, snapshot,
+								control_detail, true)) {
+							log << "CONTROL_IGNORED: invalid PLAYLIST snapshot";
+							if (!control_detail.empty()) log << ": " << control_detail;
+							log << '\n';
+							continue;
+						}
+						replacement_tracks.clear();
+						for (const std::string &path : snapshot.paths) {
+							const std::size_t separator = path.find_last_of('/');
+							replacement_tracks.push_back({
+								separator == std::string::npos ? path : path.substr(separator + 1), path});
+						}
+						replacement_index = snapshot.start_index;
+						replacement_playlist_name = snapshot.name;
+						if (replacement_tracks[replacement_index].path == track.path) {
+							active_tracks = std::move(replacement_tracks);
+							index = replacement_index;
+							active_playlist_name = replacement_playlist_name;
+							log << "navigation=PLAYLIST adopt_current=1 name="
+							    << active_playlist_name << " index=" << index + 1 << '\n';
+							if (!publish("PLAYING", track, owned_session,
+									status.loop_count))
+								return PlaylistResult::ControlIoError;
 							continue;
 						}
 					}
@@ -472,7 +506,8 @@ PlaylistResult run(Runtime &runtime, const PlaylistConfig &config,
 		baseline_session = owned_session;
 		if (navigation_claimed) {
 			log << "navigation=" << control_command_name(control_command.type);
-			if (control_command.type == ControlCommandType::Play)
+			if (control_command.type == ControlCommandType::Play ||
+			    control_command.type == ControlCommandType::Playlist)
 				log << " path=" << control_command.path;
 			log << '\n';
 			if (!publish(control_command_name(control_command.type), track,
@@ -481,6 +516,11 @@ PlaylistResult run(Runtime &runtime, const PlaylistConfig &config,
 			if (control_command.type == ControlCommandType::Play) {
 				active_tracks = std::move(replacement_tracks);
 				index = replacement_index;
+				active_playlist_name.clear();
+			} else if (control_command.type == ControlCommandType::Playlist) {
+				active_tracks = std::move(replacement_tracks);
+				index = replacement_index;
+				active_playlist_name = replacement_playlist_name;
 			} else if (control_command.type == ControlCommandType::Next) {
 				if (index + 1 >= active_tracks.size()) {
 					if (!publish("COMPLETE", track, owned_session,

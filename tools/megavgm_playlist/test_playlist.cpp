@@ -3,7 +3,9 @@
 #include <cassert>
 #include <cerrno>
 #include <fcntl.h>
+#include <fstream>
 #include <iostream>
+#include <limits.h>
 #include <sstream>
 #include <string>
 #include <sys/stat.h>
@@ -186,7 +188,8 @@ PlaylistResult execute(std::vector<Frame> frames, std::vector<Track> tracks,
 		std::uint16_t loop_limit = 2,
 		std::vector<ControlEvent> control_events = {},
 		ScriptController **out_controller = nullptr,
-		std::size_t start_index = 0)
+		std::size_t start_index = 0,
+		const std::string &approved_root = {})
 {
 	auto *runtime = new ScriptRuntime(std::move(frames));
 	auto *controller = new ScriptController(*runtime, std::move(control_events));
@@ -194,6 +197,7 @@ PlaylistResult execute(std::vector<Frame> frames, std::vector<Track> tracks,
 	PlaylistConfig config = fast_config();
 	config.loop_limit = loop_limit;
 	config.start_index = start_index;
+	if (!approved_root.empty()) config.approved_root = approved_root;
 	const PlaylistResult result = run(*runtime, config, tracks, log, controller);
 	if (out_log) *out_log = log.str();
 	if (out_controller) *out_controller = controller;
@@ -600,6 +604,62 @@ void test_empty_directory()
 	assert(rmdir(directory_name) == 0);
 }
 
+void test_playlist_snapshot_adopts_current_and_owns_auto_next()
+{
+	char root_template[] = "/tmp/megavgm_snapshot_run.XXXXXX";
+	char *root_name = mkdtemp(root_template);
+	assert(root_name);
+	char canonical_root[PATH_MAX];
+	assert(realpath(root_name, canonical_root));
+	const std::string root(canonical_root);
+	assert(mkdir((root + "/one").c_str(), 0700) == 0);
+	assert(mkdir((root + "/two").c_str(), 0700) == 0);
+	const std::string first = root + "/one/01 First.vgm";
+	const std::string second = root + "/two/02 Second.vgm";
+	create_file(first);
+	create_file(second);
+	const std::string snapshot_path = root + "/playlist.snapshot";
+	{
+		std::ofstream snapshot(snapshot_path);
+		snapshot << "MEGAVGM_PLAYLIST_V1\nNAME Favorites\nSTART 0\nCOUNT 2\n"
+		         << "PATH " << first << '\n' << "PATH " << second << '\n';
+	}
+	ScriptRuntime *runtime = nullptr;
+	ScriptController *controller = nullptr;
+	const PlaylistResult result = execute({
+		ok(9, PlaybackState::Ended),
+		ok(10, PlaybackState::Playing),
+		ok(10, PlaybackState::Playing),
+		ok(10, PlaybackState::Ended),
+		ok(11, PlaybackState::Playing),
+		ok(11, PlaybackState::Ended)
+	}, {{"01 First.vgm", first}}, &runtime, nullptr, 2,
+		{{3, ControlCommandType::Playlist, snapshot_path}}, &controller, 0, root);
+	assert(result == PlaylistResult::Complete);
+	assert(runtime->commands.size() == 2);
+	assert(runtime->commands[0] == "load_file 1 " + first + "\n");
+	assert(runtime->commands[1] == "load_file 1 " + second + "\n");
+	bool adopted = false;
+	bool second_owned = false;
+	for (const ControllerSnapshot &snapshot : controller->snapshots) {
+		if (snapshot.context == "PLAYLIST" && snapshot.playlist == "Favorites" &&
+		    snapshot.index == 1 && snapshot.count == 2 && snapshot.path == first)
+			adopted = true;
+		if (snapshot.context == "PLAYLIST" && snapshot.playlist == "Favorites" &&
+		    snapshot.index == 2 && snapshot.count == 2 && snapshot.path == second)
+			second_owned = true;
+	}
+	assert(adopted && second_owned);
+	assert(access(snapshot_path.c_str(), F_OK) != 0);
+	delete controller;
+	delete runtime;
+	assert(unlink(first.c_str()) == 0);
+	assert(unlink(second.c_str()) == 0);
+	assert(rmdir((root + "/one").c_str()) == 0);
+	assert(rmdir((root + "/two").c_str()) == 0);
+	assert(rmdir(root.c_str()) == 0);
+}
+
 } // namespace
 
 int main()
@@ -620,6 +680,7 @@ int main()
 	test_missing_and_timeout();
 	test_discovery_and_ordering();
 	test_empty_directory();
+	test_playlist_snapshot_adopts_current_and_owns_auto_next();
 	std::cout << "megavgm_playlist host tests: PASS\n";
 	return 0;
 }

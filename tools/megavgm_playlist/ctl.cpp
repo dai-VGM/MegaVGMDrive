@@ -7,7 +7,7 @@ int main(int argc, char **argv)
 {
 	std::signal(SIGPIPE, SIG_IGN);
 	if (argc < 2 || argc > 3) {
-		std::cerr << "Usage: megavgm_ctl next|prev|play <absolute-vgm-path>\n";
+		std::cerr << "Usage: megavgm_ctl next|prev|play <path>|playlist <snapshot>\n";
 		return 2;
 	}
 
@@ -25,8 +25,11 @@ int main(int argc, char **argv)
 	else if (argc == 3 && argument == "play")
 		sent = megavgm_playlist::send_play_command(
 			"/tmp/megavgm_playlist.cmd", argv[2], detail);
+	else if (argc == 3 && argument == "playlist")
+		sent = megavgm_playlist::send_playlist_command(
+			"/tmp/megavgm_playlist.cmd", argv[2], detail);
 	else {
-		std::cerr << "Usage: megavgm_ctl next|prev|play <absolute-vgm-path>\n";
+		std::cerr << "Usage: megavgm_ctl next|prev|play <path>|playlist <snapshot>\n";
 		return 2;
 	}
 	if (!sent) {

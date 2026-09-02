@@ -27,6 +27,17 @@ following track immediately. At the last track it completes the playlist
 without wrapping. `PREV` loads the preceding track; at the first track it
 deterministically restarts that first track.
 
+Remote playlist playback uses a separate `PLAYLIST <snapshot>` command. The
+snapshot is a closed, versioned, ordered list of canonical `.vgm` paths under
+`/media/fat/MegaVGMDrive`, plus a zero-based starting index and display name.
+The controller opens it without following symlinks, validates every file,
+copies the complete ordering into memory, and removes the one-shot snapshot.
+Persistent playlist edits therefore cannot change an active queue. If the
+snapshot starts on the already-owned current track, the controller adopts the
+new queue without reloading that track; otherwise it performs one serialized
+replacement load. `NEXT`, `PREV`, native-loop advancement, and end-of-list
+behavior then operate only inside the copied snapshot.
+
 Commands are accepted only after the current controller-owned session reaches
 PLAYING. Additional commands received while its replacement track is loading
 are discarded, so Main transfers never overlap. A navigation command observed
@@ -64,7 +75,13 @@ count=10
 path=/media/fat/Music/04 Track.vgm
 session=27
 loop_count=1
+context=PLAYLIST
+playlist=Favorites
 ```
+
+`context=DIRECTORY` with an empty `playlist` retains the legacy Browse/direct
+directory behavior. Snapshot playback publishes `context=PLAYLIST` and its
+playlist name so Remote can show the controller-owned context.
 
 `index` is one-based. This file summarizes controller ownership and does not
 replace or duplicate the raw FPGA/Main status interface.
