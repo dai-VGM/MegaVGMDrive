@@ -1,5 +1,6 @@
 #include "linux_runtime.h"
 #include "runtime_support.h"
+#include "sha256.h"
 #include "supervisor.h"
 
 #include <cerrno>
@@ -195,12 +196,37 @@ int show_status(const megavgm_supervisor::Paths &paths)
 	return 0;
 }
 
+int hash_main(const megavgm_supervisor::Paths &paths)
+{
+	struct stat attributes = {};
+	const int stat_result = stat(paths.modified_main.c_str(), &attributes);
+	const int stat_errno = stat_result == 0 ? 0 : errno;
+	std::string actual;
+	std::string detail;
+	int hash_errno = 0;
+	const bool success = megavgm_supervisor::sha256_file(paths.modified_main,
+		actual, detail, &hash_errno);
+	std::cout << "modified_main_path=" << paths.modified_main << '\n'
+		<< "modified_main_size=";
+	if (stat_result == 0) std::cout << attributes.st_size;
+	else std::cout << "STAT_FAILED: " << stat_errno << ": "
+		<< std::strerror(stat_errno);
+	std::cout << '\n'
+		<< "modified_main_sha_expected=" << paths.expected_modified_sha256 << '\n'
+		<< "modified_main_sha_actual=" << actual << '\n'
+		<< "modified_main_sha256_file_success=" << (success ? "YES" : "NO") << '\n'
+		<< "modified_main_sha_errno=" << (success ? "0" :
+			std::to_string(hash_errno) + ": " + detail) << '\n';
+	return success && actual == paths.expected_modified_sha256 ? 0 : 1;
+}
+
 void usage()
 {
 	std::cerr << "Usage:\n"
 	          << "  megavgm_supervisor enter [--start-file PATH] <playlist-directory>\n"
 	          << "  megavgm_supervisor exit\n"
-	          << "  megavgm_supervisor status\n";
+	          << "  megavgm_supervisor status\n"
+	          << "  megavgm_supervisor hash-main\n";
 }
 
 } // namespace
@@ -215,6 +241,7 @@ int main(int argc, char **argv)
 		return enter_mode(paths, argv[4], argv[3]);
 	if (argc == 2 && std::string(argv[1]) == "exit") return exit_mode(paths);
 	if (argc == 2 && std::string(argv[1]) == "status") return show_status(paths);
+	if (argc == 2 && std::string(argv[1]) == "hash-main") return hash_main(paths);
 	usage();
 	return 2;
 }

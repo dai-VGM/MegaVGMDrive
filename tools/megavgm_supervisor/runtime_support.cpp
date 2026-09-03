@@ -46,6 +46,14 @@ std::string snapshot_text(const Snapshot &snapshot)
 	     << "playlist=" << snapshot.playlist << '\n'
 	     << "stock_sha256=" << snapshot.stock_sha256 << '\n'
 	     << "modified_sha256=" << snapshot.modified_sha256 << '\n'
+	     << "modified_main_path=" << snapshot.modified_main_path << '\n'
+	     << "modified_main_size=" << snapshot.modified_main_size << '\n'
+	     << "modified_main_sha_expected="
+	     << snapshot.modified_main_sha_expected << '\n'
+	     << "modified_main_sha_actual=" << snapshot.modified_main_sha_actual << '\n'
+	     << "modified_main_sha256_file_success="
+	     << snapshot.modified_main_sha256_file_success << '\n'
+	     << "modified_main_sha_errno=" << snapshot.modified_main_sha_errno << '\n'
 	     << "controller_pid=" << snapshot.controller_pid << '\n'
 	     << "controller_exec=" << snapshot.controller_exec << '\n'
 	     << "controller_exit=" << snapshot.controller_exit << '\n'
@@ -95,6 +103,11 @@ OperationResult AtomicStatusPublisher::publish(const Snapshot &snapshot)
 	for (const std::string *value : {&snapshot.mode, &snapshot.main,
 		&snapshot.controller, &snapshot.rbf, &snapshot.playlist,
 		&snapshot.stock_sha256, &snapshot.modified_sha256,
+		&snapshot.modified_main_path, &snapshot.modified_main_size,
+		&snapshot.modified_main_sha_expected,
+		&snapshot.modified_main_sha_actual,
+		&snapshot.modified_main_sha256_file_success,
+		&snapshot.modified_main_sha_errno,
 		&snapshot.controller_pid, &snapshot.controller_exec,
 		&snapshot.controller_exit, &snapshot.controller_stderr,
 		&snapshot.controller_trace, &snapshot.main_load_file,

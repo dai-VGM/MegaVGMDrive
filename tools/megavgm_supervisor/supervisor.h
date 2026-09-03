@@ -18,6 +18,12 @@ struct OperationResult {
 struct VerifiedInputs {
 	std::string stock_sha256;
 	std::string modified_sha256;
+	std::string modified_main_path;
+	std::string modified_main_size;
+	std::string modified_main_sha_expected;
+	std::string modified_main_sha_actual;
+	std::string modified_main_sha256_file_success = "NO";
+	std::string modified_main_sha_errno;
 };
 
 struct ControllerDiagnostics {
@@ -42,6 +48,12 @@ struct Snapshot {
 	std::string playlist;
 	std::string stock_sha256;
 	std::string modified_sha256;
+	std::string modified_main_path;
+	std::string modified_main_size;
+	std::string modified_main_sha_expected;
+	std::string modified_main_sha_actual;
+	std::string modified_main_sha256_file_success = "NO";
+	std::string modified_main_sha_errno;
 	std::string controller_pid = "-1";
 	std::string controller_exec = "NOT_STARTED";
 	std::string controller_exit = "NOT_OBSERVED";

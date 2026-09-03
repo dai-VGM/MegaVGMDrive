@@ -61,6 +61,13 @@ OperationResult Supervisor::enter(const std::string &playlist,
 
 	VerifiedInputs inputs;
 	result = runtime_.verify_inputs(playlist, start_file, inputs);
+	snapshot_.modified_main_path = inputs.modified_main_path;
+	snapshot_.modified_main_size = inputs.modified_main_size;
+	snapshot_.modified_main_sha_expected = inputs.modified_main_sha_expected;
+	snapshot_.modified_main_sha_actual = inputs.modified_main_sha_actual;
+	snapshot_.modified_main_sha256_file_success =
+		inputs.modified_main_sha256_file_success;
+	snapshot_.modified_main_sha_errno = inputs.modified_main_sha_errno;
 	if (!result.ok) return rollback("prerequisite verification failed: " + result.detail);
 	snapshot_.stock_sha256 = inputs.stock_sha256;
 	snapshot_.modified_sha256 = inputs.modified_sha256;

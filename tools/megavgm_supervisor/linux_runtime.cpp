@@ -11,6 +11,7 @@
 #include <dirent.h>
 #include <fcntl.h>
 #include <fstream>
+#include <iostream>
 #include <poll.h>
 #include <sstream>
 #include <sys/stat.h>
@@ -173,6 +174,8 @@ bool LinuxRuntime::process_has_open_file(const std::string &path)
 OperationResult LinuxRuntime::verify_inputs(const std::string &playlist,
 	const std::string &start_file, VerifiedInputs &inputs)
 {
+	inputs.modified_main_path = paths_.modified_main;
+	inputs.modified_main_sha_expected = paths_.expected_modified_sha256;
 	if (geteuid() != 0) return OperationResult::failure("root privileges required");
 	if (playlist.empty() || playlist.size() > 4096 ||
 		playlist.find('\n') != std::string::npos ||
@@ -225,10 +228,34 @@ OperationResult LinuxRuntime::verify_inputs(const std::string &playlist,
 	std::string detail;
 	if (!sha256_file(paths_.stock_main, inputs.stock_sha256, detail))
 		return OperationResult::failure("stock Main hash failed: " + detail);
-	if (!sha256_file(paths_.modified_main, inputs.modified_sha256, detail))
-		return OperationResult::failure("modified Main hash failed: " + detail);
+	struct stat modified = {};
+	if (stat(paths_.modified_main.c_str(), &modified) == 0)
+		inputs.modified_main_size = std::to_string(
+			static_cast<unsigned long long>(modified.st_size));
+	else
+		inputs.modified_main_size = "STAT_FAILED: " +
+			std::string(std::strerror(errno));
+	int hash_errno = 0;
+	const bool hash_ok = sha256_file(paths_.modified_main,
+		inputs.modified_sha256, detail, &hash_errno);
+	inputs.modified_main_sha_actual = inputs.modified_sha256;
+	inputs.modified_main_sha256_file_success = hash_ok ? "YES" : "NO";
+	inputs.modified_main_sha_errno = hash_ok ? "0" :
+		std::to_string(hash_errno) + ": " + detail;
+	std::cerr << "modified_main_path=" << inputs.modified_main_path << '\n'
+		<< "modified_main_size=" << inputs.modified_main_size << '\n'
+		<< "modified_main_sha_expected="
+		<< inputs.modified_main_sha_expected << '\n'
+		<< "modified_main_sha_actual=" << inputs.modified_main_sha_actual << '\n'
+		<< "modified_main_sha256_file_success="
+		<< inputs.modified_main_sha256_file_success << '\n'
+		<< "modified_main_sha_errno=" << inputs.modified_main_sha_errno << '\n';
+	if (!hash_ok)
+		return OperationResult::failure("modified Main hash failed: errno=" +
+			inputs.modified_main_sha_errno);
 	if (inputs.modified_sha256 != paths_.expected_modified_sha256)
-		return OperationResult::failure("modified Main SHA-256 mismatch");
+		return OperationResult::failure("modified Main SHA-256 mismatch: expected=" +
+			paths_.expected_modified_sha256 + " actual=" + inputs.modified_sha256);
 	return OperationResult::success();
 }
 

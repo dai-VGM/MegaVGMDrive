@@ -38,6 +38,14 @@ Exit and inspect status with:
 /media/fat/MegaVGMPlayer/megavgm_supervisor status
 ```
 
+The read-only diagnostic command below hashes the configured modified Main
+without entering MegaVGM mode or stopping stock Main. It prints the exact path,
+file size, expected and actual SHA-256 values, hash success, and captured errno.
+
+```sh
+/media/fat/MegaVGMPlayer/megavgm_supervisor hash-main
+```
+
 `exit` is idempotent across automatic restoration. If a normal playlist
 completion already owns restore, it reports `RESTORE_IN_PROGRESS`; after stock
 mode is published it reports `ALREADY_STOPPED` instead of exposing a vanished

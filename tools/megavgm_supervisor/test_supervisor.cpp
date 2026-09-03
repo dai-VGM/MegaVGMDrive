@@ -4,10 +4,13 @@
 #include "supervisor.h"
 
 #include <algorithm>
+#include <array>
 #include <cassert>
+#include <cstdlib>
 #include <fstream>
 #include <iostream>
 #include <string>
+#include <sys/stat.h>
 #include <unistd.h>
 #include <vector>
 
@@ -51,6 +54,12 @@ public:
 	{
 		verified_playlist = playlist;
 		verified_start_file = start_file;
+		inputs.modified_main_path = "/fixed/MiSTer.megavgm";
+		inputs.modified_main_size = "1063652";
+		inputs.modified_main_sha_expected = "modified-hash";
+		inputs.modified_main_sha_actual = "modified-hash";
+		inputs.modified_main_sha256_file_success = "YES";
+		inputs.modified_main_sha_errno = "0";
 		OperationResult result = call("verify_inputs");
 		if (result.ok) {
 			inputs.stock_sha256 = "stock-hash";
@@ -348,6 +357,12 @@ void test_prerequisite_failure_does_not_stop_stock_main()
 	assert(supervisor.snapshot().mode == "FAILURE");
 	assert(supervisor.snapshot().main == "UNKNOWN");
 	assert(supervisor.snapshot().controller == "UNKNOWN");
+	assert(supervisor.snapshot().modified_main_path == "/fixed/MiSTer.megavgm");
+	assert(supervisor.snapshot().modified_main_size == "1063652");
+	assert(supervisor.snapshot().modified_main_sha_expected == "modified-hash");
+	assert(supervisor.snapshot().modified_main_sha_actual == "modified-hash");
+	assert(supervisor.snapshot().modified_main_sha256_file_success == "YES");
+	assert(supervisor.snapshot().modified_main_sha_errno == "0");
 	assert(supervisor.snapshot().detail.find(
 		"stock Main was not stopped") != std::string::npos);
 }
@@ -727,16 +742,74 @@ void test_stock_restore_verification_mismatch()
 void test_sha256_implementation()
 {
 	const std::string directory = temporary_directory();
-	const std::string path = directory + "/abc";
+	const std::string abc_path = directory + "/abc";
 	{
-		std::ofstream file(path, std::ios::binary);
+		std::ofstream file(abc_path, std::ios::binary);
 		file << "abc";
 	}
 	std::string digest;
 	std::string detail;
-	assert(megavgm_supervisor::sha256_file(path, digest, detail));
+	int error_number = -1;
+	assert(megavgm_supervisor::sha256_file(abc_path, digest, detail,
+		&error_number));
 	assert(digest == "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad");
-	unlink(path.c_str());
+	assert(error_number == 0);
+	unlink(abc_path.c_str());
+
+	struct Vector {
+		std::size_t size;
+		const char *digest;
+	};
+	const Vector vectors[] = {
+		{0, "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"},
+		{1, "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d"},
+		{55, "463eb28e72f82e0a96c0a4cc53690c571281131f672aa229e0d45ae59b598b59"},
+		{56, "da2ae4d6b36748f2a318f23e7ab1dfdf45acdc9d049bd80e59de82a60895f562"},
+		{63, "29af2686fd53374a36b0846694cc342177e428d1647515f078784d69cdb9e488"},
+		{64, "fdeab9acf3710362bd2658cdc9a29e8f9c757fcf9811603a8c447cd1d9151108"},
+		{65, "4bfd2c8b6f1eec7a2afeb48b934ee4b2694182027e6d0fc075074f2fabb31781"},
+		{119, "da18797ed7c3a777f0847f429724a2d8cd5138e6ed2895c3fa1a6d39d18f7ec6"},
+		{120, "f52b23db1fbb6ded89ef42a23ce0c8922c45f25c50b568a93bf1c075420bbb7c"},
+		{127, "92ca0fa6651ee2f97b884b7246a562fa71250fedefe5ebf270d31c546bfea976"},
+		{128, "471fb943aa23c511f6f72f8d1652d9c880cfa392ad80503120547703e56a2be5"},
+		{129, "5099c6a56203f9687f7d33f4bfdf576d31dc91f6b695ecea38b2770c87631135"},
+		{1063652,
+			"2360cd5c8e2346f961db483a500daf66b6468cbf4c5d39766e2e4756306e048e"},
+	};
+	for (const Vector &vector : vectors) {
+		const std::string path = directory + "/vector-" +
+			std::to_string(vector.size);
+		std::ofstream file(path, std::ios::binary);
+		std::array<char, 4096> buffer = {{}};
+		std::size_t offset = 0;
+		while (offset < vector.size) {
+			const std::size_t amount = std::min(buffer.size(),
+				vector.size - offset);
+			for (std::size_t i = 0; i < amount; ++i)
+				buffer[i] = static_cast<char>((offset + i) & 0xff);
+			file.write(buffer.data(), static_cast<std::streamsize>(amount));
+			offset += amount;
+		}
+		file.close();
+		assert(file.good());
+		assert(megavgm_supervisor::sha256_file(path, digest, detail,
+			&error_number));
+		assert(digest == vector.digest);
+		assert(error_number == 0);
+		unlink(path.c_str());
+	}
+
+	const char *m5_main = std::getenv("MEGAVGM_TEST_MAIN_PATH");
+	if (m5_main && *m5_main) {
+		struct stat attributes = {};
+		assert(stat(m5_main, &attributes) == 0);
+		assert(attributes.st_size == 1063652);
+		assert(megavgm_supervisor::sha256_file(m5_main, digest, detail,
+			&error_number));
+		assert(digest ==
+			"ae6e050f87749962a354b0879bac45f33e58be64fb3892d4157a1754407f955e");
+		assert(error_number == 0);
+	}
 	rmdir(directory.c_str());
 }
 

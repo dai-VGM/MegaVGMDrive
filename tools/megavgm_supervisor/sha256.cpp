@@ -142,11 +142,16 @@ private:
 } // namespace
 
 bool sha256_file(const std::string &path, std::string &digest,
-	std::string &detail)
+	std::string &detail, int *error_number)
 {
+	digest.clear();
+	detail.clear();
+	if (error_number) *error_number = 0;
 	const int fd = open(path.c_str(), O_RDONLY | O_CLOEXEC);
 	if (fd < 0) {
-		detail = std::strerror(errno);
+		const int saved = errno;
+		detail = std::strerror(saved);
+		if (error_number) *error_number = saved;
 		return false;
 	}
 	Sha256 sha;
@@ -159,14 +164,18 @@ bool sha256_file(const std::string &path, std::string &digest,
 		}
 		if (bytes < 0 && errno == EINTR) continue;
 		if (bytes < 0) {
-			detail = std::strerror(errno);
+			const int saved = errno;
+			detail = std::strerror(saved);
+			if (error_number) *error_number = saved;
 			close(fd);
 			return false;
 		}
 		break;
 	}
 	if (close(fd) < 0) {
-		detail = std::strerror(errno);
+		const int saved = errno;
+		detail = std::strerror(saved);
+		if (error_number) *error_number = saved;
 		return false;
 	}
 	digest = sha.finish();
