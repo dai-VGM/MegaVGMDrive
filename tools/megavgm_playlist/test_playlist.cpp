@@ -440,6 +440,24 @@ void test_next_at_last_track_completes()
 	delete runtime;
 }
 
+void test_single_track_natural_end_completes_once()
+{
+	ScriptRuntime *runtime = nullptr;
+	std::string log;
+	const std::vector<Track> tracks = {
+		{"Only.vgm", "/music/Only.vgm"}
+	};
+	assert(execute({
+		ok(9, PlaybackState::Ended),
+		ok(10, PlaybackState::Playing),
+		ok(10, PlaybackState::Ended)
+	}, tracks, &runtime, &log) == PlaylistResult::Complete);
+	assert(runtime->commands.size() == 1);
+	assert(log.find("TRACK_TRANSITION source=EOF from=1 action=COMPLETE") !=
+		std::string::npos);
+	delete runtime;
+}
+
 void test_next_wins_loop_limit_race()
 {
 	ScriptRuntime *runtime = nullptr;
@@ -458,6 +476,60 @@ void test_next_wins_loop_limit_race()
 		{{3, ControlCommandType::Next, {}}});
 	assert(result == PlaylistResult::Complete);
 	assert(runtime->commands.size() == 2);
+	delete runtime;
+}
+
+void test_manual_and_automatic_next_share_one_transition_owner()
+{
+	ScriptRuntime *runtime = nullptr;
+	std::string log;
+	const std::vector<Track> tracks = three_tracks();
+	const PlaylistResult result = execute({
+		ok(9, PlaybackState::Ended),
+		ok(10, PlaybackState::Playing),
+		ok(10, PlaybackState::Playing),
+		ok(11, PlaybackState::Playing),
+		ok(11, PlaybackState::Ended),
+		ok(12, PlaybackState::Playing),
+		ok(12, PlaybackState::Ended)
+	}, tracks, &runtime, &log, 2,
+		{{3, ControlCommandType::Next, {}}});
+	assert(result == PlaylistResult::Complete);
+	assert(runtime->commands.size() == 3);
+	assert(runtime->commands[0] == "load_file 1 " + tracks[0].path + "\n");
+	assert(runtime->commands[1] == "load_file 1 " + tracks[1].path + "\n");
+	assert(runtime->commands[2] == "load_file 1 " + tracks[2].path + "\n");
+	assert(log.find("TRACK_TRANSITION source=MANUAL_NEXT from=1 action=LOAD to=2") !=
+		std::string::npos);
+	assert(log.find("TRACK_TRANSITION source=EOF from=2 action=LOAD to=3") !=
+		std::string::npos);
+	assert(log.find("TRACK_TRANSITION_IGNORED") == std::string::npos);
+	for (const std::string &command : runtime->commands)
+		assert(command != "reset_core\n");
+	delete runtime;
+}
+
+void test_loop_limit_uses_guarded_transition_once()
+{
+	ScriptRuntime *runtime = nullptr;
+	std::string log;
+	const std::vector<Track> tracks = {
+		{"Loop.vgm", "/music/Loop.vgm"},
+		{"Next.vgm", "/music/Next.vgm"}
+	};
+	assert(execute({
+		loop_status(4, PlaybackState::Ended, false, 0),
+		loop_status(5, PlaybackState::Playing, true, 0),
+		loop_status(5, PlaybackState::Playing, true, 2),
+		loop_status(5, PlaybackState::Playing, true, 2),
+		loop_status(5, PlaybackState::Playing, true, 2),
+		loop_status(6, PlaybackState::Playing, false, 0),
+		loop_status(6, PlaybackState::Ended, false, 0)
+	}, tracks, &runtime, &log) == PlaylistResult::Complete);
+	assert(runtime->commands.size() == 2);
+	assert(log.find("TRACK_TRANSITION source=LOOP_LIMIT from=1 action=LOAD to=2") !=
+		std::string::npos);
+	assert(log.find("TRACK_TRANSITION_IGNORED") == std::string::npos);
 	delete runtime;
 }
 
@@ -1083,7 +1155,10 @@ int main()
 	test_previous_during_track_three();
 	test_previous_restarts_first_track();
 	test_next_at_last_track_completes();
+	test_single_track_natural_end_completes_once();
 	test_next_wins_loop_limit_race();
+	test_manual_and_automatic_next_share_one_transition_owner();
+	test_loop_limit_uses_guarded_transition_once();
 	test_rapid_next_is_ignored_during_owned_load();
 	test_three_tracks_and_duplicate_end();
 	test_manual_suspension();

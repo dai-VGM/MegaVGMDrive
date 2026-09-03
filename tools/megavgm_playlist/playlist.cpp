@@ -447,12 +447,28 @@ PlaylistResult run(Runtime &runtime, const PlaylistConfig &config,
 			}
 		}
 
+		auto advance_next = [&](bool automatic, bool native_looping,
+				const char *source, std::size_t &selected) -> TraversalResult {
+			const TraversalResult transition = traversal.next(index, automatic,
+				native_looping, selected);
+			log << "TRACK_TRANSITION source=" << source << " from=" << index + 1;
+			if (transition == TraversalResult::Complete)
+				log << " action=COMPLETE";
+			else if (transition == TraversalResult::Stay)
+				log << " action=STAY";
+			else
+				log << " action=" << (selected == index ? "RELOAD" : "LOAD")
+				    << " to=" << selected + 1;
+			log << '\n';
+			return transition;
+		};
+
 		if (fatal) {
 			log_fatal(log, index, active_tracks.size(), track, status);
 			baseline_session = owned_session;
 			skipped++;
 			std::size_t selected = index;
-			if (traversal.next(index, false, false, selected) ==
+			if (advance_next(false, false, "FATAL", selected) ==
 					TraversalResult::Complete)
 				return complete(track, owned_session, status.loop_count);
 			index = selected;
@@ -731,7 +747,7 @@ PlaylistResult run(Runtime &runtime, const PlaylistConfig &config,
 				traversal.reset(active_tracks.size(), index, preferences);
 			} else if (control_command.type == ControlCommandType::Next) {
 				std::size_t selected = index;
-				if (traversal.next(index, false, false, selected) ==
+				if (advance_next(false, false, "MANUAL_NEXT", selected) ==
 						TraversalResult::Complete)
 					return complete(track, owned_session, status.loop_count);
 				index = selected;
@@ -750,8 +766,10 @@ PlaylistResult run(Runtime &runtime, const PlaylistConfig &config,
 			log << "loop limit reached=" << config.loop_limit << '\n';
 		}
 		std::size_t selected = index;
-		const TraversalResult advance = traversal.next(index, true,
-			status.loop_valid, selected);
+		const char *automatic_source = fatal ? "FATAL" :
+			loop_limit_reached ? "LOOP_LIMIT" : "EOF";
+		const TraversalResult advance = advance_next(true, status.loop_valid,
+			automatic_source, selected);
 		if (advance == TraversalResult::Complete)
 			return complete(track, owned_session, status.loop_count);
 		// Repeat One with a native loop never reaches here because its loop limit
