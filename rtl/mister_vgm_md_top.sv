@@ -53,6 +53,14 @@ module mister_vgm_md_top #(
     // completed OSD load. 1,000,000 cycles is about 50 ms at 20 MHz.
     parameter logic [31:0] MODE5_AUDIO_UNMUTE_DELAY_CYCLES = 32'd1_000_000,
 
+    // A replacement download used to reset/mute the active sound family on
+    // the first ioctl_download cycle. Natural END also removed player_busy
+    // combinationally, closing the same gate at full amplitude. Give both
+    // automatic and manual track replacement one short deterministic ramp,
+    // and hold the download with ioctl_wait until the ramp owns zero output.
+    // 2,000,000 cycles is 100 ms at the production 20 MHz clock.
+    parameter logic [31:0] MODE5_TRACK_FADE_CYCLES = 32'd2_000_000,
+
     // REGION_MODE=5 explicit END repeat policy. This is intentionally separate
     // from the one-shot load-session start path: disabled means END stays
     // stopped/muted, enabled means a player_done edge schedules one reset/start
@@ -634,6 +642,17 @@ module mister_vgm_md_top #(
             end
         end
     endfunction
+
+    function automatic logic signed [15:0] scale_audio_256(
+        input logic signed [15:0] value,
+        input logic        [8:0]  gain
+    );
+        logic signed [25:0] product;
+        begin
+            product = $signed(value) * $signed({1'b0, gain});
+            scale_audio_256 = product >>> 8;
+        end
+    endfunction
 `ifdef MEGAVGMDRIVE_START_HOLD_NO_BUSY_CLEAR
     localparam bit START_HOLD_NO_BUSY_CLEAR = 1'b1;
 `else
@@ -689,6 +708,7 @@ module mister_vgm_md_top #(
     logic signed [15:0] raw_audio_r;
     logic               raw_audio_sample_valid;
     logic               audio_runtime_open;
+    logic        [8:0]  audio_runtime_gain;
 
     typedef enum logic [3:0] {
         STARTUP_RESET,
@@ -742,8 +762,12 @@ module mister_vgm_md_top #(
 
     assign audio_sample_valid = raw_audio_sample_valid;
     assign audio_muted = !audio_runtime_open;
-    assign audio_l = audio_runtime_open ? raw_audio_l : 16'sd0;
-    assign audio_r = audio_runtime_open ? raw_audio_r : 16'sd0;
+    assign audio_l = !audio_runtime_open ? 16'sd0 :
+                     (audio_runtime_gain == 9'd256) ? raw_audio_l :
+                     scale_audio_256(raw_audio_l, audio_runtime_gain);
+    assign audio_r = !audio_runtime_open ? 16'sd0 :
+                     (audio_runtime_gain == 9'd256) ? raw_audio_r :
+                     scale_audio_256(raw_audio_r, audio_runtime_gain);
 
     always_ff @(posedge clk) begin
         if (reset) begin
@@ -1399,7 +1423,12 @@ module mister_vgm_md_top #(
             logic mode5_start_hold_lost_without_accept = 1'b0;
             logic mode5_start_hold_prev = 1'b0;
             logic [31:0] mode5_sound_reset_counter = 32'd0;
-            logic ioctl_download_d = 1'b0;
+            logic mode5_ioctl_download_d = 1'b0;
+            logic mode5_host_ioctl_download_d = 1'b0;
+            logic mode5_backend_ioctl_wait;
+            logic mode5_transition_wait;
+            logic mode5_ioctl_download;
+            logic mode5_ioctl_wr;
             logic mode5_load_begin_pulse;
             logic mode5_load_session_active = 1'b0;
             logic mode5_playback_armed = 1'b0;
@@ -1408,6 +1437,13 @@ module mister_vgm_md_top #(
             logic [31:0] mode5_audio_unmute_counter = 32'd0;
             logic mode5_audio_unmute_ready = 1'b0;
             logic mode5_audio_pre_unmute;
+            logic mode5_audio_ever_open = 1'b0;
+            logic mode5_transition_fade_active = 1'b0;
+            logic mode5_transition_end_pending = 1'b0;
+            logic mode5_transition_released = 1'b0;
+            logic mode5_transition_end_pulse = 1'b0;
+            logic [31:0] mode5_transition_fade_counter = 32'd0;
+            logic [8:0] mode5_transition_gain = 9'd256;
             logic [31:0] mode5_load_begin_count_i = 32'd0;
             logic [31:0] mode5_load_done_edge_count_i = 32'd0;
             logic [31:0] mode5_sound_reset_start_count_i = 32'd0;
@@ -1432,6 +1468,7 @@ module mister_vgm_md_top #(
             logic mode5_player_done_latched = 1'b0;
             logic vgm_player_error_d = 1'b0;
             logic [31:0] mode5_error_session_id_i = 32'd0;
+            logic mode5_parser_done_edge;
             logic mode5_done_edge;
             logic mode5_player_error_edge;
             logic mode5_load_ready_level;
@@ -1684,10 +1721,25 @@ module mister_vgm_md_top #(
             localparam logic [1:0] MODE5_REPEAT_WAIT_CLEAR = 2'd2;
             logic [1:0] mode5_repeat_state = MODE5_REPEAT_IDLE;
 
+            wire mode5_selected_download =
+                ioctl_download && (ioctl_index == VGM_LOAD_FILE_INDEX);
+            wire mode5_transition_start_load =
+                mode5_selected_download && !mode5_ioctl_download_d &&
+                !mode5_transition_fade_active &&
+                !mode5_transition_released &&
+                mode5_audio_ever_open &&
+                (MODE5_TRACK_FADE_CYCLES != 32'd0);
+            assign mode5_transition_wait =
+                mode5_transition_fade_active || mode5_transition_start_load;
+            assign mode5_ioctl_download =
+                ioctl_download && !mode5_transition_wait;
+            assign mode5_ioctl_wr = ioctl_wr && !mode5_transition_wait;
+            assign ioctl_wait = mode5_transition_wait |
+                                mode5_backend_ioctl_wait;
             assign mode5_load_begin_pulse =
-                ioctl_download && !ioctl_download_d &&
+                mode5_ioctl_download && !mode5_ioctl_download_d &&
                 (ioctl_index == VGM_LOAD_FILE_INDEX);
-            assign mode5_done_edge =
+            assign mode5_parser_done_edge =
                 loaded_player_done &&
                 !player_done_d &&
                 mode5_playback_started &&
@@ -1698,6 +1750,95 @@ module mister_vgm_md_top #(
                 !vgm_load_error &&
                 !vgm_load_overflow &&
                 !vgm_player_error;
+            assign mode5_done_edge = mode5_transition_end_pulse;
+
+            localparam logic [31:0] MODE5_TRACK_FADE_STEP_CYCLES =
+                (MODE5_TRACK_FADE_CYCLES < 32'd256) ? 32'd1 :
+                ((MODE5_TRACK_FADE_CYCLES + 32'd255) >> 8);
+
+            // One owner serializes every audible track replacement. For an
+            // explicit load, ioctl_wait holds Main at FIO_FILE_TX(enable)
+            // until the old output reaches zero. For natural END, ENDED is
+            // withheld until the same ramp completes. A load arriving during
+            // that END ramp joins it; it cannot start a second transition.
+            always_ff @(posedge clk) begin
+                if (reset) begin
+                    mode5_host_ioctl_download_d <= 1'b0;
+                    mode5_audio_ever_open <= 1'b0;
+                    mode5_transition_fade_active <= 1'b0;
+                    mode5_transition_end_pending <= 1'b0;
+                    mode5_transition_released <= 1'b0;
+                    mode5_transition_end_pulse <= 1'b0;
+                    mode5_transition_fade_counter <= 32'd0;
+                    mode5_transition_gain <= 9'd256;
+                end else begin
+                    mode5_host_ioctl_download_d <= ioctl_download;
+                    mode5_transition_end_pulse <= 1'b0;
+
+                    if (mode5_load_begin_pulse) begin
+                        mode5_audio_ever_open <= 1'b0;
+                    end else if (audio_runtime_open && player_busy) begin
+                        mode5_audio_ever_open <= 1'b1;
+                    end
+
+                    if (mode5_transition_fade_active) begin
+                        if (mode5_parser_done_edge) begin
+                            mode5_transition_end_pending <= 1'b1;
+                        end
+                        if (mode5_transition_fade_counter >=
+                            (MODE5_TRACK_FADE_STEP_CYCLES - 32'd1)) begin
+                            mode5_transition_fade_counter <= 32'd0;
+                            if (mode5_transition_gain <= 9'd1) begin
+                                mode5_transition_gain <= 9'd0;
+                                mode5_transition_fade_active <= 1'b0;
+                                mode5_transition_released <= 1'b1;
+                                if (mode5_transition_end_pending ||
+                                    mode5_parser_done_edge) begin
+                                    mode5_transition_end_pulse <= 1'b1;
+                                end
+                            end else begin
+                                mode5_transition_gain <=
+                                    mode5_transition_gain - 9'd1;
+                            end
+                        end else begin
+                            mode5_transition_fade_counter <=
+                                mode5_transition_fade_counter + 32'd1;
+                        end
+                    end else if (!mode5_transition_released &&
+                                 (mode5_parser_done_edge ||
+                                  mode5_transition_start_load)) begin
+                        if (mode5_audio_ever_open &&
+                            (MODE5_TRACK_FADE_CYCLES != 32'd0)) begin
+                            mode5_transition_fade_active <= 1'b1;
+                            mode5_transition_end_pending <=
+                                mode5_parser_done_edge;
+                            mode5_transition_fade_counter <= 32'd0;
+                            mode5_transition_gain <= 9'd256;
+                        end else begin
+                            mode5_transition_released <= 1'b1;
+                            mode5_transition_gain <= 9'd0;
+                            if (mode5_parser_done_edge) begin
+                                mode5_transition_end_pending <= 1'b1;
+                                mode5_transition_end_pulse <= 1'b1;
+                            end
+                        end
+                    end else if (mode5_transition_released &&
+                                 !ioctl_download &&
+                                 mode5_playback_started &&
+                                 !loaded_player_done) begin
+                        // Internal repeat/re-arm has no download falling edge.
+                        mode5_transition_released <= 1'b0;
+                        mode5_transition_end_pending <= 1'b0;
+                        mode5_transition_gain <= 9'd256;
+                    end else if (mode5_transition_released &&
+                                 !ioctl_download &&
+                                 mode5_host_ioctl_download_d) begin
+                        mode5_transition_released <= 1'b0;
+                        mode5_transition_end_pending <= 1'b0;
+                        mode5_transition_gain <= 9'd256;
+                    end
+                end
+            end
             assign mode5_player_error_edge =
                 vgm_player_error && !vgm_player_error_d;
             assign mode5_top_file_ok =
@@ -2119,7 +2260,7 @@ module mister_vgm_md_top #(
 
             always_ff @(posedge clk) begin
                 if (reset) begin
-                    ioctl_download_d <= 1'b0;
+                    mode5_ioctl_download_d <= 1'b0;
                     mode5_sound_reset_active_i <= 1'b0;
                     mode5_player_start_pulse <= 1'b0;
                     mode5_player_start_hold <= 1'b0;
@@ -2263,7 +2404,7 @@ module mister_vgm_md_top #(
                     mode5_error_session_id_i <= 32'd0;
                     mode5_repeat_state <= MODE5_REPEAT_IDLE;
                 end else begin
-                    ioctl_download_d <= ioctl_download;
+                    mode5_ioctl_download_d <= mode5_ioctl_download;
                     player_done_d <= loaded_player_done;
                     vgm_player_error_d <= vgm_player_error;
                     mode5_player_start_pulse <= 1'b0;
@@ -3514,12 +3655,15 @@ module mister_vgm_md_top #(
             // the final audio gate combinationally on a new download edge so
             // the previous file cannot be visible for the clock preceding
             // the synchronous SegaPCM runtime clear.
-            assign audio_runtime_open = mode5_audio_pre_unmute &&
-                                        !ioctl_download;
+            assign audio_runtime_open =
+                (mode5_audio_pre_unmute && !mode5_ioctl_download) ||
+                mode5_transition_fade_active || mode5_parser_done_edge;
 `else
-            assign audio_runtime_open = mode5_audio_pre_unmute &&
-                                        mode5_audio_unmute_ready;
+            assign audio_runtime_open =
+                (mode5_audio_pre_unmute && mode5_audio_unmute_ready) ||
+                mode5_transition_fade_active || mode5_parser_done_edge;
 `endif
+            assign audio_runtime_gain = mode5_transition_gain;
 
             always_ff @(posedge clk) begin
                 if (reset || !mode5_audio_pre_unmute) begin
@@ -3544,8 +3688,8 @@ module mister_vgm_md_top #(
                 ) loader (
                     .clk              (clk),
                     .reset            (reset),
-                    .ioctl_download   (ioctl_download),
-                    .ioctl_wr         (ioctl_wr),
+                    .ioctl_download   (mode5_ioctl_download),
+                    .ioctl_wr         (mode5_ioctl_wr),
                     .ioctl_addr       (ioctl_addr),
                     .ioctl_dout       (ioctl_dout),
                     .ioctl_index      (ioctl_index),
@@ -3561,7 +3705,7 @@ module mister_vgm_md_top #(
                 );
 
                 assign play_ready_pulse = load_done_pulse;
-                assign ioctl_wait = 1'b0;
+                assign mode5_backend_ioctl_wait = 1'b0;
                 assign segapcm_copy_wr_ready = 1'b1;
                 assign segapcm_copy_flush_done = segapcm_copy_flush_req;
                 assign backend_copy_accept_count_debug = 16'd0;
@@ -3663,12 +3807,12 @@ module mister_vgm_md_top #(
                 ) c0_lab_backend (
                     .clk              (clk),
                     .reset            (reset),
-                    .ioctl_download   (ioctl_download),
-                    .ioctl_wr         (ioctl_wr),
+                    .ioctl_download   (mode5_ioctl_download),
+                    .ioctl_wr         (mode5_ioctl_wr),
                     .ioctl_addr       ({5'd0, ioctl_addr}),
                     .ioctl_dout       (ioctl_dout),
                     .ioctl_index      (ioctl_index[7:0]),
-                    .ioctl_wait       (ioctl_wait),
+                    .ioctl_wait       (mode5_backend_ioctl_wait),
 
                     .mem_rd_req       (mem_rd_req),
                     .mem_rd_addr      (mem_rd_addr),
@@ -3753,12 +3897,12 @@ module mister_vgm_md_top #(
                 ) ddram_backend (
                     .clk              (clk),
                     .reset            (reset),
-                    .ioctl_download   (ioctl_download),
-                    .ioctl_wr         (ioctl_wr),
+                    .ioctl_download   (mode5_ioctl_download),
+                    .ioctl_wr         (mode5_ioctl_wr),
                     .ioctl_addr       (ioctl_addr),
                     .ioctl_dout       (ioctl_dout),
                     .ioctl_index      (ioctl_index),
-                    .ioctl_wait       (ioctl_wait),
+                    .ioctl_wait       (mode5_backend_ioctl_wait),
 
                     .mem_rd_req       (mem_rd_req),
                     .mem_rd_addr      (mem_rd_addr),
@@ -3900,7 +4044,7 @@ module mister_vgm_md_top #(
 `endif
                 assign load_done_pulse = 1'b0;
                 assign play_ready_pulse = 1'b0;
-                assign ioctl_wait = 1'b0;
+                assign mode5_backend_ioctl_wait = 1'b0;
                 assign vgm_load_busy = 1'b0;
                 assign vgm_load_done = 1'b0;
                 assign vgm_load_error = 1'b1;
@@ -4218,12 +4362,12 @@ module mister_vgm_md_top #(
                     .segapcm_header_clock           (segapcm_header_clock),
                     .segapcm_header_clock_commit    (segapcm_header_clock_commit),
                     .segapcm_clock_session_reset    (segapcm_clock_session_reset |
-                                                      ioctl_download),
+                                                      mode5_ioctl_download),
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
                     .smoke_variant                  (segapcm_smoke_variant),
                     .smoke_variant_valid            (segapcm_smoke_variant_valid),
                     .smoke_source_loaded            (segapcm_smoke_source_loaded),
-                    .loaded_payload_clear           (ioctl_download),
+                    .loaded_payload_clear           (mode5_ioctl_download),
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_TEST
                     .smoke_ddr_follow_mode         (segapcm_smoke_ddr_follow),
                     .smoke_ddr_follow_offset_sel   (segapcm_smoke_ddr_offset),
@@ -5119,6 +5263,7 @@ module mister_vgm_md_top #(
             assign mode5_done_pc_debug = '0;
             assign mode5_done_cmd_debug = 8'd0;
             assign audio_runtime_open = audio_gate_open;
+            assign audio_runtime_gain = 9'd256;
             assign ioctl_wait = 1'b0;
 
             md_sound_fixed_region_test #(

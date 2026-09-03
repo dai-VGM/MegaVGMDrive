@@ -22,6 +22,7 @@ module tb_mode5_cold_start_handoff;
     wire audio_gate_open;
     wire audio_muted;
     wire mode5_load_ready;
+    wire ioctl_wait;
     wire vgm_load_busy;
     wire vgm_load_done;
     wire vgm_header_valid;
@@ -62,6 +63,7 @@ module tb_mode5_cold_start_handoff;
         .VGM_WAIT_HZ(44_100),
         .MODE5_SOUND_RESET_CYCLES(8),
         .MODE5_AUDIO_UNMUTE_DELAY_CYCLES(0),
+        .MODE5_TRACK_FADE_CYCLES(256),
         .REPLAY_ENABLE(1'b0),
         .START_ACCEPT_TIMEOUT_CYCLES(100_000)
     ) dut (
@@ -81,7 +83,7 @@ module tb_mode5_cold_start_handoff;
         .ioctl_addr(ioctl_addr),
         .ioctl_dout(ioctl_dout),
         .ioctl_index(ioctl_index),
-        .ioctl_wait(),
+        .ioctl_wait(ioctl_wait),
         .mode5_load_ready(mode5_load_ready),
         .vgm_load_busy(vgm_load_busy),
         .vgm_load_done(vgm_load_done),
@@ -162,6 +164,7 @@ module tb_mode5_cold_start_handoff;
                 t_gate_open[session_number] = cycle;
             ioctl_download = 1'b1;
             for (i = 0; i < FILE_SIZE; i = i + 1) begin
+                while (ioctl_wait) @(negedge clk);
                 @(negedge clk);
                 ioctl_addr = i;
                 ioctl_dout = file_bytes[i];

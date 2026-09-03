@@ -54,6 +54,7 @@ module tb_mode5_repeat_policy;
         .REPLAY_DELAY_TICKS             (32'd8),
         .MODE5_SOUND_RESET_CYCLES       (32'd8),
         .MODE5_AUDIO_UNMUTE_DELAY_CYCLES(32'd8),
+        .MODE5_TRACK_FADE_CYCLES       (32'd256),
         .MODE5_REPEAT_ENABLE            (1'b1)
     ) dut (
         .clk                            (clk),

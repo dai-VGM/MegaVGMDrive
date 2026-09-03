@@ -20,6 +20,7 @@ module tb_mode5_load_while_playing_session;
     wire startup_done;
     wire audio_gate_open;
     wire audio_muted;
+    wire ioctl_wait;
     wire vgm_load_busy;
     wire vgm_load_done;
     wire vgm_load_error;
@@ -43,7 +44,7 @@ module tb_mode5_load_while_playing_session;
     wire [31:0] mode5_cycles_since_start;
     wire [7:0] mode5_done_pc_debug;
     wire [7:0] mode5_done_cmd_debug;
-    logic end_only_file = 1'b0;
+    logic short_ending_file = 1'b0;
 
     wire [127:0] phase1b_status_in;
     wire phase1b_status_set;
@@ -114,7 +115,8 @@ module tb_mode5_load_while_playing_session;
         .PLAYER_DONE_TIMEOUT_TICKS      (32'd1000),
         .REPLAY_DELAY_TICKS             (32'd8),
         .MODE5_SOUND_RESET_CYCLES       (32'd8),
-        .MODE5_AUDIO_UNMUTE_DELAY_CYCLES(32'd8)
+        .MODE5_AUDIO_UNMUTE_DELAY_CYCLES(32'd8),
+        .MODE5_TRACK_FADE_CYCLES        (32'd256)
     ) dut (
         .clk                            (clk),
         .reset_n                        (reset_n),
@@ -138,7 +140,7 @@ module tb_mode5_load_while_playing_session;
         .ioctl_addr                     (ioctl_addr),
         .ioctl_dout                     (ioctl_dout),
         .ioctl_index                    (ioctl_index),
-        .ioctl_wait                     (),
+        .ioctl_wait                     (ioctl_wait),
         .vgm_load_busy                  (vgm_load_busy),
         .vgm_load_done                  (vgm_load_done),
         .vgm_load_error                 (vgm_load_error),
@@ -221,9 +223,9 @@ module tb_mode5_load_while_playing_session;
                 'h35: long_wait_vgm_byte = 8'h00;
                 'h36: long_wait_vgm_byte = 8'h00;
                 'h37: long_wait_vgm_byte = 8'h00;
-                'h40: long_wait_vgm_byte = end_only_file ? 8'h66 : 8'h61;
-                'h41: long_wait_vgm_byte = 8'hff;
-                'h42: long_wait_vgm_byte = 8'hff;
+                'h40: long_wait_vgm_byte = 8'h61;
+                'h41: long_wait_vgm_byte = short_ending_file ? 8'h10 : 8'hff;
+                'h42: long_wait_vgm_byte = short_ending_file ? 8'h00 : 8'hff;
                 'h43: long_wait_vgm_byte = 8'h66;
                 default: long_wait_vgm_byte = 8'h00;
             endcase
@@ -232,7 +234,7 @@ module tb_mode5_load_while_playing_session;
 
     task automatic fail_now(input string label);
         begin
-            $display("FAIL %s muted=%0b audio_l=%0d audio_r=%0d busy=%0b done=%0b header=%0b load_busy=%0b load_done=%0b load_error=%0b overflow=%0b player_error=%0b reset_active=%0b start_pulse=%0b begin_count=%0d done_count=%0d reset_count=%0d start_count=%0d player_reset_count=%0d session=%0d dup=%0d end=%0d repeat=%0d done_session=%0d done_pc=%02h done_cmd=%02h cycles=%0d",
+            $display("FAIL %s muted=%0b audio_l=%0d audio_r=%0d busy=%0b done=%0b header=%0b load_busy=%0b load_done=%0b load_error=%0b overflow=%0b player_error=%0b reset_active=%0b start_pulse=%0b begin_count=%0d done_count=%0d reset_count=%0d start_count=%0d player_reset_count=%0d session=%0d dup=%0d end=%0d repeat=%0d done_session=%0d done_pc=%02h done_cmd=%02h cycles=%0d ever_open=%0b fade=%0b released=%0b gain=%0d parser_end=%0b",
                      label, audio_muted, audio_l, audio_r, player_busy,
                      player_done, vgm_header_valid, vgm_load_busy,
                      vgm_load_done, vgm_load_error, vgm_load_overflow,
@@ -247,7 +249,12 @@ module tb_mode5_load_while_playing_session;
                      mode5_done_session_id,
                      mode5_done_pc_debug,
                      mode5_done_cmd_debug,
-                     mode5_cycles_since_start);
+                     mode5_cycles_since_start,
+                     dut.loaded_vgm_mode.mode5_audio_ever_open,
+                     dut.loaded_vgm_mode.mode5_transition_fade_active,
+                     dut.loaded_vgm_mode.mode5_transition_released,
+                     dut.loaded_vgm_mode.mode5_transition_gain,
+                     dut.loaded_vgm_mode.mode5_parser_done_edge);
             $finish;
         end
     endtask
@@ -262,6 +269,7 @@ module tb_mode5_load_while_playing_session;
 
     task automatic write_download_byte(input int addr);
         begin
+            while (ioctl_wait) @(posedge clk);
             @(posedge clk);
             ioctl_addr <= addr[26:0];
             ioctl_dout <= long_wait_vgm_byte(addr);
@@ -370,13 +378,38 @@ module tb_mode5_load_while_playing_session;
         if (!player_busy || !vgm_header_valid) begin
             fail_now("first player did not stay busy");
         end
+        repeat (16) @(posedge clk);
+        if (audio_muted) begin
+            fail_now("first session never became audible");
+        end
 
+        force dut.raw_audio_l = 16'sd16384;
+        force dut.raw_audio_r = -16'sd16384;
         begin_download();
+        @(negedge clk);
+        if (!ioctl_wait || mode5_load_begin_count != 32'd1 ||
+            mode5_playback_session_id != 32'd1 || !player_busy ||
+            audio_muted || audio_l != 16'sd16384 ||
+            audio_r != -16'sd16384) begin
+            fail_now("replacement did not begin with owned fade");
+        end
+        repeat (128) @(posedge clk);
+        if (!ioctl_wait || mode5_load_begin_count != 32'd1 ||
+            audio_l >= 16'sd16384 || audio_l <= 16'sd0 ||
+            audio_r <= -16'sd16384 || audio_r >= 16'sd0) begin
+            fail_now("replacement fade did not ramp");
+        end
+        while (ioctl_wait) @(posedge clk);
+        if (audio_l !== 16'sd0 || audio_r !== 16'sd0) begin
+            fail_now("replacement fade did not own zero before load");
+        end
+        release dut.raw_audio_l;
+        release dut.raw_audio_r;
         @(posedge clk);
-        assert_silent("new load begin mutes immediately");
-        repeat (4) @(posedge clk);
+        @(posedge clk);
+        assert_silent("new load begins only after fade");
         if (player_busy || vgm_header_valid) begin
-            fail_now("old playback not quiesced");
+            fail_now("old playback not quiesced after fade");
         end
         if (vgm_player_error) begin
             fail_now("load begin caused player error");
@@ -419,17 +452,35 @@ module tb_mode5_load_while_playing_session;
             fail_now("final state");
         end
 
-        end_only_file = 1'b1;
+        short_ending_file = 1'b1;
         load_long_wait_vgm();
         wait_for_sound_reset_count(32'd3);
         wait_for_player_start_count(32'd3);
+        while (audio_muted) @(posedge clk);
+        force dut.raw_audio_l = 16'sd12000;
+        force dut.raw_audio_r = -16'sd12000;
+        wait (dut.loaded_vgm_mode.mode5_parser_done_edge);
+        @(posedge clk);
+        @(negedge clk);
+        if (player_done || audio_muted ||
+            !dut.loaded_vgm_mode.mode5_transition_fade_active ||
+            audio_l !== 16'sd12000 || audio_r !== -16'sd12000) begin
+            fail_now("natural END was published before tail fade");
+        end
+        repeat (128) @(posedge clk);
+        if (player_done || audio_l >= 16'sd12000 || audio_l <= 16'sd0 ||
+            audio_r <= -16'sd12000 || audio_r >= 16'sd0) begin
+            fail_now("natural END tail did not ramp");
+        end
         wait_for_player_end_count(32'd1);
+        release dut.raw_audio_l;
+        release dut.raw_audio_r;
 
         if (!player_done || player_busy || !vgm_header_valid) begin
             fail_now("end counter final state");
         end
         if (mode5_done_session_id != 32'd3 ||
-            mode5_done_pc_debug != 8'h40 ||
+            mode5_done_pc_debug != 8'h43 ||
             mode5_done_cmd_debug != 8'h66) begin
             fail_now("end debug fields");
         end
@@ -449,7 +500,7 @@ module tb_mode5_load_while_playing_session;
             fail_now("repeat disabled should stay stopped");
         end
 
-        end_only_file = 1'b0;
+        short_ending_file = 1'b0;
         load_long_wait_vgm();
         wait_for_sound_reset_count(32'd4);
         wait_for_player_start_count(32'd4);
