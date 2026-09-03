@@ -1017,6 +1017,61 @@ void test_playlist_selection_from_stopped_replaces_context()
 	assert(rmdir(root.c_str()) == 0);
 }
 
+void test_repeat_all_and_shuffle_updates_remain_stopped()
+{
+	ScriptRuntime *runtime = nullptr;
+	ScriptController *controller = nullptr;
+	const std::vector<Track> tracks = three_tracks();
+	assert(execute({
+		ok(60, PlaybackState::Ended),
+		ok(61, PlaybackState::Playing),
+		ok(0, PlaybackState::Idle),
+		ok(1, PlaybackState::Playing),
+		ok(1, PlaybackState::Playing)
+	}, tracks, &runtime, nullptr, 2,
+		{{2, ControlCommandType::Stop, {}},
+		 {3, ControlCommandType::Repeat, {}, RepeatMode::All, false},
+		 {3, ControlCommandType::Shuffle, {}, RepeatMode::Off, true},
+		 {3, ControlCommandType::Previous, {}}}, &controller, 1) ==
+		PlaylistResult::TrackEndTimeout);
+	assert(runtime->commands.size() == 3);
+	assert(runtime->commands[1] == "reset_core\n");
+	assert(controller->saved_preferences.size() == 2);
+	assert(controller->saved_preferences.back().repeat == RepeatMode::All);
+	assert(controller->saved_preferences.back().shuffle);
+	bool stopped_with_modes = false;
+	for (const ControllerSnapshot &snapshot : controller->snapshots) {
+		if (snapshot.state == "STOPPED" && snapshot.repeat == RepeatMode::All &&
+		    snapshot.shuffle)
+			stopped_with_modes = true;
+	}
+	assert(stopped_with_modes);
+	delete controller;
+	delete runtime;
+}
+
+void test_stop_during_owned_load_is_not_lost()
+{
+	ScriptRuntime *runtime = nullptr;
+	ScriptController *controller = nullptr;
+	const std::vector<Track> tracks = {{"Loading.vgm", "/music/Loading.vgm"}};
+	assert(execute({
+		ok(70, PlaybackState::Ended),
+		ok(71, PlaybackState::Loading),
+		ok(71, PlaybackState::Playing),
+		ok(0, PlaybackState::Idle)
+	}, tracks, &runtime, nullptr, 2,
+		{{2, ControlCommandType::Stop, {}},
+		 {4, ControlCommandType::Next, {}}}, &controller) ==
+		PlaylistResult::Complete);
+	assert(runtime->commands.size() == 2);
+	assert(runtime->commands[1] == "reset_core\n");
+	assert(controller->discarded == 0);
+	assert(controller->snapshots.back().state == "COMPLETE");
+	delete controller;
+	delete runtime;
+}
+
 } // namespace
 
 int main()
@@ -1048,6 +1103,8 @@ int main()
 	test_twenty_play_stop_cycles_never_auto_advance();
 	test_play_current_from_stopped_restarts_from_beginning();
 	test_playlist_selection_from_stopped_replaces_context();
+	test_repeat_all_and_shuffle_updates_remain_stopped();
+	test_stop_during_owned_load_is_not_lost();
 	std::cout << "megavgm_playlist host tests: PASS\n";
 	return 0;
 }
