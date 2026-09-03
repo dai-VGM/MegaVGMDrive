@@ -1,3 +1,4 @@
+#include "linux_runtime.h"
 #include "runtime_support.h"
 #include "sha256.h"
 #include "supervisor.h"
@@ -14,6 +15,7 @@ using megavgm_supervisor::AtomicStatusPublisher;
 using megavgm_supervisor::ControllerDiagnostics;
 using megavgm_supervisor::InstanceLock;
 using megavgm_supervisor::OperationResult;
+using megavgm_supervisor::Paths;
 using megavgm_supervisor::Runtime;
 using megavgm_supervisor::Snapshot;
 using megavgm_supervisor::StatusPublisher;
@@ -324,6 +326,30 @@ void test_successful_enter()
 		"INITIAL_FPGA_SESSION=82") != std::string::npos);
 	assert(supervisor.snapshot().main_load_file.find(
 		"phase=TRANSFER_SUCCESS") != std::string::npos);
+}
+
+void test_transport_m5_modified_main_is_the_only_default_allowed_hash()
+{
+	const Paths paths;
+	assert(paths.expected_modified_sha256 ==
+		"ae6e050f87749962a354b0879bac45f33e58be64fb3892d4157a1754407f955e");
+}
+
+void test_prerequisite_failure_does_not_stop_stock_main()
+{
+	FakeRuntime runtime;
+	runtime.fail_operation = "verify_inputs";
+	RecordingPublisher publisher;
+	Supervisor supervisor(runtime, publisher);
+	const OperationResult result = supervisor.enter("/music");
+	assert(!result.ok);
+	assert(runtime.calls.size() == 1);
+	assert(runtime.calls.front() == "verify_inputs");
+	assert(supervisor.snapshot().mode == "FAILURE");
+	assert(supervisor.snapshot().main == "UNKNOWN");
+	assert(supervisor.snapshot().controller == "UNKNOWN");
+	assert(supervisor.snapshot().detail.find(
+		"stock Main was not stopped") != std::string::npos);
 }
 
 void test_selected_file_is_only_forwarded_to_controller()
@@ -718,6 +744,8 @@ void test_sha256_implementation()
 
 int main()
 {
+	test_transport_m5_modified_main_is_the_only_default_allowed_hash();
+	test_prerequisite_failure_does_not_stop_stock_main();
 	test_successful_enter();
 	test_selected_file_is_only_forwarded_to_controller();
 	test_status_absent_then_ready_before_controller_start();

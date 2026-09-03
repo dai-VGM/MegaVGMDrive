@@ -15,7 +15,7 @@ controller:    /media/fat/Scripts/megavgm_playlist
 The modified Main must have SHA-256:
 
 ```text
-f06631728cbe8dd89aab6886d179bbaa1d51186ba07b75fb6d719fdffd5fcdda
+ae6e050f87749962a354b0879bac45f33e58be64fb3892d4157a1754407f955e
 ```
 
 Enter with one directory and the Phase 1E default of two native loops:

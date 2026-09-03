@@ -25,7 +25,7 @@ struct Paths {
 	std::string supervisor_status = "/tmp/megavgm_supervisor.status";
 	std::string supervisor_log = "/tmp/megavgm_supervisor.log";
 	std::string expected_modified_sha256 =
-		"f06631728cbe8dd89aab6886d179bbaa1d51186ba07b75fb6d719fdffd5fcdda";
+		"ae6e050f87749962a354b0879bac45f33e58be64fb3892d4157a1754407f955e";
 };
 
 class LinuxRuntime : public Runtime {
