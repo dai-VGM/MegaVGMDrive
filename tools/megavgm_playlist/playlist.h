@@ -33,6 +33,8 @@ enum class PlaylistResult {
 	ActiveMainUnavailable,
 	InvalidTrackPath,
 	CommandWriteFailed,
+	StopCommandFailed,
+	StopTimeout,
 	ControlIoError,
 	TrackSessionTimeout,
 	TrackNeverPlaying,
@@ -44,6 +46,7 @@ struct PlaylistConfig {
 	std::size_t start_index = 0;
 	std::uint64_t session_timeout_ms = 60000;
 	std::uint64_t playing_timeout_ms = 60000;
+	std::uint64_t stop_timeout_ms = 60000;
 	// Zero intentionally disables normal playback timeout.
 	std::uint64_t end_timeout_ms = 0;
 	std::uint32_t poll_interval_ms = 100;

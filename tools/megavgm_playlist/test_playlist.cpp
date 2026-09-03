@@ -87,6 +87,17 @@ public:
 		return true;
 	}
 
+	bool issue_stop(std::string &detail) override
+	{
+		if (!stop_ok) {
+			detail = "simulated reset_core write failure";
+			return false;
+		}
+		commands.push_back("reset_core\n");
+		detail.clear();
+		return true;
+	}
+
 	std::uint64_t monotonic_ms() override { return now_ms_; }
 
 	void sleep_ms(std::uint32_t milliseconds) override
@@ -96,6 +107,7 @@ public:
 
 	std::vector<std::string> commands;
 	std::size_t read_count = 0;
+	bool stop_ok = true;
 
 private:
 	const Frame &current() const
@@ -156,7 +168,8 @@ public:
 	{
 		while (position_ < events_.size() &&
 		       events_[position_].after_reads <= runtime_.read_count) {
-			if (events_[position_].type == ControlCommandType::Repeat ||
+			if (events_[position_].type == ControlCommandType::Stop ||
+			    events_[position_].type == ControlCommandType::Repeat ||
 			    events_[position_].type == ControlCommandType::Shuffle)
 				retained_.push_back(events_[position_]);
 			else
@@ -208,6 +221,7 @@ PlaylistConfig fast_config()
 	PlaylistConfig config;
 	config.session_timeout_ms = 5;
 	config.playing_timeout_ms = 5;
+	config.stop_timeout_ms = 5;
 	config.end_timeout_ms = 5;
 	config.poll_interval_ms = 1;
 	config.main_probe_interval_ms = 1;
@@ -801,6 +815,208 @@ void test_mode_command_survives_owned_load_discard()
 	delete runtime;
 }
 
+void test_stop_retains_context_and_next_restarts_from_reset_baseline()
+{
+	ScriptRuntime *runtime = nullptr;
+	ScriptController *controller = nullptr;
+	std::string run_log;
+	std::vector<Track> tracks = three_tracks();
+	tracks.resize(2);
+	const PlaylistResult result = execute({
+		ok(9, PlaybackState::Ended),
+		ok(10, PlaybackState::Playing),
+		ok(0, PlaybackState::Idle),
+		ok(1, PlaybackState::Playing),
+		ok(1, PlaybackState::Ended)
+	}, tracks, &runtime, &run_log, 2,
+		{{2, ControlCommandType::Stop, {}},
+		 {3, ControlCommandType::Next, {}}}, &controller);
+	if (result != PlaylistResult::Complete) std::cerr << run_log;
+	assert(result == PlaylistResult::Complete);
+	assert(runtime->commands.size() == 3);
+	assert(runtime->commands[0] == "load_file 1 " + tracks[0].path + "\n");
+	assert(runtime->commands[1] == "reset_core\n");
+	assert(runtime->commands[2] == "load_file 1 " + tracks[1].path + "\n");
+	bool stopped = false;
+	for (const ControllerSnapshot &snapshot : controller->snapshots) {
+		if (snapshot.state == "STOPPED") {
+			assert(snapshot.index == 1);
+			assert(snapshot.count == tracks.size());
+			assert(snapshot.path == tracks[0].path);
+			assert(snapshot.session == 10);
+			assert(snapshot.context == "DIRECTORY");
+			stopped = true;
+		}
+	}
+	assert(stopped);
+	delete controller;
+	delete runtime;
+}
+
+void test_stop_then_previous_and_repeat_one_do_not_auto_advance()
+{
+	ScriptRuntime *runtime = nullptr;
+	ScriptController *controller = nullptr;
+	PlaybackPreferences preferences;
+	preferences.repeat = RepeatMode::One;
+	const std::vector<Track> tracks = three_tracks();
+	assert(execute({
+		loop_status(7, PlaybackState::Ended, false, 0),
+		loop_status(8, PlaybackState::Playing, true, 12),
+		loop_status(0, PlaybackState::Idle, false, 0),
+		loop_status(1, PlaybackState::Playing, false, 0),
+		loop_status(1, PlaybackState::Playing, false, 0)
+	}, tracks, &runtime, nullptr, 2,
+		{{2, ControlCommandType::Stop, {}},
+		 {3, ControlCommandType::Previous, {}}}, &controller, 1, {},
+		preferences) == PlaylistResult::TrackEndTimeout);
+	assert(runtime->commands.size() == 3);
+	assert(runtime->commands[0] == "load_file 1 " + tracks[1].path + "\n");
+	assert(runtime->commands[1] == "reset_core\n");
+	assert(runtime->commands[2] == "load_file 1 " + tracks[0].path + "\n");
+	for (std::size_t command = 1; command + 1 < runtime->commands.size(); ++command)
+		assert(runtime->commands[command] == "reset_core\n");
+	delete controller;
+	delete runtime;
+}
+
+void test_stop_command_failure_and_timeout()
+{
+	ScriptRuntime *runtime = nullptr;
+	ScriptController *controller = nullptr;
+	const std::vector<Track> tracks = {three_tracks()[0]};
+	auto *failing_runtime = new ScriptRuntime({
+		ok(1, PlaybackState::Ended), ok(2, PlaybackState::Playing)});
+	failing_runtime->stop_ok = false;
+	auto *failing_controller = new ScriptController(*failing_runtime,
+		{{2, ControlCommandType::Stop, {}}});
+	std::ostringstream log;
+	assert(run(*failing_runtime, fast_config(), tracks, log,
+		failing_controller) == PlaylistResult::StopCommandFailed);
+	delete failing_controller;
+	delete failing_runtime;
+
+	assert(execute({
+		ok(1, PlaybackState::Ended),
+		ok(2, PlaybackState::Playing),
+		ok(2, PlaybackState::Playing)
+	}, tracks, &runtime, nullptr, 2,
+		{{2, ControlCommandType::Stop, {}}}, &controller) ==
+		PlaylistResult::StopTimeout);
+	assert(runtime->commands.size() == 2);
+	assert(runtime->commands[1] == "reset_core\n");
+	delete controller;
+	delete runtime;
+}
+
+void test_twenty_play_stop_cycles_never_auto_advance()
+{
+	char root_template[] = "/tmp/megavgm_stop_stress.XXXXXX";
+	char *root_name = mkdtemp(root_template);
+	assert(root_name);
+	const std::string path = std::string(root_name) + "/Only.vgm";
+	create_file(path);
+	std::vector<Frame> frames = {ok(90, PlaybackState::Ended)};
+	std::vector<ControlEvent> events;
+	for (std::size_t cycle = 0; cycle < 20; ++cycle) {
+		frames.push_back(ok(1, PlaybackState::Playing));
+		frames.push_back(ok(0, PlaybackState::Idle));
+		const std::size_t playing_read = 2 + cycle * 2;
+		events.push_back({playing_read, ControlCommandType::Stop, {}});
+		if (cycle + 1 < 20)
+			events.push_back({playing_read + 1, ControlCommandType::Play, path});
+	}
+	events.push_back({41, ControlCommandType::Next, {}});
+	ScriptRuntime *runtime = nullptr;
+	ScriptController *controller = nullptr;
+	assert(execute(std::move(frames), {{"Only.vgm", path}}, &runtime, nullptr,
+		2, std::move(events), &controller) == PlaylistResult::Complete);
+	assert(runtime->commands.size() == 40);
+	std::size_t stopped_count = 0;
+	for (const ControllerSnapshot &snapshot : controller->snapshots)
+		if (snapshot.state == "STOPPED") stopped_count++;
+	assert(stopped_count == 20);
+	delete controller;
+	delete runtime;
+	assert(unlink(path.c_str()) == 0);
+	assert(rmdir(root_name) == 0);
+}
+
+void test_play_current_from_stopped_restarts_from_beginning()
+{
+	char root_template[] = "/tmp/megavgm_stop_replay.XXXXXX";
+	char *root_name = mkdtemp(root_template);
+	assert(root_name);
+	const std::string path = std::string(root_name) + "/Current.vgm";
+	create_file(path);
+	ScriptRuntime *runtime = nullptr;
+	ScriptController *controller = nullptr;
+	assert(execute({
+		ok(30, PlaybackState::Ended),
+		ok(31, PlaybackState::Playing),
+		ok(0, PlaybackState::Idle),
+		ok(1, PlaybackState::Playing),
+		ok(1, PlaybackState::Ended)
+	}, {{"Current.vgm", path}}, &runtime, nullptr, 2,
+		{{2, ControlCommandType::Stop, {}},
+		 {3, ControlCommandType::Play, path}}, &controller) ==
+		PlaylistResult::Complete);
+	assert(runtime->commands.size() == 3);
+	assert(runtime->commands[0] == runtime->commands[2]);
+	assert(runtime->commands[1] == "reset_core\n");
+	delete controller;
+	delete runtime;
+	assert(unlink(path.c_str()) == 0);
+	assert(rmdir(root_name) == 0);
+}
+
+void test_playlist_selection_from_stopped_replaces_context()
+{
+	char root_template[] = "/tmp/megavgm_stop_playlist.XXXXXX";
+	char *root_name = mkdtemp(root_template);
+	assert(root_name);
+	char canonical_root[PATH_MAX];
+	assert(realpath(root_name, canonical_root));
+	const std::string root(canonical_root);
+	const std::string first = root + "/First.vgm";
+	const std::string second = root + "/Second.vgm";
+	create_file(first);
+	create_file(second);
+	const std::string snapshot_path = root + "/stop.snapshot";
+	{
+		std::ofstream snapshot(snapshot_path);
+		snapshot << "MEGAVGM_PLAYLIST_V1\nNAME Stop List\nSTART 1\nCOUNT 2\n"
+		         << "PATH " << first << '\n' << "PATH " << second << '\n';
+	}
+	ScriptRuntime *runtime = nullptr;
+	ScriptController *controller = nullptr;
+	assert(execute({
+		ok(40, PlaybackState::Ended),
+		ok(41, PlaybackState::Playing),
+		ok(0, PlaybackState::Idle),
+		ok(1, PlaybackState::Playing),
+		ok(1, PlaybackState::Ended)
+	}, {{"First.vgm", first}}, &runtime, nullptr, 2,
+		{{2, ControlCommandType::Stop, {}},
+		 {3, ControlCommandType::Playlist, snapshot_path}}, &controller, 0,
+		root) == PlaylistResult::Complete);
+	assert(runtime->commands.size() == 3);
+	assert(runtime->commands[2] == "load_file 1 " + second + "\n");
+	bool playlist_context = false;
+	for (const ControllerSnapshot &snapshot : controller->snapshots) {
+		if (snapshot.path == second && snapshot.context == "PLAYLIST" &&
+		    snapshot.playlist == "Stop List" && snapshot.index == 2 &&
+		    snapshot.count == 2)
+			playlist_context = true;
+	}
+	assert(playlist_context);
+	delete controller;
+	delete runtime;
+	assert(unlink(first.c_str()) == 0);
+	assert(unlink(second.c_str()) == 0);
+	assert(rmdir(root.c_str()) == 0);
+}
+
 } // namespace
 
 int main()
@@ -826,6 +1042,12 @@ int main()
 	test_repeat_one_native_loop_never_reloads_at_limit();
 	test_repeat_all_wrap_and_shuffle_bag();
 	test_mode_command_survives_owned_load_discard();
+	test_stop_retains_context_and_next_restarts_from_reset_baseline();
+	test_stop_then_previous_and_repeat_one_do_not_auto_advance();
+	test_stop_command_failure_and_timeout();
+	test_twenty_play_stop_cycles_never_auto_advance();
+	test_play_current_from_stopped_restarts_from_beginning();
+	test_playlist_selection_from_stopped_replaces_context();
 	std::cout << "megavgm_playlist host tests: PASS\n";
 	return 0;
 }

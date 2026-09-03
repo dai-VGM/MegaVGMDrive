@@ -14,6 +14,7 @@ namespace megavgm_playlist {
 enum class ControlCommandType {
 	Next,
 	Previous,
+	Stop,
 	Play,
 	Playlist,
 	Repeat,
@@ -107,6 +108,7 @@ private:
 
 bool send_navigation_command(const std::string &command_path,
 		ControlCommandType command, std::string &detail);
+bool send_stop_command(const std::string &command_path, std::string &detail);
 bool send_play_command(const std::string &command_path,
 		const std::string &path, std::string &detail);
 bool send_playlist_command(const std::string &command_path,

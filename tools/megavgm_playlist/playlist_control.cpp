@@ -84,6 +84,7 @@ const char *control_command_name(ControlCommandType command)
 	switch (command) {
 	case ControlCommandType::Next: return "NEXT";
 	case ControlCommandType::Previous: return "PREV";
+	case ControlCommandType::Stop: return "STOP";
 	case ControlCommandType::Play: return "PLAY";
 	case ControlCommandType::Playlist: return "PLAYLIST";
 	case ControlCommandType::Repeat: return "REPEAT";
@@ -171,6 +172,7 @@ ControlPollResult PosixControllerIo::parse_buffered_command(
 	command.shuffle = false;
 	if (line == "NEXT") command.type = ControlCommandType::Next;
 	else if (line == "PREV") command.type = ControlCommandType::Previous;
+	else if (line == "STOP") command.type = ControlCommandType::Stop;
 	else if (line.compare(0, 5, "PLAY ") == 0 && line.size() > 5) {
 		command.type = ControlCommandType::Play;
 		command.path = line.substr(5);
@@ -284,7 +286,8 @@ bool PosixControllerIo::discard_commands(std::string &detail)
 		const ControlPollResult result = parse_buffered_command(command, ignored);
 		if (result == ControlPollResult::None) break;
 		if (result == ControlPollResult::Command &&
-		    (command.type == ControlCommandType::Repeat ||
+		    (command.type == ControlCommandType::Stop ||
+		     command.type == ControlCommandType::Repeat ||
 		     command.type == ControlCommandType::Shuffle))
 			retained_commands_.push_back(command);
 	}
@@ -365,6 +368,29 @@ bool send_navigation_command(const std::string &command_path,
 		ok = false;
 	}
 	return ok;
+}
+
+bool send_stop_command(const std::string &command_path, std::string &detail)
+{
+	const int fd = open(command_path.c_str(),
+			O_WRONLY | O_NONBLOCK | O_CLOEXEC);
+	if (fd < 0) {
+		detail = std::strerror(errno);
+		return false;
+	}
+	const char text[] = "STOP\n";
+	const ssize_t count = write(fd, text, sizeof(text) - 1);
+	const int write_errno = errno;
+	if (close(fd) < 0 && count == static_cast<ssize_t>(sizeof(text) - 1)) {
+		detail = std::strerror(errno);
+		return false;
+	}
+	if (count != static_cast<ssize_t>(sizeof(text) - 1)) {
+		detail = count < 0 ? std::strerror(write_errno) : "short command write";
+		return false;
+	}
+	detail.clear();
+	return true;
 }
 
 bool send_repeat_command(const std::string &command_path, RepeatMode mode,

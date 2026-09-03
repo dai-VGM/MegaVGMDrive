@@ -188,6 +188,8 @@ const char *playlist_result_name(PlaylistResult result)
 	case PlaylistResult::ActiveMainUnavailable: return "ACTIVE_MAIN_UNAVAILABLE";
 	case PlaylistResult::InvalidTrackPath: return "INVALID_TRACK_PATH";
 	case PlaylistResult::CommandWriteFailed: return "COMMAND_WRITE_FAILED";
+	case PlaylistResult::StopCommandFailed: return "STOP_COMMAND_FAILED";
+	case PlaylistResult::StopTimeout: return "STOP_TIMEOUT";
 	case PlaylistResult::ControlIoError: return "CONTROL_IO_ERROR";
 	case PlaylistResult::TrackSessionTimeout: return "TRACK_SESSION_TIMEOUT";
 	case PlaylistResult::TrackNeverPlaying: return "TRACK_NEVER_PLAYING";
@@ -463,9 +465,11 @@ PlaylistResult run(Runtime &runtime, const PlaylistConfig &config,
 
 		// A command already waiting when PLAYING is first observed belongs to
 		// the just-finished load window and is intentionally discarded. Mode
-		// commands are retained by ControllerIo because they are state changes,
-		// not overlapping load requests.
+		// commands and STOP are retained by ControllerIo because they must not
+		// be lost at the PLAYING publication boundary.
 		if (!discard_commands()) return PlaylistResult::ControlIoError;
+		bool stop_claimed = false;
+		ControlCommand control_command;
 		if (controller) {
 			for (;;) {
 				ControlCommand retained;
@@ -481,7 +485,11 @@ PlaylistResult run(Runtime &runtime, const PlaylistConfig &config,
 					log << '\n';
 					continue;
 				}
-				if (retained.type == ControlCommandType::Repeat ||
+				if (retained.type == ControlCommandType::Stop) {
+					control_command = retained;
+					stop_claimed = true;
+					break;
+				} else if (retained.type == ControlCommandType::Repeat ||
 				    retained.type == ControlCommandType::Shuffle) {
 					if (!apply_mode_command(retained, track, "PLAYING",
 							owned_session, status.loop_count))
@@ -494,12 +502,11 @@ PlaylistResult run(Runtime &runtime, const PlaylistConfig &config,
 			loop_limit_reached = loop_limit_applies(status);
 		}
 		bool navigation_claimed = false;
-		ControlCommand control_command;
 		std::vector<Track> replacement_tracks;
 		std::size_t replacement_index = 0;
 		std::string replacement_playlist_name;
 		deadline = runtime.monotonic_ms() + config.end_timeout_ms;
-		while (!ended && !fatal && !loop_limit_reached) {
+		while (!ended && !fatal && !loop_limit_reached && !stop_claimed) {
 			monitor.sleep();
 			if (controller) {
 				std::string control_detail;
@@ -512,6 +519,10 @@ PlaylistResult run(Runtime &runtime, const PlaylistConfig &config,
 					if (!control_detail.empty()) log << ": " << control_detail;
 					log << '\n';
 				} else if (control_result == ControlPollResult::Command) {
+					if (control_command.type == ControlCommandType::Stop) {
+						stop_claimed = true;
+						break;
+					}
 					if (control_command.type == ControlCommandType::Repeat ||
 					    control_command.type == ControlCommandType::Shuffle) {
 						if (!apply_mode_command(control_command, track, "PLAYING",
@@ -591,7 +602,114 @@ PlaylistResult run(Runtime &runtime, const PlaylistConfig &config,
 			}
 		}
 
-		baseline_session = owned_session;
+		std::uint32_t next_baseline_session = owned_session;
+		if (stop_claimed) {
+			std::string stop_detail;
+			if (!runtime.issue_stop(stop_detail)) {
+				log << "STOP_COMMAND_FAILED";
+				if (!stop_detail.empty()) log << ": " << stop_detail;
+				log << '\n';
+				return PlaylistResult::StopCommandFailed;
+			}
+			log << "MISTER_CMD_STOP=SUCCESS path=" << track.path << '\n';
+			const std::uint64_t stop_deadline =
+				runtime.monotonic_ms() + config.stop_timeout_ms;
+			for (;;) {
+				result = monitor.read(status);
+				if (result != PlaylistResult::Complete) return result;
+				log_status(log, status, last_logged, last_logged_valid);
+				if (status.state == PlaybackState::Idle) break;
+				if (deadline_reached(runtime, stop_deadline,
+						config.stop_timeout_ms)) {
+					log << "STOP_TIMEOUT fpga_session=" << status.session
+					    << " state=" << megavgm_autoplay2::state_name(status.state)
+					    << '\n';
+					return PlaylistResult::StopTimeout;
+				}
+				monitor.sleep();
+			}
+			next_baseline_session = status.session;
+			if (!publish("STOPPED", track, owned_session, status.loop_count))
+				return PlaylistResult::ControlIoError;
+			log << "PLAYBACK STOPPED retained_session=" << owned_session
+			    << " fpga_session=" << status.session
+			    << " path=" << track.path << '\n';
+
+			// STOPPED is a controller-owned transport state layered on top of the
+			// FPGA's reset IDLE state. Keep the selected source and traversal
+			// context, and do not advance until an explicit transport command.
+			for (;;) {
+				std::string control_detail;
+				const ControlPollResult control_result = controller->poll_command(
+					control_command, control_detail);
+				if (control_result == ControlPollResult::IoError)
+					return control_error("command read", control_detail);
+				if (control_result == ControlPollResult::Invalid) {
+					log << "CONTROL_IGNORED";
+					if (!control_detail.empty()) log << ": " << control_detail;
+					log << '\n';
+				} else if (control_result == ControlPollResult::Command) {
+					if (control_command.type == ControlCommandType::Repeat ||
+					    control_command.type == ControlCommandType::Shuffle) {
+						if (!apply_mode_command(control_command, track, "STOPPED",
+								owned_session, status.loop_count))
+							return PlaylistResult::ControlIoError;
+						continue;
+					}
+					if (control_command.type == ControlCommandType::Stop) {
+						// STOP is deliberately idempotent while already stopped.
+						continue;
+					}
+					if (control_command.type == ControlCommandType::Play) {
+						const DiscoveryResult discovery = discover_directory(
+							parent_path(control_command.path), replacement_tracks,
+							control_detail);
+						if (discovery != DiscoveryResult::Ok ||
+						    !find_track(replacement_tracks, control_command.path,
+								replacement_index)) {
+							log << "CONTROL_IGNORED: invalid PLAY selection";
+							if (!control_detail.empty()) log << ": " << control_detail;
+							log << '\n';
+							continue;
+						}
+						replacement_playlist_name.clear();
+					} else if (control_command.type == ControlCommandType::Playlist) {
+						PlaylistSnapshot snapshot;
+						if (!load_playlist_snapshot(control_command.path,
+								config.approved_root, snapshot,
+								control_detail, true)) {
+							log << "CONTROL_IGNORED: invalid PLAYLIST snapshot";
+							if (!control_detail.empty()) log << ": " << control_detail;
+							log << '\n';
+							continue;
+						}
+						replacement_tracks.clear();
+						for (const std::string &path : snapshot.paths) {
+							const std::size_t separator = path.find_last_of('/');
+							replacement_tracks.push_back({separator == std::string::npos ?
+								path : path.substr(separator + 1), path});
+						}
+						replacement_index = snapshot.start_index;
+						replacement_playlist_name = snapshot.name;
+					}
+					navigation_claimed = true;
+					break;
+				}
+
+				result = monitor.read(status);
+				if (result != PlaylistResult::Complete) return result;
+				if (status.session != next_baseline_session ||
+				    status.state != PlaybackState::Idle) {
+					if (!publish("SUSPENDED", track, status.session,
+							status.loop_count))
+						return PlaylistResult::ControlIoError;
+					return suspend(log);
+				}
+				monitor.sleep();
+			}
+		}
+
+		baseline_session = next_baseline_session;
 		if (navigation_claimed) {
 			log << "navigation=" << control_command_name(control_command.type);
 			if (control_command.type == ControlCommandType::Play ||

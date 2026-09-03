@@ -306,6 +306,12 @@ bool build_load_command(const std::string &path, std::string &command,
 	return true;
 }
 
+bool build_stop_command(std::string &command)
+{
+	command = "reset_core\n";
+	return true;
+}
+
 PosixRuntime::PosixRuntime(std::string status_path, std::string command_path)
 	: status_path_(std::move(status_path)), command_path_(std::move(command_path))
 {
@@ -369,6 +375,19 @@ bool PosixRuntime::issue_load(const std::string &path, std::string &detail)
 {
 	std::string command;
 	if (!build_load_command(path, command, detail)) return false;
+	return issue_command(command, detail);
+}
+
+bool PosixRuntime::issue_stop(std::string &detail)
+{
+	std::string command;
+	build_stop_command(command);
+	return issue_command(command, detail);
+}
+
+bool PosixRuntime::issue_command(const std::string &command,
+		std::string &detail)
+{
 
 	const int fd = open(command_path_.c_str(),
 			O_WRONLY | O_NONBLOCK | O_CLOEXEC | O_APPEND);

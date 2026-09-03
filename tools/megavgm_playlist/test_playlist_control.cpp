@@ -55,6 +55,11 @@ int main()
 			ControlPollResult::Command);
 		assert(command.type == ControlCommandType::Previous);
 
+		assert(send_stop_command(command_path, detail));
+		assert(controller.poll_command(command, detail) ==
+			ControlPollResult::Command);
+		assert(command.type == ControlCommandType::Stop);
+
 		const std::string play_path =
 			"/media/fat/MegaVGMDrive/01 Arcade/[日本語] Stage.vgm";
 		assert(send_play_command(command_path, play_path, detail));
@@ -104,11 +109,16 @@ int main()
 		assert(controller.poll_command(command, detail) ==
 			ControlPollResult::None);
 
-		// Playback-mode state changes survive the owned-load navigation drain.
+		// STOP and playback-mode state changes survive the owned-load navigation
+		// drain because none may be lost after PLAYING was published.
+		assert(send_stop_command(command_path, detail));
 		assert(send_repeat_command(command_path, RepeatMode::One, detail));
 		assert(send_navigation_command(command_path,
 			ControlCommandType::Next, detail));
 		assert(controller.discard_commands(detail));
+		assert(controller.poll_command(command, detail) ==
+			ControlPollResult::Command);
+		assert(command.type == ControlCommandType::Stop);
 		assert(controller.poll_command(command, detail) ==
 			ControlPollResult::Command);
 		assert(command.type == ControlCommandType::Repeat &&

@@ -74,6 +74,15 @@ public:
 		return true;
 	}
 
+	bool issue_stop(std::string &detail) override
+	{
+		std::string command;
+		build_stop_command(command);
+		commands.push_back(command);
+		detail.clear();
+		return true;
+	}
+
 	std::uint64_t monotonic_ms() override { return now_ms_; }
 
 	void sleep_ms(std::uint32_t milliseconds) override
