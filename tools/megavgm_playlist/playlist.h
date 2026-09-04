@@ -52,6 +52,9 @@ struct PlaylistConfig {
 	std::uint32_t poll_interval_ms = 100;
 	std::uint32_t main_probe_interval_ms = 1000;
 	std::string approved_root = "/media/fat/MegaVGMDrive";
+	// Non-empty only when the initial queue came from an immutable playlist
+	// snapshot rather than directory discovery.
+	std::string initial_playlist_name;
 	RandomSource *random_source = nullptr;
 };
 

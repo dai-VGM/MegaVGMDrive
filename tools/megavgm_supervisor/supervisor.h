@@ -80,6 +80,7 @@ public:
 
 	virtual OperationResult verify_inputs(const std::string &playlist,
 		const std::string &start_file,
+		const std::string &playlist_snapshot,
 		VerifiedInputs &inputs) = 0;
 	virtual OperationResult stop_stock_main(const std::string &stock_sha256) = 0;
 	virtual OperationResult bind_modified_main() = 0;
@@ -93,6 +94,7 @@ public:
 		const std::string &modified_sha256) = 0;
 	virtual OperationResult start_playlist(const std::string &directory,
 		const std::string &start_file,
+		const std::string &playlist_snapshot,
 		int &pid) = 0;
 	virtual OperationResult verify_playlist(int pid) = 0;
 	virtual ControllerDiagnostics controller_diagnostics(int controller_pid,
@@ -119,7 +121,8 @@ public:
 	Supervisor(Runtime &runtime, StatusPublisher &publisher);
 
 	OperationResult enter(const std::string &playlist,
-		const std::string &start_file = {});
+		const std::string &start_file = {},
+		const std::string &playlist_snapshot = {});
 	OperationResult exit(const std::string &reason = "explicit exit");
 	OperationResult monitor_once();
 	bool active() const { return active_; }

@@ -49,7 +49,7 @@ OperationResult Supervisor::check_exit_request()
 }
 
 OperationResult Supervisor::enter(const std::string &playlist,
-	const std::string &start_file)
+	const std::string &start_file, const std::string &playlist_snapshot)
 {
 	snapshot_ = Snapshot{};
 	snapshot_.mode = "STARTING";
@@ -60,7 +60,7 @@ OperationResult Supervisor::enter(const std::string &playlist,
 	if (!result.ok) return result;
 
 	VerifiedInputs inputs;
-	result = runtime_.verify_inputs(playlist, start_file, inputs);
+	result = runtime_.verify_inputs(playlist, start_file, playlist_snapshot, inputs);
 	snapshot_.modified_main_path = inputs.modified_main_path;
 	snapshot_.modified_main_size = inputs.modified_main_size;
 	snapshot_.modified_main_sha_expected = inputs.modified_main_sha_expected;
@@ -127,7 +127,8 @@ OperationResult Supervisor::enter(const std::string &playlist,
 	result = publish();
 	if (!result.ok) return rollback("status publication failed: " + result.detail);
 	controller_state_touched_ = true;
-	result = runtime_.start_playlist(playlist, start_file, controller_pid_);
+	result = runtime_.start_playlist(playlist, start_file, playlist_snapshot,
+		controller_pid_);
 	refresh_controller_diagnostics();
 	if (!result.ok) return rollback("playlist start failed: " + result.detail);
 	controller_started_ = true;

@@ -267,7 +267,7 @@ PlaylistResult run(Runtime &runtime, const PlaylistConfig &config,
 	log << "INITIAL_FPGA_SESSION=" << baseline_session << '\n';
 	std::size_t skipped = 0;
 	std::vector<Track> active_tracks = tracks;
-	std::string active_playlist_name;
+	std::string active_playlist_name = config.initial_playlist_name;
 	if (active_tracks.empty() || config.start_index >= active_tracks.size())
 		return PlaylistResult::InvalidTrackPath;
 	std::size_t index = config.start_index;

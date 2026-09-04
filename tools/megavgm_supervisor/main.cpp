@@ -54,7 +54,8 @@ void redirect_supervisor_log(const std::string &path)
 }
 
 int run_daemon(const megavgm_supervisor::Paths &paths,
-	const std::string &playlist, const std::string &start_file, int notify_fd)
+	const std::string &playlist, const std::string &start_file,
+	const std::string &playlist_snapshot, int notify_fd)
 {
 	if (setsid() < 0) {
 		write_message(notify_fd, "ENTER_FAILED: setsid: " +
@@ -83,7 +84,7 @@ int run_daemon(const megavgm_supervisor::Paths &paths,
 	megavgm_supervisor::AtomicStatusPublisher publisher(paths.supervisor_status);
 	megavgm_supervisor::LinuxRuntime runtime(paths, control);
 	megavgm_supervisor::Supervisor supervisor(runtime, publisher);
-	result = supervisor.enter(playlist, start_file);
+	result = supervisor.enter(playlist, start_file, playlist_snapshot);
 	if (!result.ok) {
 		write_message(notify_fd, "ENTER_FAILED: " + result.detail + "\n");
 		close(notify_fd);
@@ -107,7 +108,8 @@ int run_daemon(const megavgm_supervisor::Paths &paths,
 }
 
 int enter_mode(const megavgm_supervisor::Paths &paths,
-	const std::string &playlist, const std::string &start_file)
+	const std::string &playlist, const std::string &start_file,
+	const std::string &playlist_snapshot = {})
 {
 	megavgm_supervisor::InstanceLock lock;
 	megavgm_supervisor::OperationResult result = lock.acquire(paths.supervisor_lock);
@@ -130,6 +132,7 @@ int enter_mode(const megavgm_supervisor::Paths &paths,
 	if (child == 0) {
 		close(notification[0]);
 		const int result_code = run_daemon(paths, playlist, start_file,
+			playlist_snapshot,
 			notification[1]);
 		close(notification[1]);
 		_exit(result_code);
@@ -223,7 +226,8 @@ int hash_main(const megavgm_supervisor::Paths &paths)
 void usage()
 {
 	std::cerr << "Usage:\n"
-	          << "  megavgm_supervisor enter [--start-file PATH] <playlist-directory>\n"
+	          << "  megavgm_supervisor enter [--start-file PATH | "
+	          << "--playlist-snapshot PATH] <playlist-directory>\n"
 	          << "  megavgm_supervisor exit\n"
 	          << "  megavgm_supervisor status\n"
 	          << "  megavgm_supervisor hash-main\n";
@@ -235,10 +239,13 @@ int main(int argc, char **argv)
 {
 	megavgm_supervisor::Paths paths;
 	if (argc == 3 && std::string(argv[1]) == "enter")
-		return enter_mode(paths, argv[2], {});
+		return enter_mode(paths, argv[2], {}, {});
 	if (argc == 5 && std::string(argv[1]) == "enter" &&
 	    std::string(argv[2]) == "--start-file")
-		return enter_mode(paths, argv[4], argv[3]);
+		return enter_mode(paths, argv[4], argv[3], {});
+	if (argc == 5 && std::string(argv[1]) == "enter" &&
+	    std::string(argv[2]) == "--playlist-snapshot")
+		return enter_mode(paths, argv[4], {}, argv[3]);
 	if (argc == 2 && std::string(argv[1]) == "exit") return exit_mode(paths);
 	if (argc == 2 && std::string(argv[1]) == "status") return show_status(paths);
 	if (argc == 2 && std::string(argv[1]) == "hash-main") return hash_main(paths);

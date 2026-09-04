@@ -244,7 +244,8 @@ PlaylistResult execute(std::vector<Frame> frames, std::vector<Track> tracks,
 		ScriptController **out_controller = nullptr,
 		std::size_t start_index = 0,
 		const std::string &approved_root = {},
-		PlaybackPreferences preferences = {}, RandomSource *random = nullptr)
+		PlaybackPreferences preferences = {}, RandomSource *random = nullptr,
+		const std::string &initial_playlist_name = {})
 {
 	auto *runtime = new ScriptRuntime(std::move(frames));
 	auto *controller = new ScriptController(*runtime, std::move(control_events),
@@ -253,6 +254,7 @@ PlaylistResult execute(std::vector<Frame> frames, std::vector<Track> tracks,
 	PlaylistConfig config = fast_config();
 	config.loop_limit = loop_limit;
 	config.start_index = start_index;
+	config.initial_playlist_name = initial_playlist_name;
 	if (!approved_root.empty()) config.approved_root = approved_root;
 	config.random_source = random;
 	const PlaylistResult result = run(*runtime, config, tracks, log, controller);
@@ -789,6 +791,71 @@ void test_playlist_snapshot_adopts_current_and_owns_auto_next()
 	assert(rmdir(root.c_str()) == 0);
 }
 
+void test_post_start_playlist_command_can_lose_initial_playing_race()
+{
+	ScriptRuntime *runtime = nullptr;
+	ScriptController *controller = nullptr;
+	const std::vector<Track> folder_tracks = {
+		{"2 Selected.vgm", "/album/2 Selected.vgm"},
+		{"Folder Next.vgm", "/album/Folder Next.vgm"},
+	};
+	assert(execute({
+		ok(9, PlaybackState::Ended),
+		ok(10, PlaybackState::Playing), ok(10, PlaybackState::Ended),
+		ok(11, PlaybackState::Playing), ok(11, PlaybackState::Ended)
+	}, folder_tracks, &runtime, nullptr, 2,
+		{{2, ControlCommandType::Playlist,
+		  "/tmp/megavgm_playlist.snapshot-too-late"}},
+		&controller) == PlaylistResult::Complete);
+	assert(controller->discarded == 1);
+	assert(runtime->commands.size() == 2);
+	assert(runtime->commands[0] ==
+		"load_file 1 /album/2 Selected.vgm\n");
+	assert(runtime->commands[1] ==
+		"load_file 1 /album/Folder Next.vgm\n");
+	for (const ControllerSnapshot &snapshot : controller->snapshots)
+		assert(snapshot.context == "DIRECTORY");
+	delete controller;
+	delete runtime;
+}
+
+void test_initial_playlist_snapshot_keeps_five_track_repeat_all_order()
+{
+	ScriptRuntime *runtime = nullptr;
+	ScriptController *controller = nullptr;
+	const std::vector<Track> tracks = {
+		{"1.vgm", "/list/A/1.vgm"},
+		{"2.vgm", "/list/B/2.vgm"},
+		{"3.vgm", "/list/C/3.vgm"},
+		{"4.vgm", "/list/D/4.vgm"},
+		{"5.vgm", "/list/E/5.vgm"},
+	};
+	PlaybackPreferences preferences;
+	preferences.repeat = RepeatMode::All;
+	assert(execute({
+		ok(9, PlaybackState::Ended),
+		ok(10, PlaybackState::Playing), ok(10, PlaybackState::Ended),
+		ok(11, PlaybackState::Playing), ok(11, PlaybackState::Ended),
+		ok(12, PlaybackState::Playing), ok(12, PlaybackState::Ended),
+		ok(13, PlaybackState::Playing), ok(13, PlaybackState::Ended),
+		ok(14, PlaybackState::Playing), ok(99, PlaybackState::Playing)
+	}, tracks, &runtime, nullptr, 2, {}, &controller, 1, {}, preferences,
+		nullptr, "Cold Five") == PlaylistResult::Suspended);
+	assert(runtime->commands.size() == 5);
+	const std::size_t expected[] = {1, 2, 3, 4, 0};
+	for (std::size_t index = 0; index < 5; ++index) {
+		assert(runtime->commands[index] ==
+			"load_file 1 " + tracks[expected[index]].path + "\n");
+	}
+	for (const ControllerSnapshot &snapshot : controller->snapshots) {
+		assert(snapshot.context == "PLAYLIST");
+		assert(snapshot.playlist == "Cold Five");
+		assert(snapshot.count == 5);
+	}
+	delete controller;
+	delete runtime;
+}
+
 class ZeroRandom final : public RandomSource {
 public:
 	std::uint32_t uniform(std::uint32_t) override { return 0; }
@@ -1168,6 +1235,8 @@ int main()
 	test_discovery_and_ordering();
 	test_empty_directory();
 	test_playlist_snapshot_adopts_current_and_owns_auto_next();
+	test_post_start_playlist_command_can_lose_initial_playing_race();
+	test_initial_playlist_snapshot_keeps_five_track_repeat_all_order();
 	test_repeat_one_non_loop_reloads_and_manual_next_works();
 	test_repeat_one_native_loop_never_reloads_at_limit();
 	test_repeat_all_wrap_and_shuffle_bag();

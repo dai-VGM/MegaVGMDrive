@@ -34,6 +34,7 @@ public:
 
 	OperationResult verify_inputs(const std::string &playlist,
 		const std::string &start_file,
+		const std::string &playlist_snapshot,
 		VerifiedInputs &inputs) override;
 	OperationResult stop_stock_main(const std::string &stock_sha256) override;
 	OperationResult bind_modified_main() override;
@@ -47,6 +48,7 @@ public:
 		const std::string &modified_sha256) override;
 	OperationResult start_playlist(const std::string &directory,
 		const std::string &start_file,
+		const std::string &playlist_snapshot,
 		int &pid) override;
 	OperationResult verify_playlist(int pid) override;
 	ControllerDiagnostics controller_diagnostics(int controller_pid,
@@ -72,7 +74,8 @@ private:
 	OperationResult verify_regular_file(const std::string &path);
 	OperationResult launch_main(int &pid);
 	OperationResult launch_playlist(const std::string &directory,
-		const std::string &start_file, int &pid);
+		const std::string &start_file, const std::string &playlist_snapshot,
+		int &pid);
 	OperationResult stop_process(int pid, const std::string &name);
 	OperationResult verify_process(int pid, const std::string &expected_sha256,
 		const std::string &name);

@@ -37,6 +37,8 @@ trap 'rm -f "$test_bin" "$controller_bin" "$control_test_bin" "$ctl_bin" "$mode_
 "$controller_bin" --loops nope /tmp >/dev/null 2>&1 && exit 1 || test "$?" -eq 2
 "$controller_bin" --loops 65536 /tmp >/dev/null 2>&1 && exit 1 || test "$?" -eq 2
 "$controller_bin" --loops 42949672960 /tmp >/dev/null 2>&1 && exit 1 || test "$?" -eq 2
+"$controller_bin" --start-file /tmp/a.vgm --playlist-snapshot \
+	/tmp/megavgm_playlist.snapshot-test /tmp >/dev/null 2>&1 && exit 1 || test "$?" -eq 2
 "${CXX:-c++}" -O2 -std=c++14 -Wall -Wextra -Wpedantic \
 "$tool_dir/ctl.cpp" "$tool_dir/playlist_control.cpp" \
 	"$tool_dir/playback_mode.cpp" -o "$ctl_bin"

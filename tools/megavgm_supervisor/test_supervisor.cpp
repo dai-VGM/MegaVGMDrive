@@ -50,10 +50,12 @@ public:
 	}
 
 	OperationResult verify_inputs(const std::string &playlist,
-		const std::string &start_file, VerifiedInputs &inputs) override
+		const std::string &start_file, const std::string &playlist_snapshot,
+		VerifiedInputs &inputs) override
 	{
 		verified_playlist = playlist;
 		verified_start_file = start_file;
+		verified_playlist_snapshot = playlist_snapshot;
 		inputs.modified_main_path = "/fixed/MiSTer.megavgm";
 		inputs.modified_main_size = "1063652";
 		inputs.modified_main_sha_expected = "modified-hash";
@@ -129,10 +131,12 @@ public:
 		return OperationResult::success();
 	}
 	OperationResult start_playlist(const std::string &directory,
-		const std::string &start_file, int &pid) override
+		const std::string &start_file, const std::string &playlist_snapshot,
+		int &pid) override
 	{
 		started_playlist = directory;
 		started_start_file = start_file;
+		started_playlist_snapshot = playlist_snapshot;
 		OperationResult result = call("start_playlist");
 		if (result.ok) {
 			pid = 202;
@@ -303,8 +307,10 @@ public:
 	std::uint64_t unmount_at_ms = 0;
 	std::string verified_playlist;
 	std::string verified_start_file;
+	std::string verified_playlist_snapshot;
 	std::string started_playlist;
 	std::string started_start_file;
+	std::string started_playlist_snapshot;
 };
 
 void expect_restored(const Supervisor &supervisor)
@@ -380,6 +386,22 @@ void test_selected_file_is_only_forwarded_to_controller()
 	assert(runtime.started_playlist == directory);
 	assert(runtime.started_start_file == selected);
 	assert(supervisor.snapshot().playlist == directory);
+}
+
+void test_initial_playlist_snapshot_is_forwarded_without_directory_fallback()
+{
+	FakeRuntime runtime;
+	RecordingPublisher publisher;
+	Supervisor supervisor(runtime, publisher);
+	const std::string directory = "/music/Album";
+	const std::string snapshot = "/tmp/megavgm_playlist.snapshot-cold";
+	assert(supervisor.enter(directory, {}, snapshot).ok);
+	assert(runtime.verified_playlist == directory);
+	assert(runtime.verified_start_file.empty());
+	assert(runtime.verified_playlist_snapshot == snapshot);
+	assert(runtime.started_playlist == directory);
+	assert(runtime.started_start_file.empty());
+	assert(runtime.started_playlist_snapshot == snapshot);
 }
 
 void test_status_absent_then_ready_before_controller_start()
@@ -821,6 +843,7 @@ int main()
 	test_prerequisite_failure_does_not_stop_stock_main();
 	test_successful_enter();
 	test_selected_file_is_only_forwarded_to_controller();
+	test_initial_playlist_snapshot_is_forwarded_without_directory_fallback();
 	test_status_absent_then_ready_before_controller_start();
 	test_status_never_ready_rolls_back();
 	test_malformed_status_rolls_back();
