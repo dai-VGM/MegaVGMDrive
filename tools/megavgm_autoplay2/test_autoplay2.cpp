@@ -83,6 +83,12 @@ public:
 		return true;
 	}
 
+	bool issue_transition(TransitionReason, std::string &detail) override
+	{
+		detail.clear();
+		return true;
+	}
+
 	std::uint64_t monotonic_ms() override { return now_ms_; }
 
 	void sleep_ms(std::uint32_t milliseconds) override
@@ -257,6 +263,11 @@ void test_invalid_paths()
 	assert(!build_load_command("bad\npath.vgm", command, detail));
 	assert(!build_load_command("", command, detail));
 	assert(!build_load_command(std::string(961, 'a'), command, detail));
+	assert(build_transition_command(TransitionReason::LoopLimit,
+		"/tmp/megavgm_transition.control", command, detail));
+	assert(command == "load_file 2 /tmp/megavgm_transition.control\n");
+	assert(!build_transition_command(TransitionReason::LoopLimit,
+		"bad\npath", command, detail));
 	assert(execute({ok(1, PlaybackState::Idle)}, nullptr, nullptr,
 		"bad\npath.vgm", "/media/fat/B.vgm") == RunResult::InvalidTrackPath);
 }

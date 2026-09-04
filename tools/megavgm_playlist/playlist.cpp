@@ -618,6 +618,116 @@ PlaylistResult run(Runtime &runtime, const PlaylistConfig &config,
 			}
 		}
 
+		// A looping VGM has no natural parser END at its loop boundary. When the
+		// configured limit is reached, ask the existing FPGA transition owner to
+		// ramp the still-running session. The player remains in its native loop,
+		// so the next loop head is the audible tail. Only the synthetic ENDED from
+		// that owner permits queue advance and the next index-1 download.
+		if (loop_limit_reached && !stop_claimed && !fatal) {
+			std::string transition_detail;
+			if (!runtime.issue_transition(
+					megavgm_autoplay2::TransitionReason::LoopLimit,
+					transition_detail)) {
+				log << "LOOP_LIMIT_TRANSITION_FAILED";
+				if (!transition_detail.empty()) log << ": " << transition_detail;
+				log << '\n';
+				return PlaylistResult::CommandWriteFailed;
+			}
+			log << "TRACK_FADE reason=LOOP_LIMIT duration_ms=2000\n";
+			const std::uint64_t fade_deadline = runtime.monotonic_ms() +
+				config.session_timeout_ms;
+			while (!ended && !stop_claimed && !fatal) {
+				if (controller) {
+					std::string control_detail;
+					const ControlPollResult control_result = controller->poll_command(
+						control_command, control_detail);
+					if (control_result == ControlPollResult::IoError)
+						return control_error("command read", control_detail);
+					if (control_result == ControlPollResult::Invalid) {
+						log << "CONTROL_IGNORED";
+						if (!control_detail.empty()) log << ": " << control_detail;
+						log << '\n';
+					} else if (control_result == ControlPollResult::Command) {
+						if (control_command.type == ControlCommandType::Stop) {
+							stop_claimed = true;
+							break;
+						}
+						if (control_command.type == ControlCommandType::Repeat ||
+						    control_command.type == ControlCommandType::Shuffle) {
+							if (!apply_mode_command(control_command, track, "PLAYING",
+									owned_session, status.loop_count))
+								return PlaylistResult::ControlIoError;
+							continue;
+						}
+						if (navigation_claimed) {
+							log << "TRACK_TRANSITION_IGNORED reason=LOOP_LIMIT command="
+							    << control_command_name(control_command.type) << '\n';
+							continue;
+						}
+						if (control_command.type == ControlCommandType::Play) {
+							const DiscoveryResult discovery = discover_directory(
+								parent_path(control_command.path), replacement_tracks,
+								control_detail);
+							if (discovery != DiscoveryResult::Ok ||
+							    !find_track(replacement_tracks, control_command.path,
+									replacement_index)) {
+								log << "CONTROL_IGNORED: invalid PLAY selection";
+								if (!control_detail.empty()) log << ": " << control_detail;
+								log << '\n';
+								continue;
+							}
+							replacement_playlist_name.clear();
+						} else if (control_command.type == ControlCommandType::Playlist) {
+							PlaylistSnapshot snapshot;
+							if (!load_playlist_snapshot(control_command.path,
+									config.approved_root, snapshot,
+									control_detail, true)) {
+								log << "CONTROL_IGNORED: invalid PLAYLIST snapshot";
+								if (!control_detail.empty()) log << ": " << control_detail;
+								log << '\n';
+								continue;
+							}
+							replacement_tracks.clear();
+							for (const std::string &path : snapshot.paths) {
+								const std::size_t separator = path.find_last_of('/');
+								replacement_tracks.push_back({separator ==
+									std::string::npos ? path : path.substr(separator + 1), path});
+							}
+							replacement_index = snapshot.start_index;
+							replacement_playlist_name = snapshot.name;
+						}
+						navigation_claimed = true;
+						log << "TRACK_TRANSITION_JOIN reason=LOOP_LIMIT command="
+						    << control_command_name(control_command.type) << '\n';
+					}
+				}
+
+				monitor.sleep();
+				result = monitor.read(status);
+				if (result != PlaylistResult::Complete) return result;
+				if (status.session != owned_session) {
+					if (!publish("SUSPENDED", track, status.session,
+							status.loop_count))
+						return PlaylistResult::ControlIoError;
+					return suspend(log);
+				}
+				log_status(log, status, last_logged, last_logged_valid);
+				if (!publish(megavgm_autoplay2::state_name(status.state), track,
+						status.session, status.loop_count))
+					return PlaylistResult::ControlIoError;
+				fatal = is_fatal(status);
+				ended = status.state == PlaybackState::Ended;
+				if (!ended && !fatal && deadline_reached(runtime, fade_deadline,
+						config.session_timeout_ms)) {
+					log << "LOOP_LIMIT_FADE_TIMEOUT\n";
+					return PlaylistResult::TrackEndTimeout;
+				}
+			}
+			// FATAL retains its existing skip policy even if a navigation command
+			// arrived while the tail transition was active.
+			if (fatal) navigation_claimed = false;
+		}
+
 		std::uint32_t next_baseline_session = owned_session;
 		if (stop_claimed) {
 			std::string stop_detail;

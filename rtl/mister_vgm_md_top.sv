@@ -61,6 +61,11 @@ module mister_vgm_md_top #(
     // 2,000,000 cycles is 100 ms at the production 20 MHz clock.
     parameter logic [31:0] MODE5_TRACK_FADE_CYCLES = 32'd2_000_000,
 
+    // LOOP_LIMIT is a transport-policy transition, not a parser EOF. Keep the
+    // looping session alive and use its next loop head as a two-second tail.
+    parameter logic [31:0] MODE5_LOOP_LIMIT_FADE_CYCLES = 32'd40_000_000,
+    parameter logic [15:0] MODE5_TRANSITION_FILE_INDEX = 16'd2,
+
     // REGION_MODE=5 explicit END repeat policy. This is intentionally separate
     // from the one-shot load-session start path: disabled means END stays
     // stopped/muted, enabled means a player_done edge schedules one reset/start
@@ -1240,7 +1245,9 @@ module mister_vgm_md_top #(
                 );
 
             always_ff @(posedge clk) begin
-                if (reset || ioctl_download) begin
+                if (reset ||
+                    (ioctl_download &&
+                     (ioctl_index == VGM_LOAD_FILE_INDEX))) begin
                     pcm_path_probe_seen_i <= 6'd0;
                     pcm_path_probe_prev_nonzero_i <= 6'd0;
                     pcm_path_probe_prev_sign_i <= 6'd0;
@@ -1444,6 +1451,11 @@ module mister_vgm_md_top #(
             logic mode5_transition_end_pulse = 1'b0;
             logic [31:0] mode5_transition_fade_counter = 32'd0;
             logic [8:0] mode5_transition_gain = 9'd256;
+            logic mode5_transition_loop_limit_active = 1'b0;
+            logic mode5_transition_control_download_d = 1'b0;
+            logic mode5_transition_control_valid = 1'b0;
+            logic [3:0] mode5_transition_control_seen = 4'd0;
+            logic mode5_loop_limit_transition_pulse = 1'b0;
             logic [31:0] mode5_load_begin_count_i = 32'd0;
             logic [31:0] mode5_load_done_edge_count_i = 32'd0;
             logic [31:0] mode5_sound_reset_start_count_i = 32'd0;
@@ -1723,6 +1735,9 @@ module mister_vgm_md_top #(
 
             wire mode5_selected_download =
                 ioctl_download && (ioctl_index == VGM_LOAD_FILE_INDEX);
+            wire mode5_transition_control_download =
+                ioctl_download &&
+                (ioctl_index == MODE5_TRANSITION_FILE_INDEX);
             wire mode5_transition_start_load =
                 mode5_selected_download && !mode5_ioctl_download_d &&
                 !mode5_transition_fade_active &&
@@ -1732,8 +1747,9 @@ module mister_vgm_md_top #(
             assign mode5_transition_wait =
                 mode5_transition_fade_active || mode5_transition_start_load;
             assign mode5_ioctl_download =
-                ioctl_download && !mode5_transition_wait;
-            assign mode5_ioctl_wr = ioctl_wr && !mode5_transition_wait;
+                mode5_selected_download && !mode5_transition_wait;
+            assign mode5_ioctl_wr =
+                ioctl_wr && mode5_selected_download && !mode5_transition_wait;
             assign ioctl_wait = mode5_transition_wait |
                                 mode5_backend_ioctl_wait;
             assign mode5_load_begin_pulse =
@@ -1755,12 +1771,89 @@ module mister_vgm_md_top #(
             localparam logic [31:0] MODE5_TRACK_FADE_STEP_CYCLES =
                 (MODE5_TRACK_FADE_CYCLES < 32'd256) ? 32'd1 :
                 ((MODE5_TRACK_FADE_CYCLES + 32'd255) >> 8);
+            localparam logic [31:0] MODE5_LOOP_LIMIT_FADE_STEP_CYCLES =
+                (MODE5_LOOP_LIMIT_FADE_CYCLES < 32'd256) ? 32'd1 :
+                ((MODE5_LOOP_LIMIT_FADE_CYCLES + 32'd255) >> 8);
+            wire [31:0] mode5_transition_fade_step_cycles =
+                mode5_transition_loop_limit_active ?
+                MODE5_LOOP_LIMIT_FADE_STEP_CYCLES :
+                MODE5_TRACK_FADE_STEP_CYCLES;
+            wire mode5_loop_limit_transition_eligible =
+                mode5_playback_started &&
+                player_busy &&
+                !loaded_player_done &&
+                mode5_done_armed_i &&
+                (mode5_done_armed_session_id_i == mode5_playback_session_id_i) &&
+                !mode5_load_session_active &&
+                !vgm_load_busy &&
+                !vgm_load_error &&
+                !vgm_load_overflow &&
+                !vgm_player_error;
+
+            // Main's existing indexed file-transfer endpoint carries this
+            // sound-family-independent transport request. Index 2 contains a
+            // four-byte record: "MV", version 1, LOOP_LIMIT reason 1. It is
+            // separate from the index-1 VGM/title/backend stream. Partial,
+            // oversized, or unknown records are ignored.
+            always_ff @(posedge clk) begin
+                if (reset) begin
+                    mode5_transition_control_download_d <= 1'b0;
+                    mode5_transition_control_valid <= 1'b0;
+                    mode5_transition_control_seen <= 4'd0;
+                    mode5_loop_limit_transition_pulse <= 1'b0;
+                end else begin
+                    mode5_transition_control_download_d <=
+                        mode5_transition_control_download;
+                    mode5_loop_limit_transition_pulse <= 1'b0;
+                    if (mode5_transition_control_download &&
+                        !mode5_transition_control_download_d) begin
+                        mode5_transition_control_valid <= 1'b1;
+                        mode5_transition_control_seen <= 4'd0;
+                    end
+                    if (mode5_transition_control_download && ioctl_wr) begin
+                        unique case (ioctl_addr)
+                            27'd0: begin
+                                mode5_transition_control_seen[0] <= 1'b1;
+                                if (ioctl_dout != 8'h4d)
+                                    mode5_transition_control_valid <= 1'b0;
+                            end
+                            27'd1: begin
+                                mode5_transition_control_seen[1] <= 1'b1;
+                                if (ioctl_dout != 8'h56)
+                                    mode5_transition_control_valid <= 1'b0;
+                            end
+                            27'd2: begin
+                                mode5_transition_control_seen[2] <= 1'b1;
+                                if (ioctl_dout != 8'h01)
+                                    mode5_transition_control_valid <= 1'b0;
+                            end
+                            27'd3: begin
+                                mode5_transition_control_seen[3] <= 1'b1;
+                                if (ioctl_dout != 8'h01)
+                                    mode5_transition_control_valid <= 1'b0;
+                            end
+                            default:
+                                mode5_transition_control_valid <= 1'b0;
+                        endcase
+                    end
+                    if (!mode5_transition_control_download &&
+                        mode5_transition_control_download_d) begin
+                        if (mode5_transition_control_valid &&
+                            mode5_transition_control_seen == 4'hf)
+                            mode5_loop_limit_transition_pulse <= 1'b1;
+                        mode5_transition_control_valid <= 1'b0;
+                        mode5_transition_control_seen <= 4'd0;
+                    end
+                end
+            end
 
             // One owner serializes every audible track replacement. For an
             // explicit load, ioctl_wait holds Main at FIO_FILE_TX(enable)
             // until the old output reaches zero. For natural END, ENDED is
-            // withheld until the same ramp completes. A load arriving during
-            // that END ramp joins it; it cannot start a second transition.
+            // withheld until the same ramp completes. LOOP_LIMIT selects the
+            // longer step period but retains this owner and completion pulse.
+            // A load arriving during a ramp joins it; it cannot start a second
+            // transition.
             always_ff @(posedge clk) begin
                 if (reset) begin
                     mode5_host_ioctl_download_d <= 1'b0;
@@ -1771,22 +1864,33 @@ module mister_vgm_md_top #(
                     mode5_transition_end_pulse <= 1'b0;
                     mode5_transition_fade_counter <= 32'd0;
                     mode5_transition_gain <= 9'd256;
+                    mode5_transition_loop_limit_active <= 1'b0;
                 end else begin
                     mode5_host_ioctl_download_d <= ioctl_download;
                     mode5_transition_end_pulse <= 1'b0;
 
                     if (mode5_load_begin_pulse) begin
                         mode5_audio_ever_open <= 1'b0;
+                        mode5_transition_loop_limit_active <= 1'b0;
                     end else if (audio_runtime_open && player_busy) begin
                         mode5_audio_ever_open <= 1'b1;
                     end
 
                     if (mode5_transition_fade_active) begin
-                        if (mode5_parser_done_edge) begin
+                        if (vgm_player_error || vgm_load_error ||
+                            vgm_load_overflow) begin
+                            // FATAL keeps its established immediate ownership;
+                            // do not manufacture ENDED from an interrupted tail.
+                            mode5_transition_fade_active <= 1'b0;
+                            mode5_transition_end_pending <= 1'b0;
+                            mode5_transition_released <= 1'b1;
+                            mode5_transition_fade_counter <= 32'd0;
+                            mode5_transition_gain <= 9'd0;
+                            mode5_transition_loop_limit_active <= 1'b0;
+                        end else if (mode5_parser_done_edge) begin
                             mode5_transition_end_pending <= 1'b1;
-                        end
-                        if (mode5_transition_fade_counter >=
-                            (MODE5_TRACK_FADE_STEP_CYCLES - 32'd1)) begin
+                        end else if (mode5_transition_fade_counter >=
+                            (mode5_transition_fade_step_cycles - 32'd1)) begin
                             mode5_transition_fade_counter <= 32'd0;
                             if (mode5_transition_gain <= 9'd1) begin
                                 mode5_transition_gain <= 9'd0;
@@ -1805,6 +1909,23 @@ module mister_vgm_md_top #(
                                 mode5_transition_fade_counter + 32'd1;
                         end
                     end else if (!mode5_transition_released &&
+                                 mode5_loop_limit_transition_pulse &&
+                                 mode5_loop_limit_transition_eligible) begin
+                        if (mode5_audio_ever_open &&
+                            (MODE5_LOOP_LIMIT_FADE_CYCLES != 32'd0)) begin
+                            mode5_transition_fade_active <= 1'b1;
+                            mode5_transition_end_pending <= 1'b1;
+                            mode5_transition_fade_counter <= 32'd0;
+                            mode5_transition_gain <= 9'd256;
+                            mode5_transition_loop_limit_active <= 1'b1;
+                        end else begin
+                            mode5_transition_released <= 1'b1;
+                            mode5_transition_end_pending <= 1'b1;
+                            mode5_transition_end_pulse <= 1'b1;
+                            mode5_transition_gain <= 9'd0;
+                            mode5_transition_loop_limit_active <= 1'b1;
+                        end
+                    end else if (!mode5_transition_released &&
                                  (mode5_parser_done_edge ||
                                   mode5_transition_start_load)) begin
                         if (mode5_audio_ever_open &&
@@ -1814,6 +1935,7 @@ module mister_vgm_md_top #(
                                 mode5_parser_done_edge;
                             mode5_transition_fade_counter <= 32'd0;
                             mode5_transition_gain <= 9'd256;
+                            mode5_transition_loop_limit_active <= 1'b0;
                         end else begin
                             mode5_transition_released <= 1'b1;
                             mode5_transition_gain <= 9'd0;
@@ -1824,18 +1946,21 @@ module mister_vgm_md_top #(
                         end
                     end else if (mode5_transition_released &&
                                  !ioctl_download &&
+                                 !mode5_transition_loop_limit_active &&
                                  mode5_playback_started &&
                                  !loaded_player_done) begin
                         // Internal repeat/re-arm has no download falling edge.
                         mode5_transition_released <= 1'b0;
                         mode5_transition_end_pending <= 1'b0;
                         mode5_transition_gain <= 9'd256;
+                        mode5_transition_loop_limit_active <= 1'b0;
                     end else if (mode5_transition_released &&
                                  !ioctl_download &&
                                  mode5_host_ioctl_download_d) begin
                         mode5_transition_released <= 1'b0;
                         mode5_transition_end_pending <= 1'b0;
                         mode5_transition_gain <= 9'd256;
+                        mode5_transition_loop_limit_active <= 1'b0;
                     end
                 end
             end
@@ -3112,6 +3237,7 @@ module mister_vgm_md_top #(
                         mode5_sound_reset_counter <= 32'd0;
                     end else if (!mode5_segapcm_copy_continue_guard &&
                                  mode5_done_edge &&
+                                 !mode5_transition_loop_limit_active &&
                                  MODE5_REPEAT_ENABLE &&
                                  vgm_load_done &&
                                  vgm_header_valid &&

@@ -45,6 +45,15 @@ module tb_mode5_load_while_playing_session;
     wire [7:0] mode5_done_pc_debug;
     wire [7:0] mode5_done_cmd_debug;
     logic short_ending_file = 1'b0;
+    logic native_loop_file = 1'b0;
+    wire vgm_loop_taken_debug;
+    integer native_loop_count = 0;
+    logic [31:0] loop_limit_fade_start_cycles = 32'd0;
+
+    always @(posedge clk) begin
+        if (vgm_loop_taken_debug)
+            native_loop_count <= native_loop_count + 1;
+    end
 
     wire [127:0] phase1b_status_in;
     wire phase1b_status_set;
@@ -116,7 +125,8 @@ module tb_mode5_load_while_playing_session;
         .REPLAY_DELAY_TICKS             (32'd8),
         .MODE5_SOUND_RESET_CYCLES       (32'd8),
         .MODE5_AUDIO_UNMUTE_DELAY_CYCLES(32'd8),
-        .MODE5_TRACK_FADE_CYCLES        (32'd256)
+        .MODE5_TRACK_FADE_CYCLES        (32'd256),
+        .MODE5_LOOP_LIMIT_FADE_CYCLES   (32'd512)
     ) dut (
         .clk                            (clk),
         .reset_n                        (reset_n),
@@ -164,7 +174,7 @@ module tb_mode5_load_while_playing_session;
         .vgm_current_pc_debug           (),
         .vgm_loop_pc_debug              (),
         .vgm_loop_valid_debug           (),
-        .vgm_loop_taken_debug           (),
+        .vgm_loop_taken_debug           (vgm_loop_taken_debug),
         .vgm_end_command_seen           (),
         .vgm_restarted_from_data_start  (),
         .vgm_pcm_oob                    (),
@@ -223,9 +233,12 @@ module tb_mode5_load_while_playing_session;
                 'h35: long_wait_vgm_byte = 8'h00;
                 'h36: long_wait_vgm_byte = 8'h00;
                 'h37: long_wait_vgm_byte = 8'h00;
-                'h40: long_wait_vgm_byte = 8'h61;
-                'h41: long_wait_vgm_byte = short_ending_file ? 8'h10 : 8'hff;
-                'h42: long_wait_vgm_byte = short_ending_file ? 8'h00 : 8'hff;
+                'h1c: long_wait_vgm_byte = native_loop_file ? 8'h24 : 8'h00;
+                'h40: long_wait_vgm_byte = native_loop_file ? 8'h50 : 8'h61;
+                'h41: long_wait_vgm_byte = native_loop_file ? 8'h80 :
+                    (short_ending_file ? 8'h10 : 8'hff);
+                'h42: long_wait_vgm_byte = native_loop_file ? 8'h70 :
+                    (short_ending_file ? 8'h00 : 8'hff);
                 'h43: long_wait_vgm_byte = 8'h66;
                 default: long_wait_vgm_byte = 8'h00;
             endcase
@@ -284,6 +297,32 @@ module tb_mode5_load_while_playing_session;
             @(posedge clk);
             ioctl_index <= 16'd1;
             ioctl_download <= 1'b1;
+        end
+    endtask
+
+    task automatic request_loop_limit_transition(input logic valid_record);
+        logic [7:0] control_byte;
+        begin
+            @(posedge clk);
+            ioctl_index <= 16'd2;
+            ioctl_download <= 1'b1;
+            for (int i = 0; i < 4; i = i + 1) begin
+                unique case (i)
+                    0: control_byte = 8'h4d;
+                    1: control_byte = 8'h56;
+                    2: control_byte = 8'h01;
+                    default: control_byte = valid_record ? 8'h01 : 8'h7f;
+                endcase
+                @(posedge clk);
+                ioctl_addr <= i[26:0];
+                ioctl_dout <= control_byte;
+                ioctl_wr <= 1'b1;
+                @(posedge clk);
+                ioctl_wr <= 1'b0;
+            end
+            @(posedge clk);
+            ioctl_download <= 1'b0;
+            @(posedge clk);
         end
     endtask
 
@@ -501,6 +540,7 @@ module tb_mode5_load_while_playing_session;
         end
 
         short_ending_file = 1'b0;
+        native_loop_file = 1'b1;
         load_long_wait_vgm();
         wait_for_sound_reset_count(32'd4);
         wait_for_player_start_count(32'd4);
@@ -523,6 +563,76 @@ module tb_mode5_load_while_playing_session;
                 fail_now("stale done terminated file B");
             end
         end
+
+        wait (native_loop_count >= 2);
+
+
+        // A malformed transport record cannot claim the fade owner.
+        request_loop_limit_transition(1'b0);
+        repeat (8) @(posedge clk);
+        if (dut.loaded_vgm_mode.mode5_transition_fade_active ||
+            mode5_player_end_count != 32'd1 || player_done ||
+            !dut.vgm_load_done) begin
+            fail_now("invalid LOOP_LIMIT control accepted");
+        end
+
+        // LOOP_LIMIT uses the same single fade owner, but with its own 2 s
+        // production duration. The session/player/sound core remain live and
+        // changing final audio is heard while the gain ramps. No END, load,
+        // reset, or new session is allowed before zero gain.
+        force dut.raw_audio_l = 16'sd16000;
+        force dut.raw_audio_r = -16'sd16000;
+        request_loop_limit_transition(1'b1);
+        wait (dut.loaded_vgm_mode.mode5_transition_fade_active);
+        loop_limit_fade_start_cycles = mode5_cycles_since_start;
+        begin
+            logic [31:0] live_cycles;
+            live_cycles = mode5_cycles_since_start;
+            repeat (256) @(posedge clk);
+            if (!ioctl_wait || !player_busy || player_done ||
+                mode5_playback_session_id != 32'd4 ||
+                mode5_load_begin_count != 32'd4 ||
+                mode5_sound_reset_start_count != 32'd4 ||
+                mode5_player_start_count != 32'd4 ||
+                mode5_player_end_count != 32'd1 ||
+                mode5_cycles_since_start <= live_cycles ||
+                !dut.vgm_load_done ||
+                audio_l <= 16'sd0 || audio_l >= 16'sd16000 ||
+                audio_r >= 16'sd0 || audio_r <= -16'sd16000) begin
+                fail_now("LOOP_LIMIT did not preserve audible live tail");
+            end
+            if (native_loop_count < 3) begin
+                fail_now("LOOP_LIMIT tail did not enter the next native loop");
+            end
+        end
+        wait_for_player_end_count(32'd2);
+        if ((mode5_cycles_since_start - loop_limit_fade_start_cycles) < 32'd512 ||
+            (mode5_cycles_since_start - loop_limit_fade_start_cycles) > 32'd520) begin
+            fail_now("LOOP_LIMIT reason-selected fade duration");
+        end
+        if (audio_l !== 16'sd0 || audio_r !== 16'sd0 || !player_done ||
+            mode5_load_begin_count != 32'd4 ||
+            mode5_playback_session_id != 32'd4 ||
+            mode5_sound_reset_start_count != 32'd4 ||
+            mode5_player_start_count != 32'd4) begin
+            fail_now("LOOP_LIMIT did not publish one zero-gain END");
+        end
+        repeat (32) @(posedge clk);
+        if (mode5_player_end_count != 32'd2 ||
+            mode5_load_begin_count != 32'd4 ||
+            mode5_playback_session_id != 32'd4) begin
+            fail_now("duplicate LOOP_LIMIT END/load/session");
+        end
+
+        begin_download();
+        repeat (3) @(posedge clk);
+        if (mode5_load_begin_count != 32'd5 ||
+            mode5_playback_session_id != 32'd5) begin
+            fail_now("LOOP_LIMIT replacement ownership");
+        end
+        release dut.raw_audio_l;
+        release dut.raw_audio_r;
+        ioctl_download <= 1'b0;
 
         $display("PASS tb_mode5_load_while_playing_session");
         $finish;

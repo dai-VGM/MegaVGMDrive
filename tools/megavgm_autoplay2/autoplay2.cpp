@@ -19,6 +19,8 @@ constexpr std::uint32_t kInterfaceVersionV1 = 1;
 constexpr std::uint32_t kInterfaceVersionV2 = 2;
 constexpr std::size_t kMaximumStatusBytes = 512;
 constexpr std::size_t kMaximumTrackPathBytes = 960;
+const char kTransitionControlPath[] = "/tmp/megavgm_transition.control";
+const unsigned char kLoopLimitTransitionRecord[] = {'M', 'V', 1, 1};
 
 bool parse_unsigned(const std::string &text, unsigned int base,
 		std::uint32_t maximum, std::uint32_t &value)
@@ -312,6 +314,26 @@ bool build_stop_command(std::string &command)
 	return true;
 }
 
+bool build_transition_command(TransitionReason reason,
+		const std::string &control_path, std::string &command,
+		std::string &detail)
+{
+	if (reason != TransitionReason::LoopLimit || control_path.empty() ||
+	    control_path.size() > kMaximumTrackPathBytes) {
+		detail = "invalid transition request";
+		return false;
+	}
+	for (unsigned char byte : control_path) {
+		if (byte < 0x20 || byte == 0x7f) {
+			detail = "transition path contains a control byte";
+			return false;
+		}
+	}
+	command = "load_file 2 " + control_path + '\n';
+	detail.clear();
+	return true;
+}
+
 PosixRuntime::PosixRuntime(std::string status_path, std::string command_path)
 	: status_path_(std::move(status_path)), command_path_(std::move(command_path))
 {
@@ -382,6 +404,54 @@ bool PosixRuntime::issue_stop(std::string &detail)
 {
 	std::string command;
 	build_stop_command(command);
+	return issue_command(command, detail);
+}
+
+bool PosixRuntime::issue_transition(TransitionReason reason,
+		std::string &detail)
+{
+	if (reason != TransitionReason::LoopLimit) {
+		detail = "unsupported transition reason";
+		return false;
+	}
+
+	// Main already provides a generic indexed file-transfer endpoint. A tiny,
+	// versioned record on reserved index 2 carries transport policy without
+	// adding another command path or coupling the controller to a sound core.
+	const int fd = open(kTransitionControlPath,
+		O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0600);
+	if (fd < 0) {
+		detail = std::strerror(errno);
+		return false;
+	}
+	std::size_t offset = 0;
+	while (offset < sizeof(kLoopLimitTransitionRecord)) {
+		const ssize_t count = write(fd, kLoopLimitTransitionRecord + offset,
+			sizeof(kLoopLimitTransitionRecord) - offset);
+		if (count > 0) {
+			offset += static_cast<std::size_t>(count);
+		} else if (count < 0 && errno == EINTR) {
+			continue;
+		} else {
+			detail = count < 0 ? std::strerror(errno) : "short control write";
+			close(fd);
+			return false;
+		}
+	}
+	if (fsync(fd) < 0) {
+		detail = std::strerror(errno);
+		close(fd);
+		return false;
+	}
+	if (close(fd) < 0) {
+		detail = std::strerror(errno);
+		return false;
+	}
+
+	std::string command;
+	if (!build_transition_command(reason, kTransitionControlPath,
+			command, detail))
+		return false;
 	return issue_command(command, detail);
 }
 
