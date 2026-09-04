@@ -64,6 +64,7 @@ module tb_vgm_loaded_player_c0_startup;
         .load_done(load_done), .load_done_pulse(1'b0),
         .load_error(1'b0), .overflow_error(1'b0), .file_size(file_size),
         .vgm_wait_tick(vgm_wait_tick),
+        .halt_at_loop_boundary(1'b0),
         .mem_rd_req(mem_rd_req), .mem_rd_addr(mem_rd_addr),
         .mem_rd_ready(mem_rd_ready), .mem_rd_valid(mem_rd_valid),
         .mem_rd_data(mem_rd_data),

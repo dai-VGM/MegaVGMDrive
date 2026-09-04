@@ -34,6 +34,7 @@ module tb_vgm_segapcm_header_clock;
         .load_done(load_done), .load_done_pulse(load_done_pulse),
         .load_error(1'b0), .overflow_error(1'b0), .file_size(9'h041),
         .vgm_wait_tick(1'b0),
+        .halt_at_loop_boundary(1'b0),
         .mem_rd_req(mem_rd_req), .mem_rd_addr(mem_rd_addr),
         .mem_rd_ready(!pending), .mem_rd_valid(mem_rd_valid),
         .mem_rd_data(mem_rd_data),

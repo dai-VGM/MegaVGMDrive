@@ -20,7 +20,10 @@ constexpr std::uint32_t kInterfaceVersionV2 = 2;
 constexpr std::size_t kMaximumStatusBytes = 512;
 constexpr std::size_t kMaximumTrackPathBytes = 960;
 const char kTransitionControlPath[] = "/tmp/megavgm_transition.control";
-const unsigned char kLoopLimitTransitionRecord[] = {'M', 'V', 1, 1};
+unsigned char loop_limit_policy_value(TransitionReason reason)
+{
+	return reason == TransitionReason::LoopLimitTwoLoops ? 1 : 0;
+}
 
 bool parse_unsigned(const std::string &text, unsigned int base,
 		std::uint32_t maximum, std::uint32_t &value)
@@ -318,7 +321,8 @@ bool build_transition_command(TransitionReason reason,
 		const std::string &control_path, std::string &command,
 		std::string &detail)
 {
-	if (reason != TransitionReason::LoopLimit || control_path.empty() ||
+	if ((reason != TransitionReason::LoopLimitDisabled &&
+	     reason != TransitionReason::LoopLimitTwoLoops) || control_path.empty() ||
 	    control_path.size() > kMaximumTrackPathBytes) {
 		detail = "invalid transition request";
 		return false;
@@ -410,7 +414,8 @@ bool PosixRuntime::issue_stop(std::string &detail)
 bool PosixRuntime::issue_transition(TransitionReason reason,
 		std::string &detail)
 {
-	if (reason != TransitionReason::LoopLimit) {
+	if (reason != TransitionReason::LoopLimitDisabled &&
+	    reason != TransitionReason::LoopLimitTwoLoops) {
 		detail = "unsupported transition reason";
 		return false;
 	}
@@ -418,6 +423,9 @@ bool PosixRuntime::issue_transition(TransitionReason reason,
 	// Main already provides a generic indexed file-transfer endpoint. A tiny,
 	// versioned record on reserved index 2 carries transport policy without
 	// adding another command path or coupling the controller to a sound core.
+	const unsigned char record[] = {
+		'M', 'V', 2, loop_limit_policy_value(reason)
+	};
 	const int fd = open(kTransitionControlPath,
 		O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0600);
 	if (fd < 0) {
@@ -425,9 +433,9 @@ bool PosixRuntime::issue_transition(TransitionReason reason,
 		return false;
 	}
 	std::size_t offset = 0;
-	while (offset < sizeof(kLoopLimitTransitionRecord)) {
-		const ssize_t count = write(fd, kLoopLimitTransitionRecord + offset,
-			sizeof(kLoopLimitTransitionRecord) - offset);
+	while (offset < sizeof(record)) {
+		const ssize_t count = write(fd, record + offset,
+			sizeof(record) - offset);
 		if (count > 0) {
 			offset += static_cast<std::size_t>(count);
 		} else if (count < 0 && errno == EINTR) {

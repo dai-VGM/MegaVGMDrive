@@ -975,6 +975,7 @@ module emu
     wire [17:0] vgm_loop_pc_debug;
     wire        vgm_loop_valid_debug;
     wire        vgm_loop_taken_debug;
+    wire        vgm_loop_boundary_pulse_debug;
     wire        vgm_loop_jump_pulse_debug;
     wire        vgm_end_command_seen;
     wire        vgm_restarted_from_data_start;
@@ -1769,7 +1770,7 @@ module emu
         .error_session_id       (vgm_error_session_id),
 `ifdef MEGAVGMDRIVE_PLAYLIST_LOOP_PHASE1E
         .player_loop_valid      (vgm_loop_valid_debug),
-        .player_loop_jump_pulse (vgm_loop_jump_pulse_debug),
+        .player_loop_boundary_pulse(vgm_loop_boundary_pulse_debug),
 `endif
         .status_in              (status_in),
         .status_set             (status_set),
@@ -2017,6 +2018,7 @@ module emu
         .vgm_loop_pc_debug     (vgm_loop_pc_debug),
         .vgm_loop_valid_debug  (vgm_loop_valid_debug),
         .vgm_loop_taken_debug  (vgm_loop_taken_debug),
+        .vgm_loop_boundary_pulse_debug(vgm_loop_boundary_pulse_debug),
         .vgm_loop_jump_pulse_debug(vgm_loop_jump_pulse_debug),
         .vgm_end_command_seen  (vgm_end_command_seen),
         .vgm_restarted_from_data_start(vgm_restarted_from_data_start),

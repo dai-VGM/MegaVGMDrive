@@ -36,6 +36,7 @@ module tb_vgm_loaded_player_valid_held_high;
         .overflow_error        (1'b0),
         .file_size             (9'd128),
         .vgm_wait_tick         (1'b0),
+        .halt_at_loop_boundary (1'b0),
         .mem_rd_req            (mem_rd_req),
         .mem_rd_addr           (mem_rd_addr),
         .mem_rd_ready          (mem_rd_ready),

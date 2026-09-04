@@ -263,10 +263,10 @@ void test_invalid_paths()
 	assert(!build_load_command("bad\npath.vgm", command, detail));
 	assert(!build_load_command("", command, detail));
 	assert(!build_load_command(std::string(961, 'a'), command, detail));
-	assert(build_transition_command(TransitionReason::LoopLimit,
+	assert(build_transition_command(TransitionReason::LoopLimitTwoLoops,
 		"/tmp/megavgm_transition.control", command, detail));
 	assert(command == "load_file 2 /tmp/megavgm_transition.control\n");
-	assert(!build_transition_command(TransitionReason::LoopLimit,
+	assert(!build_transition_command(TransitionReason::LoopLimitDisabled,
 		"bad\npath", command, detail));
 	assert(execute({ok(1, PlaybackState::Idle)}, nullptr, nullptr,
 		"bad\npath.vgm", "/media/fat/B.vgm") == RunResult::InvalidTrackPath);

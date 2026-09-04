@@ -308,7 +308,9 @@ void test_native_loop_limit_and_stale_reset()
 	assert(runtime->commands.size() == 2);
 	assert(runtime->commands[0] == "load_file 1 " + tracks[0].path + "\n");
 	assert(runtime->commands[1] == "load_file 1 " + tracks[1].path + "\n");
-	assert(runtime->transitions.size() == 1);
+	assert(runtime->transitions.size() == 2);
+	assert(runtime->transitions[0] ==
+		megavgm_autoplay2::TransitionReason::LoopLimitTwoLoops);
 	assert(log.find("session=10 PLAYING loop_valid=1 loop_count=0") !=
 		std::string::npos);
 	assert(log.find("session=10 PLAYING loop_valid=1 loop_count=1") !=
@@ -339,7 +341,7 @@ void test_loop_counter_saturation_policy()
 	}, tracks, &runtime, nullptr, 65535);
 	assert(result == PlaylistResult::Complete);
 	assert(runtime->commands.size() == 2);
-	assert(runtime->transitions.size() == 1);
+	assert(runtime->transitions.size() == 2);
 	delete runtime;
 }
 
@@ -548,9 +550,8 @@ void test_loop_limit_uses_guarded_transition_once()
 		loop_status(6, PlaybackState::Ended, false, 0)
 	}, tracks, &runtime, &log) == PlaylistResult::Complete);
 	assert(runtime->commands.size() == 2);
-	assert(runtime->transitions.size() == 1);
-	assert(log.find("TRACK_FADE reason=LOOP_LIMIT duration_ms=2000") !=
-		std::string::npos);
+	assert(runtime->transitions.size() == 2);
+	assert(log.find("TRACK_FADE reason=LOOP_LIMIT") == std::string::npos);
 	assert(log.find("TRACK_TRANSITION source=LOOP_LIMIT from=1 action=LOAD to=2") !=
 		std::string::npos);
 	assert(log.find("TRACK_TRANSITION_IGNORED") == std::string::npos);
@@ -566,12 +567,12 @@ void test_single_track_loop_limit_waits_for_fade_end()
 		loop_status(7, PlaybackState::Ended, false, 0),
 		loop_status(8, PlaybackState::Playing, true, 0),
 		loop_status(8, PlaybackState::Playing, true, 2),
-		loop_status(8, PlaybackState::Playing, true, 3),
-		loop_status(8, PlaybackState::Ended, true, 3)
+		loop_status(8, PlaybackState::Playing, true, 2),
+		loop_status(8, PlaybackState::Ended, true, 2)
 	}, tracks, &runtime, &log) == PlaylistResult::Complete);
 	assert(runtime->commands.size() == 1);
 	assert(runtime->transitions.size() == 1);
-	assert(log.find("session=8 PLAYING loop_valid=1 loop_count=3") !=
+	assert(log.find("session=8 PLAYING loop_valid=1 loop_count=2") !=
 		std::string::npos);
 	assert(log.find("session=8 ENDED") != std::string::npos);
 	delete runtime;
@@ -594,9 +595,9 @@ void test_manual_next_joins_loop_limit_fade()
 		loop_status(6, PlaybackState::Ended, false, 0)
 	}, tracks, &runtime, &log, 2,
 		{{3, ControlCommandType::Next, {}}}) == PlaylistResult::Complete);
-	assert(runtime->transitions.size() == 1);
+	assert(runtime->transitions.size() == 2);
 	assert(runtime->commands.size() == 2);
-	assert(log.find("TRACK_TRANSITION_JOIN reason=LOOP_LIMIT command=NEXT") !=
+	assert(log.find("TRACK_TRANSITION_JOIN reason=LOOP_LIMIT") ==
 		std::string::npos);
 	assert(log.find("TRACK_TRANSITION source=MANUAL_NEXT") !=
 		std::string::npos);
@@ -620,7 +621,7 @@ void test_stop_preempts_loop_limit_fade()
 	}, tracks, &runtime, nullptr, 2,
 		{{3, ControlCommandType::Stop, {}},
 		 {4, ControlCommandType::Next, {}}}) == PlaylistResult::Complete);
-	assert(runtime->transitions.size() == 1);
+	assert(runtime->transitions.size() == 2);
 	assert(runtime->commands.size() == 3);
 	assert(runtime->commands[1] == "reset_core\n");
 	assert(runtime->commands[2] == "load_file 1 " + tracks[1].path + "\n");
@@ -643,7 +644,7 @@ void test_fatal_preempts_loop_limit_tail_without_ended()
 		loop_status(6, PlaybackState::Playing, false, 0),
 		loop_status(6, PlaybackState::Ended, false, 0)
 	}, tracks, &runtime, &log) == PlaylistResult::Complete);
-	assert(runtime->transitions.size() == 1);
+	assert(runtime->transitions.size() == 2);
 	assert(runtime->commands.size() == 2);
 	assert(log.find("FATAL session=5 error=0D") != std::string::npos);
 	assert(log.find("session=5 ENDED") == std::string::npos);
@@ -1011,7 +1012,9 @@ void test_repeat_one_native_loop_never_reloads_at_limit()
 		{{3, ControlCommandType::Next, {}}}, nullptr, 0, {}, preferences) ==
 		PlaylistResult::Complete);
 	assert(runtime->commands.size() == 1);
-	assert(runtime->transitions.empty());
+	assert(runtime->transitions.size() == 1);
+	assert(runtime->transitions[0] ==
+		megavgm_autoplay2::TransitionReason::LoopLimitDisabled);
 	delete runtime;
 }
 
@@ -1032,7 +1035,7 @@ void test_repeat_all_one_track_reloads_after_loop_tail()
 	}, tracks, &runtime, nullptr, 2,
 		{{5, ControlCommandType::Stop, {}}}, nullptr, 0, {}, preferences) ==
 		PlaylistResult::Suspended);
-	assert(runtime->transitions.size() == 1);
+	assert(runtime->transitions.size() == 2);
 	assert(runtime->commands.size() == 3);
 	assert(runtime->commands[0] == runtime->commands[1]);
 	assert(runtime->commands[2] == "reset_core\n");
@@ -1072,7 +1075,7 @@ void test_repeat_all_wrap_and_shuffle_bag()
 	assert(runtime->commands.size() == 3);
 	std::set<std::string> unique(runtime->commands.begin(), runtime->commands.end());
 	assert(unique.size() == 3);
-	assert(runtime->transitions.size() == 1);
+	assert(runtime->transitions.size() == 3);
 	delete runtime;
 }
 
@@ -1090,6 +1093,11 @@ void test_mode_command_survives_owned_load_discard()
 		 {3, ControlCommandType::Next, {}}}, &controller) ==
 		PlaylistResult::Complete);
 	assert(runtime->commands.size() == 1);
+	assert(runtime->transitions.size() == 2);
+	assert(runtime->transitions[0] ==
+		megavgm_autoplay2::TransitionReason::LoopLimitTwoLoops);
+	assert(runtime->transitions[1] ==
+		megavgm_autoplay2::TransitionReason::LoopLimitDisabled);
 	assert(controller->saved_preferences.size() == 1);
 	assert(controller->saved_preferences[0].repeat == RepeatMode::One);
 	assert(controller->discarded == 0);

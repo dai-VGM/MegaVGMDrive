@@ -61,9 +61,10 @@ module mister_vgm_md_top #(
     // 2,000,000 cycles is 100 ms at the production 20 MHz clock.
     parameter logic [31:0] MODE5_TRACK_FADE_CYCLES = 32'd2_000_000,
 
-    // LOOP_LIMIT is a transport-policy transition, not a parser EOF. Keep the
-    // looping session alive and use its next loop head as a two-second tail.
-    parameter logic [31:0] MODE5_LOOP_LIMIT_FADE_CYCLES = 32'd40_000_000,
+    // LOOP_LIMIT is scheduled in actual 44.1 kHz VGM wait samples. The first
+    // loop traversal is measured; the second traversal fades over at most the
+    // final two seconds and stops at its real 0x66 boundary.
+    parameter logic [31:0] MODE5_LOOP_LIMIT_FADE_SAMPLES = 32'd88_200,
     parameter logic [15:0] MODE5_TRANSITION_FILE_INDEX = 16'd2,
 
     // REGION_MODE=5 explicit END repeat policy. This is intentionally separate
@@ -319,6 +320,7 @@ module mister_vgm_md_top #(
     output logic [VGM_LOAD_ADDR_WIDTH-1:0] vgm_loop_pc_debug,
     output logic              vgm_loop_valid_debug,
     output logic              vgm_loop_taken_debug,
+    output logic              vgm_loop_boundary_pulse_debug,
     output logic              vgm_loop_jump_pulse_debug,
     output logic              vgm_end_command_seen,
     output logic              vgm_restarted_from_data_start,
@@ -1455,7 +1457,22 @@ module mister_vgm_md_top #(
             logic mode5_transition_control_download_d = 1'b0;
             logic mode5_transition_control_valid = 1'b0;
             logic [3:0] mode5_transition_control_seen = 4'd0;
-            logic mode5_loop_limit_transition_pulse = 1'b0;
+            logic mode5_loop_limit_policy_pending = 1'b0;
+            logic mode5_loop_limit_policy_active = 1'b0;
+            logic mode5_loop_limit_policy_value = 1'b0;
+            logic mode5_loop_limit_policy_update_pulse = 1'b0;
+            logic mode5_loop_region_started = 1'b0;
+            logic mode5_loop_first_boundary_seen = 1'b0;
+            logic mode5_loop_second_active = 1'b0;
+            logic [31:0] mode5_loop_start_wait_ticks = 32'd0;
+            logic [31:0] mode5_loop_second_start_wait_ticks = 32'd0;
+            logic [31:0] mode5_loop_length_samples = 32'd0;
+            logic [31:0] mode5_loop_fade_start_samples = 32'd0;
+            logic [31:0] mode5_loop_fade_samples = 32'd0;
+            logic [39:0] mode5_loop_fade_accumulator = 40'd0;
+            logic [31:0] mode5_wait_ticks_consumed_d = 32'd0;
+            logic mode5_player_loop_entry_pulse;
+            logic mode5_player_loop_boundary_pulse;
             logic [31:0] mode5_load_begin_count_i = 32'd0;
             logic [31:0] mode5_load_done_edge_count_i = 32'd0;
             logic [31:0] mode5_sound_reset_start_count_i = 32'd0;
@@ -1750,8 +1767,13 @@ module mister_vgm_md_top #(
                 mode5_selected_download && !mode5_transition_wait;
             assign mode5_ioctl_wr =
                 ioctl_wr && mode5_selected_download && !mode5_transition_wait;
-            assign ioctl_wait = mode5_transition_wait |
-                                mode5_backend_ioctl_wait;
+            // Transport policy records must remain serviceable while an
+            // audible transition owns index 1; Repeat One can therefore
+            // cancel a pending loop-limit fade without opening a second VGM
+            // download. Backend wait remains authoritative for index 1.
+            assign ioctl_wait =
+                (mode5_selected_download && mode5_transition_wait) |
+                mode5_backend_ioctl_wait;
             assign mode5_load_begin_pulse =
                 mode5_ioctl_download && !mode5_ioctl_download_d &&
                 (ioctl_index == VGM_LOAD_FILE_INDEX);
@@ -1771,13 +1793,25 @@ module mister_vgm_md_top #(
             localparam logic [31:0] MODE5_TRACK_FADE_STEP_CYCLES =
                 (MODE5_TRACK_FADE_CYCLES < 32'd256) ? 32'd1 :
                 ((MODE5_TRACK_FADE_CYCLES + 32'd255) >> 8);
-            localparam logic [31:0] MODE5_LOOP_LIMIT_FADE_STEP_CYCLES =
-                (MODE5_LOOP_LIMIT_FADE_CYCLES < 32'd256) ? 32'd1 :
-                ((MODE5_LOOP_LIMIT_FADE_CYCLES + 32'd255) >> 8);
-            wire [31:0] mode5_transition_fade_step_cycles =
-                mode5_transition_loop_limit_active ?
-                MODE5_LOOP_LIMIT_FADE_STEP_CYCLES :
-                MODE5_TRACK_FADE_STEP_CYCLES;
+            wire [31:0] mode5_loop_second_samples =
+                vgm_wait_ticks_consumed_debug -
+                mode5_loop_second_start_wait_ticks;
+            wire mode5_loop_fade_due =
+                mode5_loop_limit_policy_active &&
+                mode5_loop_first_boundary_seen &&
+                mode5_loop_second_active &&
+                !mode5_transition_fade_active &&
+                (mode5_loop_second_samples >=
+                 mode5_loop_fade_start_samples);
+            wire mode5_loop_wait_tick =
+                vgm_wait_ticks_consumed_debug !=
+                mode5_wait_ticks_consumed_d;
+            wire [40:0] mode5_loop_fade_accumulator_next =
+                {1'b0, mode5_loop_fade_accumulator} +
+                (mode5_loop_wait_tick ? 41'd256 : 41'd0);
+            wire mode5_halt_at_loop_boundary =
+                mode5_loop_limit_policy_active &&
+                mode5_loop_second_active;
             wire mode5_loop_limit_transition_eligible =
                 mode5_playback_started &&
                 player_busy &&
@@ -1791,20 +1825,23 @@ module mister_vgm_md_top #(
                 !vgm_player_error;
 
             // Main's existing indexed file-transfer endpoint carries this
-            // sound-family-independent transport request. Index 2 contains a
-            // four-byte record: "MV", version 1, LOOP_LIMIT reason 1. It is
-            // separate from the index-1 VGM/title/backend stream. Partial,
-            // oversized, or unknown records are ignored.
+            // sound-family-independent transport policy. Index 2 contains a
+            // four-byte record: "MV", version 2, byte 3 = fixed two-loop
+            // limit enable. It is sent before index 1 so the exact new session
+            // owns the policy. Partial, oversized, or unknown records are
+            // ignored.
             always_ff @(posedge clk) begin
                 if (reset) begin
                     mode5_transition_control_download_d <= 1'b0;
                     mode5_transition_control_valid <= 1'b0;
                     mode5_transition_control_seen <= 4'd0;
-                    mode5_loop_limit_transition_pulse <= 1'b0;
+                    mode5_loop_limit_policy_pending <= 1'b0;
+                    mode5_loop_limit_policy_value <= 1'b0;
+                    mode5_loop_limit_policy_update_pulse <= 1'b0;
                 end else begin
                     mode5_transition_control_download_d <=
                         mode5_transition_control_download;
-                    mode5_loop_limit_transition_pulse <= 1'b0;
+                    mode5_loop_limit_policy_update_pulse <= 1'b0;
                     if (mode5_transition_control_download &&
                         !mode5_transition_control_download_d) begin
                         mode5_transition_control_valid <= 1'b1;
@@ -1824,12 +1861,14 @@ module mister_vgm_md_top #(
                             end
                             27'd2: begin
                                 mode5_transition_control_seen[2] <= 1'b1;
-                                if (ioctl_dout != 8'h01)
+                                if (ioctl_dout != 8'h02)
                                     mode5_transition_control_valid <= 1'b0;
                             end
                             27'd3: begin
                                 mode5_transition_control_seen[3] <= 1'b1;
-                                if (ioctl_dout != 8'h01)
+                                mode5_loop_limit_policy_value <=
+                                    ioctl_dout[0];
+                                if (ioctl_dout[7:1] != 7'd0)
                                     mode5_transition_control_valid <= 1'b0;
                             end
                             default:
@@ -1839,10 +1878,87 @@ module mister_vgm_md_top #(
                     if (!mode5_transition_control_download &&
                         mode5_transition_control_download_d) begin
                         if (mode5_transition_control_valid &&
-                            mode5_transition_control_seen == 4'hf)
-                            mode5_loop_limit_transition_pulse <= 1'b1;
+                            mode5_transition_control_seen == 4'hf) begin
+                            mode5_loop_limit_policy_pending <=
+                                mode5_loop_limit_policy_value;
+                            mode5_loop_limit_policy_update_pulse <= 1'b1;
+                        end
                         mode5_transition_control_valid <= 1'b0;
                         mode5_transition_control_seen <= 4'd0;
+                    end
+                end
+            end
+
+            // Measure the first actual traversal of the VGM loop region. The
+            // source is the parser's consumed-wait counter, not the optional
+            // header estimate. The first 0x66 establishes L and starts loop 2;
+            // its final min(L, two seconds) samples own the fade schedule.
+            always_ff @(posedge clk) begin
+                if (reset) begin
+                    mode5_loop_limit_policy_active <= 1'b0;
+                    mode5_loop_region_started <= 1'b0;
+                    mode5_loop_first_boundary_seen <= 1'b0;
+                    mode5_loop_second_active <= 1'b0;
+                    mode5_loop_start_wait_ticks <= 32'd0;
+                    mode5_loop_second_start_wait_ticks <= 32'd0;
+                    mode5_loop_length_samples <= 32'd0;
+                    mode5_loop_fade_start_samples <= 32'd0;
+                    mode5_loop_fade_samples <= 32'd0;
+                    mode5_wait_ticks_consumed_d <= 32'd0;
+                end else begin
+                    mode5_wait_ticks_consumed_d <=
+                        vgm_wait_ticks_consumed_debug;
+                    if (mode5_load_begin_pulse) begin
+                        mode5_loop_limit_policy_active <=
+                            mode5_loop_limit_policy_pending;
+                        mode5_loop_region_started <= 1'b0;
+                        mode5_loop_first_boundary_seen <= 1'b0;
+                        mode5_loop_second_active <= 1'b0;
+                        mode5_loop_start_wait_ticks <= 32'd0;
+                        mode5_loop_second_start_wait_ticks <= 32'd0;
+                        mode5_loop_length_samples <= 32'd0;
+                        mode5_loop_fade_start_samples <= 32'd0;
+                        mode5_loop_fade_samples <= 32'd0;
+                    end else begin
+                        if (mode5_loop_limit_policy_update_pulse)
+                            mode5_loop_limit_policy_active <=
+                                mode5_loop_limit_policy_value;
+                        if (mode5_player_loop_entry_pulse &&
+                            !mode5_loop_first_boundary_seen &&
+                            !mode5_loop_region_started) begin
+                            mode5_loop_region_started <= 1'b1;
+                            mode5_loop_start_wait_ticks <=
+                                vgm_wait_ticks_consumed_debug;
+                        end
+                        if (mode5_player_loop_boundary_pulse &&
+                            !mode5_loop_first_boundary_seen &&
+                            mode5_loop_region_started) begin
+                            mode5_loop_first_boundary_seen <= 1'b1;
+                            mode5_loop_second_active <= 1'b1;
+                            mode5_loop_second_start_wait_ticks <=
+                                vgm_wait_ticks_consumed_debug;
+                            mode5_loop_length_samples <=
+                                vgm_wait_ticks_consumed_debug -
+                                mode5_loop_start_wait_ticks;
+                            if ((vgm_wait_ticks_consumed_debug -
+                                 mode5_loop_start_wait_ticks) >
+                                MODE5_LOOP_LIMIT_FADE_SAMPLES) begin
+                                mode5_loop_fade_start_samples <=
+                                    (vgm_wait_ticks_consumed_debug -
+                                     mode5_loop_start_wait_ticks) -
+                                    MODE5_LOOP_LIMIT_FADE_SAMPLES;
+                                mode5_loop_fade_samples <=
+                                    MODE5_LOOP_LIMIT_FADE_SAMPLES;
+                            end else begin
+                                mode5_loop_fade_start_samples <= 32'd0;
+                                mode5_loop_fade_samples <=
+                                    vgm_wait_ticks_consumed_debug -
+                                    mode5_loop_start_wait_ticks;
+                            end
+                        end else if (mode5_player_loop_boundary_pulse &&
+                                     mode5_loop_second_active) begin
+                            mode5_loop_second_active <= 1'b0;
+                        end
                     end
                 end
             end
@@ -1850,10 +1966,10 @@ module mister_vgm_md_top #(
             // One owner serializes every audible track replacement. For an
             // explicit load, ioctl_wait holds Main at FIO_FILE_TX(enable)
             // until the old output reaches zero. For natural END, ENDED is
-            // withheld until the same ramp completes. LOOP_LIMIT selects the
-            // longer step period but retains this owner and completion pulse.
-            // A load arriving during a ramp joins it; it cannot start a second
-            // transition.
+            // withheld until the same ramp completes. LOOP_LIMIT retains this
+            // owner, but its gain is paced by actual VGM wait samples and its
+            // completion is the second real loop boundary. A load arriving
+            // during a ramp joins it; it cannot start a second transition.
             always_ff @(posedge clk) begin
                 if (reset) begin
                     mode5_host_ioctl_download_d <= 1'b0;
@@ -1863,6 +1979,7 @@ module mister_vgm_md_top #(
                     mode5_transition_released <= 1'b0;
                     mode5_transition_end_pulse <= 1'b0;
                     mode5_transition_fade_counter <= 32'd0;
+                    mode5_loop_fade_accumulator <= 40'd0;
                     mode5_transition_gain <= 9'd256;
                     mode5_transition_loop_limit_active <= 1'b0;
                 end else begin
@@ -1872,6 +1989,7 @@ module mister_vgm_md_top #(
                     if (mode5_load_begin_pulse) begin
                         mode5_audio_ever_open <= 1'b0;
                         mode5_transition_loop_limit_active <= 1'b0;
+                        mode5_loop_fade_accumulator <= 40'd0;
                     end else if (audio_runtime_open && player_busy) begin
                         mode5_audio_ever_open <= 1'b1;
                     end
@@ -1885,21 +2003,63 @@ module mister_vgm_md_top #(
                             mode5_transition_end_pending <= 1'b0;
                             mode5_transition_released <= 1'b1;
                             mode5_transition_fade_counter <= 32'd0;
+                            mode5_loop_fade_accumulator <= 40'd0;
                             mode5_transition_gain <= 9'd0;
                             mode5_transition_loop_limit_active <= 1'b0;
+                        end else if (mode5_transition_loop_limit_active) begin
+                            if (mode5_player_loop_boundary_pulse &&
+                                mode5_loop_second_active) begin
+                                // The boundary is authoritative. It both
+                                // clamps rounding residue to zero and emits the
+                                // single transport END; no loop-3 fetch occurs.
+                                mode5_transition_gain <= 9'd0;
+                                mode5_transition_fade_active <= 1'b0;
+                                mode5_transition_released <= 1'b1;
+                                mode5_transition_end_pending <= 1'b1;
+                                mode5_transition_end_pulse <= 1'b1;
+                                mode5_loop_fade_accumulator <= 40'd0;
+                            end else if (mode5_loop_limit_policy_update_pulse &&
+                                         !mode5_loop_limit_policy_value) begin
+                                // Repeat One cancels only the loop-limit
+                                // owner; native looping resumes at full gain.
+                                mode5_transition_fade_active <= 1'b0;
+                                mode5_transition_end_pending <= 1'b0;
+                                mode5_transition_gain <= 9'd256;
+                                mode5_transition_loop_limit_active <= 1'b0;
+                                mode5_loop_fade_accumulator <= 40'd0;
+                            end else if (mode5_selected_download &&
+                                         !mode5_host_ioctl_download_d) begin
+                                // Manual replacement keeps the same owner but
+                                // uses the established 100 ms transport ramp.
+                                mode5_transition_loop_limit_active <= 1'b0;
+                                mode5_transition_end_pending <= 1'b0;
+                                mode5_transition_fade_counter <= 32'd0;
+                                mode5_loop_fade_accumulator <= 40'd0;
+                            end else if ((mode5_loop_fade_samples != 32'd0) &&
+                                         (mode5_loop_fade_accumulator_next >=
+                                          {9'd0, mode5_loop_fade_samples})) begin
+                                mode5_loop_fade_accumulator <=
+                                    mode5_loop_fade_accumulator_next[39:0] -
+                                    {8'd0, mode5_loop_fade_samples};
+                                if (mode5_transition_gain != 9'd0)
+                                    mode5_transition_gain <=
+                                        mode5_transition_gain - 9'd1;
+                            end else begin
+                                mode5_loop_fade_accumulator <=
+                                    mode5_loop_fade_accumulator_next[39:0];
+                            end
                         end else if (mode5_parser_done_edge) begin
                             mode5_transition_end_pending <= 1'b1;
                         end else if (mode5_transition_fade_counter >=
-                            (mode5_transition_fade_step_cycles - 32'd1)) begin
+                            (MODE5_TRACK_FADE_STEP_CYCLES - 32'd1)) begin
                             mode5_transition_fade_counter <= 32'd0;
                             if (mode5_transition_gain <= 9'd1) begin
                                 mode5_transition_gain <= 9'd0;
                                 mode5_transition_fade_active <= 1'b0;
                                 mode5_transition_released <= 1'b1;
                                 if (mode5_transition_end_pending ||
-                                    mode5_parser_done_edge) begin
+                                    mode5_parser_done_edge)
                                     mode5_transition_end_pulse <= 1'b1;
-                                end
                             end else begin
                                 mode5_transition_gain <=
                                     mode5_transition_gain - 9'd1;
@@ -1909,22 +2069,17 @@ module mister_vgm_md_top #(
                                 mode5_transition_fade_counter + 32'd1;
                         end
                     end else if (!mode5_transition_released &&
-                                 mode5_loop_limit_transition_pulse &&
+                                 mode5_loop_fade_due &&
                                  mode5_loop_limit_transition_eligible) begin
-                        if (mode5_audio_ever_open &&
-                            (MODE5_LOOP_LIMIT_FADE_CYCLES != 32'd0)) begin
-                            mode5_transition_fade_active <= 1'b1;
-                            mode5_transition_end_pending <= 1'b1;
-                            mode5_transition_fade_counter <= 32'd0;
-                            mode5_transition_gain <= 9'd256;
-                            mode5_transition_loop_limit_active <= 1'b1;
-                        end else begin
-                            mode5_transition_released <= 1'b1;
-                            mode5_transition_end_pending <= 1'b1;
-                            mode5_transition_end_pulse <= 1'b1;
-                            mode5_transition_gain <= 9'd0;
-                            mode5_transition_loop_limit_active <= 1'b1;
-                        end
+                        mode5_transition_fade_active <= 1'b1;
+                        mode5_transition_end_pending <= 1'b1;
+                        mode5_transition_fade_counter <= 32'd0;
+                        mode5_loop_fade_accumulator <= 40'd0;
+                        mode5_transition_gain <=
+                            (mode5_audio_ever_open &&
+                             (mode5_loop_fade_samples != 32'd0)) ?
+                            9'd256 : 9'd0;
+                        mode5_transition_loop_limit_active <= 1'b1;
                     end else if (!mode5_transition_released &&
                                  (mode5_parser_done_edge ||
                                   mode5_transition_start_load)) begin
@@ -1934,6 +2089,7 @@ module mister_vgm_md_top #(
                             mode5_transition_end_pending <=
                                 mode5_parser_done_edge;
                             mode5_transition_fade_counter <= 32'd0;
+                            mode5_loop_fade_accumulator <= 40'd0;
                             mode5_transition_gain <= 9'd256;
                             mode5_transition_loop_limit_active <= 1'b0;
                         end else begin
@@ -1954,6 +2110,7 @@ module mister_vgm_md_top #(
                         mode5_transition_end_pending <= 1'b0;
                         mode5_transition_gain <= 9'd256;
                         mode5_transition_loop_limit_active <= 1'b0;
+                        mode5_loop_fade_accumulator <= 40'd0;
                     end else if (mode5_transition_released &&
                                  !ioctl_download &&
                                  mode5_host_ioctl_download_d) begin
@@ -1961,6 +2118,7 @@ module mister_vgm_md_top #(
                         mode5_transition_end_pending <= 1'b0;
                         mode5_transition_gain <= 9'd256;
                         mode5_transition_loop_limit_active <= 1'b0;
+                        mode5_loop_fade_accumulator <= 40'd0;
                     end
                 end
             end
@@ -3416,6 +3574,8 @@ module mister_vgm_md_top #(
                  smoke_parser_loaded_player_reset :
                  mode5_sound_core_reset);
             assign mode5_sound_reset_active = mode5_sound_reset_active_i;
+            assign vgm_loop_boundary_pulse_debug =
+                mode5_player_loop_boundary_pulse;
             assign mode5_player_start_pulse_debug = loaded_player_start_input_live;
             assign mode5_start_hold_debug = {
                 reset,
@@ -4200,6 +4360,7 @@ module mister_vgm_md_top #(
                 .overflow_error        (vgm_load_overflow),
                 .file_size             (vgm_load_size),
                 .vgm_wait_tick         (vgm_wait_tick),
+                .halt_at_loop_boundary (mode5_halt_at_loop_boundary),
                 .mem_rd_req            (mem_rd_req),
                 .mem_rd_addr           (mem_rd_addr),
                 .mem_rd_ready          (mem_rd_ready),
@@ -4331,6 +4492,8 @@ module mister_vgm_md_top #(
                 .loop_pc_debug         (vgm_loop_pc_debug),
                 .loop_valid_debug      (vgm_loop_valid_debug),
                 .loop_taken_debug      (vgm_loop_taken_debug),
+                .loop_entry_pulse_debug(mode5_player_loop_entry_pulse),
+                .loop_boundary_pulse_debug(mode5_player_loop_boundary_pulse),
                 .loop_jump_pulse_debug (vgm_loop_jump_pulse_debug),
                 .end_command_seen      (vgm_end_command_seen),
                 .restarted_from_data_start(vgm_restarted_from_data_start),
@@ -5187,6 +5350,7 @@ module mister_vgm_md_top #(
             assign vgm_loop_pc_debug = '0;
             assign vgm_loop_valid_debug = 1'b0;
             assign vgm_loop_taken_debug = 1'b0;
+            assign vgm_loop_boundary_pulse_debug = 1'b0;
             assign vgm_loop_jump_pulse_debug = 1'b0;
             assign vgm_end_command_seen = 1'b0;
             assign vgm_restarted_from_data_start = 1'b0;

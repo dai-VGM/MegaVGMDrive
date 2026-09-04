@@ -137,7 +137,7 @@ module tb_supervisor_early_load_boundary;
         .vgm_player_error_code(8'd0),
         .error_session_id(32'd0),
         .player_loop_valid(1'b0),
-        .player_loop_jump_pulse(1'b0),
+        .player_loop_boundary_pulse(1'b0),
         .status_in(exported_status),
         .status_set(status_set),
         .exported_session_id(exported_session),

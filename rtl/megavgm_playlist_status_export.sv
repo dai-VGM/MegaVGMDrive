@@ -15,7 +15,7 @@ module megavgm_playlist_status_export (
     input  logic [31:0]  error_session_id,
 `ifdef MEGAVGMDRIVE_PLAYLIST_LOOP_PHASE1E
     input  logic         player_loop_valid,
-    input  logic         player_loop_jump_pulse,
+    input  logic         player_loop_boundary_pulse,
 `endif
 
     output logic [127:0] status_in,
@@ -112,8 +112,9 @@ module megavgm_playlist_status_export (
 
 `ifdef MEGAVGMDRIVE_PLAYLIST_LOOP_PHASE1E
     // The authoritative session transition wins over an old player's final
-    // loop pulse and metadata. The parser pulse is asserted only on the same
-    // accepted 0x66 transition that redirects PC to loop_pc.
+    // loop pulse and metadata. The parser pulse is asserted on an accepted
+    // looping 0x66 boundary, including the final boundary deliberately halted
+    // by the fixed loop-limit transport policy.
     always_ff @(posedge clk) begin
         if (reset) begin
             exported_loop_valid <= 1'b0;
@@ -123,7 +124,7 @@ module megavgm_playlist_status_export (
             exported_loop_count <= 16'd0;
         end else begin
             exported_loop_valid <= player_loop_valid;
-            if (player_loop_jump_pulse && player_loop_valid &&
+            if (player_loop_boundary_pulse && player_loop_valid &&
                 !vgm_load_busy && !vgm_load_error && !vgm_load_overflow &&
                 !current_player_error && (exported_state != STATE_FATAL) &&
                 (exported_loop_count != 16'hffff)) begin

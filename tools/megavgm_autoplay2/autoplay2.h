@@ -18,7 +18,8 @@ enum class PlaybackState {
 // Transport transition reasons are deliberately independent of sound family.
 // The FPGA owns the audible ramp; the controller only requests policy.
 enum class TransitionReason {
-	LoopLimit
+	LoopLimitDisabled,
+	LoopLimitTwoLoops
 };
 
 struct PlaybackStatus {

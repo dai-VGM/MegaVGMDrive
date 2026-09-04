@@ -22,7 +22,7 @@ module tb_megavgm_playlist_loop_status_export;
     logic [7:0] vgm_player_error_code = 8'd0;
     logic [31:0] error_session_id = 32'd0;
     logic player_loop_valid = 1'b0;
-    logic player_loop_jump_pulse = 1'b0;
+    logic player_loop_boundary_pulse = 1'b0;
 
     wire [127:0] status_in;
     wire status_set;
@@ -52,7 +52,7 @@ module tb_megavgm_playlist_loop_status_export;
         .vgm_player_error_code(vgm_player_error_code),
         .error_session_id(error_session_id),
         .player_loop_valid(player_loop_valid),
-        .player_loop_jump_pulse(player_loop_jump_pulse),
+        .player_loop_boundary_pulse(player_loop_boundary_pulse),
         .status_in(status_in),
         .status_set(status_set),
         .exported_session_id(exported_session_id),
@@ -134,9 +134,9 @@ module tb_megavgm_playlist_loop_status_export;
     task automatic pulse_loop_jump;
         begin
             @(negedge clk);
-            player_loop_jump_pulse = 1'b1;
+            player_loop_boundary_pulse = 1'b1;
             @(negedge clk);
-            player_loop_jump_pulse = 1'b0;
+            player_loop_boundary_pulse = 1'b0;
         end
     endtask
 
@@ -171,13 +171,13 @@ module tb_megavgm_playlist_loop_status_export;
         // A new session wins over stale metadata and a simultaneous old pulse.
         @(negedge clk);
         player_busy = 1'b0;
-        player_loop_jump_pulse = 1'b1;
+        player_loop_boundary_pulse = 1'b1;
         playback_session_id = 32'd11;
         vgm_load_busy = 1'b1;
         wait_record(32'd11, STATE_LOADING, 1'b0, 16'd0, 8'd0,
                     "new session clears old loop data");
         @(negedge clk);
-        player_loop_jump_pulse = 1'b0;
+        player_loop_boundary_pulse = 1'b0;
         player_loop_valid = 1'b0;
         vgm_load_busy = 1'b0;
         player_busy = 1'b1;

@@ -123,7 +123,7 @@ module tb_supervisor_actual_load_ready;
         .vgm_load_overflow(vgm_load_overflow),
         .vgm_player_error(1'b0), .vgm_player_error_code(8'd0),
         .error_session_id(32'd0), .player_loop_valid(1'b0),
-        .player_loop_jump_pulse(1'b0), .status_in(old_status_record),
+        .player_loop_boundary_pulse(1'b0), .status_in(old_status_record),
         .status_set(old_status_set), .exported_session_id(),
         .exported_state(), .exported_error_code(),
         .exported_loop_valid(), .exported_loop_count()
@@ -140,7 +140,7 @@ module tb_supervisor_actual_load_ready;
         .vgm_load_overflow(vgm_load_overflow),
         .vgm_player_error(1'b0), .vgm_player_error_code(8'd0),
         .error_session_id(32'd0), .player_loop_valid(1'b0),
-        .player_loop_jump_pulse(1'b0), .status_in(fixed_status_record),
+        .player_loop_boundary_pulse(1'b0), .status_in(fixed_status_record),
         .status_set(fixed_status_set), .exported_session_id(),
         .exported_state(), .exported_error_code(),
         .exported_loop_valid(), .exported_loop_count()

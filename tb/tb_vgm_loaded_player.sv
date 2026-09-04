@@ -41,6 +41,7 @@ module tb_vgm_loaded_player;
     wire loop_valid_debug;
     wire loop_taken_debug;
     wire loop_jump_pulse_debug;
+    wire loop_boundary_pulse_debug;
     wire end_command_seen;
     wire restarted_from_data_start;
     wire pcm_oob;
@@ -56,7 +57,9 @@ module tb_vgm_loaded_player;
     integer psg_count = 0;
     integer dac_count = 0;
     integer loop_jump_count = 0;
+    integer loop_boundary_count = 0;
     logic loop_jump_pulse_d = 1'b0;
+    logic halt_at_loop_boundary = 1'b0;
     logic [7:0] dac_data0 = 8'h00;
     logic [7:0] dac_data1 = 8'h00;
 
@@ -72,6 +75,7 @@ module tb_vgm_loaded_player;
         .overflow_error      (overflow_error),
         .file_size           (file_size),
         .vgm_wait_tick       (vgm_wait_tick),
+        .halt_at_loop_boundary(halt_at_loop_boundary),
         .mem_rd_req          (mem_rd_req),
         .mem_rd_addr         (mem_rd_addr),
         .mem_rd_ready        (mem_rd_ready),
@@ -115,6 +119,7 @@ module tb_vgm_loaded_player;
         .loop_pc_debug       (loop_pc_debug),
         .loop_valid_debug    (loop_valid_debug),
         .loop_taken_debug    (loop_taken_debug),
+        .loop_boundary_pulse_debug(loop_boundary_pulse_debug),
         .loop_jump_pulse_debug(loop_jump_pulse_debug),
         .end_command_seen    (end_command_seen),
         .restarted_from_data_start(restarted_from_data_start),
@@ -132,6 +137,7 @@ module tb_vgm_loaded_player;
     always_ff @(posedge clk) begin
         if (reset) begin
             loop_jump_count <= 0;
+            loop_boundary_count <= 0;
             loop_jump_pulse_d <= 1'b0;
         end else begin
             if (loop_jump_pulse_debug) begin
@@ -141,6 +147,8 @@ module tb_vgm_loaded_player;
                 end
                 loop_jump_count <= loop_jump_count + 1;
             end
+            if (loop_boundary_pulse_debug)
+                loop_boundary_count <= loop_boundary_count + 1;
             loop_jump_pulse_d <= loop_jump_pulse_debug;
         end
     end
@@ -600,6 +608,26 @@ module tb_vgm_loaded_player;
                      loop_jump_count, loop_pc_debug, psg_count, psg_cmd_data,
                      done, player_error);
             $finish;
+        end
+
+        begin
+            integer jumps_before_halt;
+            integer boundaries_before_halt;
+            jumps_before_halt = loop_jump_count;
+            boundaries_before_halt = loop_boundary_count;
+            halt_at_loop_boundary = 1'b1;
+            wait (done);
+            repeat (2) @(posedge clk);
+            if (busy || player_error ||
+                loop_jump_count != jumps_before_halt ||
+                loop_boundary_count != boundaries_before_halt + 1) begin
+                $display("FAIL loop_boundary_halt busy=%0b done=%0b jumps=%0d before=%0d boundaries=%0d before=%0d error=%0b",
+                         busy, done, loop_jump_count, jumps_before_halt,
+                         loop_boundary_count, boundaries_before_halt,
+                         player_error);
+                $finish;
+            end
+            halt_at_loop_boundary = 1'b0;
         end
 
         reset <= 1'b1;

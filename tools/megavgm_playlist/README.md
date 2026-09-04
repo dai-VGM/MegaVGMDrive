@@ -44,9 +44,8 @@ Navigation commands are accepted only after the current controller-owned
 session reaches PLAYING. Additional navigation received while its replacement
 track is loading is discarded, so Main transfers never overlap. Repeat and
 shuffle state changes survive that drain and are applied after the owned load.
-A navigation command observed
-in the same poll interval as ENDED, FATAL, or the native-loop limit claims the
-single transition; the old session's later status is ignored.
+A navigation command observed in the same poll interval as ENDED or FATAL
+claims the single transition; the old session's later status is ignored.
 
 Discovery is intentionally limited to direct, non-hidden regular files whose
 names end in the exact case-sensitive suffix `.vgm`. Subdirectories, `.VGM`,
@@ -54,10 +53,13 @@ dotfiles, and helper files with another final suffix are ignored. Tracks are
 sorted lexicographically by unsigned filename bytes, independent of locale.
 
 For a non-loop track the controller waits for a new session, then PLAYING,
-then ENDED for that same session. For a native-loop track it advances when the
-same PLAYING session reaches the configured `loop_count`. A latched ENDED or
-loop count can advance only once. FATAL or a nonzero error skips the current
-track. A missing status/Main, load/start timeout, or malformed record aborts.
+then ENDED for that same session. Before each load, the controller configures
+the fixed two-loop FPGA policy (or disables it for Repeat One). The FPGA
+measures the first real loop traversal, fades over the end of loop 2, and
+publishes ENDED at its second boundary; the controller advances only after
+that ENDED. A latched ENDED can advance only once. FATAL or a nonzero error
+skips the current track. A missing status/Main, load/start timeout, or
+malformed record aborts.
 An unexpected session change exits with:
 
 ```text

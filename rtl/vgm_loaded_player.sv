@@ -25,6 +25,9 @@ module vgm_loaded_player #(
     input  logic [ADDR_WIDTH:0]   file_size,
 
     input  logic                  vgm_wait_tick,
+    // Transport policy may stop a looping file at an actual 0x66 boundary.
+    // This is sampled only for a valid loop; ordinary parser END is unchanged.
+    input  logic                  halt_at_loop_boundary,
 
     output logic                  mem_rd_req,
     output logic [ADDR_WIDTH-1:0] mem_rd_addr,
@@ -159,6 +162,8 @@ module vgm_loaded_player #(
     output logic [ADDR_WIDTH-1:0] loop_pc_debug,
     output logic                  loop_valid_debug,
     output logic                  loop_taken_debug,
+    output logic                  loop_entry_pulse_debug,
+    output logic                  loop_boundary_pulse_debug,
     output logic                  loop_jump_pulse_debug,
     output logic                  end_command_seen,
     output logic                  restarted_from_data_start,
@@ -500,6 +505,7 @@ module vgm_loaded_player #(
     localparam logic [3:0] STOP_REASON_SCAN_OVERFLOW = 4'h5;
     localparam logic [3:0] STOP_REASON_COPY_OVERFLOW = 4'h6;
     localparam logic [3:0] STOP_REASON_OTHER_ERROR   = 4'h7;
+    localparam logic [3:0] STOP_REASON_LOOP_LIMIT    = 4'h8;
 
     wire start_edge = start && !start_d;
     wire start_request = load_done_pulse || start_edge || (YM2151_MODE && start);
@@ -1045,6 +1051,10 @@ module vgm_loaded_player #(
             read_accepted <= 1'b0;
             read_request_addr_debug <= addr;
             read_return_state <= return_state;
+            if ((return_state == ST_FETCH_CMD) && loop_valid &&
+                (addr == loop_pc)) begin
+                loop_entry_pulse_debug <= 1'b1;
+            end
             if (return_state == ST_SCAN_ROM_PAYLOAD) begin
                 busy <= 1'b1;
                 done <= 1'b0;
@@ -1419,6 +1429,8 @@ module vgm_loaded_player #(
             loop_pc_debug <= '0;
             loop_valid_debug <= 1'b0;
             loop_taken_debug <= 1'b0;
+            loop_entry_pulse_debug <= 1'b0;
+            loop_boundary_pulse_debug <= 1'b0;
             loop_jump_pulse_debug <= 1'b0;
             end_command_seen <= 1'b0;
             restarted_from_data_start <= 1'b0;
@@ -1526,6 +1538,8 @@ module vgm_loaded_player #(
             copy_ca_increment_debug_i <= 1'b0;
             copy_transition_next_payload_debug_i <= 1'b0;
             scan_finish_taken_debug_i <= 1'b0;
+            loop_entry_pulse_debug <= 1'b0;
+            loop_boundary_pulse_debug <= 1'b0;
             loop_jump_pulse_debug <= 1'b0;
 
             previous_state_debug_i <= state;
@@ -3134,11 +3148,27 @@ module vgm_loaded_player #(
                                 8'h66: begin
                                     end_command_seen <= 1'b1;
                                     if (loop_valid) begin
-                                        loop_taken_debug <= 1'b1;
-                                        loop_jump_pulse_debug <= 1'b1;
-                                        pc <= loop_pc;
-                                        current_pc_debug <= loop_pc;
-                                        request_byte(loop_pc, ST_FETCH_CMD);
+                                        loop_boundary_pulse_debug <= 1'b1;
+                                        if (halt_at_loop_boundary) begin
+                                            busy <= 1'b0;
+                                            done <= 1'b1;
+                                            done_pc_debug <= pc;
+                                            done_cmd_debug <= cmd;
+                                            final_valid_debug <= 1'b1;
+                                            final_state_debug <= ST_DONE;
+                                            final_pc_debug <= pc;
+                                            final_cmd_debug <= cmd;
+                                            final_error_code_debug <= ERR_NONE;
+                                            final_reason_debug <=
+                                                STOP_REASON_LOOP_LIMIT;
+                                            state <= ST_DONE;
+                                        end else begin
+                                            loop_taken_debug <= 1'b1;
+                                            loop_jump_pulse_debug <= 1'b1;
+                                            pc <= loop_pc;
+                                            current_pc_debug <= loop_pc;
+                                            request_byte(loop_pc, ST_FETCH_CMD);
+                                        end
                                     end else begin
                                         busy <= 1'b0;
                                         done <= 1'b1;
