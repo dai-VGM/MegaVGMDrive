@@ -1155,6 +1155,12 @@ module mister_vgm_md_top #(
             logic signed [15:0] segapcm_audio_r_mix;
             logic signed [15:0] segapcm_audio_l_gain;
             logic signed [15:0] segapcm_audio_r_gain;
+            logic signed [15:0] segapcm_audio_l_session;
+            logic signed [15:0] segapcm_audio_r_session;
+            logic segapcm_audio_session_ready;
+            logic signed [15:0] ym2203_audio_l_session_unused;
+            logic signed [15:0] ym2203_audio_r_session_unused;
+            logic ym2203_audio_session_ready;
             logic signed [15:0] lab_pcm_mix_l_selected;
             logic signed [15:0] lab_pcm_mix_r_selected;
             logic signed [15:0] lab_fm_l_selected;
@@ -2361,14 +2367,56 @@ module mister_vgm_md_top #(
                     segapcm_audio_r,
                     C0_JT51_LAB_PCM_GAIN_SHIFT_SEL
                 );
+`ifdef MEGAVGMDRIVE_PRODUCTION_AUDIO_BUILD
+            // SegaPCM is intentionally not reset during a file handoff: its
+            // timestamp-zero C0 setup writes are accepted while the loaded
+            // player owns mode5_sound_core_reset. Consequently its output
+            // register may still hold the previous session when another
+            // free-running source (notably JT51) emits the first combined
+            // sample-valid pulse. Do not let that unrelated pulse validate a
+            // stale PCM contribution. A session owns SegaPCM output only
+            // after it has issued a C0 write, reached its first real VGM wait
+            // (all timestamp-zero setup has completed), and the PCM core has
+            // produced a sample after those two events.
+            mode5_audio_session_lane_gate segapcm_session_audio_gate (
+                .clk            (clk),
+                .reset          (reset),
+                .session_begin  (mode5_load_begin_pulse),
+                .command_valid  (segapcm_cmd_valid),
+                .setup_complete (!ym2151_prewait_mute_active),
+                .sample_valid   (segapcm_audio_sample_valid),
+                .raw_audio_l    (segapcm_audio_l_gain),
+                .raw_audio_r    (segapcm_audio_r_gain),
+                .session_ready  (segapcm_audio_session_ready),
+                .session_audio_l(segapcm_audio_l_session),
+                .session_audio_r(segapcm_audio_r_session)
+            );
+            mode5_audio_session_lane_gate ym2203_session_audio_gate (
+                .clk            (clk),
+                .reset          (reset),
+                .session_begin  (mode5_load_begin_pulse),
+                .command_valid  (ym2203_cmd_valid),
+                .setup_complete (!ym2151_prewait_mute_active),
+                .sample_valid   (ym2203_raw_sample_valid),
+                .raw_audio_l    (ym2203_raw_audio_l),
+                .raw_audio_r    (ym2203_raw_audio_r),
+                .session_ready  (ym2203_audio_session_ready),
+                .session_audio_l(ym2203_audio_l_session_unused),
+                .session_audio_r(ym2203_audio_r_session_unused)
+            );
+`else
+            assign segapcm_audio_l_session = segapcm_audio_l_gain;
+            assign segapcm_audio_r_session = segapcm_audio_r_gain;
+            assign ym2203_audio_session_ready = 1'b1;
+`endif
             assign lab_pcm_mix_l_selected =
                 (segapcm_c0_top_audio_test == 2'd1) ? 16'sd0 :
                 (segapcm_c0_top_audio_test == 2'd2) ? 16'sh0400 :
-                segapcm_audio_l_gain;
+                segapcm_audio_l_session;
             assign lab_pcm_mix_r_selected =
                 (segapcm_c0_top_audio_test == 2'd1) ? 16'sd0 :
                 (segapcm_c0_top_audio_test == 2'd2) ? 16'sh0400 :
-                segapcm_audio_r_gain;
+                segapcm_audio_r_session;
             assign lab_fm_l_selected =
                 (segapcm_c0_top_audio_test == 2'd3) ? 16'sd0 :
                 ym2151_audio_l;
@@ -2406,7 +2454,9 @@ module mister_vgm_md_top #(
                 .ym2203_raw_r              (ym2203_raw_audio_r),
                 .ym2203_raw_sample_valid   (ym2203_raw_sample_valid),
                 .ym2203_chip_present       (ym2203_clock_present_debug),
-                .ym2203_lane_enable        (segapcm_c0_top_audio_test != 2'd3),
+                .ym2203_lane_enable        (
+                    (segapcm_c0_top_audio_test != 2'd3) &&
+                    ym2203_audio_session_ready),
                 .ym2203_held_l             (ym2203_audio_l_held),
                 .ym2203_held_r             (ym2203_audio_r_held),
                 .ym2203_selected_l         (ym2203_audio_l_selected),

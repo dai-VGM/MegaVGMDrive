@@ -20,6 +20,7 @@ set_global_assignment -name SYSTEMVERILOG_FILE rtl/vgm_c0_lab_backend.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/vgm_loaded_player.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/md_sound_module.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/mode5_ym2203_audio_mixer.sv
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/mode5_audio_session_lane_gate.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/ym2203_dynamic_cen.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/ym2203_sound_module.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/ym2151_sound_module.sv

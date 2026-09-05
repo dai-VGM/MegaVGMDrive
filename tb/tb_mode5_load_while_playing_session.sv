@@ -47,6 +47,7 @@ module tb_mode5_load_while_playing_session;
     logic short_ending_file = 1'b0;
     logic native_loop_file = 1'b0;
     logic short_native_loop = 1'b0;
+    logic production_trace_primer_file = 1'b0;
     logic transition_stress_file = 1'b0;
     wire vgm_loop_taken_debug;
     wire vgm_loop_jump_pulse_debug;
@@ -135,13 +136,19 @@ module tb_mode5_load_while_playing_session;
         end
     end
 
+`ifdef PRODUCTION_AUDIO_HANDOFF_TRACE
+    localparam int TEST_TIMEOUT_CYCLES = 20_000_000;
+    localparam int TEST_VGM_ADDR_WIDTH = 17;
+`else
     localparam int TEST_TIMEOUT_CYCLES = 5_000_000;
+    localparam int TEST_VGM_ADDR_WIDTH = 8;
+`endif
 
     always #5 clk = ~clk;
 
     mister_vgm_md_top #(
         .REGION_MODE                    (5),
-        .VGM_LOAD_ADDR_WIDTH            (8),
+        .VGM_LOAD_ADDR_WIDTH            (TEST_VGM_ADDR_WIDTH),
         .VGM_LOAD_FILE_INDEX            (16'd1),
         .POWER_ON_RESET_CYCLES          (32'd4),
         .START_DELAY_CYCLES             (32'd4),
@@ -155,8 +162,13 @@ module tb_mode5_load_while_playing_session;
         .START_ACCEPT_TIMEOUT_CYCLES    (32'd2000),
         .PLAYER_DONE_TIMEOUT_TICKS      (32'd1000),
         .REPLAY_DELAY_TICKS             (32'd8),
+`ifdef PRODUCTION_AUDIO_HANDOFF_TRACE
+        .MODE5_SOUND_RESET_CYCLES       (32'd32_768),
+        .MODE5_AUDIO_UNMUTE_DELAY_CYCLES(32'd1_000_000),
+`else
         .MODE5_SOUND_RESET_CYCLES       (32'd8),
         .MODE5_AUDIO_UNMUTE_DELAY_CYCLES(32'd8),
+`endif
         .MODE5_TRACK_FADE_CYCLES        (32'd256),
         .MODE5_LOOP_LIMIT_FADE_SAMPLES  (32'd8)
     ) dut (
@@ -168,6 +180,11 @@ module tb_mode5_load_while_playing_session;
         .audio_lpf_mode                 (2'b00),
         .audio_gain_boost               (1'b0),
         .audio_psg_level                (2'b00),
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
+`ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_TEST
+        .segapcm_c0_top_audio_test      (2'b00),
+`endif
+`endif
         .player_busy                    (player_busy),
         .player_done                    (player_done),
         .player_pc_debug                (),
@@ -275,13 +292,16 @@ module tb_mode5_load_while_playing_session;
                 'h23: long_wait_vgm_byte = native_loop_file ? 8'h12 : 8'h00;
                 'h40: long_wait_vgm_byte = native_loop_file ? 8'h61 : 8'h61;
                 'h41: long_wait_vgm_byte = native_loop_file ?
-                    (short_native_loop ? 8'h04 :
+                    (production_trace_primer_file ? 8'h80 :
+                     short_native_loop ? 8'h04 :
                      (transition_stress_file ? 8'h20 : 8'h10)) :
                     (transition_stress_file ? 8'h20 :
-                     (short_ending_file ? 8'h10 : 8'hff));
-                'h42: long_wait_vgm_byte = native_loop_file ? 8'h00 :
+                     (production_trace_primer_file ? 8'h80 :
+                      short_ending_file ? 8'h10 : 8'hff));
+                'h42: long_wait_vgm_byte = production_trace_primer_file ?
+                    8'h00 : (native_loop_file ? 8'h00 :
                     (transition_stress_file ? 8'h00 :
-                     (short_ending_file ? 8'h00 : 8'hff));
+                     (short_ending_file ? 8'h00 : 8'hff)));
                 'h43: long_wait_vgm_byte = 8'h66;
                 default: long_wait_vgm_byte = 8'h00;
             endcase
@@ -447,7 +467,7 @@ module tb_mode5_load_while_playing_session;
     task automatic wait_for_sound_reset_count(input [31:0] expected);
         int i;
         begin
-            for (i = 0; i < 2048; i = i + 1) begin
+            for (i = 0; i < 100_000; i = i + 1) begin
                 @(posedge clk);
                 if (mode5_sound_reset_start_count == expected) begin
                     return;
@@ -460,7 +480,7 @@ module tb_mode5_load_while_playing_session;
     task automatic wait_for_player_start_count(input [31:0] expected);
         int i;
         begin
-            for (i = 0; i < 2048; i = i + 1) begin
+            for (i = 0; i < 100_000; i = i + 1) begin
                 @(posedge clk);
                 if (mode5_player_start_count == expected) begin
                     return;
@@ -473,7 +493,7 @@ module tb_mode5_load_while_playing_session;
     task automatic wait_for_player_end_count(input [31:0] expected);
         int i;
         begin
-            for (i = 0; i < 100_000; i = i + 1) begin
+            for (i = 0; i < 2_000_000; i = i + 1) begin
                 @(posedge clk);
                 if (mode5_player_end_count == expected) begin
                     return;
@@ -488,6 +508,153 @@ module tb_mode5_load_while_playing_session;
         fail_now("global watchdog");
     end
 
+`ifdef PRODUCTION_AUDIO_HANDOFF_TRACE
+    logic [7:0] production_vgm [0:131071];
+    integer production_vgm_size;
+    string production_vgm_path;
+    string production_transition_path;
+    logic production_use_external_vgm = 1'b0;
+
+    task automatic load_production_vgm;
+        begin
+            begin_download();
+            for (int i = 0; i < production_vgm_size; i = i + 1) begin
+                while (ioctl_wait) @(posedge clk);
+                @(posedge clk);
+                ioctl_addr <= i[26:0];
+                ioctl_dout <= production_vgm[i];
+                ioctl_wr <= 1'b1;
+                @(posedge clk);
+                ioctl_wr <= 1'b0;
+            end
+            finish_download();
+        end
+    endtask
+
+    task automatic load_trace_target_vgm;
+        begin
+            if (production_use_external_vgm)
+                load_production_vgm();
+            else
+                load_long_wait_vgm();
+        end
+    endtask
+
+    task automatic trace_first_valid_samples(
+        input string transition_name,
+        input int expected_session);
+        integer valid_index;
+        integer reset_release_cycles;
+        begin
+            valid_index = 0;
+            reset_release_cycles = 0;
+            // Reproduce a previous-session SegaPCM held value while the new
+            // session's first valid edge comes from JT51. The production
+            // mixer must not treat that unrelated valid as ownership of the
+            // stale SegaPCM contribution.
+            force dut.loaded_vgm_mode.ym2151_sound_enabled.segapcm_sound.core_snd_left =
+                16'sd16000;
+            force dut.loaded_vgm_mode.ym2151_sound_enabled.segapcm_sound.core_snd_right =
+                -16'sd16000;
+            while (mode5_playback_session_id != expected_session ||
+                   dut.loaded_vgm_mode.mode5_sound_core_reset)
+                @(posedge clk);
+            while (valid_index < 32) begin
+                @(posedge clk);
+                #1;
+                reset_release_cycles = reset_release_cycles + 1;
+                if (dut.raw_audio_sample_valid) begin
+                    $display("AUDIO_HANDOFF_SAMPLE path=%s session=%0d sample=%0d reset_cycles=%0d raw_valid=%0b ym_valid=%0b sega_valid=%0b md_valid=%0b raw_l=%0d raw_r=%0d pre_unmute=%0b unmute_ready=%0b handoff=%0b open=%0b gain=%0d out_l=%0d out_r=%0d busy=%0b core_reset=%0b",
+                             transition_name,
+                             mode5_playback_session_id,
+                             valid_index,
+                             reset_release_cycles,
+                             dut.raw_audio_sample_valid,
+                             dut.loaded_vgm_mode.ym2151_audio_sample_valid,
+                             dut.loaded_vgm_mode.segapcm_audio_sample_valid,
+                             dut.loaded_vgm_mode.md_audio_sample_valid,
+                             dut.raw_audio_l,
+                             dut.raw_audio_r,
+                             dut.loaded_vgm_mode.mode5_audio_pre_unmute,
+                             dut.loaded_vgm_mode.mode5_audio_unmute_ready,
+                             handoff_audio_valid_observed,
+                             dut.audio_runtime_open,
+                             dut.loaded_vgm_mode.mode5_transition_gain,
+                             audio_l,
+                             audio_r,
+                             player_busy,
+                             dut.loaded_vgm_mode.mode5_sound_core_reset);
+                    valid_index = valid_index + 1;
+                end
+            end
+            release dut.loaded_vgm_mode.ym2151_sound_enabled.segapcm_sound.core_snd_left;
+            release dut.loaded_vgm_mode.ym2151_sound_enabled.segapcm_sound.core_snd_right;
+        end
+    endtask
+
+    initial begin : production_audio_handoff_trace
+        integer production_vgm_fd;
+        integer production_vgm_read;
+
+        force dut.audio_gate_open = 1'b1;
+        production_use_external_vgm =
+            $value$plusargs("VGM=%s", production_vgm_path);
+        if (!$value$plusargs("PATH=%s", production_transition_path))
+            production_transition_path = "MANUAL_NEXT";
+        if (production_use_external_vgm) begin
+            production_vgm_fd = $fopen(production_vgm_path, "rb");
+            if (production_vgm_fd == 0)
+                $fatal(1, "cannot open VGM %s", production_vgm_path);
+            production_vgm_read = $fread(production_vgm, production_vgm_fd);
+            $fclose(production_vgm_fd);
+            production_vgm_size = production_vgm_read;
+            if (production_vgm_size <= 64 || production_vgm_size > 131072)
+                $fatal(1, "unsupported VGM size %0d", production_vgm_size);
+        end else begin
+            production_vgm_path = "synthetic-long-wait.vgm";
+            production_vgm_size = 68;
+        end
+
+        repeat (4) @(posedge clk);
+        reset_n <= 1'b1;
+        repeat (16) @(posedge clk);
+
+        // Establish the requested predecessor transition, then load either a
+        // real production VGM (+VGM) or the self-contained short fixture.
+        // All three controller paths converge on the same index-1 handoff.
+        if (production_transition_path == "NATURAL_EOF") begin
+            short_ending_file = 1'b1;
+            production_trace_primer_file = 1'b1;
+        end
+        if (production_transition_path == "LOOP_LIMIT") begin
+            native_loop_file = 1'b1;
+            short_native_loop = 1'b1;
+            production_trace_primer_file = 1'b1;
+            set_loop_limit_policy(1'b1, 1'b1);
+        end
+        load_long_wait_vgm();
+        wait_for_player_start_count(32'd1);
+        wait_for_running("trace primer running");
+        while (audio_muted) @(posedge clk);
+        if (production_transition_path == "NATURAL_EOF" ||
+            production_transition_path == "LOOP_LIMIT") begin
+            wait_for_player_end_count(32'd1);
+            short_ending_file = 1'b0;
+            native_loop_file = 1'b0;
+            short_native_loop = 1'b0;
+            production_trace_primer_file = 1'b0;
+        end
+
+        fork
+            trace_first_valid_samples(production_transition_path, 2);
+            load_trace_target_vgm();
+        join
+
+        $display("PASS production audio handoff trace file=%s bytes=%0d",
+                 production_vgm_path, production_vgm_size);
+        $finish;
+    end
+`else
     initial begin : test
         force dut.audio_gate_open = 1'b1;
 
@@ -891,5 +1058,6 @@ module tb_mode5_load_while_playing_session;
         $display("PASS tb_mode5_load_while_playing_session");
         $finish;
     end
+`endif
 
 endmodule
