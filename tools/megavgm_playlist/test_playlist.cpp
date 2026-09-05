@@ -87,6 +87,14 @@ public:
 		return true;
 	}
 
+	bool issue_load_generated(const std::string &path,
+			std::uint64_t generation, std::string &detail) override
+	{
+		assert(generation == generations.size() + 1);
+		generations.push_back(generation);
+		return issue_load(path, detail);
+	}
+
 	bool issue_stop(std::string &detail) override
 	{
 		if (!stop_ok) {
@@ -118,6 +126,7 @@ public:
 	}
 
 	std::vector<std::string> commands;
+	std::vector<std::uint64_t> generations;
 	std::size_t read_count = 0;
 	bool stop_ok = true;
 	bool transition_ok = true;
@@ -1362,6 +1371,26 @@ void test_stop_during_owned_load_is_not_lost()
 	delete runtime;
 }
 
+void test_one_hundred_automatic_load_generations_are_exactly_once()
+{
+	std::vector<Track> tracks;
+	std::vector<Frame> frames;
+	frames.push_back(ok(0, PlaybackState::Ended));
+	for (std::uint32_t session = 1; session <= 100; session++) {
+		tracks.push_back({std::to_string(session) + ".vgm",
+			"/music/" + std::to_string(session) + ".vgm"});
+		frames.push_back(ok(session, PlaybackState::Playing));
+		frames.push_back(ok(session, PlaybackState::Ended));
+	}
+	ScriptRuntime *runtime = nullptr;
+	assert(execute(frames, tracks, &runtime) == PlaylistResult::Complete);
+	assert(runtime->commands.size() == 100);
+	assert(runtime->generations.size() == 100);
+	for (std::uint64_t generation = 1; generation <= 100; generation++)
+		assert(runtime->generations[generation - 1] == generation);
+	delete runtime;
+}
+
 } // namespace
 
 int main()
@@ -1405,6 +1434,7 @@ int main()
 	test_playlist_selection_from_stopped_replaces_context();
 	test_repeat_all_and_shuffle_updates_remain_stopped();
 	test_stop_during_owned_load_is_not_lost();
+	test_one_hundred_automatic_load_generations_are_exactly_once();
 	std::cout << "megavgm_playlist host tests: PASS\n";
 	return 0;
 }

@@ -347,7 +347,7 @@ void test_transport_m5_modified_main_is_the_only_default_allowed_hash()
 {
 	const Paths paths;
 	assert(paths.expected_modified_sha256 ==
-		"ae6e050f87749962a354b0879bac45f33e58be64fb3892d4157a1754407f955e");
+		"a0e7b7d3557457a80ecd62a6bb4643585c33b78fbe515a7a7a5783b05b5addb5");
 }
 
 void test_prerequisite_failure_does_not_stop_stock_main()
@@ -829,7 +829,7 @@ void test_sha256_implementation()
 		assert(megavgm_supervisor::sha256_file(m5_main, digest, detail,
 			&error_number));
 		assert(digest ==
-			"ae6e050f87749962a354b0879bac45f33e58be64fb3892d4157a1754407f955e");
+			"a0e7b7d3557457a80ecd62a6bb4643585c33b78fbe515a7a7a5783b05b5addb5");
 		assert(error_number == 0);
 	}
 	rmdir(directory.c_str());

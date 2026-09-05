@@ -73,6 +73,12 @@ public:
 			std::string &detail) = 0;
 	virtual bool main_available(std::string &detail) = 0;
 	virtual bool issue_load(const std::string &path, std::string &detail) = 0;
+	virtual bool issue_load_generated(const std::string &path,
+			std::uint64_t generation, std::string &detail)
+	{
+		(void)generation;
+		return issue_load(path, detail);
+	}
 	virtual bool issue_stop(std::string &detail) = 0;
 	virtual bool issue_transition(TransitionReason reason,
 			std::string &detail) = 0;
@@ -89,6 +95,8 @@ public:
 			std::string &detail) override;
 	bool main_available(std::string &detail) override;
 	bool issue_load(const std::string &path, std::string &detail) override;
+	bool issue_load_generated(const std::string &path,
+			std::uint64_t generation, std::string &detail) override;
 	bool issue_stop(std::string &detail) override;
 	bool issue_transition(TransitionReason reason,
 			std::string &detail) override;
@@ -105,6 +113,8 @@ StatusReadResult parse_status_text(const std::string &text,
 		PlaybackStatus &status, std::string &detail);
 bool build_load_command(const std::string &path, std::string &command,
 		std::string &detail);
+bool build_generated_load_command(const std::string &path,
+		std::uint64_t generation, std::string &command, std::string &detail);
 bool build_stop_command(std::string &command);
 bool build_transition_command(TransitionReason reason,
 		const std::string &control_path, std::string &command,

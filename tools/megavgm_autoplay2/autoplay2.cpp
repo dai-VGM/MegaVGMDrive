@@ -311,6 +311,18 @@ bool build_load_command(const std::string &path, std::string &command,
 	return true;
 }
 
+bool build_generated_load_command(const std::string &path,
+		std::uint64_t generation, std::string &command, std::string &detail)
+{
+	std::string legacy;
+	if (!build_load_command(path, legacy, detail)) return false;
+	command = "load_file_gen " + std::to_string(generation) + " 1 ";
+	command += path;
+	command.push_back('\n');
+	detail.clear();
+	return true;
+}
+
 bool build_stop_command(std::string &command)
 {
 	command = "reset_core\n";
@@ -401,6 +413,15 @@ bool PosixRuntime::issue_load(const std::string &path, std::string &detail)
 {
 	std::string command;
 	if (!build_load_command(path, command, detail)) return false;
+	return issue_command(command, detail);
+}
+
+bool PosixRuntime::issue_load_generated(const std::string &path,
+		std::uint64_t generation, std::string &detail)
+{
+	std::string command;
+	if (!build_generated_load_command(path, generation, command, detail))
+		return false;
 	return issue_command(command, detail);
 }
 

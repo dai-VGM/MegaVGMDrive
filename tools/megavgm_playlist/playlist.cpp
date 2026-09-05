@@ -369,13 +369,17 @@ PlaylistResult run(Runtime &runtime, const PlaylistConfig &config,
 		return PlaylistResult::Complete;
 	};
 
+	std::uint64_t load_generation = 0;
 	while (index < active_tracks.size()) {
 		const Track track = active_tracks[index];
+		const std::uint64_t request_generation = ++load_generation;
 		log << '\n' << '[' << index + 1 << '/' << active_tracks.size() << "] "
 		    << track.name << '\n';
 		const std::uint64_t request_started_ms = runtime.monotonic_ms();
 		log << "LOAD_FILE_REQUEST path=" << track.path
-		    << " baseline_session=" << baseline_session << '\n';
+		    << " baseline_session=" << baseline_session
+		    << " generation=" << request_generation
+		    << " timestamp_ms=" << request_started_ms << '\n';
 
 		std::string command;
 		std::string detail;
@@ -397,11 +401,13 @@ PlaylistResult run(Runtime &runtime, const PlaylistConfig &config,
 			log << '\n';
 			return PlaylistResult::CommandWriteFailed;
 		}
-		if (!runtime.issue_load(track.path, detail)) {
+		if (!runtime.issue_load_generated(track.path, request_generation, detail)) {
 			log << "COMMAND_WRITE_FAILED: " << detail << '\n';
 			return PlaylistResult::CommandWriteFailed;
 		}
-		log << "MISTER_CMD_WRITE=SUCCESS path=" << track.path << '\n';
+		log << "MISTER_CMD_WRITE=SUCCESS path=" << track.path
+		    << " generation=" << request_generation
+		    << " timestamp_ms=" << runtime.monotonic_ms() << '\n';
 		if (!publish("LOADING", track, baseline_session, 0))
 			return PlaylistResult::ControlIoError;
 
@@ -437,7 +443,8 @@ PlaylistResult run(Runtime &runtime, const PlaylistConfig &config,
 				    << baseline_session << " fpga_session_after="
 				    << status.session << " elapsed_ms="
 				    << (runtime.monotonic_ms() - request_started_ms)
-				    << " path=" << track.path << '\n';
+				    << " path=" << track.path
+				    << " generation=" << request_generation << '\n';
 				return PlaylistResult::TrackSessionTimeout;
 			}
 			if (!have_session) monitor.sleep();
@@ -642,6 +649,12 @@ PlaylistResult run(Runtime &runtime, const PlaylistConfig &config,
 		}
 
 		std::uint32_t next_baseline_session = owned_session;
+		if (ended) {
+			log << "TRACK_COMPLETE generation=" << request_generation
+			    << " session=" << owned_session
+			    << " timestamp_ms=" << runtime.monotonic_ms()
+			    << " path=" << track.path << '\n';
+		}
 		if (stop_claimed) {
 			std::string stop_detail;
 			if (!runtime.issue_stop(stop_detail)) {

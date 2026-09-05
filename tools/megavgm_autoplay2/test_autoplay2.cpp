@@ -263,6 +263,11 @@ void test_invalid_paths()
 	assert(!build_load_command("bad\npath.vgm", command, detail));
 	assert(!build_load_command("", command, detail));
 	assert(!build_load_command(std::string(961, 'a'), command, detail));
+	assert(build_generated_load_command("/tmp/04 Stage 1-1.vgm", 4,
+		command, detail));
+	assert(command == "load_file_gen 4 1 /tmp/04 Stage 1-1.vgm\n");
+	assert(!build_generated_load_command("bad\npath.vgm", 4,
+		command, detail));
 	assert(build_transition_command(TransitionReason::LoopLimitTwoLoops,
 		"/tmp/megavgm_transition.control", command, detail));
 	assert(command == "load_file 2 /tmp/megavgm_transition.control\n");
