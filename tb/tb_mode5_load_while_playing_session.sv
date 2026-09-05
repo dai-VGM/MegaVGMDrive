@@ -51,10 +51,32 @@ module tb_mode5_load_while_playing_session;
     wire vgm_loop_jump_pulse_debug;
     integer native_loop_count = 0;
     logic [31:0] loop_limit_fade_start_cycles = 32'd0;
+    logic enforce_handoff_zero = 1'b0;
+    integer handoff_zero_cycles = 0;
 
     always @(posedge clk) begin
         if (vgm_loop_jump_pulse_debug)
             native_loop_count <= native_loop_count + 1;
+        if (enforce_handoff_zero) begin
+            handoff_zero_cycles <= handoff_zero_cycles + 1;
+            if (audio_l !== 16'sd0 || audio_r !== 16'sd0) begin
+                $display("FAIL transition handoff leaked audio cycle=%0d gain=%0d open=%0b raw_valid=%0b raw_l=%0d raw_r=%0d busy=%0b done=%0b load_busy=%0b reset=%0b session=%0d starts=%0d ends=%0d",
+                         handoff_zero_cycles,
+                         dut.loaded_vgm_mode.mode5_transition_gain,
+                         dut.audio_runtime_open,
+                         dut.raw_audio_sample_valid,
+                         dut.raw_audio_l,
+                         dut.raw_audio_r,
+                         player_busy,
+                         player_done,
+                         vgm_load_busy,
+                         mode5_sound_reset_active,
+                         mode5_playback_session_id,
+                         mode5_player_start_count,
+                         mode5_player_end_count);
+                $fatal(1);
+            end
+        end
     end
 
     wire [127:0] phase1b_status_in;
@@ -428,10 +450,7 @@ module tb_mode5_load_while_playing_session;
         if (!player_busy || !vgm_header_valid) begin
             fail_now("first player did not stay busy");
         end
-        repeat (16) @(posedge clk);
-        if (audio_muted) begin
-            fail_now("first session never became audible");
-        end
+        while (audio_muted) @(posedge clk);
 
         force dut.raw_audio_l = 16'sd16384;
         force dut.raw_audio_r = -16'sd16384;
@@ -610,6 +629,12 @@ module tb_mode5_load_while_playing_session;
             dut.loaded_vgm_mode.mode5_transition_gain != 9'd0) begin
             fail_now("LOOP_LIMIT did not publish one zero-gain END");
         end
+        // Model a held, non-zero final mixer value immediately when the fade
+        // reaches zero. Every cycle from ENDED through the next session's
+        // first valid sample is covered by the assertion above.
+        force dut.raw_audio_sample_valid = 1'b0;
+        enforce_handoff_zero = 1'b1;
+        handoff_zero_cycles = 0;
         repeat (32) @(posedge clk);
         if (mode5_player_end_count != 32'd2 ||
             mode5_load_begin_count != 32'd4 ||
@@ -619,10 +644,40 @@ module tb_mode5_load_while_playing_session;
 
         // A loop shorter than the requested fade clamps to L and begins its
         // fade at loop-2 entry, still stopping at exactly the second boundary.
+        // Hold a deliberately stale non-zero mixer sample across the complete
+        // ENDED/load/reset/session handoff while suppressing the new session's
+        // first valid strobe. Post-gain output must remain exactly zero until
+        // that authoritative new sample arrives.
         short_native_loop = 1'b1;
         load_long_wait_vgm();
         wait_for_player_start_count(32'd5);
         wait_for_running("short-loop file running");
+        repeat (16) @(posedge clk);
+        if (!audio_muted || handoff_zero_cycles == 0) begin
+            fail_now("transition handoff opened before next valid sample");
+        end
+        force dut.raw_audio_sample_valid = 1'b1;
+        @(posedge clk);
+        #1;
+        if (!dut.loaded_vgm_mode.mode5_transition_handoff_audio_valid) begin
+            fail_now("transition handoff did not capture first valid sample");
+        end
+        $display("HANDOFF_ZERO cycles=%0d session=%0d load_begin=%0d reset_start=%0d player_start=%0d gain=%0d open=%0b first_l=%0d first_r=%0d",
+                 handoff_zero_cycles,
+                 mode5_playback_session_id,
+                 mode5_load_begin_count,
+                 mode5_sound_reset_start_count,
+                 mode5_player_start_count,
+                 dut.loaded_vgm_mode.mode5_transition_gain,
+                 dut.audio_runtime_open,
+                 audio_l,
+                 audio_r);
+        enforce_handoff_zero = 1'b0;
+        release dut.raw_audio_sample_valid;
+        while (audio_muted) @(posedge clk);
+        if (audio_l !== 16'sd16000 || audio_r !== -16'sd16000) begin
+            fail_now("transition handoff lost first valid sample");
+        end
         wait (dut.loaded_vgm_mode.mode5_loop_length_samples == 32'd4);
         if (dut.loaded_vgm_mode.mode5_loop_fade_start_samples != 32'd0 ||
             dut.loaded_vgm_mode.mode5_loop_fade_samples != 32'd4) begin

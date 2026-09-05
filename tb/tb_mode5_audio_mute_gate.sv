@@ -303,7 +303,24 @@ module tb_mode5_audio_mute_gate;
             assert_silent("unmute delay");
         end
 
+        // The final gate now also requires the running session's first real
+        // mixer-valid edge. Model that edge explicitly; this testbench does
+        // not otherwise run long enough for the sound-core sample generator.
+        force dut.raw_audio_l = 16'sd2345;
+        force dut.raw_audio_r = -16'sd2345;
+        force dut.raw_audio_sample_valid = 1'b1;
+        @(posedge clk);
+        #1;
+        if (!dut.loaded_vgm_mode.mode5_transition_handoff_audio_valid) begin
+            fail_timeout("first session audio valid");
+        end
+        release dut.raw_audio_sample_valid;
         wait_for_unmute();
+        if (audio_l !== 16'sd2345 || audio_r !== -16'sd2345) begin
+            fail_timeout("first valid mixer sample output");
+        end
+        release dut.raw_audio_l;
+        release dut.raw_audio_r;
         $display("PASS tb_mode5_audio_mute_gate");
         $finish;
     end

@@ -290,6 +290,9 @@ module tb_mode5_repeat_policy;
         force dut.audio_gate_open = 1'b1;
         force dut.loaded_vgm_mode.psg_cmd_ready = 1'b1;
         force dut.loaded_vgm_mode.ym_cmd_ready = 1'b1;
+        // This test isolates repeat transport ownership. Supply the mixer
+        // valid indication that the real sound cores provide independently.
+        force dut.raw_audio_sample_valid = 1'b1;
 
         repeat (4) @(posedge clk);
         reset_n <= 1'b1;

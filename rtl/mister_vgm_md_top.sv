@@ -1445,6 +1445,7 @@ module mister_vgm_md_top #(
             logic mode5_player_session_reset = 1'b0;
             logic [31:0] mode5_audio_unmute_counter = 32'd0;
             logic mode5_audio_unmute_ready = 1'b0;
+            logic mode5_transition_handoff_audio_valid = 1'b0;
             logic mode5_audio_pre_unmute;
             logic mode5_audio_ever_open = 1'b0;
             logic mode5_transition_fade_active = 1'b0;
@@ -3942,14 +3943,33 @@ module mister_vgm_md_top #(
             // the previous file cannot be visible for the clock preceding
             // the synchronous SegaPCM runtime clear.
             assign audio_runtime_open =
-                (mode5_audio_pre_unmute && !mode5_ioctl_download) ||
+                (mode5_audio_pre_unmute &&
+                 mode5_transition_handoff_audio_valid &&
+                 !mode5_ioctl_download) ||
                 mode5_transition_fade_active || mode5_parser_done_edge;
 `else
             assign audio_runtime_open =
-                (mode5_audio_pre_unmute && mode5_audio_unmute_ready) ||
+                (mode5_audio_pre_unmute && mode5_audio_unmute_ready &&
+                 mode5_transition_handoff_audio_valid) ||
                 mode5_transition_fade_active || mode5_parser_done_edge;
 `endif
             assign audio_runtime_gain = mode5_transition_gain;
+
+            // The fade owner reaches zero before the next index-1 load. Keep
+            // that handoff hard-muted across backend load, sound-core reset,
+            // and session start until the new running session produces its
+            // first authoritative mixer sample. The sample and this latch are
+            // captured on the same edge, so opening the combinational output
+            // gate does not discard the new track's first valid sample.
+            always_ff @(posedge clk) begin
+                if (reset || mode5_load_begin_pulse ||
+                    mode5_sound_core_reset || !mode5_playback_started) begin
+                    mode5_transition_handoff_audio_valid <= 1'b0;
+                end else if (mode5_audio_pre_unmute &&
+                             raw_audio_sample_valid) begin
+                    mode5_transition_handoff_audio_valid <= 1'b1;
+                end
+            end
 
             always_ff @(posedge clk) begin
                 if (reset || !mode5_audio_pre_unmute) begin
