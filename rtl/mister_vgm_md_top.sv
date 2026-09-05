@@ -2122,8 +2122,12 @@ module mister_vgm_md_top #(
                         mode5_transition_loop_limit_active <= 1'b0;
                         mode5_loop_fade_accumulator <= 40'd0;
                     end else if (mode5_transition_released &&
-                                 !ioctl_download &&
-                                 mode5_host_ioctl_download_d) begin
+                                 !mode5_ioctl_download &&
+                                 mode5_ioctl_download_d) begin
+                        // Only completion of an accepted index-1 VGM load
+                        // re-arms the next session. An index-2 policy record
+                        // must retain the ended session's zero-gain owner;
+                        // otherwise the following load re-fades old audio.
                         mode5_transition_released <= 1'b0;
                         mode5_transition_end_pending <= 1'b0;
                         mode5_transition_gain <= 9'd256;

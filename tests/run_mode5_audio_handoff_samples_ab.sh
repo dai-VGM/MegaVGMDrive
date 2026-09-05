@@ -72,7 +72,41 @@ compile_profile() {
     "${common_sources[@]:2}" >"$test_tmp/$profile-compile.log" 2>&1
 }
 
+if [[ ${1:-} == --teardown ]]; then
+  common_defines+=(-DUNFORCED_AUDIO_CAPTURE=1 -DTEARDOWN_AUDIO_CAPTURE=1)
+  capture_dir="${2:?capture directory required}"
+  mkdir -p "$capture_dir"
+  verilator --binary --timing -Wno-fatal -j 4 \
+    --top-module tb_mode5_load_while_playing_session \
+    --Mdir "$capture_dir/obj" "${common_defines[@]}" \
+    "${common_sources[@]}" rtl/mister_vgm_md_top.sv \
+    > "$capture_dir/compile.log" 2>&1
+  (cd "$test_tmp" && "$capture_dir/obj/Vtb_mode5_load_while_playing_session" \
+    "+VGM=${3:?VGM path required}" "+PATH=${4:-NATURAL_EOF}" +POLICY) \
+    > "$capture_dir/${4:-NATURAL_EOF}.log"
+  exit 0
+fi
+if [[ ${1:-} == --unforced ]]; then
+  common_defines+=(-DUNFORCED_AUDIO_CAPTURE=1)
+fi
 compile_profile fixed rtl/mister_vgm_md_top.sv
+if [[ ${1:-} == --unforced ]]; then
+  capture_dir="${2:?capture output directory required}"
+  capture_vgm="${3:?VGM path required}"
+  capture_paths=(MANUAL_NEXT NATURAL_EOF LOOP_LIMIT)
+  capture_args=()
+  if [[ ${4:-} == --onset ]]; then
+    capture_args+=(+ONSET)
+  fi
+  if [[ -n ${5:-} ]]; then capture_paths=("$5"); fi
+  mkdir -p "$capture_dir"
+  cp "$test_tmp/fixed-compile.log" "$capture_dir/compile.log"
+  for path in "${capture_paths[@]}"; do
+    (cd "$test_tmp" && vvp "$test_tmp/fixed.vvp" "+PATH=$path" "+VGM=$capture_vgm" +UNFORCED "${capture_args[@]}") > "$capture_dir/$path.log"
+    grep '^UNFORCED_SUMMARY' "$capture_dir/$path.log"
+  done
+  exit 0
+fi
 compile_profile 9f30ca6 \
   "$test_tmp/9f30ca68b288cb394cb720af0a4d3718000396c7/rtl/mister_vgm_md_top.sv"
 compile_profile 04910c0 \
@@ -81,7 +115,7 @@ compile_profile 04910c0 \
 
 for profile in fixed 9f30ca6 04910c0; do
   for path in MANUAL_NEXT NATURAL_EOF LOOP_LIMIT; do
-    if ! vvp "$test_tmp/$profile.vvp" "+PATH=$path" > \
+    if ! (cd "$test_tmp" && vvp "$profile.vvp" "+PATH=$path") > \
         "$test_tmp/$profile-$path.log"; then
       cat "$test_tmp/$profile-$path.log" >&2
       exit 1

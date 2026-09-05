@@ -8,6 +8,9 @@ trap 'rm -rf "$test_tmp"' EXIT
 cd "$repo_root"
 
 baseline_commit=04910c09ac27d4ee2019e5477af0dc36423b5eec
+if [[ ${1:-} == --policy-rearm ]]; then
+  baseline_commit=4c4a77c3c67045cb295b8d7ed3d747ce80f29033
+fi
 git archive --format=tar --output="$test_tmp/baseline.tar" \
     "$baseline_commit" rtl/mister_vgm_md_top.sv
 tar -xf "$test_tmp/baseline.tar" -C "$test_tmp"
@@ -30,6 +33,25 @@ common_sources=(
   rtl/genesis_audio/jt49/*.v
   rtl/genesis_audio/filters/*.v
 )
+
+if [[ ${1:-} == --policy-rearm ]]; then
+  for profile in before after; do
+    top_source=rtl/mister_vgm_md_top.sv
+    if [[ $profile == before ]]; then top_source="$test_tmp/rtl/mister_vgm_md_top.sv"; fi
+    iverilog -g2012 -DSIMULATION -s tb_mode5_load_while_playing_session \
+      -o "$test_tmp/$profile.vvp" tb/tb_mode5_load_while_playing_session.sv \
+      "$top_source" "${common_sources[@]}" > "$test_tmp/$profile-compile.log" 2>&1
+    if vvp "$test_tmp/$profile.vvp" +POLICY_REARM_CHECK > "$test_tmp/$profile.log"; then
+      [[ $profile == after ]]
+      grep '^PASS policy record' "$test_tmp/$profile.log"
+    else
+      [[ $profile == before ]]
+      grep '^FAIL index-2 completion released ended-session mute' "$test_tmp/$profile.log"
+    fi
+  done
+  echo 'PASS policy rearm A/B: old=FAIL reproduced fixed=PASS'
+  exit 0
+fi
 
 run_profile() {
   local profile="$1"

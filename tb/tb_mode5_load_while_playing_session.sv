@@ -137,8 +137,51 @@ module tb_mode5_load_while_playing_session;
     end
 
 `ifdef PRODUCTION_AUDIO_HANDOFF_TRACE
+`ifdef TEARDOWN_AUDIO_CAPTURE
+    localparam int TEST_TIMEOUT_CYCLES = 100_000_000;
+`else
     localparam int TEST_TIMEOUT_CYCLES = 20_000_000;
+`endif
+`ifdef UNFORCED_AUDIO_CAPTURE
+    localparam int TEST_VGM_ADDR_WIDTH = 23;
+    wire [28:0] capture_ddr_addr;
+    wire [63:0] capture_ddr_din;
+    wire [7:0] capture_ddr_be, capture_ddr_burst;
+    wire capture_ddr_rd, capture_ddr_we;
+    logic [63:0] capture_ddr_dout = 0;
+    logic capture_ddr_valid = 0;
+    localparam logic [28:0] CAPTURE_DDR_BASE = {4'b0011,25'd0};
+    logic [63:0] capture_ddr_mem [0:1179647];
+    logic [28:0] capture_ddr_pending;
+    integer capture_ddr_delay = 0;
+    // Same single-outstanding, six-SYS-clock memory response contract as
+    // tb_segapcm_backend_ab; production backend owns packing/copy/arbitration.
+    always @(posedge clk) begin
+        capture_ddr_valid <= 0;
+        if (capture_ddr_we || capture_ddr_rd) begin
+            if (capture_ddr_addr < CAPTURE_DDR_BASE ||
+                capture_ddr_addr - CAPTURE_DDR_BASE >= 1179648 || capture_ddr_burst != 1)
+                $fatal(1, "unsupported capture DDR transaction");
+        end
+        if (capture_ddr_we)
+            for (integer lane = 0; lane < 8; lane = lane + 1)
+                if (capture_ddr_be[lane])
+                    capture_ddr_mem[capture_ddr_addr-CAPTURE_DDR_BASE][lane*8+:8] <= capture_ddr_din[lane*8+:8];
+        if (capture_ddr_rd) begin
+            if (capture_ddr_delay != 0) $fatal(1, "overlapping capture DDR read");
+            capture_ddr_pending <= capture_ddr_addr;
+            capture_ddr_delay <= 6;
+        end else if (capture_ddr_delay != 0) begin
+            capture_ddr_delay <= capture_ddr_delay - 1;
+            if (capture_ddr_delay == 1) begin
+                capture_ddr_dout <= capture_ddr_mem[capture_ddr_pending-CAPTURE_DDR_BASE];
+                capture_ddr_valid <= 1;
+            end
+        end
+    end
+`else
     localparam int TEST_VGM_ADDR_WIDTH = 17;
+`endif
 `else
     localparam int TEST_TIMEOUT_CYCLES = 5_000_000;
     localparam int TEST_VGM_ADDR_WIDTH = 8;
@@ -148,6 +191,9 @@ module tb_mode5_load_while_playing_session;
 
     mister_vgm_md_top #(
         .REGION_MODE                    (5),
+`ifdef UNFORCED_AUDIO_CAPTURE
+        .MODE5_VGM_BACKEND               (1),
+`endif
         .VGM_LOAD_ADDR_WIDTH            (TEST_VGM_ADDR_WIDTH),
         .VGM_LOAD_FILE_INDEX            (16'd1),
         .POWER_ON_RESET_CYCLES          (32'd4),
@@ -169,11 +215,23 @@ module tb_mode5_load_while_playing_session;
         .MODE5_SOUND_RESET_CYCLES       (32'd8),
         .MODE5_AUDIO_UNMUTE_DELAY_CYCLES(32'd8),
 `endif
+`ifdef TEARDOWN_AUDIO_CAPTURE
+        .MODE5_TRACK_FADE_CYCLES        (32'd2_000_000),
+        .MODE5_LOOP_LIMIT_FADE_SAMPLES  (32'd88_200)
+`else
         .MODE5_TRACK_FADE_CYCLES        (32'd256),
         .MODE5_LOOP_LIMIT_FADE_SAMPLES  (32'd8)
+`endif
     ) dut (
         .clk                            (clk),
         .reset_n                        (reset_n),
+`ifdef UNFORCED_AUDIO_CAPTURE
+        .ddram_busy(1'b0), .ddram_addr(capture_ddr_addr),
+        .ddram_burstcnt(capture_ddr_burst),
+        .ddram_din(capture_ddr_din), .ddram_be(capture_ddr_be),
+        .ddram_we(capture_ddr_we), .ddram_rd(capture_ddr_rd),
+        .ddram_dout(capture_ddr_dout), .ddram_dout_ready(capture_ddr_valid),
+`endif
         .audio_l                        (audio_l),
         .audio_r                        (audio_r),
         .audio_sample_valid             (audio_sample_valid),
@@ -181,8 +239,34 @@ module tb_mode5_load_while_playing_session;
         .audio_gain_boost               (1'b0),
         .audio_psg_level                (2'b00),
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
+`ifdef UNFORCED_AUDIO_CAPTURE
+        .segapcm_smoke_variant(3'd0),
+        .segapcm_smoke_variant_valid(1'b1),
+        .segapcm_smoke_source_loaded(player_busy),
+`endif
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_TEST
         .segapcm_c0_top_audio_test      (2'b00),
+`ifdef UNFORCED_AUDIO_CAPTURE
+        .segapcm_smoke_ddr_follow(player_busy),
+        .segapcm_smoke_ddr_offset(3'd0),
+        .segapcm_smoke_ddr_delta(3'd0),
+        .segapcm_smoke_c0_use(2'd3),
+        .segapcm_smoke_c0_sample_mode(3'd3),
+        .segapcm_smoke_c0_delta_speed(2'd2),
+        .segapcm_smoke_c0_hit_window(3'd0),
+        .segapcm_smoke_c0_format(2'd0),
+        .segapcm_smoke_c0_mame_tick_div(3'd0),
+        .segapcm_smoke_c0_vol_map(3'd0),
+        .segapcm_smoke_c0_drive(2'd2),
+        .segapcm_c0_pm3_audio_mask(16'h0008),
+        .segapcm_c0_pm3_mix_mode(2'd1),
+        .segapcm_c0_pm3_start_policy(3'd0),
+        .segapcm_c0_jt_backend(1'b1),
+        .segapcm_smoke_ddr_dest_map(1'b1),
+        .segapcm_smoke_ddr_dest_basis(2'd1),
+        .segapcm_smoke_ddr_full_capture(1'b1),
+        .segapcm_smoke_ddr_dest_loop_wrap(1'b0),
+`endif
 `endif
 `endif
         .player_busy                    (player_busy),
@@ -509,12 +593,87 @@ module tb_mode5_load_while_playing_session;
     end
 
 `ifdef PRODUCTION_AUDIO_HANDOFF_TRACE
+`ifdef TEARDOWN_AUDIO_CAPTURE
+`include "tb/mode5_teardown_capture.svh"
+`endif
     logic [7:0] production_vgm [0:131071];
     integer production_vgm_size;
     string production_vgm_path;
     string production_transition_path;
     logic production_use_external_vgm = 1'b0;
+`ifdef UNFORCED_AUDIO_CAPTURE
+    integer capture_ordinal = 0;
+    integer capture_prev_l = 0, capture_prev_r = 0;
+    integer capture_delta_l, capture_delta_r;
+    integer capture_max_l = 0, capture_max_r = 0;
+    integer capture_max_l_at = -1, capture_max_r_at = -1;
+    integer capture_unknown = 0;
+    logic capture_open_prev = 1'b0;
+    integer capture_onset_count = 0;
+    logic capture_onset_seen = 1'b0;
+    logic capture_finished = 1'b0;
 
+    // Passive unforced observation. Sample after NBA updates, and also log
+    // gate edges: the combinational output can change between valid pulses.
+    always @(posedge clk) begin
+        #2;
+        if ($test$plusargs("UNFORCED") &&
+            mode5_playback_session_id == 2 && !capture_finished &&
+            mode5_sound_reset_start_count == 2 &&
+            mode5_player_start_count == 2 &&
+            !dut.loaded_vgm_mode.mode5_sound_core_reset) begin
+            if (capture_open_prev != dut.audio_runtime_open)
+                $display("OUTPUT_GATE next_ordinal=%0d open=%0b l=%0d r=%0d time=%0t",
+                    capture_ordinal, dut.audio_runtime_open, audio_l, audio_r, $time);
+            capture_open_prev = dut.audio_runtime_open;
+            if (dut.raw_audio_sample_valid) begin
+                if ((audio_l != 0) || (audio_r != 0)) capture_onset_seen = 1'b1;
+                capture_delta_l = $signed(audio_l) - capture_prev_l;
+                capture_delta_r = $signed(audio_r) - capture_prev_r;
+                if ((^audio_l === 1'bx) || (^audio_r === 1'bx)) begin
+                    capture_unknown = capture_unknown + 1;
+                    $fatal(1, "unknown final audio n=%0d raw_l=%0d raw_r=%0d jt=%0d pcm=%0d md=%0d",
+                        capture_ordinal, dut.raw_audio_l, dut.raw_audio_r,
+                        dut.loaded_vgm_mode.ym2151_audio_raw_l,
+                        dut.loaded_vgm_mode.segapcm_audio_l_gain,
+                        dut.loaded_vgm_mode.md_audio_l);
+                end
+                if ((capture_delta_l < 0 ? -capture_delta_l : capture_delta_l) > capture_max_l) begin
+                    capture_max_l = capture_delta_l < 0 ? -capture_delta_l : capture_delta_l;
+                    capture_max_l_at = capture_ordinal;
+                end
+                if ((capture_delta_r < 0 ? -capture_delta_r : capture_delta_r) > capture_max_r) begin
+                    capture_max_r = capture_delta_r < 0 ? -capture_delta_r : capture_delta_r;
+                    capture_max_r_at = capture_ordinal;
+                end
+                if (capture_ordinal < 64 || capture_onset_seen)
+                $display("UNFORCED_SAMPLE n=%0d session=%0d jt_l=%0d jt_r=%0d pcm_l=%0d pcm_r=%0d ym2203_l=%0d ym2203_r=%0d md_l=%0d md_r=%0d pcm_q=%0b ym2203_q=%0b md_q=%0b jt_mute=%0b raw_l=%0d raw_r=%0d gain=%0d open=%0b out_l=%0d out_r=%0d delta_l=%0d delta_r=%0d",
+                    capture_ordinal, mode5_playback_session_id,
+                    dut.loaded_vgm_mode.ym2151_audio_raw_l, dut.loaded_vgm_mode.ym2151_audio_raw_r,
+                    dut.loaded_vgm_mode.segapcm_audio_l_gain, dut.loaded_vgm_mode.segapcm_audio_r_gain,
+                    dut.loaded_vgm_mode.ym2203_audio_l_held, dut.loaded_vgm_mode.ym2203_audio_r_held,
+                    dut.loaded_vgm_mode.md_audio_l, dut.loaded_vgm_mode.md_audio_r,
+                    dut.loaded_vgm_mode.segapcm_audio_session_ready,
+                    dut.loaded_vgm_mode.ym2203_audio_session_ready,
+                    dut.loaded_vgm_mode.md_audio_session_active,
+                    dut.loaded_vgm_mode.ym2151_prewait_mute_active,
+                    dut.raw_audio_l, dut.raw_audio_r, dut.audio_runtime_gain,
+                    dut.audio_runtime_open, audio_l, audio_r, capture_delta_l, capture_delta_r);
+                capture_prev_l = $signed(audio_l);
+                capture_prev_r = $signed(audio_r);
+                capture_ordinal = capture_ordinal + 1;
+                if (capture_onset_seen) capture_onset_count = capture_onset_count + 1;
+                if ((!$test$plusargs("ONSET") && capture_ordinal == 64) ||
+                    ($test$plusargs("ONSET") && capture_ordinal >= 64 && capture_onset_count >= 64)) begin
+                    capture_finished = 1'b1;
+                    $display("UNFORCED_SUMMARY max_l=%0d at_l=%0d max_r=%0d at_r=%0d unknown=%0d",
+                        capture_max_l, capture_max_l_at, capture_max_r, capture_max_r_at, capture_unknown);
+                end
+            end
+        end
+    end
+
+`endif
     task automatic load_production_vgm;
         begin
             begin_download();
@@ -552,18 +711,29 @@ module tb_mode5_load_while_playing_session;
             // session's first valid edge comes from JT51. The production
             // mixer must not treat that unrelated valid as ownership of the
             // stale SegaPCM contribution.
+            if (!$test$plusargs("UNFORCED")) begin
             force dut.loaded_vgm_mode.ym2151_sound_enabled.segapcm_sound.core_snd_left =
                 16'sd16000;
             force dut.loaded_vgm_mode.ym2151_sound_enabled.segapcm_sound.core_snd_right =
                 -16'sd16000;
+            end
             while (mode5_playback_session_id != expected_session ||
+                   mode5_sound_reset_start_count < expected_session ||
+                   mode5_player_start_count < expected_session ||
                    dut.loaded_vgm_mode.mode5_sound_core_reset)
                 @(posedge clk);
-            while (valid_index < 32) begin
+            while (
+`ifdef UNFORCED_AUDIO_CAPTURE
+                   !capture_finished
+`else
+                   valid_index < 32
+`endif
+                   ) begin
                 @(posedge clk);
                 #1;
                 reset_release_cycles = reset_release_cycles + 1;
                 if (dut.raw_audio_sample_valid) begin
+                    if (valid_index < 64)
                     $display("AUDIO_HANDOFF_SAMPLE path=%s session=%0d sample=%0d reset_cycles=%0d raw_valid=%0b ym_valid=%0b sega_valid=%0b md_valid=%0b raw_l=%0d raw_r=%0d pre_unmute=%0b unmute_ready=%0b handoff=%0b open=%0b gain=%0d out_l=%0d out_r=%0d busy=%0b core_reset=%0b",
                              transition_name,
                              mode5_playback_session_id,
@@ -587,8 +757,10 @@ module tb_mode5_load_while_playing_session;
                     valid_index = valid_index + 1;
                 end
             end
+            if (!$test$plusargs("UNFORCED")) begin
             release dut.loaded_vgm_mode.ym2151_sound_enabled.segapcm_sound.core_snd_left;
             release dut.loaded_vgm_mode.ym2151_sound_enabled.segapcm_sound.core_snd_right;
+            end
         end
     endtask
 
@@ -619,6 +791,39 @@ module tb_mode5_load_while_playing_session;
         reset_n <= 1'b1;
         repeat (16) @(posedge clk);
 
+`ifdef TEARDOWN_AUDIO_CAPTURE
+        if (production_transition_path == "LOOP_LIMIT") begin
+            // Explicitly derived fixture: Credit has no native loop. Replay
+            // its command stream from data offset 0x80; never edit the VGM.
+            production_vgm['h1c] = 8'h64;
+            production_vgm['h1d] = 0;
+            production_vgm['h1e] = 0;
+            production_vgm['h1f] = 0;
+            $display("TEARDOWN_DERIVED_FIXTURE loop_pc=128 source_has_no_loop=1");
+        end
+        if ($test$plusargs("POLICY") || production_transition_path == "LOOP_LIMIT")
+            set_loop_limit_policy(1'b1, 1'b1);
+        load_trace_target_vgm();
+        wait_for_player_start_count(32'd1);
+        if (production_transition_path == "MANUAL_NEXT") begin
+            wait (vgm_wait_ticks_consumed_debug >= 32'd44_100);
+            load_long_wait_vgm();
+        end else begin
+            // No host load is issued until the real transport ENDED. The
+            // separation is observation-only, not a production mute delay.
+            wait (mode5_player_end_count == 1);
+            if ($test$plusargs("POLICY")) set_loop_limit_policy(1'b1, 1'b1);
+            repeat (20_000) @(posedge clk);
+            load_long_wait_vgm();
+        end
+        repeat (40_000) @(posedge clk);
+        $display("TEARDOWN_FINISH session=%0d ends=%0d error=%0b code=%0h",
+            mode5_playback_session_id, mode5_player_end_count,
+            vgm_player_error, vgm_player_error_code);
+        $display("TEARDOWN_ZERO_CHECK cycles=%0d violations=%0d",
+            teardown_zero_cycles, teardown_zero_violations);
+        $finish;
+`else
         // Establish the requested predecessor transition, then load either a
         // real production VGM (+VGM) or the self-contained short fixture.
         // All three controller paths converge on the same index-1 handoff.
@@ -650,9 +855,17 @@ module tb_mode5_load_while_playing_session;
             load_trace_target_vgm();
         join
 
+        if ($test$plusargs("UNFORCED")) repeat (2) @(posedge clk);
+`ifdef UNFORCED_AUDIO_CAPTURE
+        if (capture_unknown != 0 || capture_ordinal < 64)
+            $fatal(1, "unusable audio capture: unknown=%0d count=%0d",
+                capture_unknown, capture_ordinal);
+`endif
+
         $display("PASS production audio handoff trace file=%s bytes=%0d",
                  production_vgm_path, production_vgm_size);
         $finish;
+`endif
     end
 `else
     initial begin : test
@@ -664,6 +877,7 @@ module tb_mode5_load_while_playing_session;
         repeat (16) @(posedge clk);
         assert_silent("before first load");
 
+        if ($test$plusargs("POLICY_REARM_CHECK")) short_ending_file = 1'b1;
         load_long_wait_vgm();
         wait_for_player_start_count(32'd1);
         wait_for_running("first file running");
@@ -671,6 +885,35 @@ module tb_mode5_load_while_playing_session;
             fail_now("first player did not stay busy");
         end
         while (audio_muted) @(posedge clk);
+
+        if ($test$plusargs("POLICY_REARM_CHECK")) begin
+            force dut.raw_audio_l = 16'sd16000;
+            force dut.raw_audio_r = -16'sd16000;
+            wait_for_player_end_count(32'd1);
+            enforce_handoff_zero = 1'b1;
+            set_loop_limit_policy(1'b1, 1'b1);
+            repeat (4) @(negedge clk);
+            if (dut.audio_runtime_gain != 0 ||
+                !dut.loaded_vgm_mode.mode5_transition_released)
+                fail_now("index-2 completion released ended-session mute");
+            short_ending_file = 1'b0;
+            begin_download();
+            repeat (4) @(negedge clk);
+            if (dut.loaded_vgm_mode.mode5_transition_fade_active ||
+                mode5_load_begin_count != 2)
+                fail_now("ended session started a second fade before load");
+            for (int i = 0; i <= 'h43; i = i + 1) write_download_byte(i);
+            release dut.raw_audio_l;
+            release dut.raw_audio_r;
+            finish_download();
+            wait_for_player_start_count(32'd2);
+            enforce_handoff_zero = 1'b0;
+            wait_for_running("policy regression new session");
+            if (mode5_player_end_count != 1 || mode5_load_begin_count != 2)
+                fail_now("policy regression duplicate END/load");
+            $display("PASS policy record retains ended-session mute");
+            $finish;
+        end
 
         force dut.raw_audio_l = 16'sd16384;
         force dut.raw_audio_r = -16'sd16384;
