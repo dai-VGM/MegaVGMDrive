@@ -47,12 +47,20 @@ module tb_mode5_load_while_playing_session;
     logic short_ending_file = 1'b0;
     logic native_loop_file = 1'b0;
     logic short_native_loop = 1'b0;
+    logic transition_stress_file = 1'b0;
     wire vgm_loop_taken_debug;
     wire vgm_loop_jump_pulse_debug;
+    wire [31:0] vgm_wait_ticks_consumed_debug;
     integer native_loop_count = 0;
     logic [31:0] loop_limit_fade_start_cycles = 32'd0;
     logic enforce_handoff_zero = 1'b0;
     integer handoff_zero_cycles = 0;
+`ifdef BASELINE_04910
+    wire handoff_audio_valid_observed = 1'b1;
+`else
+    wire handoff_audio_valid_observed =
+        dut.loaded_vgm_mode.mode5_transition_handoff_audio_valid;
+`endif
 
     always @(posedge clk) begin
         if (vgm_loop_jump_pulse_debug)
@@ -127,7 +135,7 @@ module tb_mode5_load_while_playing_session;
         end
     end
 
-    localparam int TEST_TIMEOUT_CYCLES = 100_000;
+    localparam int TEST_TIMEOUT_CYCLES = 5_000_000;
 
     always #5 clk = ~clk;
 
@@ -204,7 +212,7 @@ module tb_mode5_load_while_playing_session;
         .vgm_restarted_from_data_start  (),
         .vgm_pcm_oob                    (),
         .vgm_pcm_oob_count              (),
-        .vgm_wait_ticks_consumed_debug  (),
+        .vgm_wait_ticks_consumed_debug  (vgm_wait_ticks_consumed_debug),
         .mode5_sound_reset_active       (mode5_sound_reset_active),
         .mode5_player_start_pulse_debug (mode5_player_start_pulse_debug),
         .mode5_load_begin_count         (mode5_load_begin_count),
@@ -267,10 +275,13 @@ module tb_mode5_load_while_playing_session;
                 'h23: long_wait_vgm_byte = native_loop_file ? 8'h12 : 8'h00;
                 'h40: long_wait_vgm_byte = native_loop_file ? 8'h61 : 8'h61;
                 'h41: long_wait_vgm_byte = native_loop_file ?
-                    (short_native_loop ? 8'h04 : 8'h10) :
-                    (short_ending_file ? 8'h10 : 8'hff);
+                    (short_native_loop ? 8'h04 :
+                     (transition_stress_file ? 8'h20 : 8'h10)) :
+                    (transition_stress_file ? 8'h20 :
+                     (short_ending_file ? 8'h10 : 8'hff));
                 'h42: long_wait_vgm_byte = native_loop_file ? 8'h00 :
-                    (short_ending_file ? 8'h00 : 8'hff);
+                    (transition_stress_file ? 8'h00 :
+                     (short_ending_file ? 8'h00 : 8'hff));
                 'h43: long_wait_vgm_byte = 8'h66;
                 default: long_wait_vgm_byte = 8'h00;
             endcase
@@ -300,7 +311,49 @@ module tb_mode5_load_while_playing_session;
                      dut.loaded_vgm_mode.mode5_transition_released,
                      dut.loaded_vgm_mode.mode5_transition_gain,
                      dut.loaded_vgm_mode.mode5_parser_done_edge);
-            $finish;
+            $fatal(1);
+        end
+    endtask
+
+    task automatic wait_for_handoff_open(input int session_number);
+        int i;
+        logic [31:0] wait_ticks_before;
+        begin
+            for (i = 0; i < 20_000; i = i + 1) begin
+                @(posedge clk);
+                if (handoff_audio_valid_observed &&
+                    dut.audio_runtime_open)
+                    break;
+            end
+            if (i == 20_000) begin
+                $display("STRESS_STUCK session=%0d busy=%0b done=%0b status=%0d raw_valid=%0b handoff_valid=%0b open=%0b gain=%0d fade=%0b loop_limit=%0b load_busy=%0b wait=%0b reset=%0b loop_count=%0d loop_length=%0d loop_armed=%0b wait_ticks=%0d",
+                         session_number,
+                         player_busy,
+                         player_done,
+                         phase1b_state,
+                         dut.raw_audio_sample_valid,
+                         handoff_audio_valid_observed,
+                         dut.audio_runtime_open,
+                         dut.loaded_vgm_mode.mode5_transition_gain,
+                         dut.loaded_vgm_mode.mode5_transition_fade_active,
+                         dut.loaded_vgm_mode.mode5_transition_loop_limit_active,
+                         vgm_load_busy,
+                         ioctl_wait,
+                         mode5_sound_reset_active,
+                         native_loop_count,
+                         dut.loaded_vgm_mode.mode5_loop_length_samples,
+                         dut.loaded_vgm_mode.mode5_loop_second_active,
+                         vgm_wait_ticks_consumed_debug);
+                fail_now("stress handoff gate permanent mute");
+            end
+            wait_ticks_before =
+                vgm_wait_ticks_consumed_debug;
+            repeat (1024) @(posedge clk);
+            if (!player_busy || player_done ||
+                vgm_wait_ticks_consumed_debug <=
+                    wait_ticks_before) begin
+                fail_now("stress player/wait counter stopped after PLAYING");
+            end
         end
     endtask
 
@@ -381,7 +434,7 @@ module tb_mode5_load_while_playing_session;
     task automatic wait_for_running(input string label);
         int i;
         begin
-            for (i = 0; i < 4096; i = i + 1) begin
+            for (i = 0; i < 100_000; i = i + 1) begin
                 @(posedge clk);
                 if (player_busy && vgm_header_valid && !vgm_player_error) begin
                     return;
@@ -420,7 +473,7 @@ module tb_mode5_load_while_playing_session;
     task automatic wait_for_player_end_count(input [31:0] expected);
         int i;
         begin
-            for (i = 0; i < 4096; i = i + 1) begin
+            for (i = 0; i < 100_000; i = i + 1) begin
                 @(posedge clk);
                 if (mode5_player_end_count == expected) begin
                     return;
@@ -632,9 +685,11 @@ module tb_mode5_load_while_playing_session;
         // Model a held, non-zero final mixer value immediately when the fade
         // reaches zero. Every cycle from ENDED through the next session's
         // first valid sample is covered by the assertion above.
+`ifndef BASELINE_04910
         force dut.raw_audio_sample_valid = 1'b0;
         enforce_handoff_zero = 1'b1;
         handoff_zero_cycles = 0;
+`endif
         repeat (32) @(posedge clk);
         if (mode5_player_end_count != 32'd2 ||
             mode5_load_begin_count != 32'd4 ||
@@ -653,13 +708,14 @@ module tb_mode5_load_while_playing_session;
         wait_for_player_start_count(32'd5);
         wait_for_running("short-loop file running");
         repeat (16) @(posedge clk);
+`ifndef BASELINE_04910
         if (!audio_muted || handoff_zero_cycles == 0) begin
             fail_now("transition handoff opened before next valid sample");
         end
         force dut.raw_audio_sample_valid = 1'b1;
         @(posedge clk);
         #1;
-        if (!dut.loaded_vgm_mode.mode5_transition_handoff_audio_valid) begin
+        if (!handoff_audio_valid_observed) begin
             fail_now("transition handoff did not capture first valid sample");
         end
         $display("HANDOFF_ZERO cycles=%0d session=%0d load_begin=%0d reset_start=%0d player_start=%0d gain=%0d open=%0b first_l=%0d first_r=%0d",
@@ -678,6 +734,9 @@ module tb_mode5_load_while_playing_session;
         if (audio_l !== 16'sd16000 || audio_r !== -16'sd16000) begin
             fail_now("transition handoff lost first valid sample");
         end
+`else
+        while (audio_muted) @(posedge clk);
+`endif
         wait (dut.loaded_vgm_mode.mode5_loop_length_samples == 32'd4);
         if (dut.loaded_vgm_mode.mode5_loop_fade_start_samples != 32'd0 ||
             dut.loaded_vgm_mode.mode5_loop_fade_samples != 32'd4) begin
@@ -741,9 +800,88 @@ module tb_mode5_load_while_playing_session;
                 fail_now("manual load did not preempt LOOP_LIMIT with short fade");
             end
         end
-        ioctl_download <= 1'b0;
+        for (int i = 0; i <= 'h43; i = i + 1)
+            write_download_byte(i);
+        finish_download();
         release dut.raw_audio_l;
         release dut.raw_audio_r;
+
+        wait_for_player_start_count(32'd8);
+        wait_for_running("manual-preemption replacement running");
+
+        // Production-lifetime stress: 50 total sessions in one RBF. Mix
+        // loop-limit automatic END, natural EOF, manual replacement, policy
+        // changes (Repeat One/All ownership), and rapid replacement. Each new
+        // load must clear all measured-loop prediction state and must acquire
+        // an authoritative mixer-valid edge without leaving PLAYING muted.
+        transition_stress_file = 1'b1;
+        short_ending_file = 1'b0;
+        short_native_loop = 1'b0;
+        for (int stress_session = 9;
+             stress_session <= 50;
+             stress_session = stress_session + 1) begin
+            logic stress_loop;
+            logic manual_replace;
+            integer end_before;
+            stress_loop = ((stress_session % 3) != 0);
+            manual_replace = ((stress_session % 7) == 0);
+            native_loop_file = stress_loop;
+            set_loop_limit_policy(stress_loop, 1'b1);
+
+            begin_download();
+            wait (mode5_load_begin_count == stress_session);
+            #1;
+            if (mode5_playback_session_id != stress_session ||
+                dut.loaded_vgm_mode.mode5_loop_region_started ||
+                dut.loaded_vgm_mode.mode5_loop_first_boundary_seen ||
+                dut.loaded_vgm_mode.mode5_loop_second_active ||
+                dut.loaded_vgm_mode.mode5_loop_start_wait_ticks != 32'd0 ||
+                dut.loaded_vgm_mode.mode5_loop_second_start_wait_ticks != 32'd0 ||
+                dut.loaded_vgm_mode.mode5_loop_length_samples != 32'd0 ||
+                dut.loaded_vgm_mode.mode5_loop_fade_start_samples != 32'd0 ||
+                dut.loaded_vgm_mode.mode5_loop_fade_samples != 32'd0) begin
+                fail_now("stress stale loop predictor at load begin");
+            end
+            for (int i = 0; i <= 'h43; i = i + 1)
+                write_download_byte(i);
+            finish_download();
+            wait_for_player_start_count(stress_session);
+            wait_for_running("stress session running");
+            if (mode5_sound_reset_start_count != stress_session ||
+                mode5_player_reset_count < stress_session ||
+                mode5_playback_session_id != stress_session ||
+                phase1b_state != 3'd2 || vgm_player_error ||
+                vgm_load_error || vgm_load_overflow) begin
+                fail_now("stress one load/reset/start/session contract");
+            end
+            wait_for_handoff_open(stress_session);
+
+            end_before = mode5_player_end_count;
+            if (!manual_replace) begin
+                wait_for_player_end_count(end_before + 1);
+                repeat (32) @(posedge clk);
+                if (mode5_player_end_count != end_before + 1 ||
+                    !player_done || player_busy ||
+                    mode5_done_session_id != stress_session) begin
+                    fail_now("stress duplicate/missing ENDED");
+                end
+            end
+            if ((stress_session % 10) == 0)
+                $display("STRESS_PROGRESS session=%0d loads=%0d resets=%0d starts=%0d ends=%0d",
+                         stress_session,
+                         mode5_load_begin_count,
+                         mode5_sound_reset_start_count,
+                         mode5_player_start_count,
+                         mode5_player_end_count);
+        end
+
+        $display("STRESS_PASS sessions=%0d loads=%0d resets=%0d starts=%0d ends=%0d session=%0d",
+                 50,
+                 mode5_load_begin_count,
+                 mode5_sound_reset_start_count,
+                 mode5_player_start_count,
+                 mode5_player_end_count,
+                 mode5_playback_session_id);
 
         $display("PASS tb_mode5_load_while_playing_session");
         $finish;
