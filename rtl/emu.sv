@@ -323,7 +323,9 @@ localparam bit MD_AUDIO_LPF_TEST_BUILD = 1'b0;
 `endif
 `endif
 
-`ifdef MEGAVGMDRIVE_DEV_OSD
+`ifdef MEGAVGMDRIVE_MODE5_STOP_DIAGNOSTIC
+localparam bit MODE5_DEBUG_OVERLAY_FORCED = 1'b1;
+`elsif MEGAVGMDRIVE_DEV_OSD
 `ifdef MODE5_DEBUG_OVERLAY_ALWAYS_ON
 localparam bit MODE5_DEBUG_OVERLAY_FORCED = 1'b1;
 `else
@@ -333,7 +335,9 @@ localparam bit MODE5_DEBUG_OVERLAY_FORCED = 1'b0;
 localparam bit MODE5_DEBUG_OVERLAY_FORCED = 1'b0;
 `endif
 
-`ifdef MEGAVGMDRIVE_DEV_OSD
+`ifdef MEGAVGMDRIVE_MODE5_STOP_DIAGNOSTIC
+`define MEGAVGMDRIVE_VIDEO_DEBUG_CDC
+`elsif MEGAVGMDRIVE_DEV_OSD
 `define MEGAVGMDRIVE_VIDEO_DEBUG_CDC
 `elsif MISTER_VGM_DEBUG_VIDEO_ENABLE
 `define MEGAVGMDRIVE_VIDEO_DEBUG_CDC
@@ -1247,6 +1251,9 @@ module emu
     wire [31:0] mode5_cycles_since_start;
     wire [17:0] mode5_done_pc_debug;
     wire  [7:0] mode5_done_cmd_debug;
+`ifdef MEGAVGMDRIVE_MODE5_STOP_DIAGNOSTIC
+    wire [383:0] mode5_stop_diag_bus;
+`endif
     wire [15:0] fm_adjust_clip_count_l;
     wire [15:0] fm_adjust_clip_count_r;
     wire [15:0] genmix_wrap_count_l;
@@ -2265,6 +2272,9 @@ module emu
         .ddram_din            (vgm_ddram_din),
         .ddram_be             (vgm_ddram_be),
         .ddram_we             (vgm_ddram_we)
+`ifdef MEGAVGMDRIVE_MODE5_STOP_DIAGNOSTIC
+        , .mode5_stop_diag_bus(mode5_stop_diag_bus)
+`endif
     );
 
     wire       raw_ce_pix;
@@ -3808,6 +3818,220 @@ module emu
         end
     endfunction
 
+`ifdef MEGAVGMDRIVE_MODE5_STOP_DIAGNOSTIC
+    function automatic [7:0] stop_diag_hex32_char(
+        input logic [31:0] value,
+        input logic [2:0] digit
+    );
+        begin
+            unique case (digit)
+                3'd0: stop_diag_hex32_char = hex_char(value[31:28]);
+                3'd1: stop_diag_hex32_char = hex_char(value[27:24]);
+                3'd2: stop_diag_hex32_char = hex_char(value[23:20]);
+                3'd3: stop_diag_hex32_char = hex_char(value[19:16]);
+                3'd4: stop_diag_hex32_char = hex_char(value[15:12]);
+                3'd5: stop_diag_hex32_char = hex_char(value[11:8]);
+                3'd6: stop_diag_hex32_char = hex_char(value[7:4]);
+                default: stop_diag_hex32_char = hex_char(value[3:0]);
+            endcase
+        end
+    endfunction
+
+    function automatic [7:0] stop_diag_hex16_char(
+        input logic [15:0] value,
+        input logic [1:0] digit
+    );
+        begin
+            unique case (digit)
+                2'd0: stop_diag_hex16_char = hex_char(value[15:12]);
+                2'd1: stop_diag_hex16_char = hex_char(value[11:8]);
+                2'd2: stop_diag_hex16_char = hex_char(value[7:4]);
+                default: stop_diag_hex16_char = hex_char(value[3:0]);
+            endcase
+        end
+    endfunction
+
+    function automatic [7:0] stop_diag_class_char(input logic [2:0] value);
+        begin
+            unique case (value)
+                3'd1: stop_diag_class_char = "A";
+                3'd2: stop_diag_class_char = "B";
+                3'd3: stop_diag_class_char = "C";
+                3'd4: stop_diag_class_char = "D";
+                3'd5: stop_diag_class_char = "E";
+                3'd6: stop_diag_class_char = "F";
+                default: stop_diag_class_char = "-";
+            endcase
+        end
+    endfunction
+
+    function automatic [7:0] mode5_stop_diag_char(
+        input logic [4:0] row,
+        input logic [3:0] col
+    );
+        logic [31:0] value32;
+        logic [15:0] value16;
+        begin
+            mode5_stop_diag_char = " ";
+            value32 = 32'd0;
+            value16 = 16'd0;
+            unique case (row)
+                5'd0: begin // CL=A SS=xxxxxx (full session follows)
+                    unique case (col)
+                        4'd0: mode5_stop_diag_char = "C";
+                        4'd1: mode5_stop_diag_char = "L";
+                        4'd2: mode5_stop_diag_char = "=";
+                        4'd3: mode5_stop_diag_char =
+                            stop_diag_class_char(mode5_stop_diag_bus[2:0]);
+                        4'd5: mode5_stop_diag_char = "S";
+                        4'd6: mode5_stop_diag_char = "S";
+                        4'd7: mode5_stop_diag_char = "=";
+                        4'd8, 4'd9, 4'd10, 4'd11, 4'd12, 4'd13:
+                            mode5_stop_diag_char = stop_diag_hex32_char(
+                                mode5_stop_diag_bus[34:3], col - 4'd6);
+                        default: mode5_stop_diag_char = " ";
+                    endcase
+                end
+                5'd1: begin // SS=xxxxxxxx
+                    value32 = mode5_stop_diag_bus[34:3];
+                    if (col == 4'd0) mode5_stop_diag_char = "S";
+                    else if (col == 4'd1) mode5_stop_diag_char = "S";
+                    else if (col == 4'd2) mode5_stop_diag_char = "=";
+                    else if ((col >= 4'd3) && (col <= 4'd10))
+                        mode5_stop_diag_char =
+                            stop_diag_hex32_char(value32, col - 4'd3);
+                end
+                5'd2: begin // ST=x PB=x PD=x
+                    unique case (col)
+                        0: mode5_stop_diag_char="S"; 1: mode5_stop_diag_char="T";
+                        2: mode5_stop_diag_char="="; 3: mode5_stop_diag_char=hex_char({1'b0,mode5_stop_diag_bus[328:326]});
+                        5: mode5_stop_diag_char="P"; 6: mode5_stop_diag_char="B";
+                        7: mode5_stop_diag_char="="; 8: mode5_stop_diag_char=mode5_stop_diag_bus[35]?"1":"0";
+                        10: mode5_stop_diag_char="P"; 11: mode5_stop_diag_char="D";
+                        12: mode5_stop_diag_char="="; 13: mode5_stop_diag_char=mode5_stop_diag_bus[36]?"1":"0";
+                        default: mode5_stop_diag_char=" ";
+                    endcase
+                end
+                5'd3: begin // PR=xxxxxxxx
+                    value32 = mode5_stop_diag_bus[68:37];
+                    if (col == 0) mode5_stop_diag_char="P"; else if (col == 1) mode5_stop_diag_char="R"; else if (col == 2) mode5_stop_diag_char="=";
+                    else if ((col >= 3) && (col <= 10)) mode5_stop_diag_char=stop_diag_hex32_char(value32,col-3);
+                end
+                5'd4: begin // PG=x
+                    if (col == 0) mode5_stop_diag_char="P"; else if (col == 1) mode5_stop_diag_char="G"; else if (col == 2) mode5_stop_diag_char="="; else if (col == 3) mode5_stop_diag_char=mode5_stop_diag_bus[69]?"1":"0";
+                end
+                5'd5: begin // RV=x RS=x
+                    unique case (col)
+                        0: mode5_stop_diag_char="R"; 1: mode5_stop_diag_char="V"; 2: mode5_stop_diag_char="="; 3: mode5_stop_diag_char=mode5_stop_diag_bus[70]?"1":"0";
+                        5: mode5_stop_diag_char="R"; 6: mode5_stop_diag_char="S"; 7: mode5_stop_diag_char="="; 8: mode5_stop_diag_char=mode5_stop_diag_bus[71]?"1":"0";
+                        default: mode5_stop_diag_char=" ";
+                    endcase
+                end
+                5'd6: begin // HV=x OP=x
+                    unique case (col)
+                        0: mode5_stop_diag_char="H"; 1: mode5_stop_diag_char="V"; 2: mode5_stop_diag_char="="; 3: mode5_stop_diag_char=mode5_stop_diag_bus[72]?"1":"0";
+                        5: mode5_stop_diag_char="O"; 6: mode5_stop_diag_char="P"; 7: mode5_stop_diag_char="="; 8: mode5_stop_diag_char=mode5_stop_diag_bus[73]?"1":"0";
+                        default: mode5_stop_diag_char=" ";
+                    endcase
+                end
+                5'd7: begin // GN=xxx
+                    value16 = {7'd0,mode5_stop_diag_bus[82:74]};
+                    if (col == 0) mode5_stop_diag_char="G"; else if (col == 1) mode5_stop_diag_char="N"; else if (col == 2) mode5_stop_diag_char="=";
+                    else if ((col >= 3) && (col <= 5)) mode5_stop_diag_char=stop_diag_hex16_char(value16,col-2);
+                end
+                5'd8,5'd9,5'd10,5'd11: begin // ML/MR/OL/OR
+                    unique case (row)
+                        5'd8: begin value16=mode5_stop_diag_bus[98:83]; mode5_stop_diag_char=(col==0)?"M":(col==1)?"L":mode5_stop_diag_char; end
+                        5'd9: begin value16=mode5_stop_diag_bus[114:99]; mode5_stop_diag_char=(col==0)?"M":(col==1)?"R":mode5_stop_diag_char; end
+                        5'd10: begin value16=mode5_stop_diag_bus[130:115]; mode5_stop_diag_char=(col==0)?"O":(col==1)?"L":mode5_stop_diag_char; end
+                        default: begin value16=mode5_stop_diag_bus[146:131]; mode5_stop_diag_char=(col==0)?"O":(col==1)?"R":mode5_stop_diag_char; end
+                    endcase
+                    if (col == 2) mode5_stop_diag_char="=";
+                    else if ((col >= 3) && (col <= 6)) mode5_stop_diag_char=stop_diag_hex16_char(value16,col-3);
+                end
+                5'd12: begin // LD=x DL=x
+                    unique case (col)
+                        0: mode5_stop_diag_char="L"; 1: mode5_stop_diag_char="D"; 2: mode5_stop_diag_char="="; 3: mode5_stop_diag_char=mode5_stop_diag_bus[147]?"1":"0";
+                        5: mode5_stop_diag_char="D"; 6: mode5_stop_diag_char="L"; 7: mode5_stop_diag_char="="; 8: mode5_stop_diag_char=mode5_stop_diag_bus[365]?"1":"0";
+                        default: mode5_stop_diag_char=" ";
+                    endcase
+                end
+                5'd13: begin // IW=x
+                    if (col==0) mode5_stop_diag_char="I"; else if(col==1) mode5_stop_diag_char="W"; else if(col==2) mode5_stop_diag_char="="; else if(col==3) mode5_stop_diag_char=mode5_stop_diag_bus[148]?"1":"0";
+                end
+                5'd14: begin // CR=x SR=x
+                    unique case (col)
+                        0: mode5_stop_diag_char="C"; 1: mode5_stop_diag_char="R"; 2: mode5_stop_diag_char="="; 3: mode5_stop_diag_char=mode5_stop_diag_bus[149]?"1":"0";
+                        5: mode5_stop_diag_char="S"; 6: mode5_stop_diag_char="R"; 7: mode5_stop_diag_char="="; 8: mode5_stop_diag_char=mode5_stop_diag_bus[150]?"1":"0";
+                        default: mode5_stop_diag_char=" ";
+                    endcase
+                end
+                5'd15,5'd16,5'd17: begin // EC/LC/SC=xxxxxxxx
+                    value32=(row==5'd15)?mode5_stop_diag_bus[182:151]:(row==5'd16)?mode5_stop_diag_bus[214:183]:mode5_stop_diag_bus[246:215];
+                    if (col==0) mode5_stop_diag_char=(row==5'd15)?"E":(row==5'd16)?"L":"S";
+                    else if(col==1) mode5_stop_diag_char="C"; else if(col==2) mode5_stop_diag_char="=";
+                    else if((col>=3)&&(col<=10)) mode5_stop_diag_char=stop_diag_hex32_char(value32,col-3);
+                end
+                5'd18: begin // EP=x LB=x SP=x
+                    unique case(col)
+                        0:mode5_stop_diag_char="E";1:mode5_stop_diag_char="P";2:mode5_stop_diag_char="=";3:mode5_stop_diag_char=mode5_stop_diag_bus[366]?"1":"0";
+                        5:mode5_stop_diag_char="L";6:mode5_stop_diag_char="B";7:mode5_stop_diag_char="=";8:mode5_stop_diag_char=mode5_stop_diag_bus[367]?"1":"0";
+                        10:mode5_stop_diag_char="S";11:mode5_stop_diag_char="P";12:mode5_stop_diag_char="=";13:mode5_stop_diag_char=mode5_stop_diag_bus[368]?"1":"0";
+                        default:mode5_stop_diag_char=" ";
+                    endcase
+                end
+                5'd19: begin // LP=xxxxxxxx
+                    value32=mode5_stop_diag_bus[278:247];
+                    if(col==0)mode5_stop_diag_char="L";else if(col==1)mode5_stop_diag_char="P";else if(col==2)mode5_stop_diag_char="=";else if((col>=3)&&(col<=10))mode5_stop_diag_char=stop_diag_hex32_char(value32,col-3);
+                end
+                5'd20: begin // LV=x
+                    if(col==0)mode5_stop_diag_char="L";else if(col==1)mode5_stop_diag_char="V";else if(col==2)mode5_stop_diag_char="=";else if(col==3)mode5_stop_diag_char=mode5_stop_diag_bus[279]?"1":"0";
+                end
+                5'd21: begin // LL=xxxxxxxx
+                    value32=mode5_stop_diag_bus[311:280];
+                    if(col==0)mode5_stop_diag_char="L";else if(col==1)mode5_stop_diag_char="L";else if(col==2)mode5_stop_diag_char="=";else if((col>=3)&&(col<=10))mode5_stop_diag_char=stop_diag_hex32_char(value32,col-3);
+                end
+                5'd22: begin // LA=x LX=x
+                    unique case(col)
+                        0:mode5_stop_diag_char="L";1:mode5_stop_diag_char="A";2:mode5_stop_diag_char="=";3:mode5_stop_diag_char=mode5_stop_diag_bus[312]?"1":"0";
+                        5:mode5_stop_diag_char="L";6:mode5_stop_diag_char="X";7:mode5_stop_diag_char="=";8:mode5_stop_diag_char=mode5_stop_diag_bus[313]?"1":"0";
+                        default:mode5_stop_diag_char=" ";
+                    endcase
+                end
+                5'd23: begin // FA=x
+                    if(col==0)mode5_stop_diag_char="F";else if(col==1)mode5_stop_diag_char="A";else if(col==2)mode5_stop_diag_char="=";else if(col==3)mode5_stop_diag_char=mode5_stop_diag_bus[314]?"1":"0";
+                end
+                5'd24: begin // TR=x
+                    if(col==0)mode5_stop_diag_char="T";else if(col==1)mode5_stop_diag_char="R";else if(col==2)mode5_stop_diag_char="=";else if(col==3)mode5_stop_diag_char=hex_char({1'b0,mode5_stop_diag_bus[317:315]});
+                end
+                5'd25: begin // FC=xx
+                    if(col==0)mode5_stop_diag_char="F";else if(col==1)mode5_stop_diag_char="C";else if(col==2)mode5_stop_diag_char="=";else if(col==3)mode5_stop_diag_char=hex_char(mode5_stop_diag_bus[325:322]);else if(col==4)mode5_stop_diag_char=hex_char(mode5_stop_diag_bus[321:318]);
+                end
+                5'd26: begin // NZ R=x O=x
+                    unique case(col)
+                        0:mode5_stop_diag_char="N";1:mode5_stop_diag_char="Z";
+                        3:mode5_stop_diag_char="R";4:mode5_stop_diag_char="=";5:mode5_stop_diag_char=mode5_stop_diag_bus[330]?"1":"0";
+                        7:mode5_stop_diag_char="O";8:mode5_stop_diag_char="=";9:mode5_stop_diag_char=mode5_stop_diag_bus[331]?"1":"0";
+                        default:mode5_stop_diag_char=" ";
+                    endcase
+                end
+                5'd27: begin // OW=xxxxxxxx
+                    value32=mode5_stop_diag_bus[363:332];
+                    if(col==0)mode5_stop_diag_char="O";else if(col==1)mode5_stop_diag_char="W";else if(col==2)mode5_stop_diag_char="=";else if((col>=3)&&(col<=10))mode5_stop_diag_char=stop_diag_hex32_char(value32,col-3);
+                end
+                5'd28: begin // SV=x PS=x
+                    unique case(col)
+                        0:mode5_stop_diag_char="S";1:mode5_stop_diag_char="V";2:mode5_stop_diag_char="=";3:mode5_stop_diag_char=mode5_stop_diag_bus[329]?"1":"0";
+                        5:mode5_stop_diag_char="P";6:mode5_stop_diag_char="S";7:mode5_stop_diag_char="=";8:mode5_stop_diag_char=mode5_stop_diag_bus[364]?"1":"0";
+                        default:mode5_stop_diag_char=" ";
+                    endcase
+                end
+                default: mode5_stop_diag_char = " ";
+            endcase
+        end
+    endfunction
+`endif
+
     function automatic [7:0] mode5_debug_char(
         input logic [4:0] row,
         input logic [3:0] col
@@ -3820,6 +4044,9 @@ module emu
         logic [7:0] probe_label_r0;
         logic [7:0] probe_label_r1;
         begin
+`ifdef MEGAVGMDRIVE_MODE5_STOP_DIAGNOSTIC
+            mode5_debug_char = mode5_stop_diag_char(row, col);
+`else
             value = mode5_debug_value(row);
 `ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
 	            if ((row >= 5'd24) && (row <= 5'd27)) begin
@@ -3916,6 +4143,7 @@ module emu
                 endcase
 `ifdef MEGAVGMDRIVE_SEGAPCM_C0_ONLY_DEBUG_BUILD
             end
+`endif
 `endif
         end
     endfunction
@@ -4044,7 +4272,11 @@ module emu
     wire [2:0] mode5_dbg_char_x = mode5_dbg_x[2:0];
     wire [2:0] mode5_dbg_char_y = mode5_dbg_y[2:0];
     wire mode5_dbg_wide_row =
+`ifdef MEGAVGMDRIVE_MODE5_STOP_DIAGNOSTIC
+        mode5_dbg_row <= 5'd28;
+`else
         (mode5_dbg_row >= 5'd24) && (mode5_dbg_row <= 5'd28);
+`endif
     wire mode5_dbg_back =
         mode5_debug_overlay_enable &&
         (h_count >= 9'd8) &&

@@ -1,0 +1,6 @@
+# Diagnostic-only revision. Inherit the exact PlaylistLoopLab functional
+# source/macro set, then add only the sticky stop observer and overlay enable.
+source MegaVGMPlayer_PlaylistLoopLab_MiSTer.qsf
+
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/megavgm_mode5_stop_diagnostic.sv
+set_global_assignment -name VERILOG_MACRO "MEGAVGMDRIVE_MODE5_STOP_DIAGNOSTIC=1"

@@ -882,6 +882,11 @@ module tb_mode5_load_while_playing_session;
                  mode5_player_start_count,
                  mode5_player_end_count,
                  mode5_playback_session_id);
+`ifdef MEGAVGMDRIVE_MODE5_STOP_DIAGNOSTIC
+        if (dut.mode5_stop_diag_bus[329]) begin
+            fail_now("diagnostic observer false-triggered during 50-session stress");
+        end
+`endif
 
         $display("PASS tb_mode5_load_while_playing_session");
         $finish;

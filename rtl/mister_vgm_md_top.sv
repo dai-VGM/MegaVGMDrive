@@ -569,6 +569,9 @@ module mister_vgm_md_top #(
     output logic [63:0]       ddram_din,
     output logic [7:0]        ddram_be,
     output logic              ddram_we
+`ifdef MEGAVGMDRIVE_MODE5_STOP_DIAGNOSTIC
+    , output logic [383:0]    mode5_stop_diag_bus
+`endif
 );
 
 `ifdef MEGAVGMDRIVE_PRODUCTION_AUDIO_BUILD
@@ -3971,6 +3974,68 @@ module mister_vgm_md_top #(
                 end
             end
 
+`ifdef MEGAVGMDRIVE_MODE5_STOP_DIAGNOSTIC
+            // Observer-only failure capture. No signal from this instance
+            // feeds the player, loader, reset, transition, or audio paths.
+            wire mode5_stop_diag_fatal_live =
+                vgm_load_error || vgm_load_overflow || vgm_player_error ||
+                (vgm_final_error_code_debug != 8'd0);
+            wire [7:0] mode5_stop_diag_fatal_code =
+                vgm_load_overflow ? 8'hf2 :
+                vgm_load_error ? 8'hf1 :
+                (vgm_player_error_code != 8'd0) ?
+                    vgm_player_error_code : vgm_final_error_code_debug;
+            wire [2:0] mode5_stop_diag_transition_reason =
+                mode5_stop_diag_fatal_live ? 3'd5 :
+                mode5_transition_loop_limit_active ? 3'd4 :
+                (mode5_transition_fade_active &&
+                 mode5_transition_end_pending) ? 3'd2 :
+                mode5_transition_fade_active ? 3'd1 : 3'd0;
+            wire mode5_stop_diag_loop_armed =
+                mode5_loop_limit_policy_active &&
+                mode5_loop_first_boundary_seen &&
+                mode5_loop_second_active;
+
+            megavgm_mode5_stop_diagnostic mode5_stop_diagnostic (
+                .clk                    (clk),
+                .reset                  (reset),
+                .session_id             (mode5_playback_session_id_i),
+                .playback_started       (mode5_playback_started),
+                .player_busy            (player_busy),
+                .player_done            (loaded_player_done),
+                .progress_count         (vgm_wait_ticks_consumed_debug),
+                .raw_audio_sample_valid (raw_audio_sample_valid),
+                .handoff_audio_valid    (mode5_transition_handoff_audio_valid),
+                .audio_runtime_open     (audio_runtime_open),
+                .audio_runtime_gain     (audio_runtime_gain),
+                .raw_audio_l            (raw_audio_l),
+                .raw_audio_r            (raw_audio_r),
+                .output_audio_l         (audio_l),
+                .output_audio_r         (audio_r),
+                .load_active            (vgm_load_busy),
+                .ioctl_download         (mode5_selected_download),
+                .ioctl_wait             (ioctl_wait),
+                .player_session_reset   (mode5_player_session_reset),
+                .sound_core_reset       (mode5_sound_core_reset),
+                .ended_pulse            (mode5_done_edge),
+                .ended_count            (mode5_player_end_count_i),
+                .load_begin_pulse       (mode5_load_begin_pulse),
+                .load_begin_count       (mode5_load_begin_count_i),
+                .session_start_pulse    (mode5_player_start_to_player),
+                .session_start_count    (mode5_player_start_count_i),
+                .loop_boundary_pulse    (mode5_player_loop_boundary_pulse),
+                .loop_length_valid      (mode5_loop_length_samples != 32'd0),
+                .loop_length            (mode5_loop_length_samples),
+                .loop_limit_armed       (mode5_stop_diag_loop_armed),
+                .loop_limit_active      (mode5_transition_loop_limit_active),
+                .fade_active            (mode5_transition_fade_active),
+                .transition_reason      (mode5_stop_diag_transition_reason),
+                .fatal_live             (mode5_stop_diag_fatal_live),
+                .fatal_code             (mode5_stop_diag_fatal_code),
+                .snapshot_bus           (mode5_stop_diag_bus)
+            );
+`endif
+
             always_ff @(posedge clk) begin
                 if (reset || !mode5_audio_pre_unmute) begin
                     mode5_audio_unmute_counter <= 32'd0;
@@ -5575,6 +5640,9 @@ module mister_vgm_md_top #(
             assign audio_runtime_open = audio_gate_open;
             assign audio_runtime_gain = 9'd256;
             assign ioctl_wait = 1'b0;
+`ifdef MEGAVGMDRIVE_MODE5_STOP_DIAGNOSTIC
+            assign mode5_stop_diag_bus = 384'd0;
+`endif
 
             md_sound_fixed_region_test #(
                 .REGION_MODE (REGION_MODE)
