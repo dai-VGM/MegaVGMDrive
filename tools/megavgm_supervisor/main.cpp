@@ -237,7 +237,7 @@ void usage()
 	          << "  megavgm_supervisor exit\n"
 	          << "  megavgm_supervisor status\n"
 	          << "  megavgm_supervisor hash-main\n";
-	std::cerr << "  megavgm_supervisor test-profile [default|ym2610b-phase1b]\n";
+	std::cerr << "  megavgm_supervisor test-profile [default|ym2610b-phase1b|fade-only-a|fade-only-b]\n";
 }
 
 } // namespace

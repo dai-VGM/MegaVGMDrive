@@ -12,7 +12,8 @@ OperationResult error(const std::string &what) {
 	return OperationResult::failure(what + ": " + std::strerror(errno));
 }
 bool known(const std::string &name) {
-	return name == "default" || name == "ym2610b-phase1b";
+	return name == "default" || name == "ym2610b-phase1b" ||
+	       name == "fade-only-a" || name == "fade-only-b";
 }
 int open_directory(const Paths &paths, bool create) {
 	if (create && mkdir(paths.test_profile_directory.c_str(), 0700) < 0 && errno != EEXIST)
@@ -50,14 +51,21 @@ OperationResult apply_test_profile(Paths &paths) {
 		if (record.size() > 64) break;
 	}
 	close(fd);
-	if (record != "ym2610b-phase1b\n") return OperationResult::failure("unknown test-profile record");
-	paths.rbf = "/media/fat/MegaVGMPlayer/MegaVGMPlayer_GoldenTransport12Phase1B_YM2610B_MiSTer.rbf";
-	paths.rbf_profile = "YM2610B_PHASE1B";
+	if (record == "ym2610b-phase1b\n") {
+		paths.rbf = "/media/fat/MegaVGMPlayer/MegaVGMPlayer_GoldenTransport12Phase1B_YM2610B_MiSTer.rbf";
+		paths.rbf_profile = "YM2610B_PHASE1B";
+	} else if (record == "fade-only-a\n") {
+		paths.rbf = "/media/fat/_Utility/MegaVGMPlayer_Transport13FadeOnly_A_MiSTer.rbf";
+		paths.rbf_profile = "FADE_ONLY_A";
+	} else if (record == "fade-only-b\n") {
+		paths.rbf = "/media/fat/_Utility/MegaVGMPlayer_Transport13FadeOnly_B_MiSTer.rbf";
+		paths.rbf_profile = "FADE_ONLY_B";
+	} else return OperationResult::failure("unknown test-profile record");
 	return OperationResult::success();
 }
 
 OperationResult set_test_profile(const Paths &paths, const std::string &name) {
-	if (!known(name)) return OperationResult::failure("unknown test-profile; use default or ym2610b-phase1b");
+	if (!known(name)) return OperationResult::failure("unknown test-profile; use default, ym2610b-phase1b, fade-only-a or fade-only-b");
 	// Same flock as ENTER: cannot select while an owner is starting/running/draining.
 	InstanceLock lock;
 	auto result = lock.acquire(paths.supervisor_lock);

@@ -902,11 +902,88 @@ void test_fixed_test_profile_selection()
 	unlink(paths.supervisor_status.c_str()); unlink(paths.supervisor_lock.c_str()); rmdir(directory.c_str());
 }
 
+void test_fade_only_test_profiles()
+{
+	using megavgm_supervisor::apply_test_profile;
+	using megavgm_supervisor::set_test_profile;
+	const std::string directory = temporary_directory();
+	Paths paths;
+	paths.supervisor_lock = directory + "/lock";
+	paths.supervisor_status = directory + "/status";
+	paths.test_profile_directory = directory + "/selection";
+	const std::string marker = paths.test_profile_directory + "/profile";
+	struct Profile { const char *name; const char *label; const char *rbf; };
+	const Profile profiles[] = {
+		{"fade-only-a", "FADE_ONLY_A", "/media/fat/_Utility/MegaVGMPlayer_Transport13FadeOnly_A_MiSTer.rbf"},
+		{"fade-only-b", "FADE_ONLY_B", "/media/fat/_Utility/MegaVGMPlayer_Transport13FadeOnly_B_MiSTer.rbf"},
+	};
+	std::vector<std::string> lifecycle;
+	for (const auto &profile : profiles) {
+		std::ofstream(paths.supervisor_status) << "mode=STOCK\nmain=STOCK\ncontroller=STOPPED\n";
+		assert(set_test_profile(paths, profile.name).ok);
+		assert(set_test_profile(paths, profile.name).ok); // idempotent while STOCK
+		Paths chosen = paths;
+		assert(apply_test_profile(chosen).ok);
+		assert(chosen.rbf == profile.rbf && chosen.rbf_profile == profile.label);
+		assert(chosen.modified_main == "/media/fat/MegaVGMPlayer/MiSTer.megavgm");
+		assert(chosen.expected_modified_sha256 == "a0e7b7d3557457a80ecd62a6bb4643585c33b78fbe515a7a7a5783b05b5addb5");
+		assert(chosen.playlist_binary == paths.playlist_binary);
+		assert(chosen.main_command == paths.main_command && chosen.megavgm_status == paths.megavgm_status);
+		assert(chosen.main_load_file_status == paths.main_load_file_status);
+		// Both resident test RBFs take the unchanged strict-Main/snapshot/restore path.
+		FakeRuntime runtime;
+		RecordingPublisher publisher;
+		Supervisor supervisor(runtime, publisher, chosen.rbf_profile);
+		assert(supervisor.enter("/music", {}, "/tmp/snapshot").ok);
+		assert(runtime.verified_playlist_snapshot == "/tmp/snapshot");
+		assert(runtime.verified_start_file.empty());
+		assert(supervisor.snapshot().rbf == profile.label);
+		assert(supervisor.exit().ok);
+		if (lifecycle.empty()) lifecycle = runtime.calls;
+		else assert(lifecycle == runtime.calls);
+		{
+			InstanceLock owner;
+			assert(owner.acquire(paths.supervisor_lock).ok);
+			for (const auto *name : {"default", "ym2610b-phase1b", "fade-only-a", "fade-only-b"})
+				assert(!set_test_profile(paths, name).ok);
+		}
+		for (const auto *state : {"STARTING", "MEGAVGM", "STOPPING", "FAILURE"}) {
+			std::ofstream(paths.supervisor_status) << "mode=" << state << "\nmain=MODIFIED\ncontroller=RUNNING\n";
+			for (const auto *name : {"default", "ym2610b-phase1b", "fade-only-a", "fade-only-b"})
+				assert(!set_test_profile(paths, name).ok);
+			chosen = paths;
+			assert(apply_test_profile(chosen).ok && chosen.rbf == profile.rbf);
+		}
+		std::ofstream(paths.supervisor_status) << "mode=STOCK\nmain=STOCK\ncontroller=STOPPED\n";
+		assert(!set_test_profile(paths, "fade-only-a/../../bad").ok);
+		const std::string temporary = paths.test_profile_directory + "/.profile." + std::to_string(getpid());
+		std::ofstream(temporary) << "occupied";
+		assert(!set_test_profile(paths, profile.name).ok);
+		chosen = paths;
+		assert(apply_test_profile(chosen).ok && chosen.rbf == profile.rbf);
+		unlink(temporary.c_str());
+		assert(set_test_profile(paths, "default").ok);
+		chosen = paths;
+		assert(apply_test_profile(chosen).ok && chosen.rbf == paths.rbf && chosen.rbf_profile == paths.rbf_profile);
+	}
+	assert(set_test_profile(paths, "fade-only-a").ok);
+	for (const auto *record : {"fade-only-a", "fade-only-a\nextra\n", "fade-only-b\r\n"}) {
+		std::ofstream(marker) << record;
+		Paths chosen = paths;
+		assert(!apply_test_profile(chosen).ok && chosen.rbf == paths.rbf);
+	}
+	assert(set_test_profile(paths, "default").ok);
+	rmdir(paths.test_profile_directory.c_str());
+	unlink(paths.supervisor_status.c_str()); unlink(paths.supervisor_lock.c_str()); rmdir(directory.c_str());
+	std::cout << "FADE_ONLY_PROFILES paths/strict-Main/STOCK-lock/lifecycle/snapshot/default/invalid-record: PASS\n";
+}
+
 } // namespace
 
 int main()
 {
 	test_fixed_test_profile_selection();
+	test_fade_only_test_profiles();
 	test_transport_m5_modified_main_is_the_only_default_allowed_hash();
 	test_prerequisite_failure_does_not_stop_stock_main();
 	test_successful_enter();
