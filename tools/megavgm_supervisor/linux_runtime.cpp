@@ -496,7 +496,9 @@ OperationResult LinuxRuntime::reacquire_modified_main(int previous_pid,
 
 OperationResult LinuxRuntime::load_rbf()
 {
-	for (const std::string &path : {paths_.core_name, paths_.megavgm_status}) {
+	std::vector<std::string> stale_status = {paths_.core_name, paths_.megavgm_status};
+	if (paths_.phase2a) stale_status.push_back(paths_.main_load_file_status);
+	for (const std::string &path : stale_status) {
 		struct stat attributes = {};
 		if (lstat(path.c_str(), &attributes) == 0) {
 			if (!S_ISREG(attributes.st_mode))

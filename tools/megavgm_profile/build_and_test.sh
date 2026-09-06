@@ -21,6 +21,24 @@ profile='tools/megavgm_profile/profile.cpp tools/megavgm_profile/switch.cpp'
 playlist='tools/megavgm_playlist/playlist.cpp tools/megavgm_playlist/playlist_control.cpp tools/megavgm_playlist/playback_mode.cpp tools/megavgm_autoplay2/autoplay2.cpp'
 supervisor='tools/megavgm_supervisor/supervisor.cpp tools/megavgm_supervisor/runtime_support.cpp tools/megavgm_supervisor/test_profile.cpp tools/megavgm_supervisor/sha256.cpp'
 # All expansions below are fixed source/flag lists, never user paths/commands.
+mkdir "$out/obj"
+pids=
+jobs=0
+for source in $profile $playlist $supervisor; do
+  object=$(basename "$source" .cpp)
+  "$compiler" $flags -c "$source" -o "$out/obj/$object.o" &
+  pids="$pids $!"
+  jobs=$((jobs+1))
+  if [ "$jobs" -eq 2 ]; then
+    for pid in $pids; do wait "$pid"; done
+    pids=
+    jobs=0
+  fi
+done
+for pid in $pids; do wait "$pid"; done
+profile="$out/obj/profile.o $out/obj/switch.o"
+playlist="$out/obj/playlist.o $out/obj/playlist_control.o $out/obj/playback_mode.o $out/obj/autoplay2.o"
+supervisor="$out/obj/supervisor.o $out/obj/runtime_support.o $out/obj/test_profile.o $out/obj/sha256.o"
 "$compiler" $flags tools/megavgm_profile/test_phase2a.cpp $profile $playlist -o "$out/test_phase2a"
 $runner "$out/test_phase2a" > "$out/phase2a-tests.txt"
 "$compiler" $flags tools/megavgm_supervisor/test_supervisor.cpp $supervisor -o "$out/test_supervisor"
@@ -30,7 +48,7 @@ $runner "$out/test_playlist" > "$out/playlist-tests.txt"
 "$compiler" $flags tools/megavgm_playlist/main.cpp $profile $playlist -o "$out/megavgm_playlist"
 "$compiler" $flags tools/megavgm_supervisor/main.cpp tools/megavgm_supervisor/linux_runtime.cpp \
   tools/megavgm_supervisor/phase2a.cpp $supervisor $profile $playlist -o "$out/megavgm_supervisor"
-"$compiler" $flags tools/megavgm_profile/classify_main.cpp tools/megavgm_profile/profile.cpp -o "$out/megavgm_classify"
+"$compiler" $flags tools/megavgm_profile/classify_main.cpp "$out/obj/profile.o" -o "$out/megavgm_classify"
 if [ "$mode" = arm ]; then
   for binary in megavgm_playlist megavgm_supervisor megavgm_classify; do
     "$prefix-strip" --strip-all "$out/$binary"

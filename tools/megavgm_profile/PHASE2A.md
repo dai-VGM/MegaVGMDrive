@@ -95,6 +95,8 @@ Old session 57 -> new baseline 0 -> session 1 is explicitly tested.
 
 Main clears/recreates FPGA status on core discovery. Existing `load_rbf` also
 removes stale status/CORENAME before the new discovery; old Main is fully drained.
+In this test route it also removes the previous Main load-acknowledgment file,
+so even PID reuse cannot reuse an old command witness.
 Old lease/generation/PID cannot authorize a late status record. The existing
 diagnostic load acknowledgment is now used as an additional fail-closed witness
 in this test route; failure to publish it times out safely, never causes retry.
@@ -110,6 +112,11 @@ Non-Phase2A controller behavior is unchanged.
   sends a newer generation. The old reply cannot dispatch a VGM. Fade is not
   restarted. Repeat/Shuffle update preferences locally, with policy deferred
   until the next lease. No extra snapshot/index increment on rebind.
+- If READY was just published but the controller has not consumed it, a newer
+  request can still carry the previous domain. It can supersede only an unused
+  grant: same attested successor, exactly the granted baseline, no new index-1
+  session. A changed baseline rejects the stale-domain request. Both sides of
+  this race have host tests.
 - A request arriving during blocking hardware configuration is reread before
   READY. If the target profile changed after configuration was committed, another
   required RBF exchange may occur, but no obsolete VGM load is issued.
