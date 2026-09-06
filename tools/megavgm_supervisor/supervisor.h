@@ -88,6 +88,9 @@ public:
 	virtual OperationResult verify_modified_main(int pid,
 		const std::string &modified_sha256) = 0;
 	virtual OperationResult load_rbf() = 0;
+	virtual OperationResult select_test_rbf(const std::string &, const std::string &) {
+		return OperationResult::failure("runtime does not support test RBF switching");
+	}
 	virtual OperationResult reacquire_modified_main(int previous_pid,
 		const std::string &modified_sha256, int &current_pid) = 0;
 	virtual OperationResult verify_megavgm_core(int &modified_pid,
@@ -126,6 +129,10 @@ public:
 		const std::string &playlist_snapshot = {});
 	OperationResult exit(const std::string &reason = "explicit exit");
 	OperationResult monitor_once();
+	// Caller must own the cooperative controller park. No controller restart:
+	// snapshot, selected index and shuffle history remain in that process.
+	OperationResult switch_test_rbf(const std::string &path, const std::string &profile);
+	int modified_pid() const { return modified_pid_; }
 	bool active() const { return active_; }
 	const Snapshot &snapshot() const { return snapshot_; }
 

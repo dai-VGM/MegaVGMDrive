@@ -3,6 +3,9 @@
 
 #include "../megavgm_autoplay2/autoplay2.h"
 #include "playlist_control.h"
+#ifdef MEGAVGM_PHASE2A
+#include "../megavgm_profile/switch.h"
+#endif
 
 #include <cstdint>
 #include <iosfwd>
@@ -56,6 +59,9 @@ struct PlaylistConfig {
 	// snapshot rather than directory discovery.
 	std::string initial_playlist_name;
 	RandomSource *random_source = nullptr;
+#ifdef MEGAVGM_PHASE2A
+	megavgm_profile::Client *profile_client = nullptr;
+#endif
 };
 
 DiscoveryResult discover_directory(const std::string &directory,

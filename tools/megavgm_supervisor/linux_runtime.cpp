@@ -564,8 +564,26 @@ bool LinuxRuntime::valid_megavgm_status(std::string &detail)
 	if (!read_text_file(paths_.megavgm_status, status_text, detail, 512))
 		return false;
 	megavgm_autoplay2::PlaybackStatus status;
-	return megavgm_autoplay2::parse_status_text(status_text, status, detail) ==
-		megavgm_autoplay2::StatusReadResult::Ok;
+	if (megavgm_autoplay2::parse_status_text(status_text, status, detail) !=
+		megavgm_autoplay2::StatusReadResult::Ok) return false;
+	if (paths_.phase2a && (status.version != 2 || status.state != megavgm_autoplay2::PlaybackState::Idle || status.error || status.session)) {
+		detail = "waiting for fresh RBF session=0 IDLE baseline"; return false;
+	}
+	return true;
+}
+
+OperationResult LinuxRuntime::select_test_rbf(const std::string &path, const std::string &profile)
+{
+	if (!paths_.phase2a ||
+	    !((profile == "PROFILE_A" && path == "/media/fat/_Utility/MegaVGMPlayer_Transport13FadeOnly_A_MiSTer.rbf") ||
+	      (profile == "PROFILE_B" && path == "/media/fat/_Utility/MegaVGMPlayer_Transport13FadeOnly_B_MiSTer.rbf")))
+		return OperationResult::failure("non-Phase2A RBF selection rejected");
+	auto result = verify_regular_file(path);
+	if (!result.ok) return result;
+	paths_.rbf = path; paths_.rbf_profile = profile;
+	// Old Main is drained before the next transfer. Remove its command witness;
+	// a new generation must produce a new Main-mediated load acknowledgment.
+	return OperationResult::success();
 }
 
 OperationResult LinuxRuntime::remove_controller_path(const std::string &path,
@@ -638,6 +656,18 @@ OperationResult LinuxRuntime::launch_playlist(const std::string &directory,
 		if (error_log > STDERR_FILENO) close(error_log);
 		char loops[] = "--loops";
 		char count[] = "2";
+		if (paths_.phase2a) {
+			std::vector<std::string> values = {paths_.playlist_binary, "--loops", "2",
+				"--phase2a-channel", paths_.phase2a_channel};
+			if (!playlist_snapshot.empty()) { values.push_back("--playlist-snapshot"); values.push_back(playlist_snapshot); }
+			else if (!start_file.empty()) { values.push_back("--start-file"); values.push_back(start_file); }
+			values.push_back(directory);
+			std::vector<char *> args;
+			for (auto &v : values) args.push_back(&v[0]);
+			args.push_back(nullptr);
+			execv(paths_.playlist_binary.c_str(), args.data());
+			report_exec_error(errno, 127);
+		}
 		if (!playlist_snapshot.empty()) {
 			char snapshot_option[] = "--playlist-snapshot";
 			char *const arguments[] = {

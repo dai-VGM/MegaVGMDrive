@@ -33,9 +33,16 @@ int main(int argc, char **argv)
 	const char *directory = nullptr;
 	std::string start_file;
 	std::string snapshot_path;
+#ifdef MEGAVGM_PHASE2A
+	std::string profile_channel;
+#endif
 	for (int argument = 1; argument < argc; ++argument) {
 		const std::string option(argv[argument]);
-		if (option == "--loops" && argument + 1 < argc &&
+		if (false) {}
+#ifdef MEGAVGM_PHASE2A
+		else if (option == "--phase2a-channel" && argument + 1 < argc) profile_channel = argv[++argument];
+#endif
+		else if (option == "--loops" && argument + 1 < argc &&
 		    parse_loop_limit(argv[argument + 1], loop_limit)) {
 			++argument;
 		} else if (option == "--start-file" && argument + 1 < argc) {
@@ -58,6 +65,10 @@ int main(int argc, char **argv)
 	std::string detail;
 	megavgm_playlist::PlaylistConfig config;
 	config.loop_limit = loop_limit;
+#ifdef MEGAVGM_PHASE2A
+	megavgm_profile::FileClient profile_client(profile_channel);
+	if (!profile_channel.empty()) config.profile_client = &profile_client;
+#endif
 	if (!snapshot_path.empty()) {
 		megavgm_playlist::PlaylistSnapshot snapshot;
 		if (!megavgm_playlist::load_playlist_snapshot(snapshot_path,

@@ -97,6 +97,9 @@ public:
 		if (result.ok && exit_initial_on_load) initial_modified_alive = false;
 		return result;
 	}
+	OperationResult select_test_rbf(const std::string &, const std::string &) override {
+		return call("select_test_rbf");
+	}
 	OperationResult reacquire_modified_main(int previous_pid, const std::string &,
 		int &current_pid) override
 	{
@@ -855,6 +858,20 @@ void test_fixed_test_profile_selection()
 	assert(chosen.rbf == "/media/fat/MegaVGMPlayer/MegaVGMPlayer_GoldenTransport12Phase1B_YM2610B_MiSTer.rbf");
 	assert(chosen.expected_modified_sha256 == paths.expected_modified_sha256);
 	assert(chosen.playlist_binary == paths.playlist_binary);
+#ifdef MEGAVGM_PHASE2A
+	assert(set_test_profile(paths, "phase2a").ok);
+	Paths automatic = paths;
+	assert(apply_test_profile(automatic).ok && automatic.phase2a);
+	assert(automatic.rbf_profile == "PHASE2A_AUTO");
+	assert(automatic.playlist_binary == "/media/fat/MegaVGMPlayer/megavgm_playlist-phase2a");
+	assert(automatic.expected_modified_sha256 == paths.expected_modified_sha256);
+	{
+		InstanceLock owner;
+		assert(owner.acquire(paths.supervisor_lock).ok);
+		assert(!set_test_profile(paths, "phase2a").ok);
+	}
+	assert(set_test_profile(paths, "ym2610b-phase1b").ok);
+#endif
 	// The same snapshot must pass through unchanged for either fixed resident.
 	std::vector<std::string> default_calls;
 	for (const Paths &profile : {paths, chosen}) {
@@ -980,8 +997,32 @@ void test_fade_only_test_profiles()
 
 } // namespace
 
+void test_phase2a_parked_controller_switch()
+{
+	FakeRuntime runtime;
+	RecordingPublisher publisher;
+	Supervisor supervisor(runtime, publisher);
+	assert(supervisor.enter("/music", {}, "/tmp/snapshot").ok);
+	runtime.runtime_successor_available = true;
+	assert(supervisor.switch_test_rbf("/test/B.rbf", "PROFILE_B").ok);
+	assert(supervisor.active() && supervisor.snapshot().rbf == "PROFILE_B");
+	assert(runtime.call_count("start_playlist") == 1);
+	assert(runtime.call_count("stop_playlist") == 0);
+	assert(runtime.call_count("bind_modified_main") == 1);
+	assert(runtime.call_count("unmount_modified_main") == 0);
+	assert(runtime.call_count("load_rbf") == 2);
+	assert(runtime.call_count("verify_modified_main") == 2);
+	assert(runtime.call_count("verify_megavgm_core") == 2);
+	assert(supervisor.modified_pid() == 103);
+	assert(supervisor.exit().ok);
+	expect_restored(supervisor);
+	assert(runtime.call_count("stop_playlist") == 1);
+	std::cout << "PHASE2A parked controller/drain/successor/SHA/stock restore: PASS\n";
+}
+
 int main()
 {
+	test_phase2a_parked_controller_switch();
 	test_fixed_test_profile_selection();
 	test_fade_only_test_profiles();
 	test_transport_m5_modified_main_is_the_only_default_allowed_hash();

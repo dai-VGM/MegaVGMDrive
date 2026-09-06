@@ -156,6 +156,32 @@ void Supervisor::remember_failure(std::vector<std::string> &failures,
 	if (!result.ok) failures.push_back(operation + ": " + result.detail);
 }
 
+OperationResult Supervisor::switch_test_rbf(const std::string &path, const std::string &profile)
+{
+	if (!active_ || !controller_started_ || !bind_mounted_)
+		return OperationResult::failure("switch requires active parked controller");
+	auto result = runtime_.select_test_rbf(path, profile);
+	if (!result.ok) return result;
+	snapshot_.detail = "PHASE2A: parked controller; switching resident RBF";
+	result = publish();
+	if (result.ok) result = check_exit_request();
+	if (result.ok) result = drain_modified_mains();
+	if (result.ok) result = check_exit_request();
+	if (result.ok) result = runtime_.start_modified_main(modified_pid_);
+	if (result.ok) result = runtime_.verify_modified_main(modified_pid_, snapshot_.modified_sha256);
+	if (result.ok) result = runtime_.load_rbf();
+	int successor = -1;
+	if (result.ok) result = runtime_.reacquire_modified_main(modified_pid_, snapshot_.modified_sha256, successor);
+	if (result.ok) modified_pid_ = successor;
+	if (result.ok) result = runtime_.verify_megavgm_core(modified_pid_, snapshot_.modified_sha256);
+	if (result.ok) result = check_exit_request();
+	if (!result.ok) return rollback("PHASE2A RBF switch failed: " + result.detail);
+	snapshot_.rbf = profile;
+	snapshot_.detail = "PHASE2A: fresh Main/RBF ready; controller still parked";
+	refresh_controller_diagnostics();
+	return publish();
+}
+
 OperationResult Supervisor::drain_modified_mains()
 {
 	constexpr std::uint64_t kDrainTimeoutMs = 30000;

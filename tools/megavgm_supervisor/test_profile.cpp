@@ -12,6 +12,9 @@ OperationResult error(const std::string &what) {
 	return OperationResult::failure(what + ": " + std::strerror(errno));
 }
 bool known(const std::string &name) {
+#ifdef MEGAVGM_PHASE2A
+	if (name == "phase2a") return true;
+#endif
 	return name == "default" || name == "ym2610b-phase1b" ||
 	       name == "fade-only-a" || name == "fade-only-b";
 }
@@ -51,7 +54,15 @@ OperationResult apply_test_profile(Paths &paths) {
 		if (record.size() > 64) break;
 	}
 	close(fd);
-	if (record == "ym2610b-phase1b\n") {
+	if (false) {}
+#ifdef MEGAVGM_PHASE2A
+	else if (record == "phase2a\n") {
+		paths.phase2a = true;
+		paths.rbf_profile = "PHASE2A_AUTO";
+		paths.playlist_binary = "/media/fat/MegaVGMPlayer/megavgm_playlist-phase2a";
+	}
+#endif
+	else if (record == "ym2610b-phase1b\n") {
 		paths.rbf = "/media/fat/MegaVGMPlayer/MegaVGMPlayer_GoldenTransport12Phase1B_YM2610B_MiSTer.rbf";
 		paths.rbf_profile = "YM2610B_PHASE1B";
 	} else if (record == "fade-only-a\n") {

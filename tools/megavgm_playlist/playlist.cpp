@@ -370,9 +370,117 @@ PlaylistResult run(Runtime &runtime, const PlaylistConfig &config,
 	};
 
 	std::uint64_t load_generation = 0;
+#ifdef MEGAVGM_PHASE2A
+	megavgm_profile::Reply lease;
+#endif
 	while (index < active_tracks.size()) {
+#ifdef MEGAVGM_PHASE2A
+		if (config.profile_client) {
+			// Cooperative park: no raw ENDED->next handling and no Main writes
+			// here. The already-reserved index and traversal stay in this process.
+			bool send = true, stopped = false, finish_after_stop = false, stop_confirmed = false;
+			megavgm_profile::Request request;
+			auto prepare_deadline = runtime.monotonic_ms() + config.session_timeout_ms;
+			for (;;) {
+				std::string d;
+				if (controller) {
+					ControlCommand c;
+					const auto polled = controller->poll_command(c, d);
+					if (polled == ControlPollResult::IoError) return control_error("profile park", d);
+					if (polled == ControlPollResult::Command) {
+						if (c.type == ControlCommandType::Repeat || c.type == ControlCommandType::Shuffle) {
+							// Defer policy transfer until the new lease. Never write to
+							// an RBF while the Supervisor owns its teardown.
+							if (c.type == ControlCommandType::Repeat) preferences.repeat = c.repeat;
+							else preferences.shuffle = c.shuffle;
+							traversal.set_preferences(preferences, index);
+							controller->save_preferences(preferences, d);
+					} else if (c.type == ControlCommandType::Stop) {
+							stopped = true; send = true; finish_after_stop = false;
+						} else if (c.type == ControlCommandType::Next || c.type == ControlCommandType::Previous) {
+							std::size_t selected = index;
+							if (c.type == ControlCommandType::Next) {
+								if (traversal.next(index, false, false, selected) == TraversalResult::Complete) {
+									// Cancel pending load first; normal completion follows STOPPED.
+								stopped = true;
+								finish_after_stop = true;
+								} else { index = selected; stopped = false; }
+							} else { traversal.previous(index, selected); index = selected; stopped = false; }
+							send = true;
+						} else if (c.type == ControlCommandType::Play || c.type == ControlCommandType::Playlist) {
+							std::vector<Track> replacement;
+							std::size_t selected = 0;
+							std::string playlist_name;
+							bool ok = false;
+							if (c.type == ControlCommandType::Play) {
+								ok = discover_directory(parent_path(c.path), replacement, d) == DiscoveryResult::Ok &&
+									find_track(replacement, c.path, selected);
+							} else {
+								PlaylistSnapshot snapshot;
+								ok = load_playlist_snapshot(c.path, config.approved_root, snapshot, d, true);
+								if (ok) {
+									for (const auto &p : snapshot.paths) replacement.push_back({p.substr(p.find_last_of('/')+1), p});
+									selected = snapshot.start_index; playlist_name = snapshot.name;
+								}
+							}
+							if (ok) {
+								active_tracks = std::move(replacement); index = selected;
+								active_playlist_name = playlist_name;
+								traversal.reset(active_tracks.size(), index, preferences);
+								stopped = false; send = true;
+							} else log << "PROFILE_SELECTION_REJECTED " << d << '\n';
+						}
+						// Drain all already-arrived user intents before accepting a lease.
+						continue;
+					}
+				}
+				if (send) {
+					stop_confirmed = false;
+					prepare_deadline = runtime.monotonic_ms() + config.session_timeout_ms;
+					const auto classified = stopped ? megavgm_profile::Classification{} :
+						megavgm_profile::classify_file(active_tracks[index].path, config.approved_root);
+					log << "PROFILE_CLASSIFY path=" << active_tracks[index].path << " result="
+					    << megavgm_profile::name(classified.profile) << " detail=" << classified.detail << '\n';
+					if (!stopped && classified.profile != megavgm_profile::Profile::A && classified.profile != megavgm_profile::Profile::B)
+						return PlaylistResult::InvalidTrackPath;
+					request = {++load_generation, lease.domain, baseline_session, classified.profile, stopped, active_tracks[index].path};
+					if (!config.profile_client->begin(request, d)) return control_error("profile request", d);
+					log << "PROFILE_PARK generation=" << request.generation << " domain=" << request.domain
+					    << " reserved_index=" << index << " count=" << active_tracks.size() << '\n';
+					if (!publish("LOADING", active_tracks[index], baseline_session, 0))
+						return PlaylistResult::ControlIoError;
+					send = false;
+				}
+				megavgm_profile::Reply response;
+				if (config.profile_client->poll(response, d)) {
+					if (response.generation == request.generation) {
+						if (response.state == "FAILED") return control_error("profile prepare", response.detail);
+						if (response.state == "READY" && !stopped && response.profile == request.profile) {
+							lease = response; baseline_session = response.baseline;
+							log << "PROFILE_REBIND generation=" << lease.generation << " domain=" << lease.domain
+							    << " baseline=" << baseline_session << " Main=" << lease.main_identity << '\n';
+							break;
+						}
+						if (response.state == "STOPPED" && stopped) {
+							lease = response; baseline_session = response.baseline;
+							if (!stop_confirmed && !publish("STOPPED", active_tracks[index], baseline_session, 0))
+								return PlaylistResult::ControlIoError;
+							stop_confirmed = true;
+							if (finish_after_stop) return complete(active_tracks[index], baseline_session, 0);
+						}
+					}
+				} else if (!d.empty()) return control_error("profile reply", d);
+				if (!stop_confirmed && runtime.monotonic_ms() >= prepare_deadline) return PlaylistResult::TrackSessionTimeout;
+				runtime.sleep_ms(config.poll_interval_ms);
+			}
+		}
+#endif
 		const Track track = active_tracks[index];
-		const std::uint64_t request_generation = ++load_generation;
+		const std::uint64_t request_generation =
+#ifdef MEGAVGM_PHASE2A
+			config.profile_client ? lease.generation :
+#endif
+			++load_generation;
 		log << '\n' << '[' << index + 1 << '/' << active_tracks.size() << "] "
 		    << track.name << '\n';
 		const std::uint64_t request_started_ms = runtime.monotonic_ms();
@@ -425,7 +533,13 @@ PlaylistResult run(Runtime &runtime, const PlaylistConfig &config,
 			if (!discard_commands()) return PlaylistResult::ControlIoError;
 			result = monitor.read(status);
 			if (result != PlaylistResult::Complete) return result;
-			if (status.session != baseline_session) {
+			bool session_matches = status.session != baseline_session;
+#ifdef MEGAVGM_PHASE2A
+			if (config.profile_client) session_matches =
+				status.session == static_cast<std::uint32_t>(baseline_session + 1u) &&
+				config.profile_client->load_acknowledged(lease, track.path, detail);
+#endif
+			if (session_matches) {
 				owned_session = status.session;
 				have_session = true;
 				log_status(log, status, last_logged, last_logged_valid);
@@ -504,10 +618,18 @@ PlaylistResult run(Runtime &runtime, const PlaylistConfig &config,
 			index = selected;
 			continue;
 		}
-		if (ended && !playing) {
+		if (ended && !playing
+#ifdef MEGAVGM_PHASE2A
+		    && !config.profile_client
+#endif
+		) {
 			log << "TRACK_NEVER_PLAYING: ENDED before PLAYING\n";
 			return PlaylistResult::TrackNeverPlaying;
 		}
+#ifdef MEGAVGM_PHASE2A
+		if (ended && !playing && config.profile_client)
+			log << "PROFILE_SHORT_TRACK_COMPLETED: Main generation acknowledged, owned session already ENDED\n";
+#endif
 
 		// A command already waiting when PLAYING is first observed belongs to
 		// the just-finished load window and is intentionally discarded. Mode

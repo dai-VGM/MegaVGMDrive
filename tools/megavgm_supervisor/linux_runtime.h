@@ -12,6 +12,8 @@ struct Paths {
 	std::string modified_main = "/media/fat/MegaVGMPlayer/MiSTer.megavgm";
 	std::string rbf = "/media/fat/MegaVGMPlayer/MegaVGMPlayer_PlaylistLoopLab_MiSTer.rbf";
 	std::string rbf_profile = "YM2151_SEGAPCM";
+	bool phase2a = false;
+	std::string phase2a_channel;
 	std::string test_profile_directory = "/tmp/megavgm_supervisor-test";
 	std::string playlist_binary = "/media/fat/Scripts/megavgm_playlist";
 	std::string main_command = "/dev/MiSTer_cmd";
@@ -44,6 +46,7 @@ public:
 	OperationResult verify_modified_main(int pid,
 		const std::string &modified_sha256) override;
 	OperationResult load_rbf() override;
+	OperationResult select_test_rbf(const std::string &, const std::string &) override;
 	OperationResult reacquire_modified_main(int previous_pid,
 		const std::string &modified_sha256, int &current_pid) override;
 	OperationResult verify_megavgm_core(int &modified_pid,

@@ -3,6 +3,9 @@
 #include "sha256.h"
 #include "supervisor.h"
 #include "test_profile.h"
+#ifdef MEGAVGM_PHASE2A
+#include "phase2a.h"
+#endif
 
 #include <cerrno>
 #include <csignal>
@@ -94,6 +97,9 @@ int run_daemon(const megavgm_supervisor::Paths &paths,
 	write_message(notify_fd, "MEGAVGM MODE ACTIVE\n");
 	close(notify_fd);
 
+#ifdef MEGAVGM_PHASE2A
+	megavgm_supervisor::Phase2Service phase2(paths, supervisor);
+#endif
 	for (;;) {
 		if (stop_requested) {
 			result = supervisor.exit("supervisor signal");
@@ -101,6 +107,12 @@ int run_daemon(const megavgm_supervisor::Paths &paths,
 		}
 		result = supervisor.monitor_once();
 		if (!result.ok || !supervisor.active()) break;
+#ifdef MEGAVGM_PHASE2A
+		if (paths.phase2a) {
+			result = phase2.tick();
+			if (!result.ok) { supervisor.exit("PHASE2A: " + result.detail); break; }
+		}
+#endif
 		usleep(200000);
 	}
 	if (!result.ok) std::cerr << result.detail << '\n';
@@ -123,6 +135,12 @@ int enter_mode(megavgm_supervisor::Paths paths,
 		std::cerr << "TEST_PROFILE_FAILED: " << result.detail << '\n';
 		return 1;
 	}
+#ifdef MEGAVGM_PHASE2A
+	if (paths.phase2a) {
+		result = megavgm_supervisor::phase2a_preflight(paths, playlist, start_file, playlist_snapshot);
+		if (!result.ok) { std::cerr << "PHASE2A_PREFLIGHT_FAILED: " << result.detail << '\n'; return 1; }
+	}
+#endif
 	int notification[2] = {-1, -1};
 	if (pipe(notification) < 0) {
 		std::cerr << "pipe: " << std::strerror(errno) << '\n';
@@ -238,6 +256,9 @@ void usage()
 	          << "  megavgm_supervisor status\n"
 	          << "  megavgm_supervisor hash-main\n";
 	std::cerr << "  megavgm_supervisor test-profile [default|ym2610b-phase1b|fade-only-a|fade-only-b]\n";
+#ifdef MEGAVGM_PHASE2A
+	std::cerr << "  megavgm_supervisor test-profile phase2a  (opt-in A/B automatic test route)\n";
+#endif
 }
 
 } // namespace
@@ -253,7 +274,15 @@ int main(int argc, char **argv)
 		}
 		const auto result = megavgm_supervisor::apply_test_profile(paths);
 		if (!result.ok) { std::cerr << "TEST_PROFILE_FAILED: " << result.detail << '\n'; return 1; }
-		std::cout << "test_profile=" << paths.rbf_profile << '\n' << "rbf=" << paths.rbf << '\n';
+		std::cout << "test_profile=" << paths.rbf_profile << '\n';
+#ifdef MEGAVGM_PHASE2A
+		if (paths.phase2a) {
+			std::cout << "rbf=AUTO_CLASSIFY_SELECTED_VGM\n"
+			          << "profile_a=" << megavgm_profile::rbf(megavgm_profile::Profile::A) << '\n'
+			          << "profile_b=" << megavgm_profile::rbf(megavgm_profile::Profile::B) << '\n';
+		} else
+#endif
+		std::cout << "rbf=" << paths.rbf << '\n';
 		return 0;
 	}
 	if (argc == 3 && std::string(argv[1]) == "enter")
