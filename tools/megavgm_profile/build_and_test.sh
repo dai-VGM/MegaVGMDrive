@@ -17,6 +17,18 @@ if [ "$mode" = arm ]; then
   runner=qemu-arm-static
 elif [ "$mode" != host ]; then exit 2; fi
 "$compiler" --version > "$out/compiler.txt"
+run_test() {
+  if [ "$mode" = arm ]; then
+    # QEMU is a 64bit host process: ext4 returns 64bit directory cookies which
+    # ARM32 glibc readdir cannot represent (EOVERFLOW). Use a PRIVATE tmpfs for
+    # test fixtures, not a production code change or a skipped assertion.
+    # Open the binary before hiding /tmp; no VM-global mount is changed.
+    sudo unshare -m --propagation private sh -c \
+      'exec 3<"$1"; mount -t tmpfs tmpfs /tmp; exec qemu-arm-static /proc/self/fd/3' sh "$1"
+  else
+    "$1"
+  fi
+}
 profile='tools/megavgm_profile/profile.cpp tools/megavgm_profile/switch.cpp'
 playlist='tools/megavgm_playlist/playlist.cpp tools/megavgm_playlist/playlist_control.cpp tools/megavgm_playlist/playback_mode.cpp tools/megavgm_autoplay2/autoplay2.cpp'
 supervisor='tools/megavgm_supervisor/supervisor.cpp tools/megavgm_supervisor/runtime_support.cpp tools/megavgm_supervisor/test_profile.cpp tools/megavgm_supervisor/sha256.cpp'
@@ -40,11 +52,11 @@ profile="$out/obj/profile.o $out/obj/switch.o"
 playlist="$out/obj/playlist.o $out/obj/playlist_control.o $out/obj/playback_mode.o $out/obj/autoplay2.o"
 supervisor="$out/obj/supervisor.o $out/obj/runtime_support.o $out/obj/test_profile.o $out/obj/sha256.o"
 "$compiler" $flags tools/megavgm_profile/test_phase2a.cpp $profile $playlist -o "$out/test_phase2a"
-$runner "$out/test_phase2a" > "$out/phase2a-tests.txt"
+run_test "$out/test_phase2a" > "$out/phase2a-tests.txt"
 "$compiler" $flags tools/megavgm_supervisor/test_supervisor.cpp $supervisor -o "$out/test_supervisor"
-$runner "$out/test_supervisor" > "$out/supervisor-tests.txt"
+run_test "$out/test_supervisor" > "$out/supervisor-tests.txt"
 "$compiler" $flags tools/megavgm_playlist/test_playlist.cpp $profile $playlist -o "$out/test_playlist"
-$runner "$out/test_playlist" > "$out/playlist-tests.txt"
+run_test "$out/test_playlist" > "$out/playlist-tests.txt"
 "$compiler" $flags tools/megavgm_playlist/main.cpp $profile $playlist -o "$out/megavgm_playlist"
 "$compiler" $flags tools/megavgm_supervisor/main.cpp tools/megavgm_supervisor/linux_runtime.cpp \
   tools/megavgm_supervisor/phase2a.cpp $supervisor $profile $playlist -o "$out/megavgm_supervisor"

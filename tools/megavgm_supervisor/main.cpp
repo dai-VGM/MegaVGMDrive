@@ -5,6 +5,7 @@
 #include "test_profile.h"
 #ifdef MEGAVGM_PHASE2A
 #include "phase2a.h"
+#include <memory>
 #endif
 
 #include <cerrno>
@@ -98,7 +99,8 @@ int run_daemon(const megavgm_supervisor::Paths &paths,
 	close(notify_fd);
 
 #ifdef MEGAVGM_PHASE2A
-	megavgm_supervisor::Phase2Service phase2(paths, supervisor);
+	std::unique_ptr<megavgm_supervisor::Phase2Service> phase2;
+	if (paths.phase2a) phase2.reset(new megavgm_supervisor::Phase2Service(paths, supervisor));
 #endif
 	for (;;) {
 		if (stop_requested) {
@@ -109,7 +111,7 @@ int run_daemon(const megavgm_supervisor::Paths &paths,
 		if (!result.ok || !supervisor.active()) break;
 #ifdef MEGAVGM_PHASE2A
 		if (paths.phase2a) {
-			result = phase2.tick();
+			result = phase2->tick();
 			if (!result.ok) { supervisor.exit("PHASE2A: " + result.detail); break; }
 		}
 #endif

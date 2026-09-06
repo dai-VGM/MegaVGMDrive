@@ -155,6 +155,14 @@ verify archive SHA, then run this same script with `arm`. QEMU executes the ARM
 tests and exact final CLI binaries. ELF checks require ARM EABI5/hard-float,
 VFP registers, no PT_INTERP / DT_NEEDED. No Docker, Quartus or package installation.
 
+QEMU filesystem qualification: the existing directory-discovery test fails on
+the VM's ext4 under ARM-user emulation because its 64bit host directory cookies
+cannot be represented by ARM32 `readdir` (probe: errno 75/EOVERFLOW; cookies up to
+9223372036854775807, although inodes are small). The **same unmodified test ELF**
+passes on tmpfs. ARM tests therefore run in a private mount namespace with a
+test-only tmpfs `/tmp`; the normal VM mounts/files remain untouched. No assertion
+is skipped, no production filesystem implementation/build ABI is changed.
+
 ## Hardware installation / rollback
 
 Artifacts: `megavgm_supervisor` (test build), `megavgm_playlist` (test build), and
