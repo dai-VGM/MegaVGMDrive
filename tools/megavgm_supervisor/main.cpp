@@ -2,6 +2,7 @@
 #include "runtime_support.h"
 #include "sha256.h"
 #include "supervisor.h"
+#include "test_profile.h"
 
 #include <cerrno>
 #include <csignal>
@@ -83,7 +84,7 @@ int run_daemon(const megavgm_supervisor::Paths &paths,
 	}
 	megavgm_supervisor::AtomicStatusPublisher publisher(paths.supervisor_status);
 	megavgm_supervisor::LinuxRuntime runtime(paths, control);
-	megavgm_supervisor::Supervisor supervisor(runtime, publisher);
+	megavgm_supervisor::Supervisor supervisor(runtime, publisher, paths.rbf_profile);
 	result = supervisor.enter(playlist, start_file, playlist_snapshot);
 	if (!result.ok) {
 		write_message(notify_fd, "ENTER_FAILED: " + result.detail + "\n");
@@ -107,7 +108,7 @@ int run_daemon(const megavgm_supervisor::Paths &paths,
 	return result.ok ? 0 : 1;
 }
 
-int enter_mode(const megavgm_supervisor::Paths &paths,
+int enter_mode(megavgm_supervisor::Paths paths,
 	const std::string &playlist, const std::string &start_file,
 	const std::string &playlist_snapshot = {})
 {
@@ -116,6 +117,11 @@ int enter_mode(const megavgm_supervisor::Paths &paths,
 	if (!result.ok) {
 		std::cerr << result.detail << '\n';
 		return result.detail == "ALREADY_RUNNING" ? 3 : 1;
+	}
+	result = megavgm_supervisor::apply_test_profile(paths);
+	if (!result.ok) {
+		std::cerr << "TEST_PROFILE_FAILED: " << result.detail << '\n';
+		return 1;
 	}
 	int notification[2] = {-1, -1};
 	if (pipe(notification) < 0) {
@@ -231,6 +237,7 @@ void usage()
 	          << "  megavgm_supervisor exit\n"
 	          << "  megavgm_supervisor status\n"
 	          << "  megavgm_supervisor hash-main\n";
+	std::cerr << "  megavgm_supervisor test-profile [default|ym2610b-phase1b]\n";
 }
 
 } // namespace
@@ -238,6 +245,17 @@ void usage()
 int main(int argc, char **argv)
 {
 	megavgm_supervisor::Paths paths;
+	if ((argc == 2 || argc == 3) && std::string(argv[1]) == "test-profile") {
+		if (argc == 3) {
+			if (geteuid() != 0) { std::cerr << "root privileges required\n"; return 1; }
+			const auto result = megavgm_supervisor::set_test_profile(paths, argv[2]);
+			if (!result.ok) { std::cerr << "TEST_PROFILE_FAILED: " << result.detail << '\n'; return 1; }
+		}
+		const auto result = megavgm_supervisor::apply_test_profile(paths);
+		if (!result.ok) { std::cerr << "TEST_PROFILE_FAILED: " << result.detail << '\n'; return 1; }
+		std::cout << "test_profile=" << paths.rbf_profile << '\n' << "rbf=" << paths.rbf << '\n';
+		return 0;
+	}
 	if (argc == 3 && std::string(argv[1]) == "enter")
 		return enter_mode(paths, argv[2], {}, {});
 	if (argc == 5 && std::string(argv[1]) == "enter" &&

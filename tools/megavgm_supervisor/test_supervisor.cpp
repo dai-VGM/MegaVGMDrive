@@ -2,6 +2,7 @@
 #include "runtime_support.h"
 #include "sha256.h"
 #include "supervisor.h"
+#include "test_profile.h"
 
 #include <algorithm>
 #include <array>
@@ -835,10 +836,77 @@ void test_sha256_implementation()
 	rmdir(directory.c_str());
 }
 
+void test_fixed_test_profile_selection()
+{
+	using megavgm_supervisor::apply_test_profile;
+	using megavgm_supervisor::set_test_profile;
+	const std::string directory = temporary_directory();
+	Paths paths;
+	paths.supervisor_lock = directory + "/lock";
+	paths.supervisor_status = directory + "/status";
+	paths.test_profile_directory = directory + "/selection";
+	const std::string default_rbf = paths.rbf;
+	assert(apply_test_profile(paths).ok && paths.rbf == default_rbf);
+	assert(!set_test_profile(paths, "../../bad.rbf").ok);
+	assert(set_test_profile(paths, "ym2610b-phase1b").ok);
+	Paths chosen = paths;
+	assert(apply_test_profile(chosen).ok);
+	assert(chosen.rbf_profile == "YM2610B_PHASE1B");
+	assert(chosen.rbf == "/media/fat/MegaVGMPlayer/MegaVGMPlayer_GoldenTransport12Phase1B_YM2610B_MiSTer.rbf");
+	assert(chosen.expected_modified_sha256 == paths.expected_modified_sha256);
+	assert(chosen.playlist_binary == paths.playlist_binary);
+	// The same snapshot must pass through unchanged for either fixed resident.
+	std::vector<std::string> default_calls;
+	for (const Paths &profile : {paths, chosen}) {
+		FakeRuntime runtime;
+		RecordingPublisher publisher;
+		Supervisor supervisor(runtime, publisher, profile.rbf_profile);
+		assert(supervisor.enter("/music", {}, "/tmp/snapshot").ok);
+		assert(runtime.verified_playlist_snapshot == "/tmp/snapshot");
+		assert(runtime.verified_start_file.empty());
+		assert(supervisor.snapshot().rbf == profile.rbf_profile);
+		assert(supervisor.exit().ok);
+		if (default_calls.empty()) default_calls = runtime.calls;
+		else assert(default_calls == runtime.calls); // identical lifecycle and restore
+	}
+	{
+		InstanceLock owner;
+		assert(owner.acquire(paths.supervisor_lock).ok);
+		assert(!set_test_profile(paths, "default").ok);
+		assert(!set_test_profile(paths, "ym2610b-phase1b").ok);
+	}
+	std::ofstream(paths.supervisor_status) << "mode=STARTING\nmain=MODIFIED\ncontroller=STOPPED\n";
+	assert(!set_test_profile(paths, "default").ok);
+	std::ofstream(paths.supervisor_status) << "mode=STOCK\nmain=STOCK\ncontroller=STOPPED\n";
+	// Atomic-write failure must retain the previous selection.
+	const std::string temporary = paths.test_profile_directory + "/.profile." + std::to_string(getpid());
+	std::ofstream(temporary) << "occupied";
+	assert(!set_test_profile(paths, "ym2610b-phase1b").ok);
+	chosen = paths; assert(apply_test_profile(chosen).ok && chosen.rbf_profile == "YM2610B_PHASE1B");
+	unlink(temporary.c_str());
+	const std::string marker = paths.test_profile_directory + "/profile";
+	std::ofstream(marker) << "unknown\n";
+	chosen = paths; assert(!apply_test_profile(chosen).ok);
+	unlink(marker.c_str());
+	assert(symlink(paths.supervisor_status.c_str(), marker.c_str()) == 0);
+	chosen = paths; assert(!apply_test_profile(chosen).ok);
+	unlink(marker.c_str());
+	assert(set_test_profile(paths, "ym2610b-phase1b").ok);
+	assert(chmod(paths.test_profile_directory.c_str(), 0777) == 0);
+	chosen = paths; assert(!apply_test_profile(chosen).ok);
+	assert(chmod(paths.test_profile_directory.c_str(), 0700) == 0);
+	assert(set_test_profile(paths, "default").ok);
+	assert(set_test_profile(paths, "default").ok);
+	chosen = paths; assert(apply_test_profile(chosen).ok && chosen.rbf == default_rbf);
+	rmdir(paths.test_profile_directory.c_str());
+	unlink(paths.supervisor_status.c_str()); unlink(paths.supervisor_lock.c_str()); rmdir(directory.c_str());
+}
+
 } // namespace
 
 int main()
 {
+	test_fixed_test_profile_selection();
 	test_transport_m5_modified_main_is_the_only_default_allowed_hash();
 	test_prerequisite_failure_does_not_stop_stock_main();
 	test_successful_enter();

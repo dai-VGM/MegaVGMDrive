@@ -14,8 +14,9 @@ OperationResult OperationResult::failure(const std::string &detail)
 	return {false, detail};
 }
 
-Supervisor::Supervisor(Runtime &runtime, StatusPublisher &publisher)
-	: runtime_(runtime), publisher_(publisher)
+Supervisor::Supervisor(Runtime &runtime, StatusPublisher &publisher,
+	const std::string &rbf_profile)
+	: runtime_(runtime), publisher_(publisher), rbf_profile_(rbf_profile)
 {
 }
 
@@ -52,6 +53,7 @@ OperationResult Supervisor::enter(const std::string &playlist,
 	const std::string &start_file, const std::string &playlist_snapshot)
 {
 	snapshot_ = Snapshot{};
+	snapshot_.rbf = rbf_profile_;
 	snapshot_.mode = "STARTING";
 	snapshot_.main = "STOCK";
 	snapshot_.playlist = playlist;

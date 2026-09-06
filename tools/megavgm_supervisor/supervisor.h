@@ -118,7 +118,8 @@ public:
 
 class Supervisor {
 public:
-	Supervisor(Runtime &runtime, StatusPublisher &publisher);
+	Supervisor(Runtime &runtime, StatusPublisher &publisher,
+		const std::string &rbf_profile = "YM2151_SEGAPCM");
 
 	OperationResult enter(const std::string &playlist,
 		const std::string &start_file = {},
@@ -140,6 +141,7 @@ private:
 
 	Runtime &runtime_;
 	StatusPublisher &publisher_;
+	const std::string rbf_profile_;
 	Snapshot snapshot_;
 	bool stock_stopped_ = false;
 	bool bind_mounted_ = false;

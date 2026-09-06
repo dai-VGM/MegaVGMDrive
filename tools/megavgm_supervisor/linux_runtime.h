@@ -11,6 +11,8 @@ struct Paths {
 	std::string stock_main = "/media/fat/MiSTer";
 	std::string modified_main = "/media/fat/MegaVGMPlayer/MiSTer.megavgm";
 	std::string rbf = "/media/fat/MegaVGMPlayer/MegaVGMPlayer_PlaylistLoopLab_MiSTer.rbf";
+	std::string rbf_profile = "YM2151_SEGAPCM";
+	std::string test_profile_directory = "/tmp/megavgm_supervisor-test";
 	std::string playlist_binary = "/media/fat/Scripts/megavgm_playlist";
 	std::string main_command = "/dev/MiSTer_cmd";
 	std::string core_name = "/tmp/CORENAME";

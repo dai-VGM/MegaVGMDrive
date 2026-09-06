@@ -10,5 +10,6 @@ trap 'rm -f "$test_bin"' EXIT HUP INT TERM
 	"$script_dir/supervisor.cpp" \
 	"$script_dir/runtime_support.cpp" \
 	"$script_dir/sha256.cpp" \
+	"$script_dir/test_profile.cpp" \
 	-o "$test_bin"
 "$test_bin"
