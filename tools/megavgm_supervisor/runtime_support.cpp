@@ -67,6 +67,21 @@ std::string snapshot_text(const Snapshot &snapshot)
 	     << "active_main_sha256=" << snapshot.active_main_sha256 << '\n'
 	     << "active_rbf_argv=" << snapshot.active_rbf_argv << '\n'
 	     << "detail=" << snapshot.detail << '\n';
+	const auto &t = snapshot.transport;
+	if (!t.epoch.empty()) {
+		// Outside MEGAVGM an old switch receipt is historical, never actionable.
+		const std::string state = snapshot.mode == "MEGAVGM" ? t.state :
+			(snapshot.mode == "FAILURE" ? "FAILED" : "STOPPED");
+		text << "switch_epoch=" << t.epoch << '\n'
+		     << "switch_generation=" << t.generation << '\n'
+		     << "switch_state=" << state << '\n'
+		     << "current_profile=" << t.current_profile << '\n'
+		     << "required_profile=" << t.required_profile << '\n'
+		     << "switch_domain=" << t.domain << '\n'
+		     << "switch_baseline=" << t.baseline << '\n'
+		     << "switch_changed=" << (t.changed ? "1" : "0") << '\n'
+		     << "switch_path=" << t.path << '\n';
+	}
 	return text.str();
 }
 

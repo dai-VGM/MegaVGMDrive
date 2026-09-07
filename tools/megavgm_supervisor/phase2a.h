@@ -21,5 +21,6 @@ private:
     megavgm_autoplay2::PosixRuntime runtime_;
     megavgm_profile::SwitchOwner owner_;
     std::string previous_trace_;
+    TransportObservation observation_;
 };
 }

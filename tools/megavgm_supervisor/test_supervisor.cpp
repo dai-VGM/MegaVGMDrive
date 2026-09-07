@@ -25,6 +25,7 @@ using megavgm_supervisor::Snapshot;
 using megavgm_supervisor::StatusPublisher;
 using megavgm_supervisor::Supervisor;
 using megavgm_supervisor::VerifiedInputs;
+using megavgm_supervisor::TransportObservation;
 
 namespace {
 
@@ -1020,8 +1021,66 @@ void test_phase2a_parked_controller_switch()
 	std::cout << "PHASE2A parked controller/drain/successor/SHA/stock restore: PASS\n";
 }
 
+#include "transport_observation.h"
+void test_readonly_transport_export()
+{
+	using megavgm_supervisor::observed_transport_state;
+	using megavgm_supervisor::read_text_file;
+	FakeRuntime runtime;
+	RecordingPublisher publisher;
+	Supervisor supervisor(runtime, publisher);
+	assert(supervisor.enter("/music").ok);
+	const auto calls = runtime.calls;
+	TransportObservation observation;
+	observation.epoch = "megavgm-phase2a.fixture";
+	observation.generation = 7;
+	observation.current_profile = "PROFILE_A";
+	observation.required_profile = "PROFILE_B";
+	observation.changed = true;
+	megavgm_profile::Reply reply;
+	reply.generation = 7; reply.baseline = 0;
+	for (const auto state : {"PARKED", "READY", "STOPPED", "FAILED"}) {
+		reply.state = state;
+		observation.state = observed_transport_state({}, reply, false, nullptr);
+		assert(observation.state == state);
+		supervisor.observe_transport(observation);
+	}
+	reply.state = "PARKED";
+	assert(observed_transport_state({}, reply, true, nullptr) == "FADING");
+	reply.state = "READY";
+	megavgm_autoplay2::PlaybackStatus s;
+	s.version = 2; s.session = 57; s.state = megavgm_autoplay2::PlaybackState::Playing;
+	assert(observed_transport_state({}, reply, false, &s) == "READY");
+	s.session = 1;
+	assert(observed_transport_state({}, reply, false, &s) == "PLAYING");
+	s.state = megavgm_autoplay2::PlaybackState::Ended;
+	assert(observed_transport_state({}, reply, false, &s) == "ENDED");
+	observation.state = "ENDED";
+	assert(observed_transport_state(observation, reply, false, nullptr) == "ENDED");
+	reply.generation = 8;
+	assert(observed_transport_state(observation, reply, false, nullptr) == "READY");
+	assert(runtime.calls == calls); // telemetry invokes no Runtime/control methods
+	char dir[] = "/tmp/megavgm-export.XXXXXX";
+	assert(mkdtemp(dir));
+	const std::string path = std::string(dir) + "/status";
+	AtomicStatusPublisher disk(path);
+	Snapshot snapshot = supervisor.snapshot();
+	assert(disk.publish(snapshot).ok);
+	std::string content, detail;
+	assert(read_text_file(path, content, detail));
+	assert(content.find("switch_generation=7\n") != std::string::npos);
+	assert(content.find("current_profile=PROFILE_A\n") != std::string::npos);
+	snapshot.mode = "STOCK";
+	assert(disk.publish(snapshot).ok);
+	assert(read_text_file(path, content, detail));
+	assert(content.find("switch_state=STOPPED\n") != std::string::npos);
+	unlink(path.c_str()); rmdir(dir);
+	std::cout << "read-only transport export/state/fresh-session/no control feedback: PASS\n";
+}
+
 int main()
 {
+	test_readonly_transport_export();
 	test_phase2a_parked_controller_switch();
 	test_fixed_test_profile_selection();
 	test_fade_only_test_profiles();

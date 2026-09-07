@@ -1,4 +1,5 @@
 #include "phase2a.h"
+#include "transport_observation.h"
 #include "../megavgm_playlist/playlist.h"
 #include <cerrno>
 #include <cstring>
@@ -40,7 +41,11 @@ OperationResult phase2a_preflight(Paths &paths, const std::string &directory,
 }
 Phase2Service::Phase2Service(const Paths &paths, Supervisor &s)
     : paths_(paths), supervisor_(s), runtime_(paths.megavgm_status, paths.main_command),
-      owner_(*this, paths.rbf_profile == "PROFILE_B" ? Profile::B : Profile::A) {}
+      owner_(*this, paths.rbf_profile == "PROFILE_B" ? Profile::B : Profile::A) {
+    observation_.epoch = paths.phase2a_channel.substr(paths.phase2a_channel.find_last_of('/') + 1);
+    observation_.current_profile = observation_.required_profile = paths.rbf_profile;
+    supervisor_.observe_transport(observation_);
+}
 bool Phase2Service::status(megavgm_autoplay2::PlaybackStatus &s, std::string &d) {
     return runtime_.read_status(s,d) == megavgm_autoplay2::StatusReadResult::Ok;
 }
@@ -48,10 +53,15 @@ std::string Phase2Service::main_identity() { return megavgm_profile::process_ide
 bool Phase2Service::stop(std::string &d) { return runtime_.issue_stop(d); }
 std::uint64_t Phase2Service::now() { return runtime_.monotonic_ms(); }
 bool Phase2Service::replace(Profile p, std::string &d) {
+    observation_.state = "SWITCHING";
+    observation_.changed = true;
+    supervisor_.observe_transport(observation_);
     const auto result = supervisor_.switch_test_rbf(megavgm_profile::rbf(p), p == Profile::A ? "PROFILE_A" : "PROFILE_B");
     d = result.detail; return result.ok;
 }
 bool Phase2Service::fade(std::string &d) {
+    observation_.state = "FADING";
+    supervisor_.observe_transport(observation_);
     // Immutable file, separate from controller's loop policy file. Main may
     // consume it after this function returns; keep it for the ENTER lifetime.
     const std::string path = paths_.phase2a_channel + "/fade-only.control";
@@ -78,8 +88,33 @@ OperationResult Phase2Service::tick() {
     std::string detail;
     if (!megavgm_profile::read_request(paths_.phase2a_channel, request, detail))
         return detail.empty() ? OperationResult::success() : OperationResult::failure(detail);
+    const auto before = observation_;
+    if (request.generation > observation_.generation) {
+        observation_.changed = request.profile != owner_.resident() && !request.stop;
+        observation_.generation = request.generation;
+        observation_.path = request.path;
+        observation_.required_profile = request.profile == Profile::A ? "PROFILE_A" :
+            request.profile == Profile::B ? "PROFILE_B" : "UNKNOWN";
+    }
     const auto reply = owner_.tick(request);
     if (!megavgm_profile::write_reply(paths_.phase2a_channel, reply, detail)) return OperationResult::failure(detail);
+    // No return value from the observer participates in switching/parking.
+    if (reply.generation == request.generation) {
+        observation_.generation = reply.generation;
+        observation_.domain = reply.domain;
+        observation_.baseline = reply.baseline;
+        observation_.current_profile = owner_.resident() == Profile::A ? "PROFILE_A" : "PROFILE_B";
+        megavgm_autoplay2::PlaybackStatus playback;
+        const megavgm_autoplay2::PlaybackStatus *verified = nullptr;
+        if (reply.state == "READY") {
+            std::string ignored;
+            megavgm_profile::FileClient witness(paths_.phase2a_channel, paths_.main_load_file_status);
+            if (witness.load_acknowledged(reply, observation_.path, ignored) &&
+                status(playback, ignored)) verified = &playback;
+        }
+        observation_.state = observed_transport_state(before, reply, owner_.fading(), verified);
+        supervisor_.observe_transport(observation_);
+    } else observation_ = before;
     const std::string trace = "generation=" + std::to_string(reply.generation) + " domain=" +
         std::to_string(reply.domain) + " profile=" + megavgm_profile::name(reply.profile) + " state=" + reply.state +
         " baseline=" + std::to_string(reply.baseline) + " Main=" + reply.main_identity + " detail=" + reply.detail;

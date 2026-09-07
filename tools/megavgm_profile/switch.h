@@ -41,6 +41,8 @@ public:
     SwitchOwner(SwitchHost &host, Profile resident) : host_(host), resident_(resident) {}
     Reply tick(const Request &request);
     Profile resident() const { return resident_; }
+    // Read-only telemetry; never consulted by the controller or switch engine.
+    bool fading() const { return ending_ && !stopping_; }
 private:
     SwitchHost &host_;
     Profile resident_;

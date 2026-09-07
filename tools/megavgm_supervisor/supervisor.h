@@ -40,7 +40,15 @@ struct ControllerDiagnostics {
 	std::string active_rbf_argv;
 };
 
+struct TransportObservation {
+	std::string epoch, state = "IDLE", current_profile, required_profile, path;
+	std::uint64_t generation = 0, domain = 1;
+	std::uint32_t baseline = 0;
+	bool changed = false;
+};
+
 struct Snapshot {
+	TransportObservation transport;
 	std::string mode = "STOCK";
 	std::string main = "STOCK";
 	std::string controller = "STOPPED";
@@ -135,6 +143,9 @@ public:
 	int modified_pid() const { return modified_pid_; }
 	bool active() const { return active_; }
 	const Snapshot &snapshot() const { return snapshot_; }
+	// Best-effort display publication only. A telemetry write cannot abort,
+	// retry or otherwise affect an accepted transport transaction.
+	void observe_transport(const TransportObservation &observation);
 
 private:
 	OperationResult check_exit_request();

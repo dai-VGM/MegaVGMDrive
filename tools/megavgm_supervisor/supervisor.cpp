@@ -25,6 +25,12 @@ OperationResult Supervisor::publish()
 	return publisher_.publish(snapshot_);
 }
 
+void Supervisor::observe_transport(const TransportObservation &observation)
+{
+	snapshot_.transport = observation;
+	(void)publish();
+}
+
 void Supervisor::refresh_controller_diagnostics()
 {
 	const ControllerDiagnostics diagnostics =
