@@ -21,8 +21,8 @@ Non-MEGAVGM_PHASE2A builds retain the old absent-file default.
 
 The A/B filenames remain exactly:
 
-- /media/fat/_custom_core/MegaVGMPlayer_Transport13FadeOnly_A_MiSTer.rbf
-- /media/fat/_custom_core/MegaVGMPlayer_Transport13FadeOnly_B_MiSTer.rbf
+- /media/fat/_Custom Cores/Cores/MegaVGMPlayer_Transport13FadeOnly_A_MiSTer.rbf
+- /media/fat/_Custom Cores/Cores/MegaVGMPlayer_Transport13FadeOnly_B_MiSTer.rbf
 
 No changes to classifier, SwitchOwner, Phase2Service, Remote, controller,
 FADE_ONLY, snapshot ownership, Main verification, session rebase or RBFs.

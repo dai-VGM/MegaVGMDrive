@@ -577,8 +577,8 @@ bool LinuxRuntime::valid_megavgm_status(std::string &detail)
 OperationResult LinuxRuntime::select_test_rbf(const std::string &path, const std::string &profile)
 {
 	if (!paths_.phase2a ||
-	    !((profile == "PROFILE_A" && path == "/media/fat/_custom_core/MegaVGMPlayer_Transport13FadeOnly_A_MiSTer.rbf") ||
-	      (profile == "PROFILE_B" && path == "/media/fat/_custom_core/MegaVGMPlayer_Transport13FadeOnly_B_MiSTer.rbf")))
+	    !((profile == "PROFILE_A" && path == "/media/fat/_Custom Cores/Cores/MegaVGMPlayer_Transport13FadeOnly_A_MiSTer.rbf") ||
+	      (profile == "PROFILE_B" && path == "/media/fat/_Custom Cores/Cores/MegaVGMPlayer_Transport13FadeOnly_B_MiSTer.rbf")))
 		return OperationResult::failure("non-Phase2A RBF selection rejected");
 	auto result = verify_regular_file(path);
 	if (!result.ok) return result;

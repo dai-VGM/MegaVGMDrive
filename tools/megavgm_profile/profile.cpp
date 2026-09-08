@@ -18,8 +18,8 @@ const char *name(Profile p) {
     }
 }
 const char *rbf(Profile p) {
-    return p == Profile::A ? "/media/fat/_custom_core/MegaVGMPlayer_Transport13FadeOnly_A_MiSTer.rbf" :
-        p == Profile::B ? "/media/fat/_custom_core/MegaVGMPlayer_Transport13FadeOnly_B_MiSTer.rbf" : "";
+    return p == Profile::A ? "/media/fat/_Custom Cores/Cores/MegaVGMPlayer_Transport13FadeOnly_A_MiSTer.rbf" :
+        p == Profile::B ? "/media/fat/_Custom Cores/Cores/MegaVGMPlayer_Transport13FadeOnly_B_MiSTer.rbf" : "";
 }
 Classification classify_bytes(const std::vector<unsigned char> &b) {
     Classification r;

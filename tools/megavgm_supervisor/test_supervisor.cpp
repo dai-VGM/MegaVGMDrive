@@ -976,8 +976,8 @@ void test_fade_only_test_profiles()
 	const std::string marker = paths.test_profile_directory + "/profile";
 	struct Profile { const char *name; const char *label; const char *rbf; };
 	const Profile profiles[] = {
-		{"fade-only-a", "FADE_ONLY_A", "/media/fat/_custom_core/MegaVGMPlayer_Transport13FadeOnly_A_MiSTer.rbf"},
-		{"fade-only-b", "FADE_ONLY_B", "/media/fat/_custom_core/MegaVGMPlayer_Transport13FadeOnly_B_MiSTer.rbf"},
+		{"fade-only-a", "FADE_ONLY_A", "/media/fat/_Custom Cores/Cores/MegaVGMPlayer_Transport13FadeOnly_A_MiSTer.rbf"},
+		{"fade-only-b", "FADE_ONLY_B", "/media/fat/_Custom Cores/Cores/MegaVGMPlayer_Transport13FadeOnly_B_MiSTer.rbf"},
 	};
 	std::vector<std::string> lifecycle;
 	for (const auto &profile : profiles) {

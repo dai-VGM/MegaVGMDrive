@@ -8,8 +8,8 @@ and the wire formats for playlist snapshots / Main commands are unchanged.
 ## Frozen prerequisites
 
 - Main: `a0e7b7d3557457a80ecd62a6bb4643585c33b78fbe515a7a7a5783b05b5addb5`.
-- A: `/media/fat/_custom_core/MegaVGMPlayer_Transport13FadeOnly_A_MiSTer.rbf`.
-- B: `/media/fat/_custom_core/MegaVGMPlayer_Transport13FadeOnly_B_MiSTer.rbf`.
+- A: `/media/fat/_Custom Cores/Cores/MegaVGMPlayer_Transport13FadeOnly_A_MiSTer.rbf`.
+- B: `/media/fat/_Custom Cores/Cores/MegaVGMPlayer_Transport13FadeOnly_B_MiSTer.rbf`.
 - Hardware prerequisite reported by user: FADE_ONLY `4D 56 02 02`, same-session
   ENDED 100ms after transfer completion on both A/B. This host implementation's
   real switching/audio results still require hardware tests.

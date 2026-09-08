@@ -74,10 +74,10 @@ OperationResult apply_test_profile(Paths &paths) {
 		paths.rbf = "/media/fat/MegaVGMPlayer/MegaVGMPlayer_GoldenTransport12Phase1B_YM2610B_MiSTer.rbf";
 		paths.rbf_profile = "YM2610B_PHASE1B";
 	} else if (record == "fade-only-a\n") {
-		paths.rbf = "/media/fat/_custom_core/MegaVGMPlayer_Transport13FadeOnly_A_MiSTer.rbf";
+		paths.rbf = "/media/fat/_Custom Cores/Cores/MegaVGMPlayer_Transport13FadeOnly_A_MiSTer.rbf";
 		paths.rbf_profile = "FADE_ONLY_A";
 	} else if (record == "fade-only-b\n") {
-		paths.rbf = "/media/fat/_custom_core/MegaVGMPlayer_Transport13FadeOnly_B_MiSTer.rbf";
+		paths.rbf = "/media/fat/_Custom Cores/Cores/MegaVGMPlayer_Transport13FadeOnly_B_MiSTer.rbf";
 		paths.rbf_profile = "FADE_ONLY_B";
 	} else return OperationResult::failure("unknown test-profile record");
 	// Fixed-resident lab overrides retain the legacy controller, even when
