@@ -1,25 +1,161 @@
 # MegaVGMDrive / MegaVGMPlayer
 
-MegaVGMPlayerは、MiSTer向けのstandalone FPGA VGM playerです。**MegaVGMDrive**はrepository／FPGA core project、**MegaVGMPlayer**は画面上で動作するplayerの名称です。
+**MegaVGMPlayer**は、MiSTer向けのFPGA VGM音楽プレイヤーです。**MegaVGMDrive**は、その基盤となるrepository／FPGA core開発projectの名称です。
 
-[English](README.md) · [YM2151 / SegaPCM v1.0.2 stable release](https://github.com/dai-VGM/MegaVGMDrive/releases/tag/v1.0.2) · [YM2610B Beta release](https://github.com/dai-VGM/MegaVGMDrive/releases/tag/YM2610B-beta1)
+[English](README.md) · [MegaVGMPlayer v2.0をダウンロード](https://github.com/dai-VGM/MegaVGMDrive/releases/tag/v2.0)
 
-> **開発について:** このプロジェクトの実装とデバッグのほぼすべては OpenAI Codex と GPT が行いました。私は実際の音を聴き、Quartus でビルドし、MiSTer実機のデバッグ値や聴感結果を Codex に返す役割を担当しました。
+> **開発について:** このプロジェクトの実装とデバッグのほぼすべてはOpenAI CodexとGPTが行いました。私は実際の音を聴き、Quartusでbuildし、MiSTer実機のデバッグ値や聴感結果をCodexへ返す役割を担当しました。
 
-## 使用するeditionを選ぶ
+## MegaVGMPlayer v2.0 Remote / PWA
 
-MegaVGMPlayerは、2つの独立したRBF product lineとして配布しています。all-in-one buildではありません。
+<p align="center">
+  <img src="docs/images/megavgmplayer-v2-browse.png" width="45%" alt="曲を再生中のMegaVGMPlayer v2.0 Browse画面">
+  <img src="docs/images/megavgmplayer-v2-playlists.png" width="45%" alt="mini playerを表示したMegaVGMPlayer v2.0 Playlists画面">
+</p>
 
-| Edition | 状態 | 主な音源経路 | Release asset |
-| --- | --- | --- | --- |
-| YM2151 / SegaPCM | **Stable v1.0.2** | YM2612、SN76489、YM2151、YM2203、SSG、SegaPCM | `MegaVGMDrive_MiSTer_v1.0.2.rbf` |
-| YM2610B | **Beta** | YM2610、YM2610B、FM、ADPCM-A、ADPCM-B | `MegaVGMPlayer_YM2610B.rbf` |
+<p align="center"><em>iPhoneのホーム画面へ追加したPWAのBrowse／Playlists画面。</em></p>
 
-Cyclone Vのresource制約から、実用的なuniversal configurationは望ましくないためです。再生したいsystem／音楽に合うRBFを選んでください。一方が他方を置き換える関係ではありません。
+## v2.0の主な機能
 
-## このplayerの特徴
+- iPhone／iPad／desktop browser向けRemote / PWA Player
+- folder Browse、Playlist、Favorites
+- Previous、Next、即時Stop
+- Repeat One、Repeat Context、Shuffle
+- automatic nextと曲間transition fade
+- YM2610／YM2610B対応
+- VGMに必要なFPGA sound engine／RBFの自動選択・切替
+- 異なるsound engineの曲を含むmixed-engine playlist
+- Playlist完了またはExit後のstock MiSTer自動復帰
 
-VGMのregister streamをsynthesizable FPGA sound-core HDLへ直接送ります。
+通常の再生では、ユーザーがRBFや内部engineを選ぶ必要はありません。MegaVGMPlayerが曲を分類し、必要なFPGA sound engineを自動的に選択します。
+
+## 対応音源
+
+v2.0の再生経路は、次の音源を対象としています。
+
+- YM2612
+- YM2151
+- YM2203
+- SegaPCM
+- YM2610
+- YM2610B
+- 各経路で必要となるPSG／SSG、ADPCM-A／ADPCM-B
+
+Remote Playerに表示されるsound-chip名は補助情報です。元VGMやpackage metadataが十分でない場合、表示が完全でないことがあります。
+
+## インストール
+
+1. [MegaVGMPlayer v2.0 Release](https://github.com/dai-VGM/MegaVGMDrive/releases/tag/v2.0)から`MegaVGMPlayer_v2.0.zip`をdownloadして展開します。
+2. ZIP内の`media/fat/`以下を、directory構造を保ったままMiSTerの`/media/fat/`へcopyします。
+3. MiSTerをrebootします。
+4. 同じLAN上のbrowserで次を開きます。
+
+```text
+http://<MiSTer-IP>:8182/megavgm
+```
+
+既に`/media/fat/Scripts/remote.sh`を使用している場合は、手動copy前にbackupしてください。
+
+Advanced user向けには、packageにchecksum確認とtimestamp付きbackupを行う`install.sh`、およびbackupから復元する`rollback.sh`も含まれています。MegaVGMPlayerをSTOCKへ戻してから実行してください。
+
+FPGA sound-engine fileの正式配置先:
+
+```text
+/media/fat/_Custom Cores/Cores/
+```
+
+主なruntime layout:
+
+```text
+/media/fat/_Custom Cores/Cores/
+  MegaVGMPlayer_Transport13FadeOnly_A_MiSTer.rbf
+  MegaVGMPlayer_Transport13FadeOnly_B_MiSTer.rbf
+
+/media/fat/MegaVGMPlayer/
+  MiSTer.megavgm
+  megavgm_supervisor
+  megavgm_playlist-phase2a
+
+/media/fat/Scripts/
+  remote.sh
+  vgm_md_import.sh
+```
+
+これらのA/B名は内部実装上のprofileです。通常操作で意識する必要はありません。
+
+## VGM音楽の追加
+
+v2.0では、既存libraryとの互換性を優先して次を標準rootとします。
+
+```text
+/media/fat/MegaVGMDrive/
+```
+
+`.vgm`、`.vgz`、またはVGM/VGZを含む`.zip`を次へcopyします。
+
+```text
+/media/fat/MegaVGMDrive/inbox/
+```
+
+その後、MiSTerで次を実行します。
+
+```sh
+/media/fat/Scripts/vgm_md_import.sh
+```
+
+準備されたVGMは次へ保存されます。
+
+```text
+/media/fat/MegaVGMDrive/vgm_cache/
+```
+
+Importerは必要に応じて圧縮fileを展開し、表示titleやsound-chip補助metadataを生成します。FPGAがZIPを直接再生する機能ではありません。
+
+## Remote Player
+
+MiSTerと同じLAN上のbrowserから次へ接続します。
+
+```text
+http://<MiSTer-IP>:8182/megavgm
+```
+
+固定IPは必須ではありません。MiSTerのIPが変わる場合は、router側でDHCP reservationを設定すると便利です。
+
+iPhone／iPadではSafariでページを開き、「ホーム画面に追加」するとstandalone PWAとして利用できます。
+
+## Playlist、Favorites、Repeat、Shuffle
+
+- **Favorites:** starを付けた曲をまとめたbuilt-in playlistです。
+- **Repeat One:** 現在の1曲を繰り返します。
+- **Repeat Context:** 現在のfolder、Playlist、またはFavorites snapshot全体を繰り返します。
+- **Shuffle:** 現在の再生context内で曲順をshuffleします。
+- **Stop:** 現在の再生を即時停止します。
+
+Playlistから開始した再生queueはsnapshotとして所有され、Browse中のfolder表示とは独立して維持されます。
+
+## FPGA sound engineの自動切替
+
+Host側classifierが各VGMに必要なsound engineを判定します。次曲が別engineを必要とする場合、MegaVGMPlayerは現在曲をfadeし、Playlistの選択位置を維持したままRBFを切り替え、新しいsessionで次曲を開始します。
+
+同じprofile内の曲切替ではRBFをreloadしません。異なるengineを含むPlaylistでも、ユーザー操作なしで連続再生できます。
+
+## Cold startについて
+
+Cold startでは、MegaVGMPlayerがFPGA sound engineを初期化するまで数秒かかることがあります。一度起動した後の通常の曲切替とは異なる初期化処理です。
+
+## Troubleshooting
+
+- Remote Playerが開かない場合は、`http://<MiSTer-IP>:8182/megavgm`を同じLANから開いているか確認してください。
+- TCP 8182を複数のRemote processが同時に使用していないか確認してください。
+- package内の`SHA256SUMS`でinstalled fileを検証してください。
+- Main、Supervisor、controller、Remote、両RBFは同一release setとして使用してください。
+- updateに失敗した場合はSTOCKへ戻し、installerが作成したbackupを指定して`rollback.sh`を実行してください。
+
+## MegaVGMDriveとの関係
+
+MegaVGMDriveはFPGA/core開発repositoryです。MegaVGMPlayerは、FPGA sound engine、modified MiSTer Main、Supervisor、Playlist controller、Remote/PWA、Importerを統合したユーザー向け製品です。
+
+VGM register streamはsoftware synthesizerではなく、synthesizable FPGA sound-core HDLへ送られます。
 
 ```text
 VGM data
@@ -29,145 +165,20 @@ VGM data
   -> MiSTer audio output
 ```
 
-PC上のsoftware synthesizerやOS audio stackを経由せず、音源処理からmixまでFPGA内部で完結します。対応音源のFPGA実装を、standalone MiSTer playerで直接聴くための短い再生経路です。
+FPGA実装が自動的にoriginal siliconやsoftware emulatorより正確または高音質になる、という意味ではありません。JT coreはhardware implementationであり、transistor-level identityを主張するものではありません。
 
-FPGA実装が自動的に実chipやsoftware emulatorより正確になる、必ず高音質になる、JT coreがoriginal siliconとtransistor levelで同一である、という意味ではありません。
+## Contributor向け: 新しいsound engineの追加
 
-## YM2151 / SegaPCM edition — stable v1.0.2
+新profileは既存のgeneric transport ABIへ適応してください。主なcontractは、index-1 load lifecycle、index-2 policy／transition分離、session／busy／done／loop status、common fade owner、FADE_ONLYからENDEDへの遷移、安全なnew-session audio qualificationです。
 
-Download: [MegaVGMPlayer v1.0.2](https://github.com/dai-VGM/MegaVGMDrive/releases/tag/v1.0.2)
+Queue ownershipやMainから見えるstatus semanticsを変更せずにhost classifier／profile mappingを拡張し、simulation、Windows Quartus Full Compilation、MiSTer実機の順で検証します。Golden Player Shellの保護規則とstage-gated workflowは[AGENTS.md](AGENTS.md)を参照してください。
 
-このeditionでは、次のproduction経路を同時に有効化しています。
+## 既知事項
 
-- JT12によるYM2612 FM／DAC
-- JT89によるSN76489 PSG
-- JT51によるYM2151
-- YM2203 FM＋JT49 SSG
-- JTOUTRUN / `jtoutrun_pcm`によるSegaPCM
-
-Parserは対応するVGM write（`0x50`、`0x52`、`0x53`、`0x54`、`0x55`、`0xC0`）に加え、これらの再生経路で使うwait、loop、data block、PCM seek、YM2612 DAC stream commandを処理します。YM2203とSegaPCMのclockはVGM headerから読み取り、fractional chip enableへ変換します。
-
-### v1.0.2で修正した内容
-
-**JT51 / YM2151**
-
-- After Burner II「Maximum Power」のstartup buzzを修正しました。
-- JT51 reset中のCEN処理を修正し、前曲のJT51 state leakageを解消しました。
-- Quartetのstartup、pitch、直前の状態に依存する挙動を修正しました。
-- timestamp-zeroの大量YM2151初期化writeによるFantasy Zoneのstartup flam／transientを修正しました。
-
-**SegaPCM**
-
-- repeat boundaryにおけるspeculative read／raw-skid deadlockを修正しました。
-- `02 Start BGM`で再現していたPCM dropoutを修正しました。
-- 影響を受けていたStrike Fighter trackのPCM再生も改善しました。すべてのStrike Fighter問題が同じ原因だったという主張ではありません。
-
-**VGM import helper**
-
-- ZIP内VGM／VGZ名にliteral wildcard文字（`[ ]`、`*`、`?`）が含まれる場合の処理を修正しました。
-- Galaxy Force II、Fantasy Zone II DX、The Ninja Warriorsなどのpackで欠けていたtrackを復元しました。
-
-詳細と検証済みdownloadは[v1.0.2 release](https://github.com/dai-VGM/MegaVGMDrive/releases/tag/v1.0.2)を参照してください。
-
-### Stable editionのOSD
-
-```text
-Load VGM
-Audio Gain:     Normal / Boost
-SegaPCM Audio:  Normal / PCM Only / FM Only
-Reset
-```
-
-`Audio Gain`はYM2612／SN76489のMega Drive familyへ作用します。`SegaPCM Audio`はarcade mix、FMのみ、PCMのみを選択します。
-
-## YM2610B edition — Beta
-
-Download: [MegaVGMPlayer YM2610B Beta 1](https://github.com/dai-VGM/MegaVGMDrive/releases/tag/YM2610B-beta1)
-
-この独立RBFは次に対応します。
-
-- YM2610／YM2610B再生
-- YM2610B 6-channel FM
-- 24-bit ADPCM-A addressing
-- 24-bit ADPCM-B addressing
-- 大規模またはsparseなPCM ROM layout向けのcache／serialized mapping
-- Neo Geo VGM compatibility対応の継続作業
-
-実機確認例にはDarius II、Gun Frontier、The Ninja Warriors、Night Striker、Metal Slugのmaterialが含まれます。現在もBetaであり、game／VGM固有のcompatibility issueが残っている可能性があります。
-
-## 使い方
-
-1. 上記のstableまたはBeta releaseから適切なRBFをdownloadします。
-2. RBFを使用環境のMiSTer core配置場所へcopyし、loadします。
-3. MiSTerのfile pickerから参照できる場所へ、未圧縮またはprepared VGMを置きます。
-4. MegaVGMPlayerのOSDを開き、**Load VGM**からfileを選びます。
-
-通常の未加工`.vgm`は直接loadできます。`.vgz`、ZIP archive、標準data layout、画面のtitle metadataにはimport helperを使用してください。
-
-## VGM import helper
-
-Repository内のhelperは[`scripts/vgm_md_import.sh`](scripts/vgm_md_import.sh)です。MiSTerで一般的に使用する設置先は次です。
-
-```text
-/media/fat/Scripts/vgm_md_import.sh
-```
-
-既定のdata layout:
-
-```text
-/media/fat/MegaVGMDrive/inbox/      source file
-/media/fat/MegaVGMDrive/vgm_cache/  prepared VGM
-```
-
-Helperは次を受け付けます。
-
-- raw `.vgm`
-- `.vgz`
-- VGMを含むZIP
-- VGZを含むZIP
-
-必要なinputを展開し、cache layoutを作成し、source fileを変更せずに`MVGMTTL` title metadataを追加または置換します。繰り返しprepareしてもmetadataを重複追加しません。現在のprepared file上限は128-byte title trailerを含むexactly 8 MiB（`8,388,608` bytes）のままです。
-
-v1.0.2ではZIP entryをliteralに抽出し、space、parentheses、apostrophe、bracket、`*`、`?`を含む名前も安全に処理します。
-
-MiSTerへのinstallと実行:
-
-```sh
-cp vgm_md_import.sh /media/fat/Scripts/vgm_md_import.sh
-chmod +x /media/fat/Scripts/vgm_md_import.sh
-/media/fat/Scripts/vgm_md_import.sh
-```
-
-## 曲名表示
-
-Prepared VGMには、親directory名とtrack basenameを格納したMegaVGMPlayer `MVGMTTL` trailerを付加できます。画面上のplayerはtrailerを検証してから2行のtitleを表示します。Trailerがないfileもtitleなしで再生できます。
-
-Binary formatと検証規則は[Prepared VGM metadata](docs/prepared_vgm_metadata.md)を参照してください。
-
-## 現在の制約と将来候補
-
-- MegaVGMPlayerはstandalone VGM playerであり、console／arcade machine本体の完全実装ではありません。
-- 各editionの実装範囲外のcommand／deviceはskipされるか、意図どおり再生されない場合があります。
-- FPGA内で`.vgz`／`.zip`をnative展開しません。import helperを使用してください。
-- Mega CD / RF5C164は、現在のどちらのeditionでも未対応です。
-- 32X PWMは、現在のどちらのeditionでも未対応です。
-- playlist、previous／next track、autoplay、pause、progress表示は将来候補であり、現在の機能ではありません。
-
-YM2610／YM2610Bは独立したYM2610B Beta RBFで対応しています。YM2151 / SegaPCM RBFには含まれません。
-
-## Buildと実機検証
-
-macOS側のrepository／QSFをsourceの正本とします。ProjectをWindowsへcopyしてQuartus compileし、そのRBFをMiSTer実機で確認してから、確認済みbinaryだけを公開します。Release用Quartus buildはmacOSで行いません。
-
-Stable v1.0.2ではYM2151／JT51のstartup／reload、SegaPCM repeat boundary、複数音源経路、title metadata、代表的なgame musicを確認しました。YM2610B Betaは別系統のhardware／long-run validationを行っており、詳細はBeta release notesに記載しています。これらは代表的な確認例であり、すべてのVGM ripとの互換性を保証するものではありません。
-
-## Repository構成
-
-- `rtl/` — synthesis可能なplayer、音源integration、DDR backend、title、video logic
-- `sys/` — MiSTer framework support
-- `tb/`、`tests/` — simulation／helper regression
-- `scripts/`、`tools/` — import、解析、test utility
-- `docs/` — format、provenance、実装note
+- MegaVGMPlayerはstandalone VGM音楽playerであり、console／arcade machine本体の完全実装ではありません。
+- 実装範囲外のcommand／deviceを含むVGMは、意図どおり再生されない場合があります。
+- FPGAは`.vgz`／`.zip`をnative展開しません。付属Importerを使用してください。
+- Mega CD / RF5C164および32X PWMはv2.0の対象外です。
 
 ## 謝辞とupstream project
 
