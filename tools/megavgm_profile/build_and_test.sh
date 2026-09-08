@@ -72,6 +72,6 @@ if [ "$mode" = arm ]; then
   done
 fi
 $runner "$out/megavgm_supervisor" test-profile > "$out/default-route.txt"
-grep -q 'test_profile=YM2151_SEGAPCM' "$out/default-route.txt"
+grep -qx 'test_profile=PHASE2A_AUTO' "$out/default-route.txt"
 if $runner "$out/megavgm_playlist" > "$out/usage.txt" 2>&1; then exit 1; else test "$?" -eq 2; fi
 echo 'Phase2A build + tests PASS (host/QEMU; hardware NOT TESTED)'

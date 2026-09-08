@@ -11,6 +11,16 @@ namespace {
 OperationResult error(const std::string &what) {
 	return OperationResult::failure(what + ": " + std::strerror(errno));
 }
+OperationResult production_default(Paths &paths) {
+#ifdef MEGAVGM_PHASE2A
+	paths.phase2a = true;
+	paths.rbf_profile = "PHASE2A_AUTO";
+	paths.playlist_binary = "/media/fat/MegaVGMPlayer/megavgm_playlist-phase2a";
+#else
+	(void)paths;
+#endif
+	return OperationResult::success();
+}
 bool known(const std::string &name) {
 #ifdef MEGAVGM_PHASE2A
 	if (name == "phase2a") return true;
@@ -33,11 +43,11 @@ int open_directory(const Paths &paths, bool create) {
 
 OperationResult apply_test_profile(Paths &paths) {
 	const int dir = open_directory(paths, false);
-	if (dir < 0) return errno == ENOENT ? OperationResult::success() : error("test-profile directory");
+	if (dir < 0) return errno == ENOENT ? production_default(paths) : error("test-profile directory");
 	const int fd = openat(dir, "profile", O_RDONLY | O_NONBLOCK | O_NOFOLLOW | O_CLOEXEC);
 	const int saved = errno;
 	close(dir);
-	if (fd < 0) { errno = saved; return errno == ENOENT ? OperationResult::success() : error("test-profile open"); }
+	if (fd < 0) { errno = saved; return errno == ENOENT ? production_default(paths) : error("test-profile open"); }
 	struct stat st = {};
 	if (fstat(fd, &st) < 0 || !S_ISREG(st.st_mode) || st.st_uid != geteuid() ||
 	    (st.st_mode & 0077) || st.st_size < 1 || st.st_size > 64) {
@@ -57,9 +67,7 @@ OperationResult apply_test_profile(Paths &paths) {
 	if (false) {}
 #ifdef MEGAVGM_PHASE2A
 	else if (record == "phase2a\n") {
-		paths.phase2a = true;
-		paths.rbf_profile = "PHASE2A_AUTO";
-		paths.playlist_binary = "/media/fat/MegaVGMPlayer/megavgm_playlist-phase2a";
+		return production_default(paths);
 	}
 #endif
 	else if (record == "ym2610b-phase1b\n") {
@@ -72,6 +80,10 @@ OperationResult apply_test_profile(Paths &paths) {
 		paths.rbf = "/media/fat/_Utility/MegaVGMPlayer_Transport13FadeOnly_B_MiSTer.rbf";
 		paths.rbf_profile = "FADE_ONLY_B";
 	} else return OperationResult::failure("unknown test-profile record");
+	// Fixed-resident lab overrides retain the legacy controller, even when
+	// reusing a Paths value which previously selected the production route.
+	paths.phase2a = false;
+	paths.playlist_binary = "/media/fat/Scripts/megavgm_playlist";
 	return OperationResult::success();
 }
 

@@ -840,6 +840,49 @@ void test_sha256_implementation()
 	rmdir(directory.c_str());
 }
 
+void test_production_route_without_selector_after_reboot()
+{
+#ifdef MEGAVGM_PHASE2A
+	using megavgm_supervisor::apply_test_profile;
+	using megavgm_supervisor::set_test_profile;
+	const std::string directory = temporary_directory();
+	for (int boot = 0; boot != 3; ++boot) {
+		Paths paths;
+		paths.supervisor_lock = directory + "/lock";
+		paths.supervisor_status = directory + "/status";
+		paths.test_profile_directory = directory + "/selection";
+		assert(access(paths.test_profile_directory.c_str(), F_OK) != 0);
+		assert(apply_test_profile(paths).ok);
+		assert(paths.phase2a && paths.rbf_profile == "PHASE2A_AUTO");
+		assert(paths.playlist_binary == "/media/fat/MegaVGMPlayer/megavgm_playlist-phase2a");
+		// Selection is read-only: no selector or service is created on boot/query.
+		assert(access(paths.test_profile_directory.c_str(), F_OK) != 0);
+		FakeRuntime runtime;
+		RecordingPublisher publisher;
+		Supervisor supervisor(runtime, publisher, paths.rbf_profile);
+		assert(runtime.calls.empty());
+		assert(supervisor.enter("/music", {}, "/tmp/snapshot").ok);
+		assert(runtime.verified_playlist_snapshot == "/tmp/snapshot");
+		if (boot == 1) {
+			runtime.controller_complete = true;
+			runtime.controller_alive = false;
+			assert(supervisor.monitor_once().ok);
+		} else assert(supervisor.exit().ok);
+		expect_restored(supervisor);
+		assert(set_test_profile(paths, "fade-only-a").ok);
+		assert(apply_test_profile(paths).ok && !paths.phase2a);
+		assert(paths.playlist_binary == "/media/fat/Scripts/megavgm_playlist");
+		assert(set_test_profile(paths, "default").ok);
+		assert(apply_test_profile(paths).ok && paths.phase2a);
+		// Simulate reboot losing the entire temporary selector directory.
+		assert(rmdir(paths.test_profile_directory.c_str()) == 0);
+		unlink(paths.supervisor_lock.c_str());
+	}
+	assert(rmdir(directory.c_str()) == 0);
+	std::cout << "PRODUCTION_DEFAULT no-selector/empty-selector/reboot/ENTER/Exit/lab/default: PASS\n";
+#endif
+}
+
 void test_fixed_test_profile_selection()
 {
 	using megavgm_supervisor::apply_test_profile;
@@ -858,7 +901,8 @@ void test_fixed_test_profile_selection()
 	assert(chosen.rbf_profile == "YM2610B_PHASE1B");
 	assert(chosen.rbf == "/media/fat/MegaVGMPlayer/MegaVGMPlayer_GoldenTransport12Phase1B_YM2610B_MiSTer.rbf");
 	assert(chosen.expected_modified_sha256 == paths.expected_modified_sha256);
-	assert(chosen.playlist_binary == paths.playlist_binary);
+	assert(!chosen.phase2a);
+	assert(chosen.playlist_binary == "/media/fat/Scripts/megavgm_playlist");
 #ifdef MEGAVGM_PHASE2A
 	assert(set_test_profile(paths, "phase2a").ok);
 	Paths automatic = paths;
@@ -945,7 +989,8 @@ void test_fade_only_test_profiles()
 		assert(chosen.rbf == profile.rbf && chosen.rbf_profile == profile.label);
 		assert(chosen.modified_main == "/media/fat/MegaVGMPlayer/MiSTer.megavgm");
 		assert(chosen.expected_modified_sha256 == "a0e7b7d3557457a80ecd62a6bb4643585c33b78fbe515a7a7a5783b05b5addb5");
-		assert(chosen.playlist_binary == paths.playlist_binary);
+		assert(!chosen.phase2a);
+		assert(chosen.playlist_binary == "/media/fat/Scripts/megavgm_playlist");
 		assert(chosen.main_command == paths.main_command && chosen.megavgm_status == paths.megavgm_status);
 		assert(chosen.main_load_file_status == paths.main_load_file_status);
 		// Both resident test RBFs take the unchanged strict-Main/snapshot/restore path.
@@ -982,7 +1027,12 @@ void test_fade_only_test_profiles()
 		unlink(temporary.c_str());
 		assert(set_test_profile(paths, "default").ok);
 		chosen = paths;
-		assert(apply_test_profile(chosen).ok && chosen.rbf == paths.rbf && chosen.rbf_profile == paths.rbf_profile);
+		assert(apply_test_profile(chosen).ok && chosen.rbf == paths.rbf);
+#ifdef MEGAVGM_PHASE2A
+		assert(chosen.phase2a && chosen.rbf_profile == "PHASE2A_AUTO");
+#else
+		assert(chosen.rbf_profile == paths.rbf_profile);
+#endif
 	}
 	assert(set_test_profile(paths, "fade-only-a").ok);
 	for (const auto *record : {"fade-only-a", "fade-only-a\nextra\n", "fade-only-b\r\n"}) {
@@ -1080,6 +1130,7 @@ void test_readonly_transport_export()
 
 int main()
 {
+	test_production_route_without_selector_after_reboot();
 	test_readonly_transport_export();
 	test_phase2a_parked_controller_switch();
 	test_fixed_test_profile_selection();
