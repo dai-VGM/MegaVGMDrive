@@ -6,6 +6,15 @@ MegaVGMPlayer is a standalone FPGA VGM player for MiSTer. **MegaVGMDrive** is th
 
 > **Development note:** Almost all of this project was implemented and debugged by OpenAI Codex and GPT. I only listened to the sound, ran the Quartus builds, and sent the debug values back to Codex.
 
+## MegaVGMPlayer v2.0 Remote / PWA
+
+<p align="center">
+  <img src="docs/images/megavgmplayer-v2-browse.png" width="45%" alt="MegaVGMPlayer v2.0 Browse view with a track playing">
+  <img src="docs/images/megavgmplayer-v2-playlists.png" width="45%" alt="MegaVGMPlayer v2.0 Playlists view with the mini player">
+</p>
+
+<p align="center"><em>Browse and Playlists views in the iPhone Home Screen PWA.</em></p>
+
 ## Choose an edition
 
 MegaVGMPlayer is distributed as two independent RBF product lines. It is not an all-in-one build.
