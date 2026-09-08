@@ -9,8 +9,8 @@ bind/start/successor verification, controller and restore lifecycle are unchange
 |---|---|---|
 | default | YM2151_SEGAPCM | /media/fat/MegaVGMPlayer/MegaVGMPlayer_PlaylistLoopLab_MiSTer.rbf |
 | ym2610b-phase1b | YM2610B_PHASE1B | /media/fat/MegaVGMPlayer/MegaVGMPlayer_GoldenTransport12Phase1B_YM2610B_MiSTer.rbf |
-| fade-only-a | FADE_ONLY_A | /media/fat/_Utility/MegaVGMPlayer_Transport13FadeOnly_A_MiSTer.rbf |
-| fade-only-b | FADE_ONLY_B | /media/fat/_Utility/MegaVGMPlayer_Transport13FadeOnly_B_MiSTer.rbf |
+| fade-only-a | FADE_ONLY_A | /media/fat/_custom_core/MegaVGMPlayer_Transport13FadeOnly_A_MiSTer.rbf |
+| fade-only-b | FADE_ONLY_B | /media/fat/_custom_core/MegaVGMPlayer_Transport13FadeOnly_B_MiSTer.rbf |
 
 The exact modified Main remains `/media/fat/MegaVGMPlayer/MiSTer.megavgm`, SHA256:
 `a0e7b7d3557457a80ecd62a6bb4643585c33b78fbe515a7a7a5783b05b5addb5`.
