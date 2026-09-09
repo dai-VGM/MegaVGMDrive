@@ -1,0 +1,10 @@
+# BEGIN MegaVGMPlayer v2.1
+# HTTP service only; playback stays STOCK until an explicit Player request.
+case "${1:-start}" in
+  start|stop|restart)
+    if [ -x /media/fat/MegaVGMPlayer/megavgm_remote ]; then
+      /media/fat/MegaVGMPlayer/megavgm_remote -service "${1:-start}"
+    fi
+    ;;
+esac
+# END MegaVGMPlayer v2.1

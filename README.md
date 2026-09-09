@@ -1,4 +1,13 @@
-# MegaVGMPlayer v2.1 — Independence Day, Phase 1
+# MegaVGMPlayer v2.1 — Independence Day
+
+Phase 2 packaging: [release/README.md](release/README.md),
+[validation](release/VALIDATION.md), and
+[hardware acceptance](release/HARDWARE_CHECKLIST.md).
+Branch: `v2.1-independence-phase2`. Phase 1 is now user-confirmed hardware PASS;
+Phase 2 reboot/autostart acceptance is pending. The daemon is promoted byte-for-byte,
+not rebuilt. The remainder below is the historical Phase 1 development record.
+
+## Phase 1 record (at initial implementation)
 
 Standalone HTTP daemon, **host-validated candidate; MiSTer/iPhone not yet validated**.
 Branch: `v2.1-independence-phase1`. No autostart, installer migration or restoration
