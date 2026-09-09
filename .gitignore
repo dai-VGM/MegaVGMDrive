@@ -1,0 +1,7 @@
+frontend/node_modules
+frontend/build/
+cmd/megavgm_remote/web/build/*
+!cmd/megavgm_remote/web/build/.keep
+artifacts/
+evidence/
+*.tsbuildinfo
