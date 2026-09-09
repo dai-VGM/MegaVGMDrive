@@ -9,7 +9,9 @@
 | Host/classifier/status (unchanged) | `e01c872d6854edce77c1fbc7a8f68239f8ecf045` |
 
 Imported production Go files: `megavgm.go`, `favorites.go`, `playlists.go`,
-`sound_chips.go`, `transport_status.go`. Original tests copied verbatim. A separate
+`sound_chips.go`, `transport_status.go`. Original test assertions copied verbatim;
+test-only `retireFixture` cleans up asynchronous trace writers before TempDir
+removal. A separate
 `lifecycle.go` adds only cancellation of the diagnostic convergence monitor after
 HTTP drain; it has no playback command path.
 

@@ -2,7 +2,7 @@
 
 ## Host PASS
 
-- Frozen backend: 60 original Go tests, unchanged, macOS and native Linux.
+- Frozen backend: 60 original Go tests/assertions, macOS and native Linux.
   Browse/path rejection, Favorites/Playlist CRUD and version-one persistence,
   folder and snapshot playlist dispatch, Stop/Next/Prev/Repeat/Shuffle/Exit,
   cold acceptance without captured-pipe EOF waiting, operation supersession,
@@ -42,11 +42,11 @@
   but another process's `/proc/<pid>` exposes host QEMU identity. Therefore the
   PID identity service gate is run **natively**, not weakened to pass QEMU.
   Exact ARM HTTP/API gate uses foreground processes controlled by the test runner.
-- One first native Linux run of original tests failed during TempDir removal:
+- Original native Linux tests intermittently failed during TempDir removal:
   an existing background diagnostic trace writer was still writing after a test.
-  The production/test files were not changed to conceal this. A subsequent Linux
-  run passed; macOS suite passed. This is an inherited asynchronous fixture-cleanup
-  race, not proof of a Player behavior regression. Do not describe it as hardware PASS.
+  Test-only `retireFixture` now cancels observation and redirects late trace appends
+  to `/dev/null` under the existing trace mutex **after all assertions**. No test
+  assertion, production file, timeout or transport semantics was changed.
 - Initial extended service fixture delayed the helper 1 second and correctly hit
   the existing 750 ms control timeout. The fixture was corrected to 250 ms; no
   production timeout was extended.

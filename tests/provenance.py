@@ -11,10 +11,13 @@ frontend=projects/'mrext-client-final-header-logo/src/components'
 for directory, commit in [(backend.parents[2], '6ef56324b91df854080f65f5c4c0f0535740b4ca'), (frontend.parents[1], '8dc1988b106276e215de5e3164a2307e90aa9017')]:
     assert subprocess.check_output(['git','rev-parse','HEAD'],cwd=directory,text=True).strip()==commit
 for p in sorted(backend.glob('*.go')):
-    assert (root/'internal/megavgm'/p.name).read_bytes()==p.read_bytes(),p
+    expected=p.read_text()
+    if p.name=='megavgm_test.go':
+        expected=expected.replace('\treturn newAdapter(config, runner)\n', '\tadapter := newAdapter(config, runner)\n\tt.Cleanup(func() { retireFixture(adapter) })\n\treturn adapter\n')
+    assert (root/'internal/megavgm'/p.name).read_text()==expected,p
 for p in sorted((root/'frontend/src/components').glob('*')):
     assert p.read_bytes()==(frontend/p.name).read_bytes(),p
-print('Original backend production + tests and Player components: byte-identical')
+print('Production backend and Player byte-identical; test assertions unchanged, fixture cleanup only')
 old=(backend.parent/'main.go').read_text()
 new=(root/'cmd/megavgm_remote/http.go').read_text()
 routes=lambda s: sorted(re.findall(r'HandleFunc\("(/megavgm[^\"]*)", \w+\.(\w+)\)\.Methods\("(\w+)"\)',s))

@@ -596,7 +596,9 @@ func newTestAdapter(t *testing.T, dir string, runner commandRunner) *Adapter {
 			return nil, errors.New("unexpected command")
 		}
 	}
-	return newAdapter(config, runner)
+	adapter := newAdapter(config, runner)
+	t.Cleanup(func() { retireFixture(adapter) })
+	return adapter
 }
 
 func writeSupervisor(t *testing.T, adapter *Adapter, mode, main, controller, playlist string) {
