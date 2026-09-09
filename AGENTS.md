@@ -2,14 +2,14 @@
 
 ## Product and repository
 
-The user-facing product is **MegaVGMPlayer v2.0**, an FPGA music player for MiSTer.
+The user-facing current product is **MegaVGMPlayer v2.1**, an FPGA music player for MiSTer. v2.0 and earlier are historical release architectures.
 
 **MegaVGMDrive** is the underlying repository and FPGA/core development project. User-facing documentation and normal operating instructions should lead with MegaVGMPlayer rather than presenting the internal sound-engine builds as separate products.
 
-Normal operation uses the Remote/PWA Player. The user does not manually select an A/B RBF:
+Normal operation uses the standalone Remote/PWA Player at `http://<MiSTer-IP>:8183/megavgm`. It is served by `/media/fat/MegaVGMPlayer/megavgm_remote` and has no MiSTer Remote dependency. MiSTer Remote remains an independent service on port 8182. The user does not manually select an A/B RBF:
 
 1. MiSTer remains in STOCK mode after boot.
-2. A Remote Player request enters MegaVGMPlayer through the production Supervisor route.
+2. A standalone Player request enters MegaVGMPlayer through the production Supervisor route.
 3. The Phase2A host classifier and controller select the required FPGA sound engine.
 4. The Supervisor switches engines when necessary while preserving playlist ownership.
 5. Playlist completion or Exit restores stock MiSTer automatically.
@@ -35,11 +35,24 @@ Runtime components belong under:
 /media/fat/MegaVGMPlayer/
 ```
 
-Remote and importer scripts belong under:
+This includes `MiSTer.megavgm`, `megavgm_supervisor`,
+`megavgm_playlist-phase2a`, and the standalone `megavgm_remote` daemon.
+
+Helper and importer scripts belong under:
 
 ```text
 /media/fat/Scripts/
 ```
+
+The v2.1 release must not ship or replace `/media/fat/Scripts/remote.sh`.
+The existing MiSTer Remote and its port 8182 lifecycle are independent.
+The standalone daemon owns port 8183 and is registered through its own block in
+`/media/fat/linux/user-startup.sh`. Autostart starts HTTP only; it must not ENTER
+MegaVGMPlayer or disturb the initial STOCK state.
+
+Favorites and Playlists remain at
+`/media/fat/Scripts/.config/megavgm/playlists.json`. Install, upgrade, and
+rollback must never overwrite, remove, or migrate this file.
 
 Do not use `_Utility`, `_custom_core`, or `_Custom Cores` without its `Cores` subdirectory as a production A/B RBF load path. References to an old path are permitted only in explicit migration, rollback, or cleanup documentation.
 
@@ -56,9 +69,9 @@ Production Phase2A must not depend on `/tmp/megavgm_supervisor-test/profile`. Te
 
 Use a dedicated branch, worktree, and versioned project for risky or staged work. Do not overwrite a production/PASS QPF, QSF, RBF, or known-good runtime artifact while developing a replacement.
 
-## MegaVGMPlayer v2.0 transport freeze
+## MegaVGMPlayer v2.x transport freeze
 
-The v2.0 Player and transport behavior are production-frozen. Do not casually modify:
+The v2.0-established Player/transport behavior carried forward by v2.1 is production-frozen. Do not casually modify:
 
 - Playlist snapshot and queue semantics
 - Previous, Next, and Stop behavior
@@ -141,7 +154,7 @@ Do not alter routing decisions based on a UI sound-chip label. Sound-chip labels
 
 ## Production and lab separation
 
-Production consists of the Phase2A automatic route and the release-matched Supervisor, controller, modified Main, Remote, importer, and A/B RBF artifacts.
+Production consists of the Phase2A automatic route and the release-matched Supervisor, controller, modified Main, standalone `megavgm_remote`, helper, importer, and A/B RBF artifacts. The modified MiSTer Remote used by v2.0 is legacy architecture, not a v2.1 runtime dependency.
 
 Lab-only facilities include:
 
@@ -164,7 +177,7 @@ Current production sound families include:
 - YM2610
 - YM2610B
 
-Supporting PSG/SSG and ADPCM paths remain part of the appropriate engine implementation. Do not list Mega CD / RF5C164 or 32X PWM as implemented in v2.0.
+Supporting PSG/SSG and ADPCM paths remain part of the appropriate engine implementation. Do not list Mega CD / RF5C164 or 32X PWM as implemented in v2.1.
 
 The UI sound-chip field is informational and may use importer metadata such as `.megavgm-sound-chip`. Display metadata must not change profile classification, command validation, RBF selection, or playback sequencing.
 

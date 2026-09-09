@@ -4,211 +4,148 @@
 
 MegaVGMPlayer is an integrated FPGA VGM music player for MiSTer. **MegaVGMDrive** is the underlying repository and FPGA/core development project.
 
-[日本語](README.ja.md) · [Download MegaVGMPlayer v2.0](https://github.com/dai-VGM/MegaVGMDrive/releases/tag/v2.0)
+[日本語](README.ja.md) · [Download MegaVGMPlayer v2.1](https://github.com/dai-VGM/MegaVGMDrive/releases/tag/v2.1)
 
 > **Development note:** Almost all of this project was implemented and debugged by OpenAI Codex and GPT. I only listened to the sound, ran the Quartus builds, and sent the debug values back to Codex.
 
-## MegaVGMPlayer v2.0 Remote / PWA
+## MegaVGMPlayer v2.1 Remote / PWA
 
 <p align="center">
-  <img src="docs/images/megavgmplayer-v2-browse.png" width="45%" alt="MegaVGMPlayer v2.0 Browse view with a track playing">
-  <img src="docs/images/megavgmplayer-v2-playlists.png" width="45%" alt="MegaVGMPlayer v2.0 Playlists view with the mini player">
+  <img src="docs/images/megavgmplayer-v2-browse.png" width="45%" alt="MegaVGMPlayer Browse view with a track playing">
+  <img src="docs/images/megavgmplayer-v2-playlists.png" width="45%" alt="MegaVGMPlayer Playlists view with the mini player">
 </p>
 
 <p align="center"><em>Browse and Playlists views in the iPhone Home Screen PWA.</em></p>
 
+Version 2.1, “Independence Day,” runs the Player and API in the dedicated `megavgm_remote` daemon on port **8183**. It no longer requires a modified MiSTer Remote. The normal MiSTer Remote can continue independently on port 8182.
+
+```text
+http://<MiSTer-IP>:8183/megavgm
+```
+
 ## Features
 
-- Remote / PWA Player for iPhone, iPad, and desktop browsers
+- Independent Remote / PWA Player for iPhone, iPad, and desktop browsers
 - Folder browsing, Playlists, and Favorites
-- Previous, Next, and immediate Stop controls
-- Repeat One, Repeat Context, and Shuffle
+- Previous, Next, immediate Stop, Repeat One, Repeat Context, and Shuffle
 - Automatic next-track playback and transition fades
 - YM2612, YM2151, YM2203, SegaPCM, YM2610, and YM2610B playback
-- Automatic FPGA sound-engine / RBF switching
-- Mixed-engine playlists
+- Automatic FPGA sound-engine / RBF switching and mixed-engine playlists
+- Daemon restart without stopping FPGA playback, followed by status reconnection
+- Automatic daemon startup after reboot
 - Automatic restoration to stock MiSTer after playlist completion or Exit
 
-MegaVGMPlayer automatically selects the required FPGA sound engine. Normal playback does not require the user to choose an internal engine or RBF.
-
-## Supported sound hardware
-
-The v2.0 playback paths cover:
-
-- YM2612
-- YM2151
-- YM2203
-- SegaPCM
-- YM2610
-- YM2610B
-- Supporting PSG/SSG and ADPCM-A/ADPCM-B paths used by those profiles
-
-Sound-chip labels in the Remote Player are informational. They may be incomplete when the source VGM or package does not provide sufficiently precise metadata.
+MegaVGMPlayer automatically selects the required FPGA sound engine. Normal playback does not require manual engine or RBF selection. Supporting PSG/SSG and ADPCM-A/ADPCM-B paths are included where required. Player sound-chip labels are informational and depend on available VGM/package metadata.
 
 ## Installation
 
-1. Download and extract [`MegaVGMPlayer_v2.0.zip`](https://github.com/dai-VGM/MegaVGMDrive/releases/tag/v2.0).
-2. Copy the contents of the ZIP's `media/fat/` directory into `/media/fat/` on MiSTer, preserving the directory structure.
+1. Download and extract [`MegaVGMPlayer-v2.1.zip`](https://github.com/dai-VGM/MegaVGMDrive/releases/tag/v2.1).
+2. Copy the ZIP's `media/fat/` contents into `/media/fat/` on MiSTer while preserving the directory structure, or copy the whole package to MiSTer and use `install.sh`.
 3. Reboot MiSTer.
-4. From a browser on the same LAN, open:
+4. From a browser on the same LAN, open `http://<MiSTer-IP>:8183/megavgm`.
 
-```text
-http://<MiSTer-IP>:8182/megavgm
-```
+For advanced installation or upgrade, return MegaVGMPlayer to STOCK first. The included `install.sh` / `upgrade.sh` verifies checksums, makes a timestamped backup, and registers the standalone service in `/media/fat/linux/user-startup.sh`. `rollback.sh` restores the backup. Read the package README before running these scripts.
 
-If you already use `/media/fat/Scripts/remote.sh`, back it up before copying the release manually.
+The v2.1 package does **not** contain or overwrite `/media/fat/Scripts/remote.sh`. It does not replace, migrate, or delete the existing Favorites/Playlists file.
 
-For advanced installation, the package includes `install.sh`, which verifies checksums and creates a timestamped backup. The included `rollback.sh` restores that backup. Return MegaVGMPlayer to STOCK before running either operation.
+### Upgrading from v2.0
 
-## Runtime paths
+- Favorites/Playlists and the VGM library require no migration.
+- The production RBF directory remains unchanged.
+- The official v2.1 URL is `http://<MiSTer-IP>:8183/megavgm`.
+- Do not operate the old v2.0 MegaVGMPlayer UI on port 8182 concurrently with v2.1.
+- A v2.0 Home Screen shortcut points to the old origin. Open the new 8183 URL in Safari and add it to the Home Screen again.
 
-FPGA sound-engine files:
+v2.1 does not replace a possibly customized v2.0 `remote.sh` with an unknown upstream version. Leaving it installed does not prevent v2.1 from running on 8183. MiSTer Remote itself remains available normally on 8182.
+
+## Production paths
 
 ```text
 /media/fat/_Custom Cores/Cores/
-```
+  MegaVGMPlayer_Transport13FadeOnly_A_MiSTer.rbf
+  MegaVGMPlayer_Transport13FadeOnly_B_MiSTer.rbf
 
-Runtime components:
-
-```text
 /media/fat/MegaVGMPlayer/
-```
+  MiSTer.megavgm
+  megavgm_supervisor
+  megavgm_playlist-phase2a
+  megavgm_remote
 
-Remote and importer scripts:
-
-```text
 /media/fat/Scripts/
+  megavgm_ctl
+  vgm_md_import.sh
 ```
 
-VGM library:
-
-```text
-/media/fat/MegaVGMDrive/
-```
-
-The v2.0 release keeps compatibility with existing libraries under `/media/fat/MegaVGMDrive/`.
+The internal engine names are implementation details. Existing Favorites and Playlists remain at `/media/fat/Scripts/.config/megavgm/playlists.json`. The standard VGM library remains `/media/fat/MegaVGMDrive/`.
 
 ## Adding VGM music
 
-Copy `.vgm`, `.vgz`, or `.zip` inputs into:
-
-```text
-/media/fat/MegaVGMDrive/inbox/
-```
-
-Then run:
+Copy `.vgm`, `.vgz`, or `.zip` inputs into `/media/fat/MegaVGMDrive/inbox/`, then run:
 
 ```sh
 /media/fat/Scripts/vgm_md_import.sh
 ```
 
-Prepared VGM files are written under:
+Prepared files are written below `/media/fat/MegaVGMDrive/vgm_cache/`. The importer decompresses inputs and adds display metadata where needed; the FPGA does not play ZIP files directly.
 
-```text
-/media/fat/MegaVGMDrive/vgm_cache/
-```
+## Remote Player and PWA
 
-The importer decompresses inputs when needed and adds display-title and sound-chip metadata. This prepares compressed collections; the FPGA does not play ZIP files directly.
+Use `http://<MiSTer-IP>:8183/megavgm` from the same LAN. A fixed IP is not required; a router DHCP reservation is useful if the address changes. On iPhone/iPad, open this exact URL in Safari and choose **Add to Home Screen**.
 
-## Remote Player access
+Port 8182 belongs to MiSTer Remote and is not the MegaVGMPlayer v2.1 URL. Both services can listen simultaneously and operate independently.
 
-Connect from a browser on the same LAN:
-
-```text
-http://<MiSTer-IP>:8182/megavgm
-```
-
-A fixed IP is not required. A router DHCP reservation is useful if the MiSTer address changes. On iPhone or iPad, open the page in Safari and use **Add to Home Screen** for the standalone PWA.
-
-## Playlist, Favorites, Repeat, and Shuffle
+## Playlist controls
 
 - **Favorites** is the built-in playlist for starred tracks.
-- **Repeat One** repeats the current track.
-- **Repeat Context** repeats the current folder, Playlist, or Favorites snapshot.
-- **Shuffle** changes traversal order within the active playback context.
+- **Repeat One** repeats one track; **Repeat Context** repeats the active folder, Playlist, or Favorites snapshot.
+- **Shuffle** changes traversal order inside the active context.
 - **Stop** ends playback immediately.
 
-A queue started from a Playlist remains owned by that immutable Playlist snapshot rather than being rebuilt from the folder currently visible in Browse.
+A Playlist queue remains owned by its immutable snapshot rather than the folder currently visible in Browse.
 
 ## Automatic FPGA sound-engine switching
 
-The host classifier determines which sound engine each VGM requires. When the next track needs another engine, MegaVGMPlayer fades the current track, preserves the reserved playlist position, switches the RBF, and starts the next track in a fresh session.
+The host classifier determines the required sound engine. At a profile boundary, MegaVGMPlayer fades the current track, preserves the reserved queue position, switches the RBF, and begins the next track in a fresh session. Same-profile transitions do not reload the RBF. Playlist completion or Exit restores STOCK.
 
-Same-profile transitions do not reload the RBF. Playlists containing tracks for different sound engines continue without requiring manual core selection.
+## Cold start and troubleshooting
 
-## Cold start note
+Cold start may take a few seconds while MegaVGMPlayer initializes the FPGA sound engine. This is distinct from normal warm transitions.
 
-Cold start may take a few seconds while MegaVGMPlayer initializes the FPGA sound engine. This one-time initialization is distinct from normal warm track transitions.
+- Confirm the browser uses `http://<MiSTer-IP>:8183/megavgm` on the same LAN.
+- Confirm exactly one `megavgm_remote` owns TCP 8183; MiSTer Remote on 8182 is separate and expected.
+- Verify files using the package `SHA256SUMS`, and keep all runtime components from one release set.
+- If an update fails, return to STOCK and run `rollback.sh` with the installer-reported backup.
 
-## Troubleshooting
-
-- Confirm the browser is on the same LAN and uses `http://<MiSTer-IP>:8182/megavgm`.
-- Confirm that only one Remote process owns TCP port 8182.
-- Verify installed files against the package's `SHA256SUMS`.
-- Keep Main, Supervisor, controller, Remote, and both RBFs from the same release set.
-- If an update fails, return to STOCK and run `rollback.sh` with the backup directory reported by the installer.
-
-## Architecture and the MegaVGMDrive project
-
-MegaVGMDrive is the FPGA/core development repository. MegaVGMPlayer is the user-facing product integrating the FPGA sound engines, modified MiSTer Main, Supervisor, playlist controller, Remote/PWA, and importer.
-
-VGM register streams are sent directly to synthesizable FPGA sound-core HDL:
+## Architecture and MegaVGMDrive
 
 ```text
-VGM data
-  -> FPGA VGM parser
-  -> FPGA sound-core HDL
-  -> FPGA mixer
-  -> MiSTer audio output
+Browser / PWA (:8183)
+  -> megavgm_remote
+  -> Supervisor
+  -> Phase2A controller
+  -> MiSTer.megavgm + selected FPGA sound-engine RBF
 ```
 
-MegaVGMPlayer uses multiple FPGA sound-engine RBFs internally. The host classifier and Supervisor select and switch them automatically; this internal split is not part of normal user operation.
+MiSTer Remote is not in this path. MegaVGMDrive is the FPGA/core repository; MegaVGMPlayer is the user-facing integration. VGM register streams are sent to synthesizable FPGA sound-core HDL. FPGA implementation does not imply transistor-level identity or automatic superiority to original silicon or software emulation.
 
-FPGA implementation does not automatically imply greater accuracy than original silicon or software emulators. The JT cores are hardware implementations, not claims of transistor-level identity with the original chips.
-
-## Adding a sound engine
-
-Contributors should adapt a new profile to the existing generic transport ABI: index-1 load lifecycle, index-2 policy/transition isolation, session/busy/done/loop status, the common fade owner, FADE_ONLY-to-ENDED behavior, and safe new-session audio qualification.
-
-Extend host classification/profile mapping without changing queue ownership or Main-visible transport semantics. Validate simulation first, then Windows Quartus Full Compilation, and finally real MiSTer hardware. See [AGENTS.md](AGENTS.md) for the protected Golden Player Shell and stage-gated development rules.
+Contributors adding an engine should adapt it to the existing generic transport ABI and preserve queue/session/transition semantics. Validate simulation, Windows Quartus Full Compilation, then real MiSTer hardware. See [AGENTS.md](AGENTS.md).
 
 ## Current limitations
 
-- MegaVGMPlayer is a standalone VGM music player, not a complete console or arcade machine.
-- Commands or devices outside the implemented profiles may not play as intended.
-- The FPGA does not natively decompress `.vgz` or `.zip`; use the included importer.
-- Mega CD / RF5C164 and 32X PWM are not supported in v2.0.
-- Pause and authoritative elapsed/remaining progress display are not included in v2.0.
+- This is a VGM music player, not a complete console or arcade machine.
+- Unsupported commands/devices may not play as intended.
+- Use the importer for `.vgz`/`.zip`; the FPGA does not decompress them.
+- Mega CD / RF5C164 and 32X PWM are not supported in v2.1.
+- Pause and authoritative elapsed/remaining progress are not included.
 
-## Historical releases and legacy manual core usage
+## Historical releases
 
-The following releases remain available for older installations and manual single-core workflows. They are not the recommended entry point for new v2.0 users.
+- [v2.0](https://github.com/dai-VGM/MegaVGMDrive/releases/tag/v2.0) used a modified MiSTer Remote on port 8182; this is legacy architecture.
+- [v1.0.2 — YM2151 / SegaPCM](https://github.com/dai-VGM/MegaVGMDrive/releases/tag/v1.0.2)
+- [YM2610B Beta 1](https://github.com/dai-VGM/MegaVGMDrive/releases/tag/YM2610B-beta1)
 
-- [MegaVGMPlayer v1.0.2 — YM2151 / SegaPCM stable release](https://github.com/dai-VGM/MegaVGMDrive/releases/tag/v1.0.2)
-- [MegaVGMPlayer YM2610B Beta 1](https://github.com/dai-VGM/MegaVGMDrive/releases/tag/YM2610B-beta1)
+## Repository, acknowledgements, and license
 
-In v2.0 normal operation, users no longer select between these legacy editions manually.
+The repository contains synthesizable RTL, MiSTer framework support, simulations/tests, import and analysis tools, documentation, and screenshots. It incorporates or derives integration work from [Genesis_MiSTer](https://github.com/MiSTer-devel/Genesis_MiSTer), José Tejada Gómez's JT cores, and JTOUTRUN SegaPCM. See [Genesis audio provenance](rtl/genesis_audio/README.md).
 
-## Repository layout
-
-- `rtl/` — synthesizable player and sound integration
-- `sys/` — MiSTer framework support
-- `tb/`, `tests/` — simulation and regression fixtures
-- `scripts/`, `tools/` — import, analysis, and test utilities
-- `docs/` — formats, provenance, implementation notes, and screenshots
-
-## Acknowledgements and upstream projects
-
-MegaVGMDrive targets the [MiSTer FPGA platform](https://github.com/MiSTer-devel/Main_MiSTer) and incorporates or derives integration work from:
-
-- [Genesis_MiSTer](https://github.com/MiSTer-devel/Genesis_MiSTer)
-- JT12, JT89, JT49, JT51, JT10, and related JT cores by José Tejada Gómez (Jotego)
-- SegaPCM through Jotego's JTOUTRUN / `jtoutrun_pcm` implementation
-
-See [Genesis audio provenance](rtl/genesis_audio/README.md) for pinned revisions and local integration notes. Original copyright notices and source headers are preserved.
-
-## License
-
-Third-party components remain under their upstream licenses. See the included [JT51 license](third_party/jt51/LICENSE), [JT cores license](third_party/jtcores/LICENSE), component READMEs, and individual source headers.
-
-This repository has no separate top-level `LICENSE` file. Do not infer one license for every file; review the applicable component license and source notice before redistribution.
+Third-party components remain under their upstream licenses. Review component licenses, READMEs, and source headers; there is no single inferred top-level license for every file.
