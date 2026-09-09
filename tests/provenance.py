@@ -16,6 +16,8 @@ for p in sorted(backend.glob('*.go')):
         expected=expected.replace('\treturn newAdapter(config, runner)\n', '\tadapter := newAdapter(config, runner)\n\tt.Cleanup(func() { retireFixture(adapter) })\n\treturn adapter\n')
     assert (root/'internal/megavgm'/p.name).read_text()==expected,p
 for p in sorted((root/'frontend/src/components').glob('*')):
+    if p.name=='MegaVGMStandaloneStyles.tsx':
+        continue  # Dedicated outer shell adapter, not an imported Player file.
     assert p.read_bytes()==(frontend/p.name).read_bytes(),p
 print('Production backend and Player byte-identical; test assertions unchanged, fixture cleanup only')
 old=(backend.parent/'main.go').read_text()

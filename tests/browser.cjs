@@ -1,7 +1,8 @@
 // Actual production bundle. Fixture HTTP only, no fake WebSocket or Remote shell.
 const fs=require('node:fs'), path=require('node:path'), http=require('node:http');
 const assert=require('node:assert/strict'), {spawn}=require('node:child_process');
-const project=path.resolve(__dirname,'..'), out=path.join(project,'evidence');
+const project=path.resolve(__dirname,'..'), out=path.join(project,'evidence',process.env.MEGAVGM_EVIDENCE||'viewport-contract');
+const buildRoot=process.env.MEGAVGM_BUILD_ROOT||path.join(project,'frontend/build');
 fs.mkdirSync(out,{recursive:true});
 const port=5291, debug=9393, origin=`http://127.0.0.1:${port}`;
 const entries=Array.from({length:40},(_,i)=>({path:`/media/fat/MegaVGMDrive/Music/${i+1} Track.vgm`,title:`${i+1} Track`,filename:`${i+1} Track.vgm`,directory:'Music',available:true}));
@@ -18,7 +19,7 @@ const server=http.createServer((req,res)=>{
   else value={version:1,name:'Favorites',playlist:'Favorites',reserved:true,entries};
   res.setHeader('Content-Type','application/json'); res.end(JSON.stringify(value)); return;
  }
- const p=path.join(project,'frontend/build',u.pathname==='/megavgm'?'megavgm.html':u.pathname);
+ const p=path.join(buildRoot,u.pathname==='/megavgm'?'megavgm.html':u.pathname);
  const types={'.html':'text/html','.js':'text/javascript','.css':'text/css','.png':'image/png','.json':'application/json'};
  if(!fs.existsSync(p)){res.writeHead(404);res.end();return;}
  res.setHeader('Content-Type',types[path.extname(p)]||'application/octet-stream');res.end(fs.readFileSync(p));
@@ -44,14 +45,31 @@ const server=http.createServer((req,res)=>{
   await send('Runtime.enable');await send('Network.enable');await send('Page.enable');
   await send('Emulation.setSafeAreaInsetsOverride',{insets:{top:59,bottom:34,left:0,right:0}});
   const measurements=[];
-  for(const width of [320,393]) {
+  for(const width of (process.env.MEGAVGM_REDUCED_PERCENT_ROOT ? [393] : [320,393])) {
    await send('Emulation.setDeviceMetricsOverride',{width,height:852,deviceScaleFactor:1,mobile:true});
    await send('Page.navigate',{url:origin+'/megavgm'});
    await wait("document.querySelector('[data-testid=playback-position]')?.textContent==='4/40'");
    assert(await evaluate("matchMedia('(display-mode: standalone)').matches"));
    await wait("document.querySelectorAll('[data-track-state]').length===40");
-   const read=()=>evaluate(`(()=>{const box=s=>{const e=document.querySelector(s),r=e.getBoundingClientRect(),c=getComputedStyle(e);return {top:r.top,bottom:r.bottom,height:r.height,paddingTop:parseFloat(c.paddingTop),paddingBottom:parseFloat(c.paddingBottom),scrollTop:e.scrollTop};};return {shell:box('[data-standalone-shell]'),header:box('header'),content:box('[data-testid=music-content]'),player:box('[data-testid=mini-player]'),nav:box('nav'),docHeight:document.scrollingElement.scrollHeight,docWidth:document.scrollingElement.scrollWidth};})()`);
-   const before=await read();assert.equal(before.shell.bottom,852);assert.equal(before.docHeight,852);assert.equal(before.docWidth,width);assert.equal(before.header.paddingTop,59);assert.equal(before.nav.paddingBottom,34);assert.equal(before.nav.bottom,852);
+   if(process.env.MEGAVGM_REDUCED_PERCENT_ROOT) {
+    // Controlled test-only reduced percentage-root basis. This is NOT an iOS
+    // emulator or production viewport correction. New min/max constraints must
+    // contain the independent lvh child despite a reduced preferred root height.
+    await evaluate("document.documentElement.style.height='calc(100lvh - env(safe-area-inset-top))'");
+   }
+   const read=()=>evaluate(`(()=>{const box=s=>{const e=document.querySelector(s),r=e.getBoundingClientRect(),c=getComputedStyle(e);return {top:r.top,bottom:r.bottom,height:r.height,minHeight:c.minHeight,maxHeight:c.maxHeight,paddingTop:parseFloat(c.paddingTop),paddingBottom:parseFloat(c.paddingBottom),scrollTop:e.scrollTop};};return {html:box('html'),body:box('body'),root:box('#root'),shell:box('[data-standalone-shell]'),header:box('header'),content:box('[data-testid=music-content]'),player:box('[data-testid=mini-player]'),nav:box('nav'),tabs:box('nav .MuiTabs-flexContainer'),docHeight:document.scrollingElement.scrollHeight,docWidth:document.scrollingElement.scrollWidth};})()`);
+   const before=await read();
+   fs.writeFileSync(path.join(out,`initial-${width}.json`),JSON.stringify(before,null,2));
+   fs.writeFileSync(path.join(out,`initial-${width}.png`),Buffer.from((await send('Page.captureScreenshot',{format:'png'})).data,'base64'));
+   assert.equal(before.shell.bottom,852);assert.equal(before.docHeight,852);assert.equal(before.docWidth,width);assert.equal(before.header.paddingTop,59);assert.equal(before.nav.paddingBottom,34);assert.equal(before.nav.bottom,852);
+   for(const key of ['html','body','root']) {
+    assert.equal(before[key].height,852);
+    assert.equal(before[key].minHeight,'852px',`${key}: full root minimum missing`);
+    assert.equal(before[key].maxHeight,'852px',`${key}: full root maximum missing`);
+   }
+   assert.equal(before.shell.maxHeight,'100%');
+   assert.equal(before.nav.bottom-before.tabs.bottom,34,'safe bottom must be inside navigation');
+   assert(await evaluate("[...document.querySelectorAll('nav [role=tab]')].every(e=>e.getBoundingClientRect().bottom<=818)"));
    await evaluate("document.querySelector('[data-testid=music-content]').scrollTo(0,420)");
    await wait("document.querySelector('[data-testid=music-content]').scrollTop===420");
    await new Promise(r=>setTimeout(r,100));

@@ -6,6 +6,7 @@ import CssBaseline from "@mui/material/CssBaseline";
 import GlobalStyles from "@mui/material/GlobalStyles";
 import Box from "@mui/material/Box";
 import MegaVGMPlayer from "./components/MegaVGMPlayer";
+import MegaVGMStandaloneStyles from "./components/MegaVGMStandaloneStyles";
 import { getTheme } from "./lib/themes";
 import { MEGAVGM_HEADER_LOGO, MEGAVGM_HEADER_LOGO_STYLE } from "./components/remoteHeaderPresentation";
 import "@fontsource/roboto/300.css";
@@ -25,14 +26,11 @@ function Shell() {
       "html, body, #root": { height: "100%", margin: 0, overflow: "hidden", overscrollBehavior: "none", backgroundColor: "#10151C" },
       "[data-standalone-shell]": { height: "100vh", display: "flex", flexDirection: "column", overflow: "hidden" },
       "@supports (height: 100dvh)": { "[data-standalone-shell]": { height: "100dvh" } },
-      "@media (display-mode: standalone)": {
-        "[data-standalone-shell]": { height: "100vh" },
-        "@supports (height: 100lvh)": { "[data-standalone-shell]": { height: "100lvh" } },
-      },
       "[data-standalone-shell] > main": { flex: "1 1 0", minHeight: 0, minWidth: 0, display: "flex", flexDirection: "column", overflow: "hidden", paddingLeft: "env(safe-area-inset-left)", paddingRight: "env(safe-area-inset-right)" },
       "[data-standalone-shell] [data-testid=player-shell]": { flex: "1 1 0", height: "auto", minHeight: 0, overflow: "hidden" },
       "[data-standalone-shell] [data-testid=music-content]": { flex: "1 1 0", minHeight: 0, overflowY: "auto", overflowX: "hidden", overscrollBehavior: "none", WebkitOverflowScrolling: "touch" },
     }} />
+    <MegaVGMStandaloneStyles />
     <Box data-standalone-shell>
       <Box component="header" sx={{ flex: "0 0 auto", backgroundColor: "#18212B", paddingTop: "env(safe-area-inset-top)", paddingLeft: "env(safe-area-inset-left)", paddingRight: "env(safe-area-inset-right)" }}>
         <Box sx={{ height: { xs: 44, sm: 64 }, display: "flex", alignItems: "center", justifyContent: "center" }}>
