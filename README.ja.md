@@ -6,7 +6,7 @@
 
 [English](README.md) · [MegaVGMPlayer v2.0をダウンロード](https://github.com/dai-VGM/MegaVGMDrive/releases/tag/v2.0)
 
-> **開発について:** このプロジェクトの実装とデバッグのほぼすべてはOpenAI CodexとGPTが行いました。私は実際の音を聴き、Quartusでbuildし、MiSTer実機のデバッグ値や聴感結果をCodexへ返す役割を担当しました。
+> **開発について:** このプロジェクトの実装とデバッグのほぼすべてはOpenAI CodexとGPTが行いました。私は実際の音を聴き、Quartusでbuildし、MiSTer実機のデバッグ値や聴感結果をCodexへ返す役割を担当しました。ただの聴き専です。
 
 ## MegaVGMPlayer v2.0 Remote / PWA
 
