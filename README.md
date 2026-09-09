@@ -1,8 +1,10 @@
-# MegaVGMDrive / MegaVGMPlayer
+# MegaVGMPlayer
 
-MegaVGMPlayer is a standalone FPGA VGM player for MiSTer. **MegaVGMDrive** is the repository and FPGA core project; **MegaVGMPlayer** is the on-screen player.
+**FPGA Music Player for MiSTer**
 
-[日本語](README.ja.md) · [YM2151 / SegaPCM v1.0.2 stable release](https://github.com/dai-VGM/MegaVGMDrive/releases/tag/v1.0.2) · [YM2610B Beta release](https://github.com/dai-VGM/MegaVGMDrive/releases/tag/YM2610B-beta1)
+MegaVGMPlayer is an integrated FPGA VGM music player for MiSTer. **MegaVGMDrive** is the underlying repository and FPGA/core development project.
+
+[日本語](README.ja.md) · [Download MegaVGMPlayer v2.0](https://github.com/dai-VGM/MegaVGMDrive/releases/tag/v2.0)
 
 > **Development note:** Almost all of this project was implemented and debugged by OpenAI Codex and GPT. I only listened to the sound, ran the Quartus builds, and sent the debug values back to Codex.
 
@@ -15,18 +17,140 @@ MegaVGMPlayer is a standalone FPGA VGM player for MiSTer. **MegaVGMDrive** is th
 
 <p align="center"><em>Browse and Playlists views in the iPhone Home Screen PWA.</em></p>
 
-## Choose an edition
+## Features
 
-MegaVGMPlayer is distributed as two independent RBF product lines. It is not an all-in-one build.
+- Remote / PWA Player for iPhone, iPad, and desktop browsers
+- Folder browsing, Playlists, and Favorites
+- Previous, Next, and immediate Stop controls
+- Repeat One, Repeat Context, and Shuffle
+- Automatic next-track playback and transition fades
+- YM2612, YM2151, YM2203, SegaPCM, YM2610, and YM2610B playback
+- Automatic FPGA sound-engine / RBF switching
+- Mixed-engine playlists
+- Automatic restoration to stock MiSTer after playlist completion or Exit
 
-| Edition | Status | Main sound paths | Release asset |
-| --- | --- | --- | --- |
-| YM2151 / SegaPCM | **Stable v1.0.2** | YM2612, SN76489, YM2151, YM2203, SSG, SegaPCM | `MegaVGMDrive_MiSTer_v1.0.2.rbf` |
-| YM2610B | **Beta** | YM2610, YM2610B, FM, ADPCM-A, ADPCM-B | `MegaVGMPlayer_YM2610B.rbf` |
+MegaVGMPlayer automatically selects the required FPGA sound engine. Normal playback does not require the user to choose an internal engine or RBF.
 
-Cyclone V resource limits make a practical universal configuration undesirable. Choose the RBF for the systems and music you want to play. Neither edition supersedes the other.
+## Supported sound hardware
 
-## What makes it different?
+The v2.0 playback paths cover:
+
+- YM2612
+- YM2151
+- YM2203
+- SegaPCM
+- YM2610
+- YM2610B
+- Supporting PSG/SSG and ADPCM-A/ADPCM-B paths used by those profiles
+
+Sound-chip labels in the Remote Player are informational. They may be incomplete when the source VGM or package does not provide sufficiently precise metadata.
+
+## Installation
+
+1. Download and extract [`MegaVGMPlayer_v2.0.zip`](https://github.com/dai-VGM/MegaVGMDrive/releases/tag/v2.0).
+2. Copy the contents of the ZIP's `media/fat/` directory into `/media/fat/` on MiSTer, preserving the directory structure.
+3. Reboot MiSTer.
+4. From a browser on the same LAN, open:
+
+```text
+http://<MiSTer-IP>:8182/megavgm
+```
+
+If you already use `/media/fat/Scripts/remote.sh`, back it up before copying the release manually.
+
+For advanced installation, the package includes `install.sh`, which verifies checksums and creates a timestamped backup. The included `rollback.sh` restores that backup. Return MegaVGMPlayer to STOCK before running either operation.
+
+## Runtime paths
+
+FPGA sound-engine files:
+
+```text
+/media/fat/_Custom Cores/Cores/
+```
+
+Runtime components:
+
+```text
+/media/fat/MegaVGMPlayer/
+```
+
+Remote and importer scripts:
+
+```text
+/media/fat/Scripts/
+```
+
+VGM library:
+
+```text
+/media/fat/MegaVGMDrive/
+```
+
+The v2.0 release keeps compatibility with existing libraries under `/media/fat/MegaVGMDrive/`.
+
+## Adding VGM music
+
+Copy `.vgm`, `.vgz`, or `.zip` inputs into:
+
+```text
+/media/fat/MegaVGMDrive/inbox/
+```
+
+Then run:
+
+```sh
+/media/fat/Scripts/vgm_md_import.sh
+```
+
+Prepared VGM files are written under:
+
+```text
+/media/fat/MegaVGMDrive/vgm_cache/
+```
+
+The importer decompresses inputs when needed and adds display-title and sound-chip metadata. This prepares compressed collections; the FPGA does not play ZIP files directly.
+
+## Remote Player access
+
+Connect from a browser on the same LAN:
+
+```text
+http://<MiSTer-IP>:8182/megavgm
+```
+
+A fixed IP is not required. A router DHCP reservation is useful if the MiSTer address changes. On iPhone or iPad, open the page in Safari and use **Add to Home Screen** for the standalone PWA.
+
+## Playlist, Favorites, Repeat, and Shuffle
+
+- **Favorites** is the built-in playlist for starred tracks.
+- **Repeat One** repeats the current track.
+- **Repeat Context** repeats the current folder, Playlist, or Favorites snapshot.
+- **Shuffle** changes traversal order within the active playback context.
+- **Stop** ends playback immediately.
+
+A queue started from a Playlist remains owned by that immutable Playlist snapshot rather than being rebuilt from the folder currently visible in Browse.
+
+## Automatic FPGA sound-engine switching
+
+The host classifier determines which sound engine each VGM requires. When the next track needs another engine, MegaVGMPlayer fades the current track, preserves the reserved playlist position, switches the RBF, and starts the next track in a fresh session.
+
+Same-profile transitions do not reload the RBF. Playlists containing tracks for different sound engines continue without requiring manual core selection.
+
+## Cold start note
+
+Cold start may take a few seconds while MegaVGMPlayer initializes the FPGA sound engine. This one-time initialization is distinct from normal warm track transitions.
+
+## Troubleshooting
+
+- Confirm the browser is on the same LAN and uses `http://<MiSTer-IP>:8182/megavgm`.
+- Confirm that only one Remote process owns TCP port 8182.
+- Verify installed files against the package's `SHA256SUMS`.
+- Keep Main, Supervisor, controller, Remote, and both RBFs from the same release set.
+- If an update fails, return to STOCK and run `rollback.sh` with the backup directory reported by the installer.
+
+## Architecture and the MegaVGMDrive project
+
+MegaVGMDrive is the FPGA/core development repository. MegaVGMPlayer is the user-facing product integrating the FPGA sound engines, modified MiSTer Main, Supervisor, playlist controller, Remote/PWA, and importer.
 
 VGM register streams are sent directly to synthesizable FPGA sound-core HDL:
 
@@ -38,145 +162,40 @@ VGM data
   -> MiSTer audio output
 ```
 
-Sound generation and mixing stay inside the FPGA rather than going through a PC software synthesizer or an operating-system audio stack. This provides a short, direct way to listen to FPGA implementations of the supported sound chips in a standalone MiSTer player.
+MegaVGMPlayer uses multiple FPGA sound-engine RBFs internally. The host classifier and Supervisor select and switch them automatically; this internal split is not part of normal user operation.
 
-This does not mean that FPGA implementations are automatically more accurate than original silicon or software emulators, nor that they necessarily sound better. The JT cores are hardware implementations, not claims of transistor-level identity with the original chips.
+FPGA implementation does not automatically imply greater accuracy than original silicon or software emulators. The JT cores are hardware implementations, not claims of transistor-level identity with the original chips.
 
-## YM2151 / SegaPCM edition — stable v1.0.2
+## Adding a sound engine
 
-Download: [MegaVGMPlayer v1.0.2](https://github.com/dai-VGM/MegaVGMDrive/releases/tag/v1.0.2)
+Contributors should adapt a new profile to the existing generic transport ABI: index-1 load lifecycle, index-2 policy/transition isolation, session/busy/done/loop status, the common fade owner, FADE_ONLY-to-ENDED behavior, and safe new-session audio qualification.
 
-This edition enables the following production paths together:
+Extend host classification/profile mapping without changing queue ownership or Main-visible transport semantics. Validate simulation first, then Windows Quartus Full Compilation, and finally real MiSTer hardware. See [AGENTS.md](AGENTS.md) for the protected Golden Player Shell and stage-gated development rules.
 
-- YM2612 FM and DAC through JT12
-- SN76489 PSG through JT89
-- YM2151 through JT51
-- YM2203 FM with JT49 SSG
-- SegaPCM through JTOUTRUN / `jtoutrun_pcm`
+## Current limitations
 
-The parser handles the corresponding VGM writes (`0x50`, `0x52`, `0x53`, `0x54`, `0x55`, and `0xC0`) plus the waits, loops, data blocks, PCM seek, and YM2612 DAC-stream commands used by these playback paths. YM2203 and SegaPCM clocks are read from the VGM header and converted to fractional chip enables.
+- MegaVGMPlayer is a standalone VGM music player, not a complete console or arcade machine.
+- Commands or devices outside the implemented profiles may not play as intended.
+- The FPGA does not natively decompress `.vgz` or `.zip`; use the included importer.
+- Mega CD / RF5C164 and 32X PWM are not supported in v2.0.
+- Pause and authoritative elapsed/remaining progress display are not included in v2.0.
 
-### What v1.0.2 fixed
+## Historical releases and legacy manual core usage
 
-**JT51 / YM2151**
+The following releases remain available for older installations and manual single-core workflows. They are not the recommended entry point for new v2.0 users.
 
-- Fixed the After Burner II “Maximum Power” startup buzz.
-- Corrected JT51 reset-time CEN handling and eliminated previous-track JT51 state leakage.
-- Fixed Quartet startup, pitch, and state-dependent behavior.
-- Fixed Fantasy Zone startup flam/transients caused by large timestamp-zero YM2151 initialization bursts.
+- [MegaVGMPlayer v1.0.2 — YM2151 / SegaPCM stable release](https://github.com/dai-VGM/MegaVGMDrive/releases/tag/v1.0.2)
+- [MegaVGMPlayer YM2610B Beta 1](https://github.com/dai-VGM/MegaVGMDrive/releases/tag/YM2610B-beta1)
 
-**SegaPCM**
-
-- Fixed a speculative-read/raw-skid deadlock at repeat boundaries.
-- Fixed the reproducible PCM dropout in `02 Start BGM`.
-- Improved PCM playback in affected Strike Fighter tracks. This is not a claim that every Strike Fighter issue had the same proven cause.
-
-**VGM import helper**
-
-- Fixed ZIP-contained VGM/VGZ names containing literal wildcard characters such as `[ ]`, `*`, and `?`.
-- Restored missing tracks in packs including Galaxy Force II, Fantasy Zone II DX, and The Ninja Warriors.
-
-See the [v1.0.2 release](https://github.com/dai-VGM/MegaVGMDrive/releases/tag/v1.0.2) for the complete release notes and verified downloads.
-
-### Stable-edition OSD
-
-```text
-Load VGM
-Audio Gain:     Normal / Boost
-SegaPCM Audio:  Normal / PCM Only / FM Only
-Reset
-```
-
-`Audio Gain` applies to the YM2612/SN76489 Mega Drive family. `SegaPCM Audio` selects the arcade mix or isolates its FM or PCM contribution.
-
-## YM2610B edition — Beta
-
-Download: [MegaVGMPlayer YM2610B Beta 1](https://github.com/dai-VGM/MegaVGMDrive/releases/tag/YM2610B-beta1)
-
-This separate RBF provides:
-
-- YM2610 and YM2610B playback
-- YM2610B six-channel FM
-- 24-bit ADPCM-A addressing
-- 24-bit ADPCM-B addressing
-- cache and serialized mapping support for large or sparse PCM ROM layouts
-- ongoing Neo Geo VGM compatibility work
-
-Representative real-hardware testing includes Darius II, Gun Frontier, The Ninja Warriors, Night Striker, and Metal Slug material. It remains a Beta: additional game- or VGM-specific compatibility issues may still exist.
-
-## Getting started
-
-1. Download the appropriate RBF from the stable or Beta release above.
-2. Copy it to the MiSTer core location used by your setup and load it.
-3. Put uncompressed or prepared VGM files somewhere accessible to MiSTer's file picker.
-4. Open MegaVGMPlayer's OSD, choose **Load VGM**, and select a file.
-
-An ordinary unmodified `.vgm` can be loaded directly. Use the import helper for `.vgz`, ZIP archives, the standard data layout, or on-screen title metadata.
-
-## VGM import helper
-
-The repository helper is [`scripts/vgm_md_import.sh`](scripts/vgm_md_import.sh). The common MiSTer installation path is:
-
-```text
-/media/fat/Scripts/vgm_md_import.sh
-```
-
-Its default data layout is:
-
-```text
-/media/fat/MegaVGMDrive/inbox/      source files
-/media/fat/MegaVGMDrive/vgm_cache/  prepared VGM files
-```
-
-The helper accepts:
-
-- raw `.vgm`
-- `.vgz`
-- ZIP containing VGM
-- ZIP containing VGZ
-
-It decompresses inputs where necessary, creates the cache layout, and adds or replaces `MVGMTTL` title metadata without modifying the source files. Repeated preparation does not append duplicate metadata. The current prepared-file limit remains exactly 8 MiB (`8,388,608` bytes), including the 128-byte title trailer.
-
-Version 1.0.2 also makes ZIP entry extraction literal and safe for names containing spaces, parentheses, apostrophes, brackets, `*`, and `?`.
-
-Install and run it on MiSTer with:
-
-```sh
-cp vgm_md_import.sh /media/fat/Scripts/vgm_md_import.sh
-chmod +x /media/fat/Scripts/vgm_md_import.sh
-/media/fat/Scripts/vgm_md_import.sh
-```
-
-## Title display
-
-Prepared VGM files can carry a MegaVGMPlayer `MVGMTTL` trailer containing the parent directory and track basename. The on-screen player validates this trailer before displaying the two title lines; files without it remain playable without a title.
-
-See [Prepared VGM metadata](docs/prepared_vgm_metadata.md) for the binary format and validation rules.
-
-## Current limitations and possible future work
-
-- MegaVGMPlayer is a standalone VGM player, not a complete console or arcade machine.
-- Commands or devices outside an edition's implemented subset may be skipped or may not play as intended.
-- The FPGA does not natively decompress `.vgz` or `.zip`; use the import helper.
-- Mega CD / RF5C164 is not supported by either current edition.
-- 32X PWM is not supported by either current edition.
-- Playlist support, previous/next track, autoplay, pause, and progress display are possible future player features, not current features.
-
-YM2610 and YM2610B are supported through the separate YM2610B Beta RBF; they are not part of the YM2151 / SegaPCM RBF.
-
-## Builds and validation
-
-The macOS repository and QSF are the canonical source. Projects are copied to Windows for Quartus compilation, and only Windows-built RBFs that were then tested on MiSTer hardware are published. Quartus is not run on macOS for release builds.
-
-The stable v1.0.2 validation covered its YM2151/JT51 startup and reload cases, SegaPCM repeat-boundary playback, mixed sound paths, title metadata, and representative game music. The YM2610B Beta has separate hardware and long-run validation described in its release notes. These results are representative checks, not a claim of compatibility with every VGM rip.
+In v2.0 normal operation, users no longer select between these legacy editions manually.
 
 ## Repository layout
 
-- `rtl/` — synthesizable player, sound integration, DDR backend, title, and video logic
+- `rtl/` — synthesizable player and sound integration
 - `sys/` — MiSTer framework support
-- `tb/`, `tests/` — simulation and helper regressions
+- `tb/`, `tests/` — simulation and regression fixtures
 - `scripts/`, `tools/` — import, analysis, and test utilities
-- `docs/` — format, provenance, and implementation notes
+- `docs/` — formats, provenance, implementation notes, and screenshots
 
 ## Acknowledgements and upstream projects
 

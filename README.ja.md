@@ -1,4 +1,6 @@
-# MegaVGMDrive / MegaVGMPlayer
+# MegaVGMPlayer
+
+**FPGA Music Player for MiSTer**
 
 **MegaVGMPlayer**は、MiSTer向けのFPGA VGM音楽プレイヤーです。**MegaVGMDrive**は、その基盤となるrepository／FPGA core開発projectの名称です。
 
@@ -179,6 +181,24 @@ Queue ownershipやMainから見えるstatus semanticsを変更せずにhost clas
 - 実装範囲外のcommand／deviceを含むVGMは、意図どおり再生されない場合があります。
 - FPGAは`.vgz`／`.zip`をnative展開しません。付属Importerを使用してください。
 - Mega CD / RF5C164および32X PWMはv2.0の対象外です。
+- Pauseおよびauthoritativeなelapsed／remaining progress表示はv2.0に含まれません。
+
+## 過去のreleaseとlegacy manual core利用
+
+以下は旧installationやmanual single-core workflow向けに引き続き公開しています。新しいv2.0ユーザー向けの推奨導線ではありません。
+
+- [MegaVGMPlayer v1.0.2 — YM2151 / SegaPCM stable release](https://github.com/dai-VGM/MegaVGMDrive/releases/tag/v1.0.2)
+- [MegaVGMPlayer YM2610B Beta 1](https://github.com/dai-VGM/MegaVGMDrive/releases/tag/YM2610B-beta1)
+
+v2.0の通常利用では、これらのlegacy editionをユーザーが手動選択する必要はありません。
+
+## Repository構成
+
+- `rtl/` — synthesizable playerとsound integration
+- `sys/` — MiSTer framework support
+- `tb/`、`tests/` — simulationとregression fixture
+- `scripts/`、`tools/` — import、analysis、test utility
+- `docs/` — format、provenance、実装note、screenshot
 
 ## 謝辞とupstream project
 
