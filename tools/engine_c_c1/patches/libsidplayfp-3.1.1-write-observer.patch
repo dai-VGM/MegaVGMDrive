@@ -1,0 +1,180 @@
+diff --git a/src/sidplayfp/SidWriteObserver.h b/src/sidplayfp/SidWriteObserver.h
+new file mode 100644
+--- /dev/null
++++ b/src/sidplayfp/SidWriteObserver.h
+@@ -0,0 +1,11 @@
++/* Optional read-only SID bus write observer for host capture tooling. */
++#ifndef SIDWRITEOBSERVER_H
++#define SIDWRITEOBSERVER_H
++
++#include <cstdint>
++
++typedef void (*SidWriteObserver)(void *context, unsigned int sidNum,
++                                 uint_least64_t cycle,
++                                 uint_least8_t addr, uint8_t data);
++
++#endif
+diff --git a/src/sidemu.h b/src/sidemu.h
+--- a/src/sidemu.h
++++ b/src/sidemu.h
+@@ -24,6 +24,7 @@
+ #define SIDEMU_H
+ 
+ #include "sidplayfp/SidConfig.h"
++#include "sidplayfp/SidWriteObserver.h"
+ #include "sidplayfp/siddefs.h"
+ #include "Event.h"
+ #include "EventScheduler.h"
+@@ -69,6 +70,10 @@ protected:
+ 
+     bool isFilterDisabled = false;
+ 
++    SidWriteObserver m_writeObserver = nullptr;
++    void *m_writeObserverContext = nullptr;
++    unsigned int m_sidNum = 0;
++
+     /// Flags for muted voices
+     std::bitset<4> isMuted;
+ 
+@@ -140,6 +145,14 @@ public:
+ 
+     sidbuilder* builder() const { return m_builder; }
+ 
++    void setWriteObserver(SidWriteObserver observer, void *context,
++                          unsigned int sidNum)
++    {
++        m_writeObserver = observer;
++        m_writeObserverContext = context;
++        m_sidNum = sidNum;
++    }
++
+     /**
+      * Get the current position in buffer.
+      */
+diff --git a/src/sidemu.cpp b/src/sidemu.cpp
+--- a/src/sidemu.cpp
++++ b/src/sidemu.cpp
+@@ -31,6 +31,11 @@ const char sidemu::ERR_INVALID_CHIP[]     = "Invalid chip model.";
+ 
+ void sidemu::writeReg(uint_least8_t addr, uint8_t data)
+ {
++    if (m_writeObserver != nullptr)
++        m_writeObserver(m_writeObserverContext, m_sidNum,
++            static_cast<uint_least64_t>(eventScheduler->getTime(EVENT_CLOCK_PHI1)),
++            addr, data);
++
+     switch (addr)
+     {
+     case 0x04:
+diff --git a/src/player.h b/src/player.h
+--- a/src/player.h
++++ b/src/player.h
+@@ -30,6 +30,7 @@
+ #include "sidplayfp/siddefs.h"
+ #include "sidplayfp/SidConfig.h"
+ #include "sidplayfp/SidTuneInfo.h"
++#include "sidplayfp/SidWriteObserver.h"
+ 
+ #include "SidInfoImpl.h"
+ #include "sidrandom.h"
+@@ -81,6 +82,9 @@ private:
+ 
+     std::vector<sidemu*> m_chips;
+ 
++    SidWriteObserver m_writeObserver = nullptr;
++    void *m_writeObserverContext = nullptr;
++
+     std::unique_ptr<SimpleMixer> m_simpleMixer;
+ 
+ private:
+@@ -167,6 +171,13 @@ private:
+     bool reset();
+ 
+     int getBufSize(unsigned int cycles);
++
++    uint_least64_t currentCycle()
++    {
++        return static_cast<uint_least64_t>(m_c64.getEventScheduler()->getTime(EVENT_CLOCK_PHI1));
++    }
++
++    void setSidWriteObserver(SidWriteObserver observer, void *context);
+ };
+ 
+ }
+diff --git a/src/player.cpp b/src/player.cpp
+--- a/src/player.cpp
++++ b/src/player.cpp
+@@ -535,6 +535,8 @@ void Player::sidCreate(sidbuilder *builder, SidConfig::sid_model_t defaultModel,
+         {
+             throw configError(builder->error());
+         }
++
++        emu->setWriteObserver(m_writeObserver, m_writeObserverContext, 0);
+ 
+ 
+         m_c64.setBaseSid(emu);
+@@ -559,6 +561,8 @@ void Player::sidCreate(sidbuilder *builder, SidConfig::sid_model_t defaultModel,
+                 {
+                     throw configError(builder->error());
+                 }
++
++                extraEmu->setWriteObserver(m_writeObserver, m_writeObserverContext, i + 1);
+ 
+                 if (!m_c64.addExtraSid(extraEmu, extraSidAddresses[i])) UNLIKELY
+                     throw configError(ERR_UNSUPPORTED_SID_ADDR);
+@@ -568,6 +572,14 @@ void Player::sidCreate(sidbuilder *builder, SidConfig::sid_model_t defaultModel,
+             }
+         }
+     }
++}
++
++void Player::setSidWriteObserver(SidWriteObserver observer, void *context)
++{
++    m_writeObserver = observer;
++    m_writeObserverContext = context;
++    for (unsigned int i = 0; i < m_chips.size(); ++i)
++        m_chips[i]->setWriteObserver(observer, context, i);
+ }
+ 
+ void Player::sidParams(double cpuFreq, int frequency,
+diff --git a/src/sidplayfp/sidplayfp.h b/src/sidplayfp/sidplayfp.h
+--- a/src/sidplayfp/sidplayfp.h
++++ b/src/sidplayfp/sidplayfp.h
+@@ -28,6 +28,7 @@
+ 
+ #include "sidplayfp/siddefs.h"
+ #include "sidplayfp/sidversion.h"
++#include "sidplayfp/SidWriteObserver.h"
+ 
+ class  SidConfig;
+ class  SidTune;
+@@ -236,6 +237,12 @@ public:
+      * @since 3.0
+      */
+     int getBufSize(unsigned int cycles);
++
++    /** Register a read-only observer for actual C64-to-SID bus writes. */
++    void setSidWriteObserver(SidWriteObserver observer, void *context);
++
++    /** Current EventScheduler PHI1 time, in native C64 cycles. */
++    uint_least64_t currentCycle();
+ };
+ 
+ #endif // SIDPLAYFP_H
+diff --git a/src/sidplayfp/sidplayfp.cpp b/src/sidplayfp/sidplayfp.cpp
+--- a/src/sidplayfp/sidplayfp.cpp
++++ b/src/sidplayfp/sidplayfp.cpp
+@@ -146,3 +146,13 @@ int sidplayfp::getBufSize(unsigned int cycles)
+ {
+     return sidplayer.getBufSize(cycles);
+ }
++
++void sidplayfp::setSidWriteObserver(SidWriteObserver observer, void *context)
++{
++    sidplayer.setSidWriteObserver(observer, context);
++}
++
++uint_least64_t sidplayfp::currentCycle()
++{
++    return sidplayer.currentCycle();
++}
