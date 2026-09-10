@@ -1,0 +1,15 @@
+{
+  "base": "e7b479d029578a7196779e6aba11a3271e0f9bc2",
+  "sid_repository": "https://github.com/MiSTer-devel/C64_MiSTer",
+  "sid_commit": "fe6dfe53c99122e5a088691f2d358d6caba61de1",
+  "golden_shell_commit": "744d51ac6950b617004ad1ce9c83472a878a485c",
+  "upstream_sha256": {
+    "sid.qip": "2b96183a8921f2bd830173e1da8e9dcf4f6987b9cfe7b76bcd06c56ff08621b5",
+    "sid_dac.sv": "e1c1fa51f640dfce39efdd561e9836d254fe93269bf0f38ca89d58f84b059097",
+    "sid_envelope.sv": "7b1f5d9062c0db76a38761ada77bfa7492f39b2b52b333a4adb4b32499716011",
+    "sid_filter.sv": "989c53c3baed84698bfe73b105ceabe12ed3858e884a2a85bab308b9d0434fa7",
+    "sid_tables.sv": "8765bcbdac77e253765f934a3df53b27d440bf35555c5e295861e81fb1e1a611",
+    "sid_top.sv": "b7a9f3c508a2859e1e1bbcec08851605f44ece738fa4611be1c8fa1e485d99ed",
+    "sid_voice.sv": "9d8b946e94282afa7385f630c71125aca495debc720ece8ce01303be82477898"
+  }
+}
