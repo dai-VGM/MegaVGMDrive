@@ -1,0 +1,26 @@
+# Only the patched lab SID set is compiled. vendor/upstream is provenance only.
+foreach f {
+    rtl/engine_c_c2/shell/emu_c2.sv
+    rtl/megavgm_video_timing.sv
+    rtl/megavgm_title_receiver.sv
+    rtl/megavgm_font5x7.sv
+    rtl/megavgm_title_renderer.sv
+    rtl/vgm_ddram_backend.sv
+    rtl/engine_c_c2/shell/golden_player_shell_upload.sv
+    rtl/engine_c_c2_capacity/mister_vgm_md_top_v1_1.sv
+    rtl/engine_c_c2_capacity/c2_profile.sv
+    rtl/engine_c_c3/mvgmsid_loader.sv
+    rtl/engine_c_c3/sid_native_scheduler.sv
+    rtl/engine_c_c2/sid_session_wrapper.sv
+    rtl/engine_c_c3/engine_c_lab.sv
+    rtl/engine_c_c2_capacity/c2_record_store.sv
+    rtl/engine_c_c2_capacity/c2_ddr_mux.sv
+    rtl/engine_c_c2/vendor/lab/sid_top.sv
+    rtl/engine_c_c2/vendor/lab/sid_voice.sv
+    rtl/engine_c_c2/vendor/lab/sid_envelope.sv
+    rtl/engine_c_c2/vendor/lab/sid_dac.sv
+    rtl/engine_c_c2/vendor/lab/sid_tables.sv
+    rtl/engine_c_c2/vendor/lab/sid_filter.sv
+} {
+    set_global_assignment -name SYSTEMVERILOG_FILE [file join $::quartus(qip_path) ../../ $f]
+}
