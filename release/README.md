@@ -1,8 +1,9 @@
-# MegaVGMPlayer v2.2 Stage 1 candidate
+# MegaVGMPlayer v2.2 Engine C C5 candidate
 
-This candidate changes the distributed FPGA engine filenames and the exact
-Engine A/B host paths. Player behavior, transport, classification decisions,
-audio RTL, OSD, and the standalone Remote UI are unchanged.
+This candidate adds the hardware-tested Packed MVGMSID v2 Engine C to the
+existing automatic A/B production route. The same Phase2A owner now selects
+PROFILE_A, PROFILE_B, or PROFILE_C. Player and transport semantics, SID audio
+RTL, OSD, and existing A/B classification decisions are unchanged.
 
 ## Production paths
 
@@ -12,13 +13,20 @@ audio RTL, OSD, and the standalone Remote UI are unchanged.
 /media/fat/_Custom Cores/Cores/MegaVGMDrive_C.rbf
 ```
 
-Engine A and B are byte-identical copies of the v2.1 production RBFs. Engine C
-is the exact hardware-validated C4 artifact, staged under its final filename.
-Stage 1 does **not** add PROFILE_C routing or SID classification; production
-playback continues to route only Engine A/B.
+Engine A and B remain byte-identical copies of the v2.1 production RBFs. Engine C
+is the exact hardware-validated Packed v2 artifact (`0f205de6…`) and is routed
+through its final path. Same-profile C→C keeps the resident RBF; A↔C and B↔C use
+the established fade/park/switch/rebind transaction.
 
 All three RBFs keep the exact core name `MegaVGMDrive`. Do not rename CORENAME
 to include A, B, or C.
+
+Prepared SID files use `.mvgmsid` for both frozen v1 and Packed v2. The host
+requires valid `MVGMSID\0` bytes and the complete strict Engine C header/body
+contract before selecting PROFILE_C. Raw `.sid` and experimental `.mvgmsid2`
+files are not library/playback inputs in this stage. The status API preserves
+model, PAL/NTSC timing, subtune, capture-limit, and source digest metadata; the
+Player displays `SID 6581` or `SID 8580`.
 
 ## Install or upgrade
 
@@ -83,7 +91,8 @@ Later user edits cause rollback to refuse rather than overwrite them.
 
 ## Scope
 
-No RBF was synthesized for this migration. No Frontend, daemon, Main, importer,
-classifier decision, transport, OSD, or chip implementation was changed. Engine C
-hardware behavior is user-confirmed for the exact staged SHA, but C production
-routing remains a later stage.
+No RBF was synthesized for this integration. A/B RBF bytes, Main, importer,
+transport, OSD, and chip implementation are unchanged. Host/Remote changes are
+limited to strict prepared-SID classification, PROFILE_C switching, persistence,
+and read-only SID metadata. Production A/B/C integration still requires the
+included MiSTer checklist; host/QEMU results are not reported as hardware PASS.

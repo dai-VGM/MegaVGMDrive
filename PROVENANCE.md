@@ -1,5 +1,31 @@
 # Frozen inputs and helper provenance
 
+## Engine C C5 production integration
+
+The v2.2 C5 candidate retains the Phase 1 inputs documented below and adds only
+the reviewed production path for prepared SID streams.
+
+| Component | Exact source / artifact | SHA-256 |
+|---|---|---|
+| Engine C Packed v2 RBF | `MegaVGMPlayer_EngineC_PackedV2_Validation_MiSTer.rbf`; RTL `53291cd59a64dee7c3c4edb5a2f0f0a8e69c99db` | `0f205de6ab30e86477fdf1b0797e82158cc5b14fdfa37e7011f3c94cbb72c479` |
+| Controller | `823881ab69d6074ffa991bfc98e9662d9ebf2b88` | `76f8ac60faae7d0bbdf79fa8dc5c4899ed33c3e6ef02aa82902907c865171df1` |
+| Supervisor | `aa3e2bab7606084063845275797f8380e45dc259` | `8e4c22b97215451accce369f4c81353e467674a8e23c04ff5fb68fa8900b4d75` |
+| Standalone Remote | `8af356aa58eda6d78953d64e614f66288d4570c1` | `8e23be45da2069e8b1c29bbad8ce14d004d3653970cbc13eebe21d4647ebd02d` |
+
+The RBF is 2,669,332 bytes. Its QPF provenance is
+`hw/engine_c_packed_v2/MegaVGMPlayer_EngineC_PackedV2_Validation_MiSTer.qpf`;
+the validation QSF selects `ENGINE_C_C4_MEGAVGMDRIVE_CORENAME=1`, yielding the
+exact core name `MegaVGMDrive`. The user confirmed the exact RBF SHA with a full
+270-second Commando Packed v2 run and Volfied digi/voice playback. That evidence
+validates the FPGA artifact, not the new production A/B/C host integration.
+
+The controller classifies only a strictly valid MVGMSID v1 or Packed v2 stream
+as PROFILE_C. Both use `.mvgmsid` for library discovery. Raw `.sid` and the
+experimental `.mvgmsid2` suffix are excluded. Existing A/B VGM decisions are
+unchanged. The Supervisor uses exact A/B/C paths and preserves the established
+switch generation, controller parking, session rebase, and STOCK restoration
+contract.
+
 ## Source imports
 
 | Component | Exact input |

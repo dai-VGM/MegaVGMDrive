@@ -1,8 +1,8 @@
-# MegaVGMPlayer v2.2 Stage 1 候補
+# MegaVGMPlayer v2.2 Engine C C5候補
 
-この候補版は、FPGA音源RBFの配布名とEngine A/Bの厳密なhost pathだけを
-変更します。Player挙動、transport、classifierの判定、audio RTL、OSD、
-standalone Remote UIは変更していません。
+この候補版は、実機確認済みPacked MVGMSID v2 Engine Cを既存A/B production
+自動routeへ追加します。同じPhase2A ownerがPROFILE_A/B/Cを選択します。
+Player/transport semantics、SID audio RTL、OSD、既存A/B分類判定は変更しません。
 
 ## 正式path
 
@@ -13,10 +13,16 @@ standalone Remote UIは変更していません。
 ```
 
 Engine A/Bはv2.1実機PASS RBFのbyte-identical copyです。Engine Cは実機確認済み
-C4 artifactそのものを最終名でstagingします。Stage 1ではPROFILE_C routingや
-SID分類を追加せず、production再生は従来どおりA/Bだけをrouteします。
+Packed v2 artifact (`0f205de6…`)そのものを最終pathから使用します。C→CはRBFを
+reloadせず、A↔C/B↔Cは既存fade/park/switch/rebind transactionを使います。
 
 3つのCORENAMEはすべて正確に`MegaVGMDrive`のままです。
+
+prepared SIDの正式拡張子はv1/v2共通で`.mvgmsid`です。hostは拡張子だけでなく
+`MVGMSID\0` magicとEngine Cのstrict header/body contractを検証してからPROFILE_Cを
+選択します。raw `.sid`と実験用`.mvgmsid2`はこのstageのlibrary/playback対象外です。
+status APIはmodel、PAL/NTSC、subtune、capture-limit、source digestを保持し、Playerは
+`SID 6581`または`SID 8580`を表示します。
 
 ## install / upgrade
 
@@ -74,6 +80,7 @@ v2.1 Supervisorが元のexact pathを使用できます。install後のユーザ
 
 ## 範囲
 
-今回RBF再合成は行いません。Frontend、daemon、Main、importer、classifier判定、
-transport、OSD、音源実装は変更していません。Engine Cの実機結果はstagingしたexact
-SHAについてユーザー確認済みですが、Cのproduction routingは次stageです。
+今回RBF再合成は行いません。A/B RBF、Main、importer、transport、OSD、音源実装は
+変更していません。host/Remote変更はstrict prepared-SID分類、PROFILE_C switching、
+persistence、read-only SID metadataに限定しています。A/B/C production統合の実機PASSは
+同梱checklistをユーザーが完了するまで報告しません。

@@ -1,11 +1,13 @@
-# MegaVGMPlayer v2.2 Stage 1 — RBF命名移行
+# MegaVGMPlayer v2.2 Engine C C5候補
 
-このbranchは最終配布名`MegaVGMDrive_A.rbf`、`MegaVGMDrive_B.rbf`、
-`MegaVGMDrive_C.rbf`を準備します。Engine A/Bは新しいexact production pathへ
-接続し、Engine CはstagingのみでPROFILE_C routingにはまだ接続しません。
+このbranchは実機確認済みPacked MVGMSID v2 Engine Cを既存production自動routingへ
+統合します。prepared SIDの正式拡張子は`.mvgmsid`です。拡張子ではなくstrictな
+magic/header/body validationによりPROFILE_Cへ分類します。MVGMSID v1も同じRBFで
+継続対応します。
 
 [release README](release/README.ja.md)、[validation](release/VALIDATION.md)、
 [実機checklist](release/HARDWARE_CHECKLIST.md)を参照してください。
 
-Player、transport、classifier判定、OSD、RTL、audio実装は変更していません。
-旧v2.1 RBFは共存とrollbackのため保持します。
+既存A/B classifier、Player、transport/fade、OSD、SID RTL/audio、4 MiB容量は
+変更していません。raw `.sid`はこのstageでは対象外です。旧v2.1 RBFはrollback用に
+保持します。

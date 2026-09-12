@@ -32,7 +32,7 @@ assert len([p for p in (package/'media/fat').rglob('*') if p.is_file()])==9
 expected = {
     'MegaVGMDrive_A.rbf': '5755b74d9b1e10e1da1d6c101892bc95ca8960851a851cc9076d1861c9571f1e',
     'MegaVGMDrive_B.rbf': 'b435417f268a81a39af6bf2408f364945d151e391425775ab7d01ed4899bec95',
-    'MegaVGMDrive_C.rbf': '117adcd8d9360388826f60f4207c5b547daee58f5f0ba2e456f10e7bf41abed8',
+    'MegaVGMDrive_C.rbf': '0f205de6ab30e86477fdf1b0797e82158cc5b14fdfa37e7011f3c94cbb72c479',
 }
 for name, sha in expected.items():
     data=(package/'media/fat/_Custom Cores/Cores'/name).read_bytes()

@@ -43,7 +43,7 @@ Remote and importer scripts belong under:
 /media/fat/Scripts/
 ```
 
-Do not use `_Utility`, `_custom_core`, or `_Custom Cores` without its `Cores` subdirectory as a production RBF load path. References to an old path are permitted only in explicit migration, rollback, or cleanup documentation. During v2.2 Stage 1, Engine C is distributed at the final path but is staging-only: do not infer PROFILE_C routing or SID classification from the presence of `MegaVGMDrive_C.rbf`.
+Do not use `_Utility`, `_custom_core`, or `_Custom Cores` without its `Cores` subdirectory as a production RBF load path. References to an old path are permitted only in explicit migration, rollback, or cleanup documentation. Engine C production routing accepts only strictly validated MVGMSID v1 or Packed v2 bytes exposed through the `.mvgmsid` library extension; the filename alone is never classification evidence.
 
 Production Phase2A must not depend on `/tmp/megavgm_supervisor-test/profile`. Test profiles are optional lab overrides, not a production prerequisite.
 
@@ -143,7 +143,7 @@ Do not alter routing decisions based on a UI sound-chip label. Sound-chip labels
 
 ## Production and lab separation
 
-Production consists of the Phase2A automatic route and the release-matched Supervisor, controller, modified Main, Remote, importer, and A/B RBF artifacts.
+Production consists of the Phase2A automatic route and the release-matched Supervisor, controller, modified Main, Remote, importer, and A/B/C RBF artifacts.
 
 Lab-only facilities include:
 
@@ -165,6 +165,8 @@ Current production sound families include:
 - SegaPCM
 - YM2610
 - YM2610B
+- SID 6581
+- SID 8580
 
 Supporting PSG/SSG and ADPCM paths remain part of the appropriate engine implementation. Do not list Mega CD / RF5C164 or 32X PWM as implemented in v2.0.
 
