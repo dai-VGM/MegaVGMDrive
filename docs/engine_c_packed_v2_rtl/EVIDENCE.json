@@ -1,0 +1,1140 @@
+{
+  "sid_base": "5d0c9b73f70dd3912e112b172d36329d3e3d9cfe",
+  "host_base": "bb467fca2c9ea982345645c419d9da7d21a5d095",
+  "hardware": "UNVERIFIED",
+  "suites": {
+    "decoder": [
+      {
+        "name": "tone-pal-6581",
+        "passed": true,
+        "output": "TRACE EXACT records=11 EOF=2955744 SYS=581 delay=64\n"
+      },
+      {
+        "name": "tone-pal-8580",
+        "passed": true,
+        "output": "TRACE EXACT records=11 EOF=2955744 SYS=581 delay=64\n"
+      },
+      {
+        "name": "tone-ntsc-6581",
+        "passed": true,
+        "output": "TRACE EXACT records=11 EOF=3068181 SYS=581 delay=64\n"
+      },
+      {
+        "name": "tone-ntsc-8580",
+        "passed": true,
+        "output": "TRACE EXACT records=11 EOF=3068181 SYS=581 delay=64\n"
+      },
+      {
+        "name": "Commando_60s",
+        "passed": true,
+        "output": "TRACE EXACT records=30431 EOF=59114880 SYS=742841 delay=64\n"
+      },
+      {
+        "name": "Commando_270s",
+        "passed": true,
+        "output": "TRACE EXACT records=150730 EOF=266016960 SYS=3671741 delay=64\n"
+      },
+      {
+        "name": "Comic_Bakery_60s",
+        "passed": true,
+        "output": "TRACE EXACT records=35516 EOF=59114880 SYS=862761 delay=64\n"
+      },
+      {
+        "name": "Monty_on_the_Run_60s",
+        "passed": true,
+        "output": "TRACE EXACT records=29575 EOF=59114880 SYS=723981 delay=64\n"
+      },
+      {
+        "name": "Sanxion_60s",
+        "passed": true,
+        "output": "TRACE EXACT records=42669 EOF=59114880 SYS=1039701 delay=64\n"
+      },
+      {
+        "name": "Power_60s",
+        "passed": true,
+        "output": "TRACE EXACT records=61420 EOF=59114880 SYS=1487061 delay=64\n"
+      },
+      {
+        "name": "Realm_of_Impossibility_60s",
+        "passed": true,
+        "output": "TRACE EXACT records=6758 EOF=61363620 SYS=164981 delay=64\n"
+      },
+      {
+        "name": "Relaxation_V3_NTSC_plus_8580_60s",
+        "passed": true,
+        "output": "TRACE EXACT records=58480 EOF=61363620 SYS=1417141 delay=64\n"
+      },
+      {
+        "name": "Volfied_10s",
+        "passed": true,
+        "output": "TRACE EXACT records=47100 EOF=9852480 SYS=1177801 delay=64\n"
+      },
+      {
+        "name": "No_Mercy_10s",
+        "passed": true,
+        "output": "TRACE EXACT records=29505 EOF=9852480 SYS=730561 delay=64\n"
+      },
+      {
+        "name": "No_Mercy_30s",
+        "passed": true,
+        "output": "TRACE EXACT records=88098 EOF=29557440 SYS=2180221 delay=64\n"
+      },
+      {
+        "name": "delta-0",
+        "passed": true,
+        "output": "TRACE EXACT records=2 EOF=0 SYS=321 delay=64\n"
+      },
+      {
+        "name": "delta-1",
+        "passed": true,
+        "output": "TRACE EXACT records=2 EOF=1 SYS=321 delay=64\n"
+      },
+      {
+        "name": "delta-127",
+        "passed": true,
+        "output": "TRACE EXACT records=2 EOF=127 SYS=321 delay=64\n"
+      },
+      {
+        "name": "delta-128",
+        "passed": true,
+        "output": "TRACE EXACT records=2 EOF=128 SYS=321 delay=64\n"
+      },
+      {
+        "name": "delta-16383",
+        "passed": true,
+        "output": "TRACE EXACT records=2 EOF=16383 SYS=321 delay=64\n"
+      },
+      {
+        "name": "delta-16384",
+        "passed": true,
+        "output": "TRACE EXACT records=2 EOF=16384 SYS=321 delay=64\n"
+      },
+      {
+        "name": "delta-4294967296",
+        "passed": true,
+        "output": "TRACE EXACT records=2 EOF=4294967296 SYS=321 delay=64\n"
+      },
+      {
+        "name": "delta-9223372036854775808",
+        "passed": true,
+        "output": "TRACE EXACT records=2 EOF=9223372036854775808 SYS=341 delay=64\n"
+      },
+      {
+        "name": "delta-18446744073709551615",
+        "passed": true,
+        "output": "TRACE EXACT records=2 EOF=18446744073709551615 SYS=341 delay=64\n"
+      },
+      {
+        "name": "eof-only",
+        "passed": true,
+        "output": "TRACE EXACT records=1 EOF=0 SYS=281 delay=64\n"
+      },
+      {
+        "name": "final-wait",
+        "passed": true,
+        "output": "TRACE EXACT records=3 EOF=30000 SYS=341 delay=64\n"
+      },
+      {
+        "name": "noncanonical",
+        "passed": true,
+        "output": "REJECT code=148 SYS=200\n"
+      },
+      {
+        "name": "overflow-varint",
+        "passed": true,
+        "output": "REJECT code=148 SYS=208\n"
+      },
+      {
+        "name": "truncated-varint",
+        "passed": true,
+        "output": "REJECT code=147 SYS=201\n"
+      },
+      {
+        "name": "overlong",
+        "passed": true,
+        "output": "REJECT code=6 SYS=198\n"
+      },
+      {
+        "name": "invalid-reg",
+        "passed": true,
+        "output": "REJECT code=10 SYS=200\n"
+      },
+      {
+        "name": "missing-eof",
+        "passed": true,
+        "output": "REJECT code=147 SYS=205\n"
+      },
+      {
+        "name": "trailing",
+        "passed": true,
+        "output": "REJECT code=12 SYS=200\n"
+      },
+      {
+        "name": "same-cycle",
+        "passed": true,
+        "output": "REJECT code=10 SYS=204\n"
+      },
+      {
+        "name": "cycle-overflow",
+        "passed": true,
+        "output": "REJECT code=149 SYS=213\n"
+      },
+      {
+        "name": "truncated-data",
+        "passed": true,
+        "output": "REJECT code=147 SYS=204\n"
+      },
+      {
+        "name": "header-8",
+        "passed": true,
+        "output": "REJECT code=3 SYS=198\n"
+      },
+      {
+        "name": "header-10",
+        "passed": true,
+        "output": "REJECT code=3 SYS=198\n"
+      },
+      {
+        "name": "header-12",
+        "passed": true,
+        "output": "REJECT code=3 SYS=198\n"
+      },
+      {
+        "name": "header-14",
+        "passed": true,
+        "output": "REJECT code=3 SYS=198\n"
+      },
+      {
+        "name": "header-16",
+        "passed": true,
+        "output": "REJECT code=4 SYS=198\n"
+      },
+      {
+        "name": "header-20",
+        "passed": true,
+        "output": "REJECT code=5 SYS=198\n"
+      },
+      {
+        "name": "header-24",
+        "passed": true,
+        "output": "REJECT code=5 SYS=198\n"
+      },
+      {
+        "name": "header-28",
+        "passed": true,
+        "output": "REJECT code=5 SYS=198\n"
+      },
+      {
+        "name": "header-29",
+        "passed": true,
+        "output": "REJECT code=5 SYS=198\n"
+      },
+      {
+        "name": "header-30",
+        "passed": true,
+        "output": "REJECT code=5 SYS=198\n"
+      },
+      {
+        "name": "header-31",
+        "passed": true,
+        "output": "REJECT code=4 SYS=198\n"
+      },
+      {
+        "name": "header-36",
+        "passed": true,
+        "output": "REJECT code=4 SYS=198\n"
+      },
+      {
+        "name": "header-40",
+        "passed": true,
+        "output": "REJECT code=6 SYS=198\n"
+      },
+      {
+        "name": "header-48",
+        "passed": true,
+        "output": "REJECT code=6 SYS=198\n"
+      },
+      {
+        "name": "header-64",
+        "passed": true,
+        "output": "REJECT code=7 SYS=198\n"
+      },
+      {
+        "name": "loop-unsupported",
+        "passed": true,
+        "output": "REJECT code=4 SYS=198\n"
+      },
+      {
+        "name": "wrong-clock",
+        "passed": true,
+        "output": "REJECT code=5 SYS=198\n"
+      },
+      {
+        "name": "ddr-short",
+        "passed": true,
+        "output": "REJECT code=146 SYS=1114\n"
+      },
+      {
+        "name": "latency-128",
+        "passed": true,
+        "output": "TRACE EXACT records=47100 EOF=9852480 SYS=1177941 delay=128\n"
+      },
+      {
+        "name": "latency-256",
+        "passed": true,
+        "output": "TRACE EXACT records=47100 EOF=9852480 SYS=1354661 delay=256\n"
+      },
+      {
+        "name": "latency-512",
+        "passed": true,
+        "output": "TRACE EXACT records=47100 EOF=9852480 SYS=1732361 delay=512\n"
+      }
+    ],
+    "audio": [
+      {
+        "name": "v1-tone-pal-6581",
+        "passed": true,
+        "output": "SESSION 0 writes=10 final_cycle=2955744 model=1 timing=1 clock=985248/1 ce=2955744 publications=2955743 changes=2028246\nSESSION 1 writes=10 final_cycle=2955744 model=1 timing=1 clock=985248/1 ce=2955744 publications=2955743 changes=2028246\n"
+      },
+      {
+        "name": "v2-tone-pal-6581",
+        "passed": true,
+        "output": "SESSION 0 writes=10 final_cycle=2955744 model=1 timing=1 clock=985248/1 ce=2955744 publications=2955743 changes=2028246\nSESSION 1 writes=10 final_cycle=2955744 model=1 timing=1 clock=985248/1 ce=2955744 publications=2955743 changes=2028246\n"
+      },
+      {
+        "name": "v1-tone-pal-8580",
+        "passed": true,
+        "output": "SESSION 0 writes=10 final_cycle=2955744 model=2 timing=1 clock=985248/1 ce=2955744 publications=2955743 changes=2066050\nSESSION 1 writes=10 final_cycle=2955744 model=2 timing=1 clock=985248/1 ce=2955744 publications=2955743 changes=2066050\n"
+      },
+      {
+        "name": "v2-tone-pal-8580",
+        "passed": true,
+        "output": "SESSION 0 writes=10 final_cycle=2955744 model=2 timing=1 clock=985248/1 ce=2955744 publications=2955743 changes=2066050\nSESSION 1 writes=10 final_cycle=2955744 model=2 timing=1 clock=985248/1 ce=2955744 publications=2955743 changes=2066050\n"
+      },
+      {
+        "name": "v1-tone-ntsc-6581",
+        "passed": true,
+        "output": "SESSION 0 writes=10 final_cycle=3068181 model=1 timing=2 clock=1022727/1 ce=3068181 publications=3068180 changes=2096754\nSESSION 1 writes=10 final_cycle=3068181 model=1 timing=2 clock=1022727/1 ce=3068181 publications=3068180 changes=2096754\n"
+      },
+      {
+        "name": "v2-tone-ntsc-6581",
+        "passed": true,
+        "output": "SESSION 0 writes=10 final_cycle=3068181 model=1 timing=2 clock=1022727/1 ce=3068181 publications=3068180 changes=2096754\nSESSION 1 writes=10 final_cycle=3068181 model=1 timing=2 clock=1022727/1 ce=3068181 publications=3068180 changes=2096754\n"
+      },
+      {
+        "name": "v1-tone-ntsc-8580",
+        "passed": true,
+        "output": "SESSION 0 writes=10 final_cycle=3068181 model=2 timing=2 clock=1022727/1 ce=3068181 publications=3068180 changes=2137119\nSESSION 1 writes=10 final_cycle=3068181 model=2 timing=2 clock=1022727/1 ce=3068181 publications=3068180 changes=2137119\n"
+      },
+      {
+        "name": "v2-tone-ntsc-8580",
+        "passed": true,
+        "output": "SESSION 0 writes=10 final_cycle=3068181 model=2 timing=2 clock=1022727/1 ce=3068181 publications=3068180 changes=2137119\nSESSION 1 writes=10 final_cycle=3068181 model=2 timing=2 clock=1022727/1 ce=3068181 publications=3068180 changes=2137119\n"
+      },
+      {
+        "name": "v1-v2-v1",
+        "passed": true,
+        "output": "SESSION 0 writes=10 final_cycle=60008 model=1 timing=1 clock=985248/1 ce=60008 publications=60007 changes=26539\nSESSION 1 writes=10 final_cycle=60008 model=1 timing=1 clock=985248/1 ce=60008 publications=60007 changes=26539\nSESSION 2 writes=10 final_cycle=60008 model=1 timing=1 clock=985248/1 ce=60008 publications=60007 changes=26539\n"
+      },
+      {
+        "name": "fifo-starvation",
+        "passed": true,
+        "output": "FAULT starve code=128 native_cycle=213 writes=213\n"
+      },
+      {
+        "name": "v1-commando270-oversize",
+        "passed": true,
+        "output": "REJECT code=1 cycles=33\n"
+      }
+    ],
+    "baseline": [
+      {
+        "name": "baseline-minimal",
+        "passed": true,
+        "output": "SESSION 0 writes=0 final_cycle=0 model=1 timing=1 clock=985248/1 ce=0 publications=0 changes=0\nSESSION 1 writes=0 final_cycle=0 model=1 timing=1 clock=985248/1 ce=0 publications=0 changes=0\n"
+      },
+      {
+        "name": "baseline-same-value-rewrite",
+        "passed": true,
+        "output": "SESSION 0 writes=2 final_cycle=1 model=1 timing=1 clock=985248/1 ce=1 publications=0 changes=0\nSESSION 1 writes=2 final_cycle=1 model=1 timing=1 clock=985248/1 ce=1 publications=0 changes=0\n"
+      },
+      {
+        "name": "baseline-consecutive-waits",
+        "passed": true,
+        "output": "SESSION 0 writes=0 final_cycle=2 model=1 timing=1 clock=985248/1 ce=2 publications=1 changes=0\nSESSION 1 writes=0 final_cycle=2 model=1 timing=1 clock=985248/1 ce=2 publications=1 changes=0\n"
+      },
+      {
+        "name": "baseline-magic",
+        "passed": true,
+        "output": "REJECT code=3 cycles=32\n"
+      },
+      {
+        "name": "baseline-major",
+        "passed": true,
+        "output": "REJECT code=3 cycles=32\n"
+      },
+      {
+        "name": "baseline-minor",
+        "passed": true,
+        "output": "REJECT code=3 cycles=32\n"
+      },
+      {
+        "name": "baseline-header-size",
+        "passed": true,
+        "output": "REJECT code=3 cycles=32\n"
+      },
+      {
+        "name": "baseline-event-size",
+        "passed": true,
+        "output": "REJECT code=3 cycles=32\n"
+      },
+      {
+        "name": "baseline-flags",
+        "passed": true,
+        "output": "REJECT code=4 cycles=290\n"
+      },
+      {
+        "name": "baseline-loop-flag",
+        "passed": true,
+        "output": "REJECT code=4 cycles=290\n"
+      },
+      {
+        "name": "baseline-clock",
+        "passed": true,
+        "output": "REJECT code=5 cycles=290\n"
+      },
+      {
+        "name": "baseline-denominator",
+        "passed": true,
+        "output": "REJECT code=5 cycles=290\n"
+      },
+      {
+        "name": "baseline-model",
+        "passed": true,
+        "output": "REJECT code=5 cycles=290\n"
+      },
+      {
+        "name": "baseline-8580-unsupported",
+        "passed": true,
+        "output": "SESSION 0 writes=0 final_cycle=100 model=2 timing=1 clock=985248/1 ce=100 publications=99 changes=0\nSESSION 1 writes=0 final_cycle=100 model=2 timing=1 clock=985248/1 ce=100 publications=99 changes=0\n"
+      },
+      {
+        "name": "baseline-ntsc-unsupported",
+        "passed": true,
+        "output": "REJECT code=5 cycles=290\n"
+      },
+      {
+        "name": "baseline-dual",
+        "passed": true,
+        "output": "REJECT code=5 cycles=290\n"
+      },
+      {
+        "name": "baseline-reserved1",
+        "passed": true,
+        "output": "REJECT code=4 cycles=290\n"
+      },
+      {
+        "name": "baseline-subtune",
+        "passed": true,
+        "output": "REJECT code=5 cycles=290\n"
+      },
+      {
+        "name": "baseline-reserved2",
+        "passed": true,
+        "output": "REJECT code=4 cycles=290\n"
+      },
+      {
+        "name": "baseline-count-overflow",
+        "passed": true,
+        "output": "REJECT code=6 cycles=290\n"
+      },
+      {
+        "name": "baseline-count-zero",
+        "passed": true,
+        "output": "REJECT code=6 cycles=290\n"
+      },
+      {
+        "name": "baseline-byte-size",
+        "passed": true,
+        "output": "REJECT code=6 cycles=290\n"
+      },
+      {
+        "name": "baseline-cycle-sum",
+        "passed": true,
+        "output": "REJECT code=12 cycles=356\n"
+      },
+      {
+        "name": "baseline-duration-flag",
+        "passed": true,
+        "output": "REJECT code=7 cycles=290\n"
+      },
+      {
+        "name": "baseline-duration-value",
+        "passed": true,
+        "output": "REJECT code=7 cycles=290\n"
+      },
+      {
+        "name": "baseline-loop-metadata",
+        "passed": true,
+        "output": "REJECT code=7 cycles=290\n"
+      },
+      {
+        "name": "baseline-unknown-op",
+        "passed": true,
+        "output": "REJECT code=13 cycles=323\n"
+      },
+      {
+        "name": "baseline-wait-address",
+        "passed": true,
+        "output": "REJECT code=9 cycles=323\n"
+      },
+      {
+        "name": "baseline-event-reserved",
+        "passed": true,
+        "output": "REJECT code=8 cycles=323\n"
+      },
+      {
+        "name": "baseline-zero-wait",
+        "passed": true,
+        "output": "REJECT code=9 cycles=323\n"
+      },
+      {
+        "name": "baseline-eof-payload",
+        "passed": true,
+        "output": "REJECT code=12 cycles=356\n"
+      },
+      {
+        "name": "baseline-missing-eof",
+        "passed": true,
+        "output": "REJECT code=9 cycles=356\n"
+      },
+      {
+        "name": "baseline-early-eof",
+        "passed": true,
+        "output": "REJECT code=12 cycles=323\n"
+      },
+      {
+        "name": "baseline-truncated-0",
+        "passed": true,
+        "output": "REJECT code=3 cycles=0\n"
+      },
+      {
+        "name": "baseline-truncated-127",
+        "passed": true,
+        "output": "REJECT code=1 cycles=33\n"
+      },
+      {
+        "name": "baseline-truncated-128",
+        "passed": true,
+        "output": "REJECT code=1 cycles=33\n"
+      },
+      {
+        "name": "baseline-truncated-143",
+        "passed": true,
+        "output": "REJECT code=1 cycles=33\n"
+      },
+      {
+        "name": "baseline-truncated-159",
+        "passed": true,
+        "output": "REJECT code=6 cycles=290\n"
+      },
+      {
+        "name": "baseline-trailing-byte",
+        "passed": true,
+        "output": "REJECT code=6 cycles=290\n"
+      },
+      {
+        "name": "baseline-same-cycle-writes",
+        "passed": true,
+        "output": "REJECT code=10 cycles=356\n"
+      },
+      {
+        "name": "baseline-wait-overflow",
+        "passed": true,
+        "output": "REJECT code=9 cycles=356\n"
+      },
+      {
+        "name": "baseline-invalid-register",
+        "passed": true,
+        "output": "REJECT code=10 cycles=323\n"
+      },
+      {
+        "name": "baseline-write-operand",
+        "passed": true,
+        "output": "REJECT code=10 cycles=323\n"
+      },
+      {
+        "name": "baseline-record-capacity",
+        "passed": true,
+        "output": "SESSION 0 writes=4096 final_cycle=4095 model=1 timing=1 clock=985248/1 ce=4095 publications=4094 changes=0\nSESSION 1 writes=4096 final_cycle=4095 model=1 timing=1 clock=985248/1 ce=4095 publications=4094 changes=0\n"
+      },
+      {
+        "name": "baseline-bytes-131056",
+        "passed": true,
+        "output": "SESSION 0 writes=0 final_cycle=8182 model=1 timing=1 clock=985248/1 ce=8182 publications=8181 changes=0\nSESSION 1 writes=0 final_cycle=8182 model=1 timing=1 clock=985248/1 ce=8182 publications=8181 changes=0\n"
+      },
+      {
+        "name": "baseline-bytes-131072",
+        "passed": true,
+        "output": "SESSION 0 writes=0 final_cycle=8183 model=1 timing=1 clock=985248/1 ce=8183 publications=8182 changes=0\nSESSION 1 writes=0 final_cycle=8183 model=1 timing=1 clock=985248/1 ce=8183 publications=8182 changes=0\n"
+      },
+      {
+        "name": "baseline-bytes-131088",
+        "passed": true,
+        "output": "SESSION 0 writes=0 final_cycle=8184 model=1 timing=1 clock=985248/1 ce=8184 publications=8183 changes=0\nSESSION 1 writes=0 final_cycle=8184 model=1 timing=1 clock=985248/1 ce=8184 publications=8183 changes=0\n"
+      },
+      {
+        "name": "baseline-bytes-131200",
+        "passed": true,
+        "output": "SESSION 0 writes=0 final_cycle=8191 model=1 timing=1 clock=985248/1 ce=8191 publications=8190 changes=0\nSESSION 1 writes=0 final_cycle=8191 model=1 timing=1 clock=985248/1 ce=8191 publications=8190 changes=0\n"
+      },
+      {
+        "name": "baseline-bytes-131216",
+        "passed": true,
+        "output": "SESSION 0 writes=0 final_cycle=8192 model=1 timing=1 clock=985248/1 ce=8192 publications=8191 changes=0\nSESSION 1 writes=0 final_cycle=8192 model=1 timing=1 clock=985248/1 ce=8192 publications=8191 changes=0\n"
+      },
+      {
+        "name": "baseline-bytes-4194288",
+        "passed": true,
+        "output": "SESSION 0 writes=0 final_cycle=262134 model=1 timing=1 clock=985248/1 ce=262134 publications=262133 changes=0\nSESSION 1 writes=0 final_cycle=262134 model=1 timing=1 clock=985248/1 ce=262134 publications=262133 changes=0\n"
+      },
+      {
+        "name": "baseline-bytes-4194304",
+        "passed": true,
+        "output": "SESSION 0 writes=0 final_cycle=262135 model=1 timing=1 clock=985248/1 ce=262135 publications=262134 changes=0\nSESSION 1 writes=0 final_cycle=262135 model=1 timing=1 clock=985248/1 ce=262135 publications=262134 changes=0\n"
+      },
+      {
+        "name": "baseline-maximum-dense",
+        "passed": true,
+        "output": "SESSION 0 writes=131068 final_cycle=131067 model=1 timing=1 clock=985248/1 ce=131067 publications=131066 changes=0\nSESSION 1 writes=131068 final_cycle=131067 model=1 timing=1 clock=985248/1 ce=131067 publications=131066 changes=0\n"
+      },
+      {
+        "name": "baseline-unaligned-131071",
+        "passed": true,
+        "output": "REJECT code=6 cycles=290\n"
+      },
+      {
+        "name": "baseline-unaligned-131073",
+        "passed": true,
+        "output": "REJECT code=6 cycles=290\n"
+      },
+      {
+        "name": "baseline-unaligned-4194303",
+        "passed": true,
+        "output": "REJECT code=6 cycles=290\n"
+      },
+      {
+        "name": "baseline-unaligned-4194305",
+        "passed": true,
+        "output": "REJECT code=1 cycles=33\n"
+      },
+      {
+        "name": "baseline-oversize-aligned",
+        "passed": true,
+        "output": "REJECT code=1 cycles=33\n"
+      },
+      {
+        "name": "baseline-maximum-bad-eof",
+        "passed": true,
+        "output": "REJECT code=12 cycles=8650778\n"
+      },
+      {
+        "name": "baseline-rational-1-2",
+        "passed": true,
+        "output": "SESSION 0 writes=0 final_cycle=5000 model=2 timing=1 clock=1970496/2 ce=5000 publications=4999 changes=0\nSESSION 1 writes=0 final_cycle=5000 model=2 timing=1 clock=1970496/2 ce=5000 publications=4999 changes=0\n"
+      },
+      {
+        "name": "baseline-rational-1-4359",
+        "passed": true,
+        "output": "SESSION 0 writes=0 final_cycle=5000 model=2 timing=1 clock=4294696032/4359 ce=5000 publications=4999 changes=0\nSESSION 1 writes=0 final_cycle=5000 model=2 timing=1 clock=4294696032/4359 ce=5000 publications=4999 changes=0\n"
+      },
+      {
+        "name": "baseline-rational-2-2",
+        "passed": true,
+        "output": "SESSION 0 writes=0 final_cycle=5000 model=2 timing=2 clock=2045454/2 ce=5000 publications=4999 changes=0\nSESSION 1 writes=0 final_cycle=5000 model=2 timing=2 clock=2045454/2 ce=5000 publications=4999 changes=0\n"
+      },
+      {
+        "name": "baseline-rational-2-4199",
+        "passed": true,
+        "output": "SESSION 0 writes=0 final_cycle=5000 model=2 timing=2 clock=4294430673/4199 ce=5000 publications=4999 changes=0\nSESSION 1 writes=0 final_cycle=5000 model=2 timing=2 clock=4294430673/4199 ce=5000 publications=4999 changes=0\n"
+      },
+      {
+        "name": "baseline-model-unknown",
+        "passed": true,
+        "output": "REJECT code=5 cycles=290\n"
+      },
+      {
+        "name": "baseline-model-255",
+        "passed": true,
+        "output": "REJECT code=5 cycles=290\n"
+      },
+      {
+        "name": "baseline-timing-unknown",
+        "passed": true,
+        "output": "REJECT code=5 cycles=290\n"
+      },
+      {
+        "name": "baseline-timing-3",
+        "passed": true,
+        "output": "REJECT code=5 cycles=290\n"
+      },
+      {
+        "name": "baseline-zero-den",
+        "passed": true,
+        "output": "REJECT code=5 cycles=290\n"
+      },
+      {
+        "name": "baseline-zero-num",
+        "passed": true,
+        "output": "REJECT code=5 cycles=290\n"
+      },
+      {
+        "name": "baseline-off-by-one-clock",
+        "passed": true,
+        "output": "REJECT code=5 cycles=290\n"
+      },
+      {
+        "name": "baseline-ntsc-with-pal-clock",
+        "passed": true,
+        "output": "REJECT code=5 cycles=290\n"
+      },
+      {
+        "name": "baseline-pal-with-ntsc-clock",
+        "passed": true,
+        "output": "REJECT code=5 cycles=290\n"
+      },
+      {
+        "name": "baseline-den-overflow",
+        "passed": true,
+        "output": "REJECT code=5 cycles=290\n"
+      },
+      {
+        "name": "baseline-32-bit-multiply-wrap",
+        "passed": true,
+        "output": "REJECT code=5 cycles=290\n"
+      },
+      {
+        "name": "v2-scheduler-minimal",
+        "passed": true,
+        "output": "SESSION 0 writes=0 final_cycle=0 model=1 timing=1 clock=985248/1 ce=0 publications=0 changes=0\nSESSION 1 writes=0 final_cycle=0 model=1 timing=1 clock=985248/1 ce=0 publications=0 changes=0\n"
+      },
+      {
+        "name": "v2-scheduler-same-value-rewrite",
+        "passed": true,
+        "output": "SESSION 0 writes=2 final_cycle=1 model=1 timing=1 clock=985248/1 ce=1 publications=0 changes=0\nSESSION 1 writes=2 final_cycle=1 model=1 timing=1 clock=985248/1 ce=1 publications=0 changes=0\n"
+      },
+      {
+        "name": "v2-scheduler-consecutive-waits",
+        "passed": true,
+        "output": "SESSION 0 writes=0 final_cycle=2 model=1 timing=1 clock=985248/1 ce=2 publications=1 changes=0\nSESSION 1 writes=0 final_cycle=2 model=1 timing=1 clock=985248/1 ce=2 publications=1 changes=0\n"
+      }
+    ],
+    "capacity": [
+      {
+        "name": "packed-bytes-131071",
+        "passed": true,
+        "output": "TRACE EXACT records=43648 EOF=43647 SYS=1048061 delay=64\n"
+      },
+      {
+        "name": "packed-bytes-131072",
+        "passed": true,
+        "output": "TRACE EXACT records=43648 EOF=43774 SYS=1048061 delay=64\n"
+      },
+      {
+        "name": "packed-bytes-131073",
+        "passed": true,
+        "output": "TRACE EXACT records=43648 EOF=60030 SYS=1048081 delay=64\n"
+      },
+      {
+        "name": "packed-bytes-4194303",
+        "passed": true,
+        "output": "TRACE EXACT records=1398058 EOF=1414440 SYS=33553901 delay=64\n"
+      },
+      {
+        "name": "packed-bytes-4194304",
+        "passed": true,
+        "output": "TRACE EXACT records=1398059 EOF=1398058 SYS=33553921 delay=64\n"
+      },
+      {
+        "name": "packed-bytes-4194305",
+        "passed": true,
+        "output": "REJECT code=1 SYS=0\n"
+      }
+    ],
+    "timing": [
+      {
+        "name": "dense-native-latency-64",
+        "passed": true,
+        "output": "SESSION 0 writes=4096 final_cycle=4095 model=1 timing=1 clock=985248/1 ce=4095 publications=4094 changes=0\nSESSION 1 writes=4096 final_cycle=4095 model=1 timing=1 clock=985248/1 ce=4095 publications=4094 changes=0\n"
+      },
+      {
+        "name": "dense-native-latency-128",
+        "passed": true,
+        "output": "SESSION 0 writes=4096 final_cycle=4095 model=1 timing=1 clock=985248/1 ce=4095 publications=4094 changes=0\nSESSION 1 writes=4096 final_cycle=4095 model=1 timing=1 clock=985248/1 ce=4095 publications=4094 changes=0\n"
+      },
+      {
+        "name": "dense-native-latency-256",
+        "passed": true,
+        "output": "SESSION 0 writes=4096 final_cycle=4095 model=1 timing=1 clock=985248/1 ce=4095 publications=4094 changes=0\nSESSION 1 writes=4096 final_cycle=4095 model=1 timing=1 clock=985248/1 ce=4095 publications=4094 changes=0\n"
+      },
+      {
+        "name": "dense-native-latency-512",
+        "passed": true,
+        "output": "SESSION 0 writes=4096 final_cycle=4095 model=1 timing=1 clock=985248/1 ce=4095 publications=4094 changes=0\nSESSION 1 writes=4096 final_cycle=4095 model=1 timing=1 clock=985248/1 ce=4095 publications=4094 changes=0\n"
+      },
+      {
+        "name": "dense-native-ntsc-latency-512",
+        "passed": true,
+        "output": "SESSION 0 writes=4096 final_cycle=4095 model=1 timing=2 clock=1022727/1 ce=4095 publications=4094 changes=0\nSESSION 1 writes=4096 final_cycle=4095 model=1 timing=2 clock=1022727/1 ce=4095 publications=4094 changes=0\n"
+      },
+      {
+        "name": "integrated-commando270",
+        "passed": true,
+        "output": "INTEGRATED PREFIX PLAYING writes=28 native_cycle=20000 (full-file trace checked separately)\n"
+      }
+    ],
+    "transport": [
+      {
+        "name": "transport-v2",
+        "passed": true,
+        "output": "FADE duration=2000128 SYS clocks (0 parser-EOF join clocks)\nTRANSPORT model=1 timing=1 EOF/FADE_ONLY, held zero, policy isolation PASS\nFADE duration=2000128 SYS clocks (0 parser-EOF join clocks)\nTRANSPORT model=2 timing=1 EOF/FADE_ONLY, held zero, policy isolation PASS\nFADE duration=2000128 SYS clocks (0 parser-EOF join clocks)\nTRANSPORT model=1 timing=2 EOF/FADE_ONLY, held zero, policy isolation PASS\nFADE duration=2000128 SYS clocks (0 parser-EOF join clocks)\nTRANSPORT model=2 timing=2 EOF/FADE_ONLY, held zero, policy isolation PASS\nFADE duration=2000128 SYS clocks (0 parser-EOF join clocks)\nFADE duration=2000128 SYS clocks (0 parser-EOF join clocks)\nFADE duration=2000129 SYS clocks (1 parser-EOF join clocks)\nFADE duration=2000129 SYS clocks (1 parser-EOF join clocks)\nFADE duration=2000129 SYS clocks (1 parser-EOF join clocks)\nTRANSPORT full shell natural EOF, duplicate/EOF FADE_ONLY, replacement, Stop, FATAL, mixed sessions, >100ms silence PASS\n- /Users/daizo/Projects/MegaVGMPlayer_EngineC_PackedV2_RTL/tools/engine_c_packed_v2_rtl/tb_transport.sv:354: Verilog $finish\n- S i m u l a t i o n   R e p o r t: Verilator 5.050 2026-07-01\n- Verilator: $finish at 3s; walltime 37.366 s; speed 77.860 ms/s\n- Verilator: cpu 37.297 s on 1 threads; allocated 22 MB\n"
+      },
+      {
+        "name": "transport-mixed",
+        "passed": true,
+        "output": "FADE duration=2000128 SYS clocks (0 parser-EOF join clocks)\nTRANSPORT model=1 timing=1 EOF/FADE_ONLY, held zero, policy isolation PASS\nFADE duration=2000128 SYS clocks (0 parser-EOF join clocks)\nTRANSPORT model=2 timing=1 EOF/FADE_ONLY, held zero, policy isolation PASS\nFADE duration=2000128 SYS clocks (0 parser-EOF join clocks)\nTRANSPORT model=1 timing=2 EOF/FADE_ONLY, held zero, policy isolation PASS\nFADE duration=2000128 SYS clocks (0 parser-EOF join clocks)\nTRANSPORT model=2 timing=2 EOF/FADE_ONLY, held zero, policy isolation PASS\nFADE duration=2000128 SYS clocks (0 parser-EOF join clocks)\nFADE duration=2000128 SYS clocks (0 parser-EOF join clocks)\nFADE duration=2000129 SYS clocks (1 parser-EOF join clocks)\nFADE duration=2000129 SYS clocks (1 parser-EOF join clocks)\nFADE duration=2000129 SYS clocks (1 parser-EOF join clocks)\nTRANSPORT full shell natural EOF, duplicate/EOF FADE_ONLY, replacement, Stop, FATAL, mixed sessions, >100ms silence PASS\n- /Users/daizo/Projects/MegaVGMPlayer_EngineC_PackedV2_RTL/tools/engine_c_packed_v2_rtl/tb_transport.sv:354: Verilog $finish\n- S i m u l a t i o n   R e p o r t: Verilator 5.050 2026-07-01\n- Verilator: $finish at 3s; walltime 40.136 s; speed 72.515 ms/s\n- Verilator: cpu 39.223 s on 1 threads; allocated 22 MB\n"
+      },
+      {
+        "name": "transport-v1",
+        "passed": true,
+        "output": "FADE duration=2000128 SYS clocks (0 parser-EOF join clocks)\nTRANSPORT model=1 timing=1 EOF/FADE_ONLY, held zero, policy isolation PASS\nFADE duration=2000128 SYS clocks (0 parser-EOF join clocks)\nTRANSPORT model=2 timing=1 EOF/FADE_ONLY, held zero, policy isolation PASS\nFADE duration=2000128 SYS clocks (0 parser-EOF join clocks)\nTRANSPORT model=1 timing=2 EOF/FADE_ONLY, held zero, policy isolation PASS\nFADE duration=2000128 SYS clocks (0 parser-EOF join clocks)\nTRANSPORT model=2 timing=2 EOF/FADE_ONLY, held zero, policy isolation PASS\nFADE duration=2000128 SYS clocks (0 parser-EOF join clocks)\nFADE duration=2000128 SYS clocks (0 parser-EOF join clocks)\nFADE duration=2000129 SYS clocks (1 parser-EOF join clocks)\nFADE duration=2000129 SYS clocks (1 parser-EOF join clocks)\nFADE duration=2000129 SYS clocks (1 parser-EOF join clocks)\nTRANSPORT full shell natural EOF, duplicate/EOF FADE_ONLY, replacement, Stop, FATAL, mixed sessions, >100ms silence PASS\n- /Users/daizo/Projects/MegaVGMPlayer_EngineC_PackedV2_RTL/tools/engine_c_packed_v2_rtl/tb_transport.sv:354: Verilog $finish\n- S i m u l a t i o n   R e p o r t: Verilator 5.050 2026-07-01\n- Verilator: $finish at 3s; walltime 36.586 s; speed 79.573 ms/s\n- Verilator: cpu 36.397 s on 1 threads; allocated 22 MB\n"
+      }
+    ]
+  },
+  "source_audit": {
+    "base": "bb467fca2c9ea982345645c419d9da7d21a5d095",
+    "preexisting_files_unchanged": true,
+    "qsf_assignments_only_output_and_qip_changed": true,
+    "canonical_scheduler_and_audio_wiring_identical": true,
+    "max_file_bytes": 4194304,
+    "module_map": {
+      "pll": [
+        "rtl/pll.v"
+      ],
+      "pll_0002": [
+        "rtl/pll/pll_0002.v"
+      ],
+      "sys_top": [
+        "sys/sys_top.v"
+      ],
+      "sync_fix": [
+        "sys/sys_top.v"
+      ],
+      "csync": [
+        "sys/sys_top.v"
+      ],
+      "sys_udiv": [
+        "sys/math.sv"
+      ],
+      "sys_umul": [
+        "sys/math.sv"
+      ],
+      "sys_umuldiv": [
+        "sys/math.sv"
+      ],
+      "Hq2x": [
+        "sys/hq2x.sv"
+      ],
+      "hq2x_in": [
+        "sys/hq2x.sv"
+      ],
+      "hq2x_buf": [
+        "sys/hq2x.sv"
+      ],
+      "DiffCheck": [
+        "sys/hq2x.sv"
+      ],
+      "Blend": [
+        "sys/hq2x.sv"
+      ],
+      "scandoubler": [
+        "sys/scandoubler.v"
+      ],
+      "scanlines": [
+        "sys/scanlines.v"
+      ],
+      "shadowmask": [
+        "sys/shadowmask.sv"
+      ],
+      "video_cleaner": [
+        "sys/video_cleaner.sv"
+      ],
+      "s_fix": [
+        "sys/video_cleaner.sv"
+      ],
+      "gamma_corr": [
+        "sys/gamma_corr.sv"
+      ],
+      "gamma_fast": [
+        "sys/gamma_corr.sv"
+      ],
+      "video_mixer": [
+        "sys/video_mixer.sv"
+      ],
+      "video_freak": [
+        "sys/video_freak.sv"
+      ],
+      "video_scale_int": [
+        "sys/video_freak.sv"
+      ],
+      "video_freezer": [
+        "sys/video_freezer.sv"
+      ],
+      "sync_lock": [
+        "sys/video_freezer.sv"
+      ],
+      "arcade_video": [
+        "sys/arcade_video.v"
+      ],
+      "screen_rotate": [
+        "sys/arcade_video.v"
+      ],
+      "osd": [
+        "sys/osd.v"
+      ],
+      "vga_out": [
+        "sys/vga_out.sv"
+      ],
+      "yc_out": [
+        "sys/yc_out.sv"
+      ],
+      "i2c": [
+        "sys/i2c.v"
+      ],
+      "alsa": [
+        "sys/alsa.sv"
+      ],
+      "i2s": [
+        "sys/i2s.v"
+      ],
+      "spdif": [
+        "sys/spdif.v"
+      ],
+      "audio_out": [
+        "sys/audio_out.v"
+      ],
+      "aud_mix_top": [
+        "sys/audio_out.v"
+      ],
+      "IIR_filter": [
+        "sys/iir_filter.v"
+      ],
+      "iir_filter_tap": [
+        "sys/iir_filter.v"
+      ],
+      "DC_blocker": [
+        "sys/iir_filter.v"
+      ],
+      "ltc2308": [
+        "sys/ltc2308.sv"
+      ],
+      "ltc2308_tape": [
+        "sys/ltc2308.sv"
+      ],
+      "sigma_delta_dac": [
+        "sys/sigma_delta_dac.v"
+      ],
+      "mt32pi": [
+        "sys/mt32pi.sv"
+      ],
+      "mcp23009": [
+        "sys/mcp23009.sv"
+      ],
+      "f2sdram_safe_terminator": [
+        "sys/f2sdram_safe_terminator.sv"
+      ],
+      "ddr_svc": [
+        "sys/ddr_svc.sv"
+      ],
+      "sysmem_lite": [
+        "sys/sysmem.sv"
+      ],
+      "sysmem_HPS_fpga_interfaces": [
+        "sys/sysmem.sv"
+      ],
+      "sd_card": [
+        "sys/sd_card.sv"
+      ],
+      "hps_io": [
+        "sys/hps_io.sv"
+      ],
+      "ps2_device": [
+        "sys/hps_io.sv"
+      ],
+      "video_calc": [
+        "sys/hps_io.sv"
+      ],
+      "confstr_rom": [
+        "sys/hps_io.sv"
+      ],
+      "pll_hdmi": [
+        "sys/pll_hdmi.v"
+      ],
+      "pll_hdmi_0002": [
+        "sys/pll_hdmi/pll_hdmi_0002.v"
+      ],
+      "pll_audio": [
+        "sys/pll_audio.v"
+      ],
+      "pll_audio_0002": [
+        "sys/pll_audio/pll_audio_0002.v"
+      ],
+      "pll_cfg": [
+        "sys/pll_cfg/pll_cfg.v"
+      ],
+      "pll_cfg_hdmi": [
+        "sys/pll_cfg/pll_cfg_hdmi.v"
+      ],
+      "altera_pll_reconfig_top": [
+        "sys/pll_cfg/altera_pll_reconfig_top.v"
+      ],
+      "altera_pll_reconfig_core": [
+        "sys/pll_cfg/altera_pll_reconfig_core.v"
+      ],
+      "self_reset": [
+        "sys/pll_cfg/altera_pll_reconfig_core.v"
+      ],
+      "dprio_mux": [
+        "sys/pll_cfg/altera_pll_reconfig_core.v"
+      ],
+      "fpll_dprio_init": [
+        "sys/pll_cfg/altera_pll_reconfig_core.v"
+      ],
+      "dyn_phase_shift": [
+        "sys/pll_cfg/altera_pll_reconfig_core.v"
+      ],
+      "generic_lcell_comb": [
+        "sys/pll_cfg/altera_pll_reconfig_core.v"
+      ],
+      "emu": [
+        "rtl/engine_c_c2/shell/emu_c2.sv"
+      ],
+      "megavgm_video_timing": [
+        "rtl/megavgm_video_timing.sv"
+      ],
+      "megavgm_title_receiver": [
+        "rtl/megavgm_title_receiver.sv"
+      ],
+      "megavgm_font5x7": [
+        "rtl/megavgm_font5x7.sv"
+      ],
+      "megavgm_title_renderer": [
+        "rtl/megavgm_title_renderer.sv"
+      ],
+      "vgm_ddram_backend": [
+        "rtl/vgm_ddram_backend.sv"
+      ],
+      "golden_player_shell_upload": [
+        "rtl/engine_c_c2/shell/golden_player_shell_upload.sv"
+      ],
+      "mister_vgm_md_top": [
+        "rtl/engine_c_c4/mister_vgm_md_top.sv"
+      ],
+      "engine_c_transport_profile": [
+        "rtl/engine_c_c4/c4_profile.sv"
+      ],
+      "c4_ddr_health": [
+        "rtl/engine_c_c4/ddr_health.sv"
+      ],
+      "mvgmsid_loader": [
+        "rtl/engine_c_c3/mvgmsid_loader.sv"
+      ],
+      "sid_native_scheduler": [
+        "rtl/engine_c_c4/sid_native_scheduler.sv"
+      ],
+      "sid_session_wrapper": [
+        "rtl/engine_c_c2/sid_session_wrapper.sv"
+      ],
+      "engine_c_lab": [
+        "rtl/engine_c_packed_v2/engine_c_lab.sv"
+      ],
+      "version_dispatch": [
+        "rtl/engine_c_packed_v2/version_dispatch.sv"
+      ],
+      "packed_stream": [
+        "rtl/engine_c_packed_v2/packed_stream.sv"
+      ],
+      "packed_byte_reader": [
+        "rtl/engine_c_packed_v2/packed_byte_reader.sv"
+      ],
+      "c2_record_store": [
+        "rtl/engine_c_c2_capacity/c2_record_store.sv"
+      ],
+      "c2_ddr_mux": [
+        "rtl/engine_c_c2_capacity/c2_ddr_mux.sv"
+      ],
+      "megavgm_transport_owner": [
+        "rtl/transport_v1_3/megavgm_transport_owner.sv"
+      ],
+      "golden_shell_transport": [
+        "rtl/engine_c_c4/transport.sv"
+      ],
+      "megavgm_playlist_status_export": [
+        "rtl/engine_c_c4/megavgm_playlist_status_export.sv"
+      ],
+      "sid_top": [
+        "rtl/engine_c_c2/vendor/lab/sid_top.sv"
+      ],
+      "sid_voice": [
+        "rtl/engine_c_c2/vendor/lab/sid_voice.sv"
+      ],
+      "sid_envelope": [
+        "rtl/engine_c_c2/vendor/lab/sid_envelope.sv"
+      ],
+      "sid_dac": [
+        "rtl/engine_c_c2/vendor/lab/sid_dac.sv"
+      ],
+      "sid_tables": [
+        "rtl/engine_c_c2/vendor/lab/sid_tables.sv"
+      ],
+      "sid_filter": [
+        "rtl/engine_c_c2/vendor/lab/sid_filter.sv"
+      ]
+    },
+    "source_sha256": {
+      "rtl/pll.v": "8e1a58e1539aba4c9c8e9bb66dca68e9beb298beca7402943aceeba932d6bfc0",
+      "rtl/pll/pll_0002.v": "8ac785958023eadf517605bc669189d5583af48de2d63dabbddbeca1acda9ffa",
+      "rtl/engine_c_c2/shell/emu_c2.sv": "1b366520504a0d31bdf6daee9388e49073c632dbf5e48e1bf334aa1e1ff88919",
+      "rtl/megavgm_video_timing.sv": "65a682578e2af7f840df426a96776832000b2e908c0ba30139bd15c1155e5d35",
+      "rtl/megavgm_title_receiver.sv": "999ee41890f5b3f814e59b8e4dbedfd0287a916e234faab471cc5ef5ea7a6567",
+      "rtl/megavgm_font5x7.sv": "79645adbd743a325cfd36b5f7ee30ef33b48b8fa79c332a90b6e36aa72a556dc",
+      "rtl/megavgm_title_renderer.sv": "a4d2470aebe1eb4621d9e14dd9f7132d856852d29574b9afbd95cbcf533cff8b",
+      "rtl/vgm_ddram_backend.sv": "b4b2ab6f8e70de357c59be01847c73124d3ebe6a9c8b1c1267e8b64b642d1f2b",
+      "rtl/engine_c_c2/shell/golden_player_shell_upload.sv": "5e793563aef968b8dbb33c4dbcecbac5f5a8a95054f183f64013f875cb8de745",
+      "rtl/engine_c_c4/mister_vgm_md_top.sv": "2d97307873fd263481e05d947133d7fceeba43a8033da200573b43060cb06b22",
+      "rtl/engine_c_c4/c4_profile.sv": "0e96f68d845467b7ca7bf514a900145d4b9cc2a9a2c6ea0887f976a133ddf793",
+      "rtl/engine_c_c4/ddr_health.sv": "a4e3719c90ab4609271e3edf05458db5e5552e65a02879db48ba009850a2a932",
+      "rtl/engine_c_c3/mvgmsid_loader.sv": "05a05eb77d4a99b9e2bd6d0345735be3707fcc6e11b7aeb1baedc004941b2a8c",
+      "rtl/engine_c_c4/sid_native_scheduler.sv": "63d9c32f6634b692a803489a3c1459c88814187f9c0f13ade751f88679cb546a",
+      "rtl/engine_c_c2/sid_session_wrapper.sv": "10c601809f608efcd45d15968411ed2fa86df5367e7626413af512067e9f3317",
+      "rtl/engine_c_packed_v2/engine_c_lab.sv": "38a6d5b7ce83281721cb2286349d0935f241c25d47f612fb9a49fc8b51232186",
+      "rtl/engine_c_packed_v2/version_dispatch.sv": "7ff2494aec09dc3eca4af67c27145bb453634c3f06214041a11c4dc85510277f",
+      "rtl/engine_c_packed_v2/packed_stream.sv": "16f11d309cdae99998f69fdbe9d611753e3d4eda9e3de530696802c3f765696f",
+      "rtl/engine_c_packed_v2/packed_byte_reader.sv": "cf956f0ade3ad1227d60f8413c932387712effc7163030d424435aadde59706c",
+      "rtl/engine_c_c2_capacity/c2_record_store.sv": "95156177fb5bd255739b2003cb9b36dd8abb2d360bd9dad86d39c27b2b2e1ac5",
+      "rtl/engine_c_c2_capacity/c2_ddr_mux.sv": "3d59ee89f0c15ab5e6891330d806d1af8720e402450e778cd47cd15bc5abcb1d",
+      "rtl/transport_v1_3/megavgm_transport_owner.sv": "4f441e86e5fa191c592ad40f895510a52b2bbb8d7ddd6af46e99d066bb02bd68",
+      "rtl/engine_c_c4/transport.sv": "8b46ebae3be5b2d4d25fc0e87b1ca83bf47a0f9305a29ffce9ec36a4257fa564",
+      "rtl/engine_c_c4/megavgm_playlist_status_export.sv": "f9c81037075270b5a7e51d9913cc49f2966a0327ea6c3501456209839ef3d72b",
+      "rtl/engine_c_c2/vendor/lab/sid_top.sv": "31a3d2bd2779f14112e2bbccbec9575a581a46fd32d1115dc8fdee0dfe7bb9e4",
+      "rtl/engine_c_c2/vendor/lab/sid_voice.sv": "d198d9ef47b18b86def1f62e213e1068dd7fa785f28a772a10ec098fb7ac5869",
+      "rtl/engine_c_c2/vendor/lab/sid_envelope.sv": "21c2c474d9a7da78535dc8376b9b9a723a82e021c365bb80f86c349402549dc0",
+      "rtl/engine_c_c2/vendor/lab/sid_dac.sv": "e1c1fa51f640dfce39efdd561e9836d254fe93269bf0f38ca89d58f84b059097",
+      "rtl/engine_c_c2/vendor/lab/sid_tables.sv": "ecd2e004760c8194d893633b1fd98371aa9cd58136089a171c97e9fc622ed5da",
+      "rtl/engine_c_c2/vendor/lab/sid_filter.sv": "166cc0f90858ef808d2aecf9d5bb0bc5f632ac26ce066b48c02f11111bc4264d"
+    },
+    "source_count": 70,
+    "elaboration": "Verilator emu with HPS/PLL stubs; not Quartus",
+    "hardware": "UNVERIFIED"
+  }
+}

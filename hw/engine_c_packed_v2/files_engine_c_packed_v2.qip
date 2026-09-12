@@ -1,0 +1,33 @@
+# Only the patched lab SID set is compiled. vendor/upstream is provenance only.
+foreach f {
+    rtl/engine_c_c2/shell/emu_c2.sv
+    rtl/megavgm_video_timing.sv
+    rtl/megavgm_title_receiver.sv
+    rtl/megavgm_font5x7.sv
+    rtl/megavgm_title_renderer.sv
+    rtl/vgm_ddram_backend.sv
+    rtl/engine_c_c2/shell/golden_player_shell_upload.sv
+    rtl/engine_c_c4/mister_vgm_md_top.sv
+    rtl/engine_c_c4/c4_profile.sv
+    rtl/engine_c_c4/ddr_health.sv
+    rtl/engine_c_c3/mvgmsid_loader.sv
+    rtl/engine_c_c4/sid_native_scheduler.sv
+    rtl/engine_c_c2/sid_session_wrapper.sv
+    rtl/engine_c_packed_v2/engine_c_lab.sv
+    rtl/engine_c_packed_v2/version_dispatch.sv
+    rtl/engine_c_packed_v2/packed_stream.sv
+    rtl/engine_c_packed_v2/packed_byte_reader.sv
+    rtl/engine_c_c2_capacity/c2_record_store.sv
+    rtl/engine_c_c2_capacity/c2_ddr_mux.sv
+    rtl/transport_v1_3/megavgm_transport_owner.sv
+    rtl/engine_c_c4/transport.sv
+    rtl/engine_c_c4/megavgm_playlist_status_export.sv
+    rtl/engine_c_c2/vendor/lab/sid_top.sv
+    rtl/engine_c_c2/vendor/lab/sid_voice.sv
+    rtl/engine_c_c2/vendor/lab/sid_envelope.sv
+    rtl/engine_c_c2/vendor/lab/sid_dac.sv
+    rtl/engine_c_c2/vendor/lab/sid_tables.sv
+    rtl/engine_c_c2/vendor/lab/sid_filter.sv
+} {
+    set_global_assignment -name SYSTEMVERILOG_FILE [file join $::quartus(qip_path) ../../ $f]
+}
