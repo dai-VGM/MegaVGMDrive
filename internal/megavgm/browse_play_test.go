@@ -40,8 +40,8 @@ func TestBrowseRootNestedFilteringAndBytewiseOrder(t *testing.T) {
 		mustMkdir(t, filepath.Join(root, name))
 	}
 	for _, name := range []string{
-		"10 End.vgm", "02 [Stage].vgm", "01 日本語.vgm", ".hidden.vgm",
-		"ignore.txt", "upper.VGM", "temporary.vgm.tmp",
+		"10 End.vgm", "02 [Stage].vgm", "01 日本語.vgm", "04 SID.mvgmsid", ".hidden.vgm",
+		"raw.sid", "packed.mvgmsid2", "ignore.txt", "upper.VGM", "temporary.vgm.tmp",
 	} {
 		writeFile(t, filepath.Join(root, name), "x", 0644)
 	}
@@ -58,6 +58,7 @@ func TestBrowseRootNestedFilteringAndBytewiseOrder(t *testing.T) {
 		{Name: "01 日本語.vgm", Type: "file"},
 		{Name: "01_Arcade", Type: "directory"},
 		{Name: "02 [Stage].vgm", Type: "file"},
+		{Name: "04 SID.mvgmsid", Type: "file"},
 		{Name: "10 End.vgm", Type: "file"},
 		{Name: "Space Folder", Type: "directory"},
 		{Name: "Zeta", Type: "directory"},
@@ -77,6 +78,34 @@ func TestBrowseRootNestedFilteringAndBytewiseOrder(t *testing.T) {
 		response.Path != "Space Folder/[Album] 日本語" ||
 		response.Parent != "Space Folder" || len(response.Entries) != 1 {
 		t.Fatalf("unexpected nested response: %#v", response)
+	}
+}
+
+func TestPreparedSIDPlayUsesExistingSupervisorRoute(t *testing.T) {
+	dir := t.TempDir()
+	var invocation []string
+	adapter := newTestAdapter(t, dir, nil)
+	selected := filepath.Join(adapter.config.DefaultPlaylistPath, "Commando.mvgmsid")
+	writeFile(t, selected, "MVGMSID\x00", 0644)
+	adapter.run = func(_ context.Context, path string, args ...string) ([]byte, error) {
+		invocation = append([]string{path}, args...)
+		writeSupervisor(t, adapter, "MEGAVGM", "MODIFIED", "RUNNING", adapter.config.DefaultPlaylistPath)
+		return []byte("MEGAVGM MODE ACTIVE\n"), nil
+	}
+	writeSupervisor(t, adapter, "STOCK", "STOCK", "STOPPED", "")
+	writeExecutable(t, adapter.config.SupervisorPath)
+	recorder := playRequest(t, adapter, selected)
+	canonicalSelected, err := filepath.EvalSymlinks(selected)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if recorder.Code != http.StatusAccepted || len(invocation) != 5 || invocation[2] != "--start-file" || invocation[3] != canonicalSelected {
+		t.Fatalf("status=%d invocation=%#v body=%s", recorder.Code, invocation, recorder.Body.String())
+	}
+	for _, rejected := range []string{"raw.sid", "packed.mvgmsid2"} {
+		path := filepath.Join(adapter.config.DefaultPlaylistPath, rejected)
+		writeFile(t, path, "x", 0644)
+		assertAPIError(t, playRequest(t, adapter, path), http.StatusBadRequest, "invalid_vgm_path")
 	}
 }
 

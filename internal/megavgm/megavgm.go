@@ -75,6 +75,7 @@ var supervisorStatusKeys = map[string]bool{
 
 type Status struct {
 	SoundChips            []string         `json:"soundChips,omitempty"`
+	SID                   *SIDMetadata     `json:"sid,omitempty"`
 	Transport             *TransportStatus `json:"transport,omitempty"`
 	Mode                  string           `json:"mode"`
 	Main                  string           `json:"main"`
@@ -100,6 +101,7 @@ type Status struct {
 
 type playlistStatus struct {
 	SoundChips []string
+	SID        *SIDMetadata
 	State      string
 	Index      uint64
 	Count      uint64
@@ -112,6 +114,15 @@ type playlistStatus struct {
 	Repeat     string
 	Shuffle    bool
 	Traversal  string
+}
+
+type SIDMetadata struct {
+	FormatVersion  uint16 `json:"formatVersion"`
+	Model          string `json:"model"`
+	Timing         string `json:"timing"`
+	Subtune        uint32 `json:"subtune"`
+	CaptureLimited bool   `json:"captureLimited"`
+	SourceSHA256   string `json:"sourceSha256,omitempty"`
 }
 
 type SupervisorStatus struct {
@@ -255,7 +266,9 @@ func ParseStatus(reader io.Reader) (playlistStatus, error) {
 		"session": true, "loop_count": true,
 		"context": true, "playlist": true,
 		"repeat": true, "shuffle": true, "traversal": true,
-		"sound_chips": true,
+		"sound_chips":        true,
+		"sid_format_version": true, "sid_model": true, "sid_timing": true,
+		"sid_subtune": true, "sid_capture_limited": true, "sid_source_sha256": true,
 	}
 	values, err := readKeyValues(reader, allowed, false)
 	if err != nil {
@@ -329,10 +342,31 @@ func ParseStatus(reader io.Reader) (playlistStatus, error) {
 		(traversal == "SHUFFLE") != shuffle {
 		return playlistStatus{}, errors.New("invalid traversal")
 	}
-	title := strings.TrimSuffix(filepath.Base(values["path"]), ".vgm")
+	var sid *SIDMetadata
+	if values["sid_format_version"] != "" {
+		version, versionErr := parseUnsigned(values["sid_format_version"], 16)
+		subtune, subtuneErr := parseUnsigned(values["sid_subtune"], 32)
+		capture := values["sid_capture_limited"]
+		sha := values["sid_source_sha256"]
+		if versionErr != nil || (version != 1 && version != 2) || subtuneErr != nil || subtune == 0 ||
+			(values["sid_model"] != "6581" && values["sid_model"] != "8580") ||
+			(values["sid_timing"] != "PAL" && values["sid_timing"] != "NTSC") ||
+			(capture != "0" && capture != "1") ||
+			(sha != "" && (len(sha) != 64 || strings.IndexFunc(sha, func(r rune) bool {
+				return !(r >= '0' && r <= '9') && !(r >= 'a' && r <= 'f')
+			}) >= 0)) {
+			return playlistStatus{}, errors.New("invalid SID metadata")
+		}
+		sid = &SIDMetadata{uint16(version), values["sid_model"], values["sid_timing"],
+			uint32(subtune), capture == "1", sha}
+	} else if values["sid_model"] != "" || values["sid_timing"] != "" || values["sid_subtune"] != "" ||
+		values["sid_capture_limited"] != "" || values["sid_source_sha256"] != "" {
+		return playlistStatus{}, errors.New("partial SID metadata")
+	}
+	title := trackTitle(filepath.Base(values["path"]))
 	return playlistStatus{
-		SoundChips: parseSoundChips(values["sound_chips"]),
-		State:      values["state"], Index: index, Count: count, Path: values["path"],
+		SoundChips: parseSoundChips(values["sound_chips"]), SID: sid,
+		State: values["state"], Index: index, Count: count, Path: values["path"],
 		Title: title, Session: uint32(session), LoopCount: uint16(loopCount),
 		Context: context, Playlist: playlist,
 		Repeat: repeat, Shuffle: shuffle, Traversal: traversal,
@@ -475,6 +509,7 @@ func (a *Adapter) HandleStatus(w http.ResponseWriter, _ *http.Request) {
 	status.State, status.Index, status.Count = playlist.State, playlist.Index, playlist.Count
 	status.Path, status.Title = playlist.Path, playlist.Title
 	status.SoundChips = playlist.SoundChips
+	status.SID = playlist.SID
 	status.Session, status.LoopCount = playlist.Session, playlist.LoopCount
 	status.Context, status.Playlist = playlist.Context, playlist.Playlist
 	status.Repeat, status.Shuffle, status.Traversal =
@@ -630,8 +665,8 @@ func canonicalVGM(path, root string) (string, string, error) {
 	}
 	info, err := os.Stat(canonicalPath)
 	if err != nil || !info.Mode().IsRegular() ||
-		!strings.HasSuffix(filepath.Base(canonicalPath), ".vgm") {
-		return "", "", errors.New("path is not a regular .vgm file")
+		!supportedTrackName(filepath.Base(canonicalPath)) {
+		return "", "", errors.New("path is not a regular supported track file")
 	}
 	return canonicalPath, filepath.Dir(canonicalPath), nil
 }
@@ -660,7 +695,7 @@ func (a *Adapter) HandleBrowse(w http.ResponseWriter, r *http.Request) {
 		}
 		if info.IsDir() {
 			entries = append(entries, BrowseEntry{Name: entry.Name(), Type: "directory"})
-		} else if info.Mode().IsRegular() && strings.HasSuffix(entry.Name(), ".vgm") {
+		} else if info.Mode().IsRegular() && supportedTrackName(entry.Name()) {
 			entries = append(entries, BrowseEntry{Name: entry.Name(), Type: "file"})
 		}
 	}

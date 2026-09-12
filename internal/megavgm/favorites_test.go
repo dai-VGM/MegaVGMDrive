@@ -257,7 +257,7 @@ func TestFavoritesRejectOutsideTraversalSymlinkAndInvalidFile(t *testing.T) {
 func TestFavoritesPersistAcrossAdapterRestartAndPlayUsesExistingHandler(t *testing.T) {
 	dir := t.TempDir()
 	firstAdapter := newTestAdapter(t, dir, nil)
-	path := createFavoriteVGM(t, firstAdapter, "Restart/01 Persistent.vgm")
+	path := createFavoriteVGM(t, firstAdapter, "Restart/01 Persistent.mvgmsid")
 	if recorder := favoriteRequest(t, http.MethodPost, path, firstAdapter.HandleAddFavorite); recorder.Code != http.StatusOK {
 		t.Fatal(recorder.Body.String())
 	}

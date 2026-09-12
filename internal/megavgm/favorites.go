@@ -178,8 +178,7 @@ func favoritePathIdentity(path, root string) (string, error) {
 		return "", errors.New("approved root unavailable")
 	}
 	cleaned := filepath.Clean(path)
-	if !withinRoot(canonicalRoot, cleaned) ||
-		!strings.HasSuffix(filepath.Base(cleaned), ".vgm") {
+	if !withinRoot(canonicalRoot, cleaned) || !supportedTrackName(filepath.Base(cleaned)) {
 		return "", errors.New("favorite path outside approved root")
 	}
 	return cleaned, nil
@@ -201,7 +200,7 @@ func favoriteEntry(path, root string) FavoriteEntry {
 		directory = ""
 	}
 	return FavoriteEntry{
-		Path: path, Title: strings.TrimSuffix(filename, ".vgm"),
+		Path: path, Title: trackTitle(filename),
 		Filename: filename, Directory: filepath.ToSlash(directory),
 		Available: favoriteAvailable(path, root),
 	}

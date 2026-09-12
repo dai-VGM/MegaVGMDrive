@@ -21,7 +21,7 @@ function optimisticFavoriteEntry(path: string): MegaVGMFavoriteEntry {
   return {
     path,
     filename,
-    title: filename.replace(/\.vgm$/, ""),
+    title: filename.replace(/\.(?:vgm|mvgmsid)$/, ""),
     directory,
     available: true,
   };

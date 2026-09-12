@@ -769,7 +769,7 @@ export default function MegaVGMPlayer({
                   width="100%"
                 >
                   <Box component="span" sx={trackTitleSx}>
-                    {entry.name.replace(/\.vgm$/, "")}
+                    {entry.name.replace(/\.(?:vgm|mvgmsid)$/, "")}
                   </Box>
                   {rowState === "pending" && (
                     <Box

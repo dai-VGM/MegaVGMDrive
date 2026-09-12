@@ -56,6 +56,14 @@ export interface MusicServiceStatus {
 
 export interface MegaVGMStatus {
   soundChips?: string[]; // Host classifier evidence for this atomic path/session.
+  sid?: {
+    formatVersion: 1 | 2;
+    model: "6581" | "8580";
+    timing: "PAL" | "NTSC";
+    subtune: number;
+    captureLimited: boolean;
+    sourceSha256?: string;
+  };
   transport?: MegaVGMTransportStatus;
   mode: "STOCK" | "STARTING" | "MEGAVGM" | "SHUTTING_DOWN" | "FAILURE";
   main: "STOCK" | "STOPPED" | "MODIFIED" | "UNKNOWN" | "RESTORE_FAILED";
@@ -94,8 +102,8 @@ export interface MegaVGMTransportStatus {
     | "ENDED"
     | "STOPPED"
     | "FAILED";
-  currentProfile: "PROFILE_A" | "PROFILE_B";
-  requiredProfile: "PROFILE_A" | "PROFILE_B" | "UNKNOWN";
+  currentProfile: "PROFILE_A" | "PROFILE_B" | "PROFILE_C";
+  requiredProfile: "PROFILE_A" | "PROFILE_B" | "PROFILE_C" | "UNKNOWN";
   domain: string;
   baseline: number;
   profileChanged: boolean;

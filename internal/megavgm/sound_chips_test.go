@@ -8,7 +8,7 @@ import (
 )
 
 func TestSoundChipMetadata(t *testing.T) {
-	for _, value := range []string{"PSG,YM2612", "YM2151,SegaPCM", "YM2203", "YM2610B", "YM2610", "PSG"} {
+	for _, value := range []string{"PSG,YM2612", "YM2151,SegaPCM", "YM2203", "YM2610B", "YM2610", "PSG", "SID 6581", "SID 8580"} {
 		s, err := ParseStatus(strings.NewReader(validStatus + "sound_chips=" + value + "\n"))
 		if err != nil || !reflect.DeepEqual(s.SoundChips, strings.Split(value, ",")) || s.Session != 27 || s.Index != 4 || s.Count != 10 {
 			t.Fatalf("%s: %+v %v", value, s, err)
@@ -26,6 +26,28 @@ func TestSoundChipMetadata(t *testing.T) {
 	}
 	if _, err = ParseStatus(strings.NewReader(validStatus + "sound_chips=YM2612\nsound_chips=YM2203\n")); err == nil {
 		t.Fatal("duplicate known status key accepted")
+	}
+}
+
+func TestSIDMetadataPassthrough(t *testing.T) {
+	text := strings.Replace(validStatus, "04 Beyond the Galaxy.vgm", "Commando.mvgmsid", 1) +
+		"sound_chips=SID 6581\n" +
+		"sid_format_version=2\nsid_model=6581\nsid_timing=PAL\nsid_subtune=1\n" +
+		"sid_capture_limited=1\nsid_source_sha256=" + strings.Repeat("ab", 32) + "\n"
+	s, err := ParseStatus(strings.NewReader(text))
+	if err != nil || s.Title != "Commando" || s.SID == nil || s.SID.FormatVersion != 2 ||
+		s.SID.Model != "6581" || s.SID.Timing != "PAL" || s.SID.Subtune != 1 ||
+		!s.SID.CaptureLimited || s.SID.SourceSHA256 != strings.Repeat("ab", 32) {
+		t.Fatalf("SID status=%+v err=%v", s, err)
+	}
+	for _, bad := range []string{
+		"sid_format_version=3\nsid_model=6581\nsid_timing=PAL\nsid_subtune=1\nsid_capture_limited=0\n",
+		"sid_model=6581\n",
+		"sid_format_version=2\nsid_model=6581\nsid_timing=PAL\nsid_subtune=0\nsid_capture_limited=0\n",
+	} {
+		if _, err := ParseStatus(strings.NewReader(validStatus + bad)); err == nil {
+			t.Fatalf("accepted malformed SID metadata: %q", bad)
+		}
 	}
 }
 

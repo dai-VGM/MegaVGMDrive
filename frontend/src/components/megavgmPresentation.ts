@@ -34,7 +34,16 @@ export function playbackContextDetails(status: MegaVGMStatus): {
 // Display only: PSG remains in classifier/status; no profile/path inference.
 export function trackSoundChipLabel(chips?: string[]): string | undefined {
   if (!Array.isArray(chips)) return undefined;
-  const order = ["YM2612", "YM2151", "YM2203", "SegaPCM", "YM2610", "YM2610B"];
+  const order = [
+    "YM2612",
+    "YM2151",
+    "YM2203",
+    "SegaPCM",
+    "YM2610",
+    "YM2610B",
+    "SID 6581",
+    "SID 8580",
+  ];
   return order.filter((chip) => chips.includes(chip)).join(" / ") || undefined;
 }
 
@@ -56,7 +65,7 @@ function lastPathComponent(path: string): string {
 export function displayDirectory(path: string | undefined): string {
   if (!path) return "Music Library";
   let directory = path;
-  if (/\.vgm$/i.test(lastPathComponent(path))) {
+  if (/\.(?:vgm|mvgmsid)$/i.test(lastPathComponent(path))) {
     const separator = path.lastIndexOf("/");
     directory = separator < 0 ? "" : path.slice(0, separator);
   }

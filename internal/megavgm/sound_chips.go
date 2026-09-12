@@ -10,7 +10,8 @@ func parseSoundChips(value string) []string {
 		return nil
 	}
 	known := map[string]bool{"PSG": true, "YM2612": true, "YM2151": true,
-		"YM2203": true, "SegaPCM": true, "YM2610": true, "YM2610B": true}
+		"YM2203": true, "SegaPCM": true, "YM2610": true, "YM2610B": true,
+		"SID 6581": true, "SID 8580": true}
 	chips := strings.Split(value, ",")
 	seen := make(map[string]bool)
 	for _, chip := range chips {

@@ -28,14 +28,20 @@ fixture.mkdir()
 (fixture / 'library').mkdir()
 track = fixture / 'library' / '01 Coin.vgm'
 track.write_bytes(b'Vgm ' + b'\0'*64)
+sid_track = fixture / 'library' / '02 Commando.mvgmsid'
+sid_track.write_bytes(b'MVGMSID\0' + b'\0'*120)
 playlist = {'version': 1, 'playlists': {'Favorites': [str(track)], 'Existing': [str(track)]}}
 (fixture / 'playlists.json').write_text(json.dumps(playlist))
 os.mkfifo(fixture / 'playlist.cmd')
 supervisor = 'mode=MEGAVGM\nmain=MODIFIED\ncontroller=RUNNING\ndetail=isolated fixture\nrbf=test.rbf\nplaylist='+str(track.parent)+'\n'
 transport = 'switch_epoch=megavgm-phase2a.fixture\nswitch_generation={generation}\nswitch_state={state}\ncurrent_profile={profile}\nrequired_profile={required}\nswitch_domain=1\nswitch_baseline=0\nswitch_changed=1\nswitch_path='+str(track)+'\n'
-def status(profile='PROFILE_A', generation=1, state='PLAYING', session=57, chip='YM2612'):
+def status(profile='PROFILE_A', generation=1, state='PLAYING', session=57, chip='YM2612', sid=False):
     (fixture / 'supervisor.status').write_text(supervisor + transport.format(generation=generation,state=state,profile=profile,required=profile))
-    (fixture / 'playlist.status').write_text(f'state=PLAYING\nindex=1\ncount=1\npath={track}\nsession={session}\nloop_count=0\ncontext=PLAYLIST\nplaylist=Favorites\nrepeat=OFF\nshuffle=0\ntraversal=ORDERED\nsound_chips={chip}\n')
+    selected = sid_track if sid else track
+    sid_metadata = ('sid_format_version=2\nsid_model=6581\nsid_timing=PAL\n'
+                    'sid_subtune=1\nsid_capture_limited=1\n'
+                    'sid_source_sha256=' + 'ab'*32 + '\n') if sid else ''
+    (fixture / 'playlist.status').write_text(f'state=PLAYING\nindex=1\ncount=1\npath={selected}\nsession={session}\nloop_count=0\ncontext=PLAYLIST\nplaylist=Favorites\nrepeat=OFF\nshuffle=0\ntraversal=ORDERED\nsound_chips={chip}\n{sid_metadata}')
 status()
 # Commands go only to fixture scripts, never real hardware helpers.
 for helper in ('ctl', 'supervisor'):
@@ -91,7 +97,7 @@ try:
     conflict=socket.socket(); conflict.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1)
     conflict.bind(('0.0.0.0',8183)); conflict.listen()
     result=svc('start',1)
-    assert 'cannot bind' in result.stderr
+    assert 'cannot bind' in result.stderr, result.stderr
     assert not (runtime/'megavgm_remote.pid').exists()
     conflict.close()
     svc('start'); svc('status'); svc('start',1)
@@ -144,6 +150,11 @@ try:
         status(profile,gen,session=session,chip=chip)
         code,s=api('/status'); assert code==200,(code,s)
         assert s['session']==session and s['transport']['currentProfile']==profile,s
+    status('PROFILE_C',4,session=1,chip='SID 6581',sid=True)
+    code,s=api('/status'); assert code==200 and s['transport']['currentProfile']=='PROFILE_C',s
+    assert s['title']=='02 Commando' and s['soundChips']==['SID 6581'],s
+    assert s['sid']=={'formatVersion':2,'model':'6581','timing':'PAL','subtune':1,
+                     'captureLimited':True,'sourceSha256':'ab'*32},s
     (fixture/'supervisor.status').write_text('mode=STOCK\nmain=STOCK\ncontroller=STOPPED\nrbf=\nplaylist=\ndetail=fixture complete\n')
     assert api('/status')[1]['mode']=='STOCK'
     assert no_commands()==baseline
