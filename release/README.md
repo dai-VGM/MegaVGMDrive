@@ -1,116 +1,79 @@
-# MegaVGMPlayer v2.1 “Independence Day”
+# MegaVGMPlayer v2.2 Stage 1 candidate
 
-FPGA Music Player for MiSTer — Phase 2 productionization candidate.
+This candidate changes the distributed FPGA engine filenames and the exact
+Engine A/B host paths. Player behavior, transport, classification decisions,
+audio RTL, OSD, and the standalone Remote UI are unchanged.
 
-MegaVGMPlayer now runs as its own `megavgm_remote` service on **8183**.
-The payload is byte-identical to the user-confirmed Phase 1 hardware-PASS daemon.
-This package does not contain, download, stop, replace, or re-register MiSTer Remote.
-Existing Remote on 8182 is left alone. Use only `http://<MiSTer-IP>:8183/megavgm`
-for MegaVGMPlayer; do not operate the old 8182 MegaVGMPlayer UI concurrently.
+## Production paths
 
-## Install / upgrade
-
-Back up the SD card first. Stop using both Player UIs, finish playback or explicitly
-Exit to STOCK, and keep them closed through installation. Copy/extract this entire
-package to a temporary directory on MiSTer, not directly over runtime files.
-
-```sh
-cd /path/to/MegaVGMPlayer-v2.1
-sha256sum -c SHA256SUMS
-sh install.sh                 # new install
-# OR: sh upgrade.sh          # v2.0 or Phase 1 upgrade, same transaction
+```text
+/media/fat/_Custom Cores/Cores/MegaVGMDrive_A.rbf
+/media/fat/_Custom Cores/Cores/MegaVGMDrive_B.rbf
+/media/fat/_Custom Cores/Cores/MegaVGMDrive_C.rbf
 ```
 
-The scripts require STOCK when the Supervisor is installed. They stage and verify
-all eight payload files, make a unique timestamp backup, then rename each file
-atomically on the same FAT filesystem. A multi-file update is not globally atomic;
-on interruption, do not open Player. Use the printed prepared backup with rollback.
-Stage and backup directories are retained for inspection. Concurrent installers
-are rejected by a lock; after a crash, inspect the transaction before manually
-removing its empty `.v21-install-lock` directory.
+Engine A and B are byte-identical copies of the v2.1 production RBFs. Engine C
+is the exact hardware-validated C4 artifact, staged under its final filename.
+Stage 1 does **not** add PROFILE_C routing or SID classification; production
+playback continues to route only Engine A/B.
 
-The script appends the exact `startup.block` once to `linux/user-startup.sh`.
-All existing Remote/favorites text is preserved, including user customizations.
-An unknown or duplicate standalone invocation causes a safe refusal rather than
-rewriting user startup. A second identical install is a no-op and retains the
-original rollback checkpoint. Symlink targets/parents are rejected.
+All three RBFs keep the exact core name `MegaVGMDrive`. Do not rename CORENAME
+to include A, B, or C.
 
-If standalone was already running, its verified identity is recorded, HTTP is
-drained using its unchanged service stop, then the formal daemon is started.
-No Stop/Exit playback command is issued by service operations. Installation itself
-requires STOCK because the package includes unchanged Main/controller/Supervisor.
-If it was not running, installation leaves it stopped until reboot.
+## Install or upgrade
 
-Reboot and follow [HARDWARE_CHECKLIST.md](HARDWARE_CHECKLIST.md). Autostart only
-starts HTTP; it does not ENTER MegaVGMPlayer. Stock MiSTer remains active until Play.
-The block forwards `start`, `stop`, and `restart`; no argument defaults to `start`.
-This matches the existing supplied user-startup service forwarding convention.
-Actual boot/shutdown invocation on MiSTer is a hardware acceptance item, not a host claim.
-
-## Service
+Return MegaVGMPlayer to STOCK, close Player tabs, and preserve the backup path
+printed by the script.
 
 ```sh
-/media/fat/MegaVGMPlayer/megavgm_remote -service status
-/media/fat/MegaVGMPlayer/megavgm_remote -service start
-/media/fat/MegaVGMPlayer/megavgm_remote -service stop
-/media/fat/MegaVGMPlayer/megavgm_remote -service restart
+cd /path/to/MegaVGMPlayer-v2.2
+sh install.sh
+# upgrade.sh is an alias for the same transactional operation
 ```
 
-Runtime executable: `/tmp/megavgm_remote`; log: `/tmp/megavgm_remote.log`.
-PID/start-time/executable-SHA verification and flock ownership are unchanged.
-An occupied 8183 fails explicitly without alternate port or killing its owner.
-Crash recovery is explicit service start/restart or next reboot; no new watchdog.
-Do not add this service through MiSTer Remote registration or update_all hooks.
-Existing `remote.sh` autostart/update ownership remains independent.
+The installer verifies the complete package, stages files on the FAT volume,
+backs up every replaced target, and replaces each target by rename. It installs
+the three new RBF names and release-matched Supervisor/controller artifacts.
+Existing v2.1 RBFs under `_Custom Cores/Cores` or `_Utility` are not deleted or
+modified. User Remote files, playlists, Favorites, and the VGM library are not
+payloads.
 
-## Data and paths
+The existing v2.1 standalone startup block is deliberately retained because
+service semantics did not change. An unrecognized or duplicated startup block,
+symlink target, non-STOCK state, checksum mismatch, or concurrent install causes
+a safe refusal.
 
+Reboot after installation, then follow [HARDWARE_CHECKLIST.md](HARDWARE_CHECKLIST.md).
+Host tests are not evidence of real FPGA switching.
+
+## Runtime and data
+
+- Standalone Player: `http://<MiSTer-IP>:8183/megavgm`
 - Runtime: `/media/fat/MegaVGMPlayer/`
-- Engines: `/media/fat/_Custom Cores/Cores/` (existing Transport13 filenames)
+- Engines: `/media/fat/_Custom Cores/Cores/`
 - Helper/importer: `/media/fat/Scripts/megavgm_ctl`, `vgm_md_import.sh`
 - Music: `/media/fat/MegaVGMDrive/`
-- Existing Favorites/Playlists: `/media/fat/Scripts/.config/megavgm/playlists.json`
+- Favorites/Playlists: `/media/fat/Scripts/.config/megavgm/playlists.json`
 
-No playlist migration, deletion, or overwrite occurs, including on rollback.
-The package does not remove old RBFs or Phase 1 rescue executables.
+## Rollback to v2.1
 
-## Existing MiSTer Remote restoration
-
-The v2.0 bundled modified Remote is identifiable by SHA-256
-`720b982c194767ecaac308cec2d87265b66018b6aef6cecec8eacdb23fa94cfa`.
-However, v2.0 backups contain arbitrary pre-install bytes without authoritative
-upstream provenance. Knowing the current hash does not prove a backup is original
-Remote rather than a user customization. Therefore **no automatic restoration**
-is performed. Existing Remote and its startup block remain byte-for-byte intact.
-
-If you want original Remote back, independently identify and verify your trusted
-pre-v2.0 backup, preserve the current Remote under a new backup name, then use that
-Remote version's own documented stop/replacement/start procedure. Do not guess from
-the backup filename and do not overwrite an unknown customized Remote. This is
-optional and separate from installing MegaVGMPlayer; 8183 needs none of its APIs.
-
-## Rollback
-
-Close Player and return to STOCK first:
+Return to STOCK first, then use the checkpoint printed by install:
 
 ```sh
 sh rollback.sh
-# Or pass the exact Backup path printed by install (also for interrupted updates):
-sh rollback.sh '/media/fat/MegaVGMPlayer/backups-v2.1-YYYYMMDD-HHMMSS-XXXXXX'
+# or
+sh rollback.sh '/media/fat/MegaVGMPlayer/backups-v2.2-YYYYMMDD-HHMMSS-XXXXXX'
 ```
 
-Rollback validates backup hashes and refuses to overwrite later edits. It stops
-only the standalone daemon, restores pre-install runtime files and startup bytes,
-and moves newly introduced files into the backup's `retired/` directory. If a
-verified standalone service was running before install, its exact saved executable
-is restarted, including when it originally used a Phase 1 filename. Otherwise it
-remains stopped. Remote is unchanged throughout; JSON updates made after install
-are also retained. Reboot after rollback and verify the previous service state.
+Rollback validates the checkpoint, restores the former Supervisor/controller
+and other replaced runtime bytes, and recoverably moves files introduced by the
+v2.2 transaction into `backup/retired/`. The untouched old-name v2.1 RBFs remain
+available, so the restored v2.1 Supervisor can use its original exact paths.
+Later user edits cause rollback to refuse rather than overwrite them.
 
-## Validation scope
+## Scope
 
-Phase 1 playback and iPhone PASS are user-reported. Phase 2 host/QEMU checks do not
-prove hardware reboot/autostart or real FPGA switching. A→B→A and STOCK in the
-HTTP test suite are authoritative-status fixtures. Final hardware acceptance is
-pending until the checklist is completed. No new UI, API, Player, or audio feature
-is included in this phase.
+No RBF was synthesized for this migration. No Frontend, daemon, Main, importer,
+classifier decision, transport, OSD, or chip implementation was changed. Engine C
+hardware behavior is user-confirmed for the exact staged SHA, but C production
+routing remains a later stage.

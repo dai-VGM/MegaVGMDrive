@@ -15,8 +15,9 @@ else
 fi
 targets() {
   printf '%s\n' \
-    '_Custom Cores/Cores/MegaVGMPlayer_Transport13FadeOnly_A_MiSTer.rbf' \
-    '_Custom Cores/Cores/MegaVGMPlayer_Transport13FadeOnly_B_MiSTer.rbf' \
+    '_Custom Cores/Cores/MegaVGMDrive_A.rbf' \
+    '_Custom Cores/Cores/MegaVGMDrive_B.rbf' \
+    '_Custom Cores/Cores/MegaVGMDrive_C.rbf' \
     'MegaVGMPlayer/MiSTer.megavgm' 'MegaVGMPlayer/megavgm_supervisor' \
     'MegaVGMPlayer/megavgm_playlist-phase2a' 'MegaVGMPlayer/megavgm_remote' \
     'Scripts/megavgm_ctl' 'Scripts/vgm_md_import.sh'
@@ -44,9 +45,9 @@ stock_gate() {
   fi
 }
 lock_install() {
-  safe_path "$fat/MegaVGMPlayer/.v21-install-lock"
+  safe_path "$fat/MegaVGMPlayer/.v22-install-lock"
   mkdir -p "$fat/MegaVGMPlayer"
-  lock="$fat/MegaVGMPlayer/.v21-install-lock"
+  lock="$fat/MegaVGMPlayer/.v22-install-lock"
   mkdir "$lock" || fail 'Installer lock exists; do not run concurrently. Inspect any interrupted transaction first.'
   trap 'rmdir "$lock"' EXIT
 }

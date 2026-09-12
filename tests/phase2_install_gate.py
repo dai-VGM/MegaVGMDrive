@@ -10,7 +10,7 @@ import tempfile
 
 package = Path(sys.argv[1]).resolve()
 v2 = Path('/Users/daizo/Projects/MegaVGMPlayer_v2_Release_Final_Staging/MegaVGMPlayer-v2.0/media/fat')
-root = Path(tempfile.mkdtemp(prefix='megavgm-v21-install-'))
+root = Path(tempfile.mkdtemp(prefix='megavgm-v22-install-'))
 startup = b'''#!/bin/sh
 
 # mrext/remote
@@ -20,7 +20,7 @@ startup = b'''#!/bin/sh
 [[ -e /media/fat/Scripts/favorites.sh ]] && /media/fat/Scripts/favorites.sh refresh
 '''
 payload = sorted(p.relative_to(package/'media/fat') for p in (package/'media/fat').rglob('*') if p.is_file())
-assert len(payload) == 8 and Path('Scripts/remote.sh') not in payload
+assert len(payload) == 9 and Path('Scripts/remote.sh') not in payload
 def put(root, rel, data):
     p = root/rel
     p.parent.mkdir(parents=True, exist_ok=True)
@@ -35,6 +35,9 @@ def user_files(fat):
     return {r: put(fat,r,b'USER-'+r.encode()).read_bytes() for r in (
       'Scripts/remote.sh','Scripts/favorites.sh','Scripts/.config/megavgm/playlists.json',
       '_Utility/MegaVGMPlayer_Transport13FadeOnly_A_MiSTer.rbf',
+      '_Utility/MegaVGMPlayer_Transport13FadeOnly_B_MiSTer.rbf',
+      '_Custom Cores/Cores/MegaVGMPlayer_Transport13FadeOnly_A_MiSTer.rbf',
+      '_Custom Cores/Cores/MegaVGMPlayer_Transport13FadeOnly_B_MiSTer.rbf',
       '_custom_core/user-rescue.rbf','MegaVGMDrive/music.vgm')}
 def unchanged(fat, saved):
     for r,data in saved.items(): assert (fat/r).read_bytes() == data, r
@@ -52,7 +55,12 @@ for mode in ('clean','v2upgrade','phase1'):
         put(fat,'linux/user-startup.sh',startup)
         for rel in payload:
             if str(rel) in ('MegaVGMPlayer/megavgm_remote','Scripts/megavgm_ctl'): continue
-            data=(v2/rel).read_bytes() if mode=='v2upgrade' else b'OLD-V2-'+str(rel).encode()
+            if mode=='v2upgrade' and not str(rel).endswith('.rbf'):
+                data=(v2/rel).read_bytes()
+            elif mode=='v2upgrade':
+                continue
+            else:
+                data=b'OLD-V2-'+str(rel).encode()
             before[rel] = put(fat,rel,data).read_bytes()
     if mode=='v2upgrade':
         data=(v2/'Scripts/remote.sh').read_bytes()
@@ -63,9 +71,9 @@ for mode in ('clean','v2upgrade','phase1'):
     run(fat,'install.sh' if mode=='clean' else 'upgrade.sh')
     installed(fat); unchanged(fat,saved)
     if mode != 'clean': assert (fat/'linux/user-startup.sh').read_bytes().startswith(startup)
-    pointer=(fat/'MegaVGMPlayer/.v21-last-backup').read_text()
+    pointer=(fat/'MegaVGMPlayer/.v22-last-backup').read_text()
     run(fat,'install.sh')
-    assert (fat/'MegaVGMPlayer/.v21-last-backup').read_text()==pointer
+    assert (fat/'MegaVGMPlayer/.v22-last-backup').read_text()==pointer
     installed(fat); unchanged(fat,saved)
     # Playlist edits after installation must survive rollback too.
     saved['Scripts/.config/megavgm/playlists.json']=b'UPDATED FAVORITES'
@@ -106,7 +114,7 @@ print('unknown/duplicate startup, symlink, later-edit refusal PASS')
 fat=root/'interrupted'; put(fat,'linux/user-startup.sh',startup)
 old=put(fat,'Scripts/megavgm_ctl',b'OLD HELPER').read_bytes()
 run(fat,'install.sh')
-backup=Path((fat/'MegaVGMPlayer/.v21-last-backup').read_text().strip())
+backup=Path((fat/'MegaVGMPlayer/.v22-last-backup').read_text().strip())
 (backup/'COMPLETE').unlink()
 put(fat,'Scripts/megavgm_ctl',old)
 put(fat,'linux/user-startup.sh',startup)

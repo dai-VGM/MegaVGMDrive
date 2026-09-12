@@ -2,7 +2,8 @@
 
 ## Product and repository
 
-The user-facing product is **MegaVGMPlayer v2.0**, an FPGA music player for MiSTer.
+The user-facing product is **MegaVGMPlayer**, an FPGA music player for MiSTer.
+The current staged release line is v2.2.
 
 **MegaVGMDrive** is the underlying repository and FPGA/core development project. User-facing documentation and normal operating instructions should lead with MegaVGMPlayer rather than presenting the internal sound-engine builds as separate products.
 
@@ -19,8 +20,9 @@ Normal operation uses the Remote/PWA Player. The user does not manually select a
 The production RBF paths are:
 
 ```text
-/media/fat/_Custom Cores/Cores/MegaVGMPlayer_Transport13FadeOnly_A_MiSTer.rbf
-/media/fat/_Custom Cores/Cores/MegaVGMPlayer_Transport13FadeOnly_B_MiSTer.rbf
+/media/fat/_Custom Cores/Cores/MegaVGMDrive_A.rbf
+/media/fat/_Custom Cores/Cores/MegaVGMDrive_B.rbf
+/media/fat/_Custom Cores/Cores/MegaVGMDrive_C.rbf
 ```
 
 The standard VGM library root remains:
@@ -41,7 +43,7 @@ Remote and importer scripts belong under:
 /media/fat/Scripts/
 ```
 
-Do not use `_Utility`, `_custom_core`, or `_Custom Cores` without its `Cores` subdirectory as a production A/B RBF load path. References to an old path are permitted only in explicit migration, rollback, or cleanup documentation.
+Do not use `_Utility`, `_custom_core`, or `_Custom Cores` without its `Cores` subdirectory as a production RBF load path. References to an old path are permitted only in explicit migration, rollback, or cleanup documentation. During v2.2 Stage 1, Engine C is distributed at the final path but is staging-only: do not infer PROFILE_C routing or SID classification from the presence of `MegaVGMDrive_C.rbf`.
 
 Production Phase2A must not depend on `/tmp/megavgm_supervisor-test/profile`. Test profiles are optional lab overrides, not a production prerequisite.
 
@@ -56,9 +58,9 @@ Production Phase2A must not depend on `/tmp/megavgm_supervisor-test/profile`. Te
 
 Use a dedicated branch, worktree, and versioned project for risky or staged work. Do not overwrite a production/PASS QPF, QSF, RBF, or known-good runtime artifact while developing a replacement.
 
-## MegaVGMPlayer v2.0 transport freeze
+## MegaVGMPlayer transport freeze
 
-The v2.0 Player and transport behavior are production-frozen. Do not casually modify:
+The production Player and transport behavior are frozen. Do not casually modify:
 
 - Playlist snapshot and queue semantics
 - Previous, Next, and Stop behavior

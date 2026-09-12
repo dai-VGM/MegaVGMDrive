@@ -1,45 +1,40 @@
-# Phase 2 validation scope
+# v2.2 Stage 1 validation scope
 
-## Frozen artifact gate
+## Frozen RBF provenance
 
-- Formal `megavgm_remote` is a byte-copy of the user-confirmed Phase 1 artifact:
-  10,515,056 bytes; SHA-256
-  `9cb59cb4032843a7e9b8368941540904da5d995df7d0b443b9e317f5a642cd7e`.
-- Exact ARM ELF: ELF32 ARM EABI5, flags `0x5000400` hard-float, static,
-  no PT_INTERP, no dynamic section / DT_NEEDED.
-- Exact ARM QEMU HTTP/API gate: `/megavgm`, `/megavgm/`, linked assets,
-  manifest and icons 200. Embedded JS `/assets/megavgm-36f68731.js`, SHA
-  `55b6b07c1c4684cfe60a3d86128630ac88f61885957a0c9ada5c2e45c32cf649`.
-- Favorites/Playlists CRUD, Browse, Play/Next/Prev/Stop/Repeat/Shuffle,
-  transport/soundChips status, no MiSTer Remote APIs, and 8183 conflict rejection
-  passed the existing `tests/service_gate.py` against the final ARM itself.
-- A→B→B→A and playlist completion→STOCK are status fixtures, not FPGA tests.
-- Native Linux service identity/restart/concurrent-start/crash/forged-PID tests
-  passed using the existing native Phase 1 service executable. Its older frontend
-  is NOT used as evidence for the final embedded UI. Go service source is unchanged.
-  QEMU user-mode /proc identity differences prevent a trustworthy service-identity
-  assertion there; no identity protections were weakened.
+- Engine A: `5755b74d9b1e10e1da1d6c101892bc95ca8960851a851cc9076d1861c9571f1e`.
+  Byte-identical to the v2.1 hardware-PASS artifact; no Quartus build.
+- Engine B: `b435417f268a81a39af6bf2408f364945d151e391425775ab7d01ed4899bec95`.
+  Byte-identical to the v2.1 hardware-PASS artifact; no Quartus build.
+- Engine C: `117adcd8d9360388826f60f4207c5b547daee58f5f0ba2e456f10e7bf41abed8`.
+  Exact C4 CORENAME-validation artifact from source commit
+  `5d0c9b73f70dd3912e112b172d36329d3e3d9cfe`; the user confirmed C4
+  transport/audio hardware behavior on this exact SHA.
 
-## Packaging gates
+The package copies these bytes to `MegaVGMDrive_A.rbf`,
+`MegaVGMDrive_B.rbf`, and `MegaVGMDrive_C.rbf`. Engine C is staging-only:
+PROFILE_C and SID classification are not enabled in Stage 1.
 
-`tests/phase2_install_gate.py` exercises isolated FAT roots on existing Linux Lima:
+## Host binaries
 
-- clean install, byte-for-byte v2.0 payload upgrade, Phase 1 upgrade;
-- duplicate install is no-op, startup block exactly once, original blocks unchanged;
-- rollback restores before bytes, introduced files recoverably retired;
-- JSON edits after install retained; customized and known-v2 Remote untouched;
-- old RBF/rescue/library files untouched;
-- corrupt package, duplicate/unknown startup, symlink paths rejected;
-- rollback refuses later user edits;
-- interrupted before/after mixed transaction can roll back;
-- startup block forwards boot/default, start, stop, restart without ENTER.
+- Supervisor source `45d04cd993d9c7b5d85afb88ec563b811cf67e2c`;
+  SHA `3c3e9d0141efa8966cdb2dfdd53d2e7edb7a35e55f23495879b8ac4a2ccfc5bf`.
+- Controller source `ad450e076291e6cdf58fdb17f1ab5c88b114a797`;
+  SHA `8e25bb51e849a0b7ca8b0f037656b8a297637881985fc2f0e3c7a0b66f4f56d3`.
 
-Package checksums and ZIP payload inventory are checked separately. No daemon,
-helper, Supervisor, controller, Main, RBF, importer, or Frontend was rebuilt.
-Only release scripts/docs/tests are changed in Phase 2.
+Both are ELF32 ARMv7 EABI5 hard-float, statically linked, with no PT_INTERP
+and no DT_NEEDED. Their binary strings contain only the exact new A/B paths;
+no C route was introduced. Host and QEMU suites cover A→B→A, same-profile no
+reload, exact argv rejection, missing RBF failure, switch/session races,
+production-default routing, and STOCK restoration fixtures.
 
-## Hardware
+## Package gates
 
-The user reported Phase 1 A→B→A, same-profile, restart-with-audio, persistence,
-STOCK restoration, 8182 coexistence and iPhone layout PASS. **Phase 2 reboot /
-autostart / install acceptance remains NOT RUN.** Follow HARDWARE_CHECKLIST.md.
+The isolated install/upgrade/rollback suite verifies nine payload files,
+internal and archive checksums, exact RBF names/hashes, old v2.1 RBF preservation,
+new-name coexistence, transactional backups, recoverable removal of introduced
+files, data persistence, duplicate install, corrupt package rejection, symlink
+rejection, and later-edit refusal.
+
+These are host/QEMU results. The renamed-path package and new Supervisor/controller
+have not yet completed the final MiSTer reboot/switch/rollback checklist.
