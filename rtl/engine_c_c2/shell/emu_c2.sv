@@ -761,7 +761,11 @@ module emu
 
     `include "build_id.v"
     localparam CONF_STR = {
+`ifdef ENGINE_C_C4_MEGAVGMDRIVE_CORENAME
+        "MegaVGMDrive;;",
+`else
         "MegaVGM Engine C C2 Lab;;",
+`endif
         "F1,MVG,Load prepared SID;",
         "O1,Audio Gain,Normal,Boost;",
         "O78,SegaPCM Audio,Normal,PCM Only,FM Only;",
