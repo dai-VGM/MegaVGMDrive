@@ -8,6 +8,8 @@
 - Legacy v2.1 RBFs are preserved and may coexist with the new names.
 - The package includes matching exact-path Supervisor/controller builds and a
   transactional v2.1-to-v2.2 rollback path.
+- Upgrade preflight accepts the normal post-reboot absence of Supervisor runtime
+  status only after strict live process/path/SHA and inactive-session verification.
 
 No Player, UI, audio, OSD, transport, classifier-decision, Main, daemon, or
 importer behavior changes are included. Engine C is not production-routed yet.

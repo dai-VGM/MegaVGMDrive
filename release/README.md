@@ -43,6 +43,16 @@ service semantics did not change. An unrecognized or duplicated startup block,
 symlink target, non-STOCK state, checksum mismatch, or concurrent install causes
 a safe refusal.
 
+After a normal reboot, `/tmp/megavgm_supervisor.status` and the Supervisor control
+socket may legitimately be absent. If `status` returns `STATUS_UNAVAILABLE`, the
+preflight does not ignore it and does not call `supervisor exit`. Instead it requires
+exactly one `MiSTer` process whose executable is `/media/fat/MiSTer` and whose live
+executable SHA-256 is
+`7ca3cd2f224b9264d0889f593a0d77aafa5adda61910baba92c5ae401e26fcce`.
+It also rejects any controller/Supervisor/modified-Main process, extra MiSTer
+process, playlist/session status, control FIFO/socket, or Phase2A channel. The
+same strict gate runs again after the standalone HTTP daemon is drained.
+
 Reboot after installation, then follow [HARDWARE_CHECKLIST.md](HARDWARE_CHECKLIST.md).
 Host tests are not evidence of real FPGA switching.
 

@@ -36,5 +36,11 @@ new-name coexistence, transactional backups, recoverable removal of introduced
 files, data persistence, duplicate install, corrupt package rejection, symlink
 rejection, and later-edit refusal.
 
+The reboot-like preflight fixture reproduces both `STATUS_UNAVAILABLE` and the
+failed `supervisor exit` control-plane result. It accepts one exact-SHA stock Main
+without persisted status, and rejects a modified Main, wrong Main SHA, active
+controller, multiple MiSTer processes, active session state, and persisted
+MEGAVGM-active status. Persisted `mode=STOCK/main=STOCK` retains the original path.
+
 These are host/QEMU results. The renamed-path package and new Supervisor/controller
 have not yet completed the final MiSTer reboot/switch/rollback checklist.

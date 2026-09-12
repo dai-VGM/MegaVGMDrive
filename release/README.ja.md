@@ -36,6 +36,15 @@ renameで置換します。旧v2.1 RBF（`_Custom Cores/Cores`または`_Utility
 service semanticsは不変なのでv2.1 standalone startup blockを維持します。
 checksum不一致、非STOCK、未知/重複startup、symlink、同時installでは安全に拒否します。
 
+通常reboot直後は`/tmp/megavgm_supervisor.status`とcontrol socketが正当に存在しない
+場合があります。`status`が`STATUS_UNAVAILABLE`を返した場合、これを無視したり
+`supervisor exit`を呼んだりしません。preflightはlive systemを直接調べ、実行pathが
+`/media/fat/MiSTer`、実行中SHA-256が
+`7ca3cd2f224b9264d0889f593a0d77aafa5adda61910baba92c5ae401e26fcce`
+であるMiSTer processがexactly oneであることを要求します。controller、Supervisor、
+modified Main、追加MiSTer process、playlist/session status、FIFO/socket、Phase2A channelが
+1つでもあれば拒否します。同じgateをstandalone daemon drain後にも再実行します。
+
 install後にrebootし、[HARDWARE_CHECKLIST.md](HARDWARE_CHECKLIST.md)を確認してください。
 host testだけを実機FPGA切替PASSとは扱いません。
 

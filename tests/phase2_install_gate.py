@@ -26,9 +26,11 @@ def put(root, rel, data):
     p.parent.mkdir(parents=True, exist_ok=True)
     p.write_bytes(data)
     return p
-def run(fat, script, *args, ok=True):
-    p = subprocess.run(['sh',str(package/script),*map(str,args)], env={**os.environ,
-      'MEGAVGM_FAT_ROOT':str(fat),'MEGAVGM_INSTALL_OFFLINE':'1'}, text=True,capture_output=True)
+def run(fat, script, *args, ok=True, extra_env=None):
+    env={**os.environ, 'MEGAVGM_FAT_ROOT':str(fat), 'MEGAVGM_INSTALL_OFFLINE':'1'}
+    if extra_env: env.update(extra_env)
+    p = subprocess.run(['sh',str(package/script),*map(str,args)], env=env,
+      text=True,capture_output=True)
     assert (p.returncode == 0) == ok, (script,p.returncode,p.stdout,p.stderr)
     return p
 def user_files(fat):
@@ -46,6 +48,72 @@ def installed(fat):
     s=(fat/'linux/user-startup.sh').read_bytes()
     assert s.count(b'# BEGIN MegaVGMPlayer v2.1') == 1
     assert s.endswith((package/'startup.block').read_bytes())
+
+def preflight_fixture(name, supervisor_state='unavailable', main='stock',
+                      controller=False, multiple=False, active_session=False,
+                      wrong_sha=False):
+    fat=root/('preflight-'+name); proc=root/('proc-'+name); runtime=root/('runtime-'+name)
+    fat.mkdir(parents=True); proc.mkdir(); runtime.mkdir()
+    stock=put(fat,'MiSTer',b'STOCK MAIN KNOWN FIXTURE')
+    modified=put(fat,'MegaVGMPlayer/MiSTer.megavgm',b'MODIFIED MAIN FIXTURE')
+    supervisor=put(fat,'MegaVGMPlayer/megavgm_supervisor',b'')
+    if supervisor_state == 'unavailable':
+        supervisor.write_text("""#!/bin/sh
+if [ "$1" = exit ]; then
+  echo 'EXIT_FAILED: supervisor control unavailable: No such file or directory' >&2
+else
+  echo 'STATUS_UNAVAILABLE: No such file or directory' >&2
+fi
+exit 1
+""")
+    elif supervisor_state == 'stock':
+        supervisor.write_text("#!/bin/sh\nprintf 'mode=STOCK\\nmain=STOCK\\ncontroller=STOPPED\\n'\n")
+    else:
+        supervisor.write_text("#!/bin/sh\nprintf 'mode=PLAYING\\nmain=MODIFIED\\ncontroller=RUNNING\\n'\n")
+    supervisor.chmod(0o755)
+    expected=hashlib.sha256(stock.read_bytes()).hexdigest()
+    if wrong_sha: stock.write_bytes(b'WRONG STOCK MAIN')
+    def process(pid, comm, exe):
+        d=proc/str(pid); d.mkdir(); (d/'comm').write_text(comm+'\n'); (d/'exe').symlink_to(exe)
+    if supervisor_state != 'stock' and supervisor_state != 'active':
+        process(100,'MiSTer',modified if main=='modified' else stock)
+        if multiple: process(101,'MiSTer',stock)
+        if controller:
+            ctl=put(fat,'MegaVGMPlayer/megavgm_playlist-phase2a',b'CONTROLLER')
+            process(200,'megavgm_playlis',ctl)
+    if active_session: (runtime/'MegaVGMPlayer.status').write_text('state=PLAYING\n')
+    env={'MEGAVGM_PREFLIGHT_TEST':'1','MEGAVGM_PROC_ROOT':str(proc),
+         'MEGAVGM_RUNTIME_ROOT':str(runtime),'MEGAVGM_TEST_STOCK_SHA256':expected}
+    return fat,env
+
+# A reboot normally leaves no Supervisor status/control plane. The strict
+# fallback must prove stock Main identity directly; every ambiguity is fatal.
+fat,env=preflight_fixture('reboot-stock')
+supervisor=fat/'MegaVGMPlayer/megavgm_supervisor'
+exit_result=subprocess.run([str(supervisor),'exit'],text=True,capture_output=True)
+assert exit_result.returncode != 0 and exit_result.stderr.startswith('EXIT_FAILED:')
+status_result=subprocess.run([str(supervisor),'status'],text=True,capture_output=True)
+assert status_result.returncode != 0 and status_result.stderr.startswith('STATUS_UNAVAILABLE:')
+p=run(fat,'upgrade.sh',extra_env=env)
+assert 'Verified STOCK without persisted Supervisor status' in p.stdout
+installed(fat)
+for name, options, evidence in (
+    ('modified-main', {'main':'modified'}, 'Modified Main process is active'),
+    ('wrong-main-sha', {'wrong_sha':True}, 'Active Main SHA mismatch'),
+    ('controller-running', {'controller':True}, 'controller/Supervisor process is active'),
+    ('multiple-main', {'multiple':True}, 'Expected exactly one SHA-verified stock MiSTer process'),
+    ('active-session', {'active_session':True}, 'Active/ambiguous MegaVGM runtime state exists'),
+):
+    fat,env=preflight_fixture(name,**options)
+    rejected=run(fat,'upgrade.sh',ok=False,extra_env=env)
+    assert evidence in rejected.stderr,(name,rejected.stderr)
+    assert not (fat/'_Custom Cores/Cores/MegaVGMDrive_A.rbf').exists(),name
+fat,env=preflight_fixture('persisted-stock',supervisor_state='stock')
+run(fat,'upgrade.sh',extra_env=env); installed(fat)
+fat,env=preflight_fixture('megavgm-active',supervisor_state='active')
+run(fat,'upgrade.sh',ok=False,extra_env=env)
+assert not (fat/'_Custom Cores/Cores/MegaVGMDrive_A.rbf').exists()
+print('reboot-like strict STOCK fallback and persisted-status regressions PASS')
 
 for mode in ('clean','v2upgrade','phase1'):
     fat=root/mode
