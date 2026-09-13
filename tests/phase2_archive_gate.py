@@ -28,7 +28,14 @@ rbfs=sorted(str(p.relative_to(package/'media/fat')) for p in (package/'media/fat
 assert rbfs==['_Custom Cores/Cores/MegaVGMDrive_A.rbf',
               '_Custom Cores/Cores/MegaVGMDrive_B.rbf',
               '_Custom Cores/Cores/MegaVGMDrive_C.rbf']
-assert len([p for p in (package/'media/fat').rglob('*') if p.is_file()])==9
+assert len([p for p in (package/'media/fat').rglob('*') if p.is_file()])==10
+preparer=package/'media/fat/MegaVGMPlayer/megavgm_sid_prepare'
+assert hashlib.sha256(preparer.read_bytes()).hexdigest()=='865b5c5744fd1c32040c73f8c80cdf74bcc4148bf414fdb6bd614f84a02b9cb1'
+source=package/'source/megavgm_sid_prepare'
+assert hashlib.sha256((source/'libsidplayfp-3.1.1.tar.gz').read_bytes()).hexdigest()=='12b79190593bf480b2d11481b5c2de62bac07f344437a66cd8d887329875c626'
+assert (source/'COPYING').is_file()
+assert (source/'patches/libsidplayfp-3.1.1-write-observer.patch').is_file()
+assert (source/'native/megavgm_sid_prepare.cpp').is_file()
 expected = {
     'MegaVGMDrive_A.rbf': '5755b74d9b1e10e1da1d6c101892bc95ca8960851a851cc9076d1861c9571f1e',
     'MegaVGMDrive_B.rbf': 'b435417f268a81a39af6bf2408f364945d151e391425775ab7d01ed4899bec95',

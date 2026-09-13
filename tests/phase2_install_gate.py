@@ -20,7 +20,7 @@ startup = b'''#!/bin/sh
 [[ -e /media/fat/Scripts/favorites.sh ]] && /media/fat/Scripts/favorites.sh refresh
 '''
 payload = sorted(p.relative_to(package/'media/fat') for p in (package/'media/fat').rglob('*') if p.is_file())
-assert len(payload) == 9 and Path('Scripts/remote.sh') not in payload
+assert len(payload) == 10 and Path('Scripts/remote.sh') not in payload
 def put(root, rel, data):
     p = root/rel
     p.parent.mkdir(parents=True, exist_ok=True)
