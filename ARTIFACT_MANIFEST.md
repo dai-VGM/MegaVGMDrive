@@ -11,7 +11,7 @@ source artifact passes its frozen SHA gate.
 | Supervisor | `4f014c5d63d1e82e528578bac739122b3e07d44c` | `33946e8dc99f1f711b028f8c0dd7632efb3baa4edf5cfc02436432cd8389659c` | unchanged A/B/C switch owner with strict raw-SID cold preflight |
 | Controller | `4f014c5d63d1e82e528578bac739122b3e07d44c` | `0a5b4276dafe3d72175c23e3d624bbcd78260c9b3da99a75f942d51682c4aff9` | raw-SID prepare/cancel owner and strict prepared PROFILE_C handoff |
 | Standalone Remote | `ab73b066cbabfc80555ba6f738460151d81c1dad` | `c01d024bcdd7ec9d4691c2bc6516f730092d3a5d351ece334d4850c93fe07087` | `.sid` discovery plus PREPARING/status/UI pass-through; `assets/megavgm-adf2d3f9.js` |
-| SID preparer | `93062bd54117c888323dc7151e940dcaa12c7f3e` | `865b5c5744fd1c32040c73f8c80cdf74bcc4148bf414fdb6bd614f84a02b9cb1` | static ARM, direct native-cycle SID bus WRITE capture to Packed v2 |
+| SID preparer | `6f91dcd31897d295b506a843770dbb6e6dda54f1` | `503d8c62353e353b47ab7df573f9d29d462c909d8b87e7758c240727bb7cf227` | static ARM, direct native-cycle SID bus WRITE capture to Packed v2 plus provenance sidecar |
 | libsidplayfp | 3.1.1 / `732fa8ec8131fc75aafc2eaea583ddcdeea2a3cc` | archive `12b79190593bf480b2d11481b5c2de62bac07f344437a66cd8d887329875c626` | exact upstream source plus observer patch and GPL text included |
 
 Main, importer, and helper remain frozen. Old RBF files are not package targets

@@ -30,7 +30,7 @@ assert rbfs==['_Custom Cores/Cores/MegaVGMDrive_A.rbf',
               '_Custom Cores/Cores/MegaVGMDrive_C.rbf']
 assert len([p for p in (package/'media/fat').rglob('*') if p.is_file()])==10
 preparer=package/'media/fat/MegaVGMPlayer/megavgm_sid_prepare'
-assert hashlib.sha256(preparer.read_bytes()).hexdigest()=='865b5c5744fd1c32040c73f8c80cdf74bcc4148bf414fdb6bd614f84a02b9cb1'
+assert hashlib.sha256(preparer.read_bytes()).hexdigest()=='503d8c62353e353b47ab7df573f9d29d462c909d8b87e7758c240727bb7cf227'
 source=package/'source/megavgm_sid_prepare'
 assert hashlib.sha256((source/'libsidplayfp-3.1.1.tar.gz').read_bytes()).hexdigest()=='12b79190593bf480b2d11481b5c2de62bac07f344437a66cd8d887329875c626'
 assert (source/'COPYING').is_file()
