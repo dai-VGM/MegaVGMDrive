@@ -7,9 +7,9 @@ RTL/audio, Packed-v2 format, or transport/fade contract.
 
 | Component | Exact source commit | ARM artifact SHA-256 |
 |---|---|---|
-| Controller + Supervisor | `4f014c5d63d1e82e528578bac739122b3e07d44c` | controller `0a5b4276dafe3d72175c23e3d624bbcd78260c9b3da99a75f942d51682c4aff9`; Supervisor `33946e8dc99f1f711b028f8c0dd7632efb3baa4edf5cfc02436432cd8389659c` |
+| Controller + Supervisor | `ece0ddaef18892159714f4937f2eb909ea046e17` | controller `d056a06f00eb56e4bcc1b7a2cf8abd9d18765de082aaa169a40a6c5ee6e5ce22`; Supervisor `63e675224e520f6f854112f99099547ef717cffc125ed54a4305b6c8965277f0` |
 | Standalone Remote/frontend | `ab73b066cbabfc80555ba6f738460151d81c1dad` | `c01d024bcdd7ec9d4691c2bc6516f730092d3a5d351ece334d4850c93fe07087`; embedded `assets/megavgm-adf2d3f9.js` SHA `008a4849839814a26d6cab37b2f3f99f835bb570b36f559393c0722f3bbf338c` |
-| Direct Packed-v2 SID preparer | `6f91dcd31897d295b506a843770dbb6e6dda54f1` | `503d8c62353e353b47ab7df573f9d29d462c909d8b87e7758c240727bb7cf227` |
+| Direct Packed-v2 SID preparer | `ff6904fbaf22ea2d4db2a487e14c7e9cf5a7a914` | `4dbb5cd5d918c14fab9f25783f7e2d0c7acbbcf84086cc9abc04e017cde5f87b` |
 
 The preparer statically links libsidplayfp 3.1.1, fixed upstream commit
 `732fa8ec8131fc75aafc2eaea583ddcdeea2a3cc`. The exact upstream archive SHA is

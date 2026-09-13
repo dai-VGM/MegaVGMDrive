@@ -8,10 +8,10 @@ source artifact passes its frozen SHA gate.
 | Engine A RBF | v2.1 production artifact | `5755b74d9b1e10e1da1d6c101892bc95ca8960851a851cc9076d1861c9571f1e` | unchanged `MegaVGMDrive_A.rbf` |
 | Engine B RBF | v2.1 production artifact | `b435417f268a81a39af6bf2408f364945d151e391425775ab7d01ed4899bec95` | unchanged `MegaVGMDrive_B.rbf` |
 | Engine C RBF | Packed v2 RTL `53291cd59a64dee7c3c4edb5a2f0f0a8e69c99db` | `0f205de6ab30e86477fdf1b0797e82158cc5b14fdfa37e7011f3c94cbb72c479` | production `MegaVGMDrive_C.rbf`, exact hardware-tested bytes |
-| Supervisor | `4f014c5d63d1e82e528578bac739122b3e07d44c` | `33946e8dc99f1f711b028f8c0dd7632efb3baa4edf5cfc02436432cd8389659c` | unchanged A/B/C switch owner with strict raw-SID cold preflight |
-| Controller | `4f014c5d63d1e82e528578bac739122b3e07d44c` | `0a5b4276dafe3d72175c23e3d624bbcd78260c9b3da99a75f942d51682c4aff9` | raw-SID prepare/cancel owner and strict prepared PROFILE_C handoff |
+| Supervisor | `ece0ddaef18892159714f4937f2eb909ea046e17` | `63e675224e520f6f854112f99099547ef717cffc125ed54a4305b6c8965277f0` | unchanged A/B/C switch owner linked with bounded raw-SID prepare cancellation |
+| Controller | `ece0ddaef18892159714f4937f2eb909ea046e17` | `d056a06f00eb56e4bcc1b7a2cf8abd9d18765de082aaa169a40a6c5ee6e5ce22` | generation invalidation plus bounded cancel/reap before prepare timeout return |
 | Standalone Remote | `ab73b066cbabfc80555ba6f738460151d81c1dad` | `c01d024bcdd7ec9d4691c2bc6516f730092d3a5d351ece334d4850c93fe07087` | `.sid` discovery plus PREPARING/status/UI pass-through; `assets/megavgm-adf2d3f9.js` |
-| SID preparer | `6f91dcd31897d295b506a843770dbb6e6dda54f1` | `503d8c62353e353b47ab7df573f9d29d462c909d8b87e7758c240727bb7cf227` | static ARM, direct native-cycle SID bus WRITE capture to Packed v2 plus provenance sidecar |
+| SID preparer | `ff6904fbaf22ea2d4db2a487e14c7e9cf5a7a914` | `4dbb5cd5d918c14fab9f25783f7e2d0c7acbbcf84086cc9abc04e017cde5f87b` | static ARM, atomic Packed-v2 payload/provenance publication plus parent-directory fsync |
 | libsidplayfp | 3.1.1 / `732fa8ec8131fc75aafc2eaea583ddcdeea2a3cc` | archive `12b79190593bf480b2d11481b5c2de62bac07f344437a66cd8d887329875c626` | exact upstream source plus observer patch and GPL text included |
 
 Main, importer, and helper remain frozen. Old RBF files are not package targets
