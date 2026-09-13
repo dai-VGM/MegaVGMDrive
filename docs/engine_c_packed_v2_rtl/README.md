@@ -11,7 +11,7 @@ The normative [Packed v2 format](../MVGMSID_PACKED_V2.md) and C0/C1 are unchange
 ## Architecture and ownership
 
 ```text
-uploaded original file in raw DDR (4MiB maximum)
+uploaded original file in raw DDR (8MiB maximum)
     -> 16-byte format-identity check / version dispatch
        v1 -> frozen C3 loader -> frozen C2 descriptor DDR store
        v2 -> raw DDR burst reader -> 512-byte FIFO
@@ -174,10 +174,13 @@ All four pairs are exactly equal: PAL has 2,955,743 samples / 11,822,972 bytes p
 file; NTSC has 3,068,180 samples / 12,272,720 bytes. The count omits the not-yet-
 published final CE at immediate parser EOF, identically in both formats.
 
-Physical-size boundaries: packed 131071/131072/131073 and 4194303/4194304 bytes
-decode exactly. 4194305 bytes reject before audio. Golden Commando 270s v1 is
-4,823,488 bytes and rejects; its 506,007-byte v2 is accepted. No decoded-size
-4MiB restriction or DDR expansion is applied to v2.
+Physical-size boundaries: packed 131071/131072/131073, 4194303/4194304/4194305,
+and 8388607/8388608 bytes decode exactly. 8388609 bytes reject before audio.
+The exact 8 MiB case reads through raw DDR word `0x060fffff` without entering
+the adjacent `0x06100000` region. Golden Commando 270s v1 is 4,823,488 bytes
+and still rejects on the frozen v1 record-capacity path; its 506,007-byte v2 is
+accepted. Packed v2 retains direct streaming replay rather than descriptor
+expansion.
 
 C4 shell tests retain the original assertions for Natural EOF, FADE_ONLY,
 duplicate FADE_ONLY, EOF race, replacement without phantom ENDED, Stop/clean
@@ -247,6 +250,9 @@ against the host [corpus manifest](../MVGMSID_PACKED_V2_CORPUS.json).
 10. Capture status/error and timing/resource reports. Do not promote to PROFILE_C
     until these hardware checks pass.
 
-Remaining gates: Windows synthesis/fit/timing, real DDR latency headroom, real
+This source configures the production Packed-v2 project with
+`C2_MAX_FILE_BYTES=8388608`; the physical upload address remains 23 bits and
+address `0x800000` remains an overflow. Remaining gates: Windows
+synthesis/fit/timing, real DDR latency headroom, real
 audio/listening and hardware transport regression. There is no PROFILE_C routing
 addition, public RBF rename, PWA change or format migration in this candidate.

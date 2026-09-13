@@ -2,7 +2,7 @@
 // Strict preflight, then direct packed DDR replay to bounded canonical FIFO.
 // C4's admitted subset is loop-free, exact PAL/NTSC, single SID. v2 unchanged.
 module packed_stream #(
-    parameter integer MAX_FILE_BYTES=4194304, RW=17, FIFO_DEPTH=128, PREFILL=64,
+    parameter integer MAX_FILE_BYTES=8388608, RW=18, FIFO_DEPTH=128, PREFILL=64,
     parameter integer WATCHDOG=20000000
 )(
     input logic clk,reset,start,halt,

@@ -43,7 +43,7 @@ set_global_assignment -name VERILOG_MACRO "MISTER_FB=1"
 set_global_assignment -name VERILOG_MACRO "FIXED_REGION_MODE=5"
 set_global_assignment -name VERILOG_MACRO "MODE5_VGM_BACKEND=1"
 set_global_assignment -name VERILOG_MACRO "MODE5_VGM_ADDR_WIDTH=23"
-set_global_assignment -name VERILOG_MACRO "C2_MAX_FILE_BYTES=4194304"
+set_global_assignment -name VERILOG_MACRO "C2_MAX_FILE_BYTES=8388608"
 set_global_assignment -name VERILOG_MACRO "MEGAVGMDRIVE_PRODUCTION_AUDIO_BUILD=1"
 set_global_assignment -name VERILOG_MACRO "ENGINE_C_C4_MEGAVGMDRIVE_CORENAME=1"
 source sys_golden_shell.tcl

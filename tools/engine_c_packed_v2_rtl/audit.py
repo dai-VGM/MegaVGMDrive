@@ -28,7 +28,7 @@ def main():
     qsf=h/'MegaVGMPlayer_EngineC_PackedV2_Validation_MiSTer.qsf'
     lines=lambda s:[l for l in s.splitlines() if l and not l.startswith('#')]
     old=(ROOT/'hw/engine_c_c4/MegaVGMPlayer_EngineC_C4_Transport_Validation_MiSTer.qsf').read_text()
-    expect=old.replace('output_files_validation','output_files_packed_v2').replace('files_engine_c_c4.qip','files_engine_c_packed_v2.qip')
+    expect=old.replace('output_files_validation','output_files_packed_v2').replace('files_engine_c_c4.qip','files_engine_c_packed_v2.qip').replace('C2_MAX_FILE_BYTES=4194304','C2_MAX_FILE_BYTES=8388608')
     assert lines(qsf.read_text())==lines(expect),'unexpected QSF assignment'
     resolved=run('tclsh','tools/engine_c_c2/audit_qsf.tcl',str(qsf))
     entries=[line.split('\t',1) for line in resolved.splitlines()]
@@ -45,7 +45,7 @@ def main():
     assert modules['sid_native_scheduler']==['rtl/engine_c_c4/sid_native_scheduler.sv']
     assert modules['engine_c_lab']==['rtl/engine_c_packed_v2/engine_c_lab.sv']
     macros=['+define+'+value for key,value in entries if key=='MACRO']
-    assert '+define+C2_MAX_FILE_BYTES=4194304' in macros
+    assert '+define+C2_MAX_FILE_BYTES=8388608' in macros
     assert '+define+ENGINE_C_C4_MEGAVGMDRIVE_CORENAME=1' in macros
     core=[str(f) for f in files if str(f.relative_to(ROOT)).startswith('rtl/') and '/pll' not in str(f)]
     with (out/'emu-elaboration.log').open('w') as log:
@@ -54,7 +54,7 @@ def main():
                        cwd=ROOT,stdout=log,stderr=subprocess.STDOUT,check=True)
     hashes={str(f.relative_to(ROOT)):hashlib.sha256(f.read_bytes()).hexdigest() for f in files if str(f.relative_to(ROOT)).startswith('rtl/')}
     report=dict(base=BASE,preexisting_files_unchanged=True,qsf_assignments_only_output_and_qip_changed=True,
-                canonical_scheduler_and_audio_wiring_identical=True,max_file_bytes=4194304,
+                canonical_scheduler_and_audio_wiring_identical=True,max_file_bytes=8388608,
                 module_map=modules,source_sha256=hashes,source_count=len(files),
                 elaboration='Verilator emu with HPS/PLL stubs; not Quartus',hardware='UNVERIFIED')
     (out/'source-audit.json').write_text(json.dumps(report,indent=2)+'\n')

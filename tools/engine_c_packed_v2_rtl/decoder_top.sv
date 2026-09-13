@@ -5,7 +5,7 @@ module decoder_top(
     output logic [7:0] error_code,session_timing,
     output logic [31:0] session_clock_num,session_clock_den,
     input logic mem_req,
-    input logic [16:0] mem_addr,
+    input logic [17:0] mem_addr,
     output logic mem_valid,
     output logic [77:0] mem_data,
     input logic d_busy,d_valid,

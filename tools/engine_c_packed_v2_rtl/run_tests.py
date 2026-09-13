@@ -99,14 +99,20 @@ def main():
         for delay in (128,256,512):
             run('latency-'+str(delay),[out/'decoder/Vdecoder_top',out/'Volfied_10s.mvgmsid2',out/'Volfied_10s.trace','good',delay])
     if args.only in ('capacity','all'):
+        upload=out/'upload-boundary'
+        run('build-upload-boundary',['iverilog','-g2012','-s','tb_upload_boundary','-o',upload,
+            HERE/'tb_upload_boundary.sv',ROOT/'rtl/engine_c_c2/shell/golden_player_shell_upload.sv',
+            ROOT/'rtl/vgm_ddram_backend.sv'])
+        run('upload-boundary',['vvp',upload])
         build('decoder','decoder_top',extra[:2]+[ROOT/'rtl/engine_c_c2_capacity/c2_ddr_mux.sv',HERE/'decoder_top.sv'],HERE/'decoder_main.cpp')
-        for n in (131071,131072,131073,4194303,4194304,4194305):
+        for n in (131071,131072,131073,4194303,4194304,4194305,
+                  8388607,8388608,8388609):
             count,extra_bytes=divmod(n-130,3)
             first_delta=(1,128,16384)[extra_bytes]
             body=packed.uleb(first_delta)+b'\x00\x00'+b'\x01\x00\x00'*(count-1)+b'\x00\xff'
             raw=packed.Header(packed.Metadata(stream_cycles=first_delta+count-1),count,len(body)).encode()+body
             assert len(raw)==n
-            vector('packed-bytes-'+str(n),raw,n<=4194304)
+            vector('packed-bytes-'+str(n),raw,n<=8388608)
     if args.only in ('baseline','all'):
         build('raw','c2_sim_top',sources()+[ROOT/'tools/engine_c_c4/sim_top.sv'],HERE/'sim_main.cpp')
         for r in json.loads((prior/'results.json').read_text()):

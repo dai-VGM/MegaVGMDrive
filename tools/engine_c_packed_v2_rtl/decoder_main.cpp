@@ -15,12 +15,12 @@ int main(int argc,char**argv)try{
     bool good=mode=="good";unsigned latency=argc>4?std::stoul(argv[4]):64;
     Vdecoder_top d;d.reset=1;d.clk=0;d.eval();d.clk=1;d.eval();d.reset=0;
     d.file_size=bytes.size();d.start=1;d.halt=0;d.d_busy=0;d.d_valid=0;d.mem_req=0;d.mem_addr=0;
-    size_t record=0;unsigned remaining=0,address=0,delay=0;bool waiting=false;
+    size_t record=0;unsigned remaining=0,address=0,delay=0,max_word=0;bool waiting=false;
     uint64_t limit=bytes.size()*80ULL+10000;
     for(uint64_t sys=0;sys<limit;sys++){
         d.clk=0;d.eval();
         if(d.d_rd){check(!d.d_busy && remaining==0,"DDR overlapping / busy request");
-            check(d.d_addr>=0x6000000 && d.d_addr<0x6080000,"raw DDR address");
+            check(d.d_addr>=0x6000000 && d.d_addr<0x6100000,"raw DDR address");
             remaining=d.d_burst;address=(d.d_addr-0x6000000)*8;delay=latency;
         }
         if(d.mem_valid){
@@ -36,17 +36,21 @@ int main(int argc,char**argv)try{
                 check(record*10==expected.size(),"early EOF");
                 check(d.session_model==(bytes[28]==2)&&d.session_timing==bytes[29]&&
                       d.session_clock_num==le(bytes,20,4)&&d.session_clock_den==le(bytes,24,4),"metadata mismatch");
-                std::cout<<"TRACE EXACT records="<<record<<" EOF="<<cycle<<" SYS="<<sys<<" delay="<<latency<<"\n";return 0;
+                if(bytes.size()==8388608)check(max_word==0x60fffff,"final 8 MiB DDR word was not read");
+                std::cout<<"TRACE EXACT records="<<record<<" EOF="<<cycle<<" SYS="<<sys<<" delay="<<latency
+                         <<" MAX_DDR_WORD=0x"<<std::hex<<max_word<<std::dec<<"\n";return 0;
             }
         }
         // Scheduler-style single outstanding request, no faster than one SID
         // cycle. Deliberate starvation is tested with the real scheduler.
-        d.mem_req=d.loaded && !waiting && (sys%20==0);d.mem_addr=record&0x1ffff;
+        d.mem_req=d.loaded && !waiting && (sys%20==0);d.mem_addr=record&0x3ffff;
         if(d.mem_req)waiting=true;
         d.clk=1;d.eval();d.start=0;d.d_valid=0;
         if(remaining){
             if(delay)--delay;
             else if(mode!="short" || remaining!=1){
+                const unsigned word_address=0x6000000+address/8;check(word_address<0x6100000,"adjacent DDR region read");
+                if(word_address>max_word)max_word=word_address;
                 uint64_t word=0;for(unsigned k=0;k<8;k++)if(address+k<bytes.size())word|=uint64_t(bytes[address+k])<<(8*k);
                 d.d_dout=word;d.d_valid=1;address+=8;remaining--;
                 // Alternating beat stalls exercise FIFO push/pop coincidences.
