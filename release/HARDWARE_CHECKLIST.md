@@ -26,7 +26,8 @@
 16. Play the same raw SID again and prove a persistent cache hit (no reconvert),
     including after reboot.
 17. Validate raw Volfied voice/digi playback, C→C raw SID, and an A→SID→B mixed
-    playlist.
+    playlist. For each long Volfied LOADING transition, confirm the live PWA
+    clears `Loading…` at authoritative PLAYING without a page reload.
 18. During a cache miss, test Stop and Next; no late prepared result may load.
 19. Confirm Favorites/Playlist persistence and the iPhone bottom-nav/safe-area
     layout remain unchanged.

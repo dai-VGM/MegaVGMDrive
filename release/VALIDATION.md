@@ -42,6 +42,13 @@ helper dispatch. Rejections record controller status, HTTP 409, error code, and
 operation ID. The exact ARM HTTP gate also covers STOPPED acceptance and
 PREPARING rejection.
 
+Frontend operation tests cover a Volfied-equivalent long raw-SID LOADING path
+whose Engine C session number equals the prior engine session. A newer
+authoritative transport epoch/switch generation retires Loading on PLAYING;
+older generations do not, the raw `.sid` remains the visible identity, and the
+prepared cache path remains transport-only. Browse, Playlist, bottom Player,
+Stop/Next/Previous, A/B/C display, reload state, and 100 transitions regress.
+
 Raw-SID controller tests additionally cover the 120-second prepare watchdog,
 75-second completion, completion at the deadline, timeout generation
 invalidation with no PROFILE request/index-1/PLAYING publication, immediate

@@ -9,7 +9,7 @@ RTL/audio, Packed-v2 format, or transport/fade contract.
 |---|---|---|
 | Controller | `ae16cc33cb69eace9b875bb33dff9d673801bf2c` | `2744748c79e0469360569df5835c1494f26bc508e15d324482b31dfac85c7613`; 120-second cold SID prepare watchdog with unchanged 60-second profile/session timeout, bounded SIGTERM/SIGKILL reap, and exact child-PID temporary-payload cleanup |
 | Supervisor | `48f61a29bfb2c12eb63920914ee815bb3978f697` | `0e6ecabf5403ba7029129c8b3f9837223a9b30f60a28954fb2e3fad5d50692ac`; production default remains `PHASE2A_AUTO`; prerequisite admission accepts exact-case direct `.vgm`, `.mvgmsid`, and raw `.sid` members without relaxing regular-file or direct-child checks |
-| Standalone Remote/frontend | `7851cc15d8c6b2f55c6fdeba03fcf393b47ba896` | `c675b235f78a88cc1d77b85ec2167685f8244eb704ffad1f5f17f7871ba19ab1`; exact PLAYING/STOPPED playlist warm admission with status/error/operation trace on rejection; embedded `assets/megavgm-adf2d3f9.js` SHA `008a4849839814a26d6cab37b2f3f99f835bb570b36f559393c0722f3bbf338c` |
+| Standalone Remote/frontend | `9f13f04d0117036809fa06c756540e92df8bfd50` | `4f8a6762441291ccc6bc0c8ce395937197b5a27a7aca06698de15e967f2a05bb`; exact PLAYING/STOPPED playlist warm admission and status/error/operation trace; authoritative transport epoch/switch generation retires local Loading across legal equal-number session rebases; embedded `assets/megavgm-f6c226d2.js` SHA `6f7aed749a58c8ae87e7f231e6d12bff11d86f6581b20b637d89c3b42b93bba1` |
 | Direct Packed-v2 SID preparer | `ff6904fbaf22ea2d4db2a487e14c7e9cf5a7a914` | `4dbb5cd5d918c14fab9f25783f7e2d0c7acbbcf84086cc9abc04e017cde5f87b` |
 
 The preparer statically links libsidplayfp 3.1.1, fixed upstream commit

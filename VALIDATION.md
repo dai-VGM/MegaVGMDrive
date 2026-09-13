@@ -12,7 +12,10 @@
 - Original pure state/render/API tests and original DOM operation suite.
   Cold short-track before HTTP ACK; missed first PLAYING; stale ACK suppression;
   Stop/Next/Prev races; long/warm track; timeout cleanup; 100 transitions;
-  authoritative Switching terminal/stale-generation handling.
+  authoritative Switching terminal/stale-generation handling. A long raw-SID
+  LOADING transition with a legal equal-number session rebase retires the local
+  receipt on a newer authoritative switch generation while retaining raw `.sid`
+  UI identity; an older generation remains rejected.
 - Dedicated production bundle browser test, actual HTTP fixture, not old Layout:
   320 and 393 by 852 standalone Chrome, safe-top 59 / safe-bottom 34.
   Shell bottom 852, header 103 (59+44), nav bottom 852, nav padding-bottom 34.

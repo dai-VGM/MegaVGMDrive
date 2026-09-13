@@ -22,9 +22,10 @@ c6_backend_changes = {
     'playlists_test.go', 'track_files.go',
 }
 c6_frontend_changes = {
-    'MegaVGMPlayer.tsx', 'megavgmFavorites.ts', 'megavgmPlayOperation.test.ts',
-    'megavgmPlayOperation.ts', 'megavgmPresentation.ts', 'megavgmView.test.ts',
-    'megavgmView.ts',
+    'MegaVGMPlayer.operation.test.tsx', 'MegaVGMPlayer.tsx',
+    'megavgmFavorites.ts', 'megavgmPlayOperation.test.ts',
+    'megavgmPlayOperation.ts', 'megavgmPresentation.ts',
+    'megavgmView.test.ts', 'megavgmView.ts',
 }
 for directory, commit in [(backend.parents[2], '6ef56324b91df854080f65f5c4c0f0535740b4ca'), (frontend.parents[1], '8dc1988b106276e215de5e3164a2307e90aa9017')]:
     assert subprocess.check_output(['git','rev-parse','HEAD'],cwd=directory,text=True).strip()==commit
