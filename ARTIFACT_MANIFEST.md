@@ -8,7 +8,7 @@ source artifact passes its frozen SHA gate.
 | Engine A RBF | v2.1 production artifact | `5755b74d9b1e10e1da1d6c101892bc95ca8960851a851cc9076d1861c9571f1e` | unchanged `MegaVGMDrive_A.rbf` |
 | Engine B RBF | v2.1 production artifact | `b435417f268a81a39af6bf2408f364945d151e391425775ab7d01ed4899bec95` | unchanged `MegaVGMDrive_B.rbf` |
 | Engine C RBF | Packed v2 RTL `53291cd59a64dee7c3c4edb5a2f0f0a8e69c99db` | `0f205de6ab30e86477fdf1b0797e82158cc5b14fdfa37e7011f3c94cbb72c479` | production `MegaVGMDrive_C.rbf`, exact hardware-tested bytes |
-| Supervisor | `fdafbd9d75378edd15d268fd6019a3aa711c85d3` | `ebb45c3cacb4fba5e0bd56be9e89ea25b9cde6525d4743a0fe291cde7054a239` | C6 A/B/C switch owner with restored `PHASE2A_AUTO` production default and bounded raw-SID prepare cancellation |
+| Supervisor | `48f61a29bfb2c12eb63920914ee815bb3978f697` | `0e6ecabf5403ba7029129c8b3f9837223a9b30f60a28954fb2e3fad5d50692ac` | C6 A/B/C switch owner with `PHASE2A_AUTO` default and exact `.vgm`/`.mvgmsid`/`.sid` direct-member admission |
 | Controller | `ece0ddaef18892159714f4937f2eb909ea046e17` | `d056a06f00eb56e4bcc1b7a2cf8abd9d18765de082aaa169a40a6c5ee6e5ce22` | generation invalidation plus bounded cancel/reap before prepare timeout return |
 | Standalone Remote | `ab73b066cbabfc80555ba6f738460151d81c1dad` | `c01d024bcdd7ec9d4691c2bc6516f730092d3a5d351ece334d4850c93fe07087` | `.sid` discovery plus PREPARING/status/UI pass-through; `assets/megavgm-adf2d3f9.js` |
 | SID preparer | `ff6904fbaf22ea2d4db2a487e14c7e9cf5a7a914` | `4dbb5cd5d918c14fab9f25783f7e2d0c7acbbcf84086cc9abc04e017cde5f87b` | static ARM, atomic Packed-v2 payload/provenance publication plus parent-directory fsync |

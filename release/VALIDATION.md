@@ -40,6 +40,13 @@ missing profile file: both select `PHASE2A_AUTO` and
 `/media/fat/MegaVGMPlayer/megavgm_playlist-phase2a`. Explicit lab profiles retain
 their previous selection behavior.
 
+Supervisor prerequisite tests use one exact, case-sensitive production extension
+set: `.vgm`, `.mvgmsid`, and `.sid`. Direct children pass; uppercase variants,
+nested descendants, `..` paths, and unsupported suffixes fail. The existing
+regular-file check remains before membership admission. A raw `.sid` admitted by
+this gate is forwarded unchanged to the controller, while the existing Phase2A
+preflight continues to select PROFILE_C.
+
 Installer gates compare every installed production payload with the package SHA,
 including the Phase2A controller, SID preparer, Supervisor, Remote, all three RBFs,
 Main, importer, and control helper. The service gate then requires the packaged,
