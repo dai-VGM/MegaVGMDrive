@@ -1,9 +1,10 @@
-# MegaVGMPlayer v2.2 Engine C C5 candidate
+# MegaVGMPlayer v2.2 Engine C C6 candidate
 
-This candidate adds the hardware-tested Packed MVGMSID v2 Engine C to the
-existing automatic A/B production route. The same Phase2A owner now selects
-PROFILE_A, PROFILE_B, or PROFILE_C. Player and transport semantics, SID audio
-RTL, OSD, and existing A/B classification decisions are unchanged.
+This candidate adds automatic raw SID preparation to the hardware-tested C5
+A/B/C route. Put a `.sid` file under `/media/fat/MegaVGMDrive/`, select it in
+Browse, and MegaVGMPlayer prepares a Packed MVGMSID v2 cache before using the
+unchanged PROFILE_C path. The original SID remains the queue, Favorites, and
+status identity; cache files are not shown in Browse.
 
 ## Production paths
 
@@ -21,12 +22,23 @@ the established fade/park/switch/rebind transaction.
 All three RBFs keep the exact core name `MegaVGMDrive`. Do not rename CORENAME
 to include A, B, or C.
 
-Prepared SID files use `.mvgmsid` for both frozen v1 and Packed v2. The host
-requires valid `MVGMSID\0` bytes and the complete strict Engine C header/body
-contract before selecting PROFILE_C. Raw `.sid` and experimental `.mvgmsid2`
-files are not library/playback inputs in this stage. The status API preserves
-model, PAL/NTSC timing, subtune, capture-limit, and source digest metadata; the
-Player displays `SID 6581` or `SID 8580`.
+Raw `.sid` files are never sent to FPGA or classified as playable PROFILE_C
+payloads. The HPS preparer executes the selected start subtune with pinned
+libsidplayfp, captures native-cycle SID bus WRITEs, emits Packed v2 directly,
+strictly validates it, then atomically publishes it under
+`/media/fat/MegaVGMPlayer/cache/sid/`. Only that cache artifact enters the
+existing C5 classifier and index-1 path. The Player displays `Preparing SID…`
+during a cache miss; a valid cache hit follows the normal load path.
+
+Initial C6 supports one SID chip and the PSID/RSID start subtune. Exact declared
+6581/8580 and PAL/NTSC metadata are used. Unknown/any metadata needs an exact
+SHA/subtune `.sid.megavgm` sidecar; it is never silently defaulted. BASIC-ROM
+compatibility and multi-SID files are rejected. No C64 ROM or copyrighted SID
+tune is included.
+
+Duration priority is an optional `MegaVGMPlayer/sid/Songlengths.md5` exact
+content-MD5/subtune lookup, then an exact sidecar duration, then a documented
+300-second capture limit. No basename matching or loop guessing is used.
 
 ## Install or upgrade
 
@@ -72,6 +84,8 @@ Host tests are not evidence of real FPGA switching.
 - Helper/importer: `/media/fat/Scripts/megavgm_ctl`, `vgm_md_import.sh`
 - Music: `/media/fat/MegaVGMDrive/`
 - Favorites/Playlists: `/media/fat/Scripts/.config/megavgm/playlists.json`
+- SID cache: `/media/fat/MegaVGMPlayer/cache/sid/`
+- Optional duration DB: `/media/fat/MegaVGMPlayer/sid/Songlengths.md5`
 
 ## Rollback to v2.1
 
@@ -93,6 +107,6 @@ Later user edits cause rollback to refuse rather than overwrite them.
 
 No RBF was synthesized for this integration. A/B RBF bytes, Main, importer,
 transport, OSD, and chip implementation are unchanged. Host/Remote changes are
-limited to strict prepared-SID classification, PROFILE_C switching, persistence,
-and read-only SID metadata. Production A/B/C integration still requires the
+limited to raw-SID discovery, preparation ownership, PREPARING publication, and
+the existing strict PROFILE_C handoff. Production C6 integration still requires the
 included MiSTer checklist; host/QEMU results are not reported as hardware PASS.

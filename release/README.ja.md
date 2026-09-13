@@ -1,8 +1,9 @@
-# MegaVGMPlayer v2.2 Engine C C5候補
+# MegaVGMPlayer v2.2 Engine C C6候補
 
-この候補版は、実機確認済みPacked MVGMSID v2 Engine Cを既存A/B production
-自動routeへ追加します。同じPhase2A ownerがPROFILE_A/B/Cを選択します。
-Player/transport semantics、SID audio RTL、OSD、既存A/B分類判定は変更しません。
+この候補版は、実機確認済みC5 A/B/C routeへraw SIDの自動prepareを追加します。
+`.sid`を`/media/fat/MegaVGMDrive/`へ置いてBrowseから選ぶと、HPSがPacked MVGMSID v2
+cacheを生成してから既存PROFILE_C pathを使用します。queue/Favorites/statusでは元SIDの
+identityを保持し、cache fileはBrowseへ表示しません。
 
 ## 正式path
 
@@ -18,11 +19,19 @@ reloadせず、A↔C/B↔Cは既存fade/park/switch/rebind transactionを使い�
 
 3つのCORENAMEはすべて正確に`MegaVGMDrive`のままです。
 
-prepared SIDの正式拡張子はv1/v2共通で`.mvgmsid`です。hostは拡張子だけでなく
-`MVGMSID\0` magicとEngine Cのstrict header/body contractを検証してからPROFILE_Cを
-選択します。raw `.sid`と実験用`.mvgmsid2`はこのstageのlibrary/playback対象外です。
-status APIはmodel、PAL/NTSC、subtune、capture-limit、source digestを保持し、Playerは
-`SID 6581`または`SID 8580`を表示します。
+raw `.sid`をFPGAへ直接送ったり、playable PROFILE_C payloadとして分類したりしません。
+HPS preparerが固定libsidplayfpでstart subtuneを実行し、native-cycle SID bus WRITEを
+直接捕捉してPacked v2を生成します。strict validation後に
+`/media/fat/MegaVGMPlayer/cache/sid/`へatomic publishし、そのcacheだけを既存C5
+classifier/index-1経路へ渡します。cache miss中は`Preparing SID…`を表示します。
+
+初期C6はsingle SIDとPSID/RSIDのstart subtuneに対応します。headerでexactな
+6581/8580・PAL/NTSCを使用し、unknown/anyは勝手にdefaultせず、exact SHA/subtune
+`.sid.megavgm` sidecarが必要です。BASIC-ROM互換曲とmulti-SIDはrejectします。
+C64 ROMや著作権SID曲は同梱しません。
+
+durationはoptional `MegaVGMPlayer/sid/Songlengths.md5`のcontent-MD5+subtune照合、
+exact sidecar、300秒capture limitの順です。basename照合やloop推測はしません。
 
 ## install / upgrade
 
@@ -62,6 +71,8 @@ host testだけを実機FPGA切替PASSとは扱いません。
 - Helper/importer: `/media/fat/Scripts/megavgm_ctl`, `vgm_md_import.sh`
 - Music: `/media/fat/MegaVGMDrive/`
 - Favorites/Playlists: `/media/fat/Scripts/.config/megavgm/playlists.json`
+- SID cache: `/media/fat/MegaVGMPlayer/cache/sid/`
+- optional duration DB: `/media/fat/MegaVGMPlayer/sid/Songlengths.md5`
 
 ## v2.1へrollback
 
@@ -81,6 +92,6 @@ v2.1 Supervisorが元のexact pathを使用できます。install後のユーザ
 ## 範囲
 
 今回RBF再合成は行いません。A/B RBF、Main、importer、transport、OSD、音源実装は
-変更していません。host/Remote変更はstrict prepared-SID分類、PROFILE_C switching、
-persistence、read-only SID metadataに限定しています。A/B/C production統合の実機PASSは
+変更していません。host/Remote変更はraw SID discovery、prepare ownership、PREPARING
+publication、既存strict PROFILE_C handoffに限定しています。C6 production統合の実機PASSは
 同梱checklistをユーザーが完了するまで報告しません。

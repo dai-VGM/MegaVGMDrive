@@ -1,9 +1,10 @@
-# MegaVGMPlayer v2.2 Engine C C5 candidate
+# MegaVGMPlayer v2.2 Engine C C6 candidate
 
 This branch integrates the hardware-tested Packed MVGMSID v2 Engine C into the
-existing automatic production routing. Prepared SID files use the single
-`.mvgmsid` extension; strict magic/header/body validation, not the extension,
-selects PROFILE_C. MVGMSID v1 remains accepted by the same hardware parser.
+existing automatic production routing and adds on-demand raw SID preparation.
+Place a single-SID `.sid` file in `/media/fat/MegaVGMDrive/`; Browse presents
+the original track while the HPS prepares and caches a strict Packed MVGMSID v2
+artifact before the unchanged PROFILE_C load.
 
 See [release/README.md](release/README.md),
 [release/README.ja.md](release/README.ja.md),
@@ -11,5 +12,6 @@ See [release/README.md](release/README.md),
 [hardware acceptance](release/HARDWARE_CHECKLIST.md).
 
 Engine A/B routing decisions, Player semantics, transport/fade ownership, OSD,
-SID RTL/audio, and the 4 MiB Engine C capacity are unchanged. Raw `.sid` files
-are not accepted in this stage. Legacy v2.1 RBFs remain available for rollback.
+SID RTL/audio, and the 4 MiB Engine C capacity are unchanged. Prepared cache
+files are hidden outside the music library. Legacy v2.1 RBFs remain available
+for rollback.

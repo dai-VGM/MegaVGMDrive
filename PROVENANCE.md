@@ -1,4 +1,28 @@
-# Frozen inputs and helper provenance
+# Frozen inputs, C6 preparer, and helper provenance
+
+## Engine C C6 raw SID auto prepare
+
+The C6 runtime adds three source lineages without changing any RBF, Main, SID
+RTL/audio, Packed-v2 format, or transport/fade contract.
+
+| Component | Exact source commit | ARM artifact SHA-256 |
+|---|---|---|
+| Controller + Supervisor | `4f014c5d63d1e82e528578bac739122b3e07d44c` | controller `0a5b4276dafe3d72175c23e3d624bbcd78260c9b3da99a75f942d51682c4aff9`; Supervisor `33946e8dc99f1f711b028f8c0dd7632efb3baa4edf5cfc02436432cd8389659c` |
+| Standalone Remote/frontend | `ab73b066cbabfc80555ba6f738460151d81c1dad` | `c01d024bcdd7ec9d4691c2bc6516f730092d3a5d351ece334d4850c93fe07087`; embedded `assets/megavgm-adf2d3f9.js` SHA `008a4849839814a26d6cab37b2f3f99f835bb570b36f559393c0722f3bbf338c` |
+| Direct Packed-v2 SID preparer | `93062bd54117c888323dc7151e940dcaa12c7f3e` | `865b5c5744fd1c32040c73f8c80cdf74bcc4148bf414fdb6bd614f84a02b9cb1` |
+
+The preparer statically links libsidplayfp 3.1.1, fixed upstream commit
+`732fa8ec8131fc75aafc2eaea583ddcdeea2a3cc`. The exact upstream archive SHA is
+`12b79190593bf480b2d11481b5c2de62bac07f344437a66cd8d887329875c626`.
+The release carries that archive, GPL-2.0-or-later text, exact observer patch,
+preparer source, dependency lock, tests, and native/ARM build recipes under
+`source/megavgm_sid_prepare/`. No Commodore ROM or SID tune is included.
+
+The hook executes immediately before `sidemu::writeReg(addr,data)` reaches the
+emulator and records native PHI1 cycle, SID index, register, and data. It does
+not poll registers, reconstruct snapshots, or generate MVGMSID v1. The raw SID
+path preserves the original track as queue/status identity; only a strictly
+validated atomic cache artifact is passed to the existing PROFILE_C classifier.
 
 ## Engine C C5 production integration
 

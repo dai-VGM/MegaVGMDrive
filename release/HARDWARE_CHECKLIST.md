@@ -1,4 +1,4 @@
-# v2.2 Engine C C5 exact hardware acceptance — NOT YET RUN
+# v2.2 Engine C C6 exact hardware acceptance — NOT YET RUN
 
 1. Return to STOCK, run `upgrade.sh`, preserve the printed backup path, and reboot.
 2. Verify A/B/C RBF hashes and exact `active_rbf_argv` paths under
@@ -19,6 +19,15 @@
 13. Check Player labels `SID 6581`/`SID 8580` and metadata without changing route.
 14. Return to STOCK and run rollback; verify the previous v2.1 runtime and legacy
     RBF files remain available.
+15. Put raw `Commando.sid` in the library, confirm Browse visibility, tap it,
+    observe `Preparing SID…`, then verify automatic Engine C playback.
+16. Play the same raw SID again and prove a persistent cache hit (no reconvert),
+    including after reboot.
+17. Validate raw Volfied voice/digi playback, C→C raw SID, and an A→SID→B mixed
+    playlist.
+18. During a cache miss, test Stop and Next; no late prepared result may load.
+19. Confirm Favorites/Playlist persistence and the iPhone bottom-nav/safe-area
+    layout remain unchanged.
 
 Capture Supervisor/controller logs and runtime hashes on any failure. Host/QEMU
 PASS is not a substitute for this checklist.

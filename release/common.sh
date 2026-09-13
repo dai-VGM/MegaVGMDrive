@@ -20,6 +20,7 @@ targets() {
     '_Custom Cores/Cores/MegaVGMDrive_C.rbf' \
     'MegaVGMPlayer/MiSTer.megavgm' 'MegaVGMPlayer/megavgm_supervisor' \
     'MegaVGMPlayer/megavgm_playlist-phase2a' 'MegaVGMPlayer/megavgm_remote' \
+    'MegaVGMPlayer/megavgm_sid_prepare' \
     'Scripts/megavgm_ctl' 'Scripts/vgm_md_import.sh'
 }
 paths="$(targets)

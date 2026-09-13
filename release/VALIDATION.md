@@ -1,4 +1,4 @@
-# v2.2 Engine C C5 validation scope
+# v2.2 Engine C C6 validation scope
 
 ## Frozen FPGA artifacts
 
@@ -16,11 +16,18 @@ does not claim the new production host integration has passed hardware testing.
 
 ## Host contract
 
-The classifier validates MVGMSID v1 (128-byte header, 16-byte events) and Packed
-v2 (128-byte header, canonical ULEB records) against the no-loop, single-SID,
-exact PAL/NTSC, 4 MiB RTL subset. Malformed input is rejected before a profile
-request. `.mvgmsid` is the sole library extension; raw `.sid` and `.mvgmsid2`
-are excluded. Existing VGM A/B scanning is unchanged.
+The raw-SID path first validates a PSID/RSID single-SID header, then executes the
+pinned standalone preparer. Raw bytes are never sent through index-1. The
+resulting cache object must pass the unchanged strict MVGMSID v1/Packed-v2
+classifier before PROFILE_C is requested. `.mvgmsid2` remains excluded and
+existing VGM A/B scanning is unchanged.
+
+The preparer is ARM32 EABI5 hard-float and statically linked, with no PT_INTERP
+or DT_NEEDED. Its observer captures every `sidemu::writeReg` transaction before
+the emulator write using the native PHI1 cycle. Tests cover cache hit/miss,
+source/version identity, corruption regeneration, concurrent producers,
+unknown metadata, malformed/multi-SID input, exact sidecars, duration DB hit and
+miss, deterministic Packed v2 output, and C1→Packed-v2 byte equivalence.
 
 Controller and Supervisor ARM/QEMU suites cover AAA, BBB, CCC, AABBA, CCCCC,
 ACCA, BCB, ABCBA, ACBCA, same-profile zero reload, cross-profile exact switch
@@ -28,6 +35,7 @@ counts, generation/domain rebase, races, repeats, shuffle, invalid input, strict
 RBF argv, production default, and STOCK restoration. Remote tests cover Browse,
 Favorites persistence, status metadata, `PROFILE_C`, and exact ARM HTTP assets.
 
-All three generated host binaries are ARM32 EABI5 hard-float and static with no
-PT_INTERP or DT_NEEDED. These are host/QEMU results; final production A/B/C
-switching remains hardware-unverified until `HARDWARE_CHECKLIST.md` is run.
+The generated Remote, controller, Supervisor, and preparer are ARM32 EABI5
+hard-float and static with no PT_INTERP or DT_NEEDED. These are host/QEMU
+results; final C6 auto-prepare and A/B/C switching remain hardware-unverified
+until `HARDWARE_CHECKLIST.md` is run.

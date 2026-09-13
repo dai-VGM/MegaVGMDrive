@@ -8,6 +8,7 @@ import json
 import os
 from pathlib import Path
 import re
+import shlex
 import socket
 import subprocess
 import sys
@@ -49,7 +50,10 @@ for helper in ('ctl', 'supervisor'):
     p.write_text('#!/bin/sh\nprintf "%s\\n" "$*" >> "'+str(fixture/'commands')+'"\nif test -f "'+str(fixture/'hold')+'"; then sleep 0.25; fi\n')
     p.chmod(0o755)
 
-base = [binary, '-runtime-dir', str(runtime), '-test-root', str(fixture)]
+exec_prefix = shlex.split(os.environ.get('MEGAVGM_TEST_EXEC_PREFIX', ''))
+process_timeout = 60 if exec_prefix else 15
+http_timeout = 60 if exec_prefix else 5
+base = exec_prefix + [binary, '-runtime-dir', str(runtime), '-test-root', str(fixture)]
 def svc(action, expected=0):
     global child
     # QEMU user-mode rewrites /proc/self but not /proc/<other-pid> identically.
@@ -67,11 +71,11 @@ def svc(action, expected=0):
             return subprocess.CompletedProcess([], 0 if running else 1)
         p = subprocess.Popen(base+['-service','exec'],stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True)
         if expected != 0:
-            out,err=p.communicate(timeout=15)
+            out,err=p.communicate(timeout=process_timeout)
             assert p.returncode != 0
             return subprocess.CompletedProcess([],p.returncode,out,err)
         child=p
-        for _ in range(200):
+        for _ in range(process_timeout * 20):
             assert p.poll() is None, p.communicate()
             if (runtime/'megavgm_remote.pid').exists(): return subprocess.CompletedProcess([],0)
             time.sleep(.05)
@@ -80,14 +84,14 @@ def svc(action, expected=0):
     assert (p.returncode==0)==(expected==0), (action,p.returncode,p.stdout,p.stderr)
     return p
 def get(path):
-    with urllib.request.urlopen('http://127.0.0.1:8183'+path,timeout=5) as r:
+    with urllib.request.urlopen('http://127.0.0.1:8183'+path,timeout=http_timeout) as r:
         assert r.status==200
         return r.read()
 def api(path, method='GET', data=None):
     req=urllib.request.Request('http://127.0.0.1:8183/api/megavgm'+path,method=method,
        data=None if data is None else json.dumps(data).encode(),headers={'Content-Type':'application/json'})
     try:
-        with urllib.request.urlopen(req,timeout=5) as r: return r.status,json.load(r)
+        with urllib.request.urlopen(req,timeout=http_timeout) as r: return r.status,json.load(r)
     except urllib.error.HTTPError as e: return e.code,json.load(e)
 def no_commands():
     return (fixture/'commands').read_text() if (fixture/'commands').exists() else ''
