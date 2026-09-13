@@ -33,7 +33,9 @@ export function navigationEnabled(
   return (
     status?.mode === "MEGAVGM" &&
     status.controllerRunning &&
-    (status.state === "PREPARING" || status.state === "PLAYING" || status.state === "STOPPED") &&
+    (status.state === "PREPARING" ||
+      status.state === "PLAYING" ||
+      status.state === "STOPPED") &&
     !mutationPending
   );
 }
@@ -45,7 +47,9 @@ export function stopEnabled(
   return (
     status?.mode === "MEGAVGM" &&
     status.controllerRunning &&
-    (status.state === "PREPARING" || status.state === "LOADING" || status.state === "PLAYING") &&
+    (status.state === "PREPARING" ||
+      status.state === "LOADING" ||
+      status.state === "PLAYING") &&
     !mutationPending
   );
 }
@@ -68,6 +72,8 @@ export interface PendingMegaVGMSelection {
   path: string;
   baselineSession?: number;
   baselineIndex?: number;
+  baselineTransportEpoch?: string;
+  baselineSwitchGeneration?: string;
   expectedPlaylist?: string;
   expectedPlaylistIndex?: number;
   requestedAtMs: number;

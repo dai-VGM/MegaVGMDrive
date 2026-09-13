@@ -368,4 +368,50 @@ export async function main() {
       playing(4, 20)
     );
   }
+  const baselineTransport = {
+    epoch: "megavgm-phase2a.rebase",
+    switchGeneration: "40",
+    switchState: "PLAYING" as const,
+    currentProfile: "PROFILE_A" as const,
+    requiredProfile: "PROFILE_A" as const,
+    domain: "4",
+    baseline: 1,
+    profileChanged: false,
+    path: entries[3].path,
+  };
+  await scenario(
+    "Volfied long load with same-number session rebase",
+    async (h) => {
+      await h.tap(1);
+      const engineC = {
+        ...baselineTransport,
+        switchGeneration: "41",
+        switchState: "READY" as const,
+        currentProfile: "PROFILE_C" as const,
+        requiredProfile: "PROFILE_C" as const,
+        domain: "5",
+        baseline: 0,
+        profileChanged: true,
+        // Prepared path is transport-only; Player identity remains entries[0].path.
+        path: "/media/fat/MegaVGMPlayer/cache/sid/key.mvgmsid",
+      };
+      await h.publish({ ...playing(1, 1, "LOADING"), transport: engineC });
+      await h.advance(9000);
+      assert(
+        h.state(1) === "pending" && h.text().includes("Loading…"),
+        "long authoritative LOADING was not retained"
+      );
+      await h.publish({
+        ...playing(1, 1, "PLAYING"),
+        transport: { ...engineC, switchState: "PLAYING" as const },
+      });
+      assert(
+        h.state(1) === "playing" && !h.text().includes("Loading…"),
+        "authoritative PLAYING did not clear row/bottom Loading"
+      );
+      await h.ack();
+      assert(h.state(1) === "playing", "late HTTP ACK revived Loading");
+    },
+    { ...playing(4, 1), transport: baselineTransport }
+  );
 }

@@ -1,4 +1,4 @@
-import type { MegaVGMStatus } from "../lib/models";
+import type { MegaVGMStatus, MegaVGMTransportStatus } from "../lib/models";
 import {
   beginPlayOperation,
   reducePlayOperation as step,
@@ -153,6 +153,98 @@ assert(o.disposition === "pending", "active preparation must not show timeout");
 o = observe(o, status(1, 8, 9100, "LOADING"));
 o = observe(o, status(1, 8, 9200, "PLAYING"));
 retired(o, "raw SID prepare to PLAYING");
+// Engine switches rebase the FPGA session counter. The old and new engines may
+// both report session=1; the newer authoritative switch generation must retire
+// the UI receipt while the raw SID remains the visible identity. The prepared
+// cache path is transport-only and must never replace the operation/status path.
+const rawSID: string = "/media/fat/MegaVGMDrive/SID/1Volfied.sid";
+const cachedSID: string =
+  "/media/fat/MegaVGMPlayer/cache/sid/fixture-key.mvgmsid";
+const transport = (
+  generation: string,
+  state: MegaVGMTransportStatus["switchState"],
+  currentProfile: MegaVGMTransportStatus["currentProfile"] = "PROFILE_C"
+): MegaVGMTransportStatus => ({
+  epoch: "megavgm-phase2a.fixture",
+  switchGeneration: generation,
+  switchState: state,
+  currentProfile,
+  requiredProfile: "PROFILE_C",
+  domain: generation,
+  baseline: 0,
+  profileChanged: currentProfile !== "PROFILE_C" || state !== "PLAYING",
+  path: cachedSID,
+});
+const rawStatus = (
+  poll: number,
+  state: string,
+  generation: string,
+  session = 1,
+  context: "DIRECTORY" | "PLAYLIST" = "PLAYLIST"
+): MegaVGMStatus => ({
+  ...status(1, session, poll, state),
+  path: rawSID,
+  title: "1Volfied",
+  context,
+  playlist: context === "PLAYLIST" ? "Favorites" : undefined,
+  transport: transport(generation, state === "PLAYING" ? "PLAYING" : "READY"),
+});
+for (const context of ["PLAYLIST", "DIRECTORY"] as const) {
+  o = beginPlayOperation({
+    requestId: context === "PLAYLIST" ? 30 : 31,
+    path: rawSID,
+    baselineSession: 1,
+    baselineTransportEpoch: "megavgm-phase2a.fixture",
+    baselineSwitchGeneration: "7",
+    expectedPlaylist: context === "PLAYLIST" ? "Favorites" : undefined,
+    expectedPlaylistIndex: context === "PLAYLIST" ? 0 : undefined,
+    requestedAtMs: 100,
+  });
+  o = observe(o, rawStatus(200, "LOADING", "8", 1, context));
+  assert(
+    o.disposition === "pending" &&
+      o.playbackProgressObserved &&
+      o.selectedSession === 1 &&
+      o.path === rawSID &&
+      o.path !== cachedSID,
+    `${context}: rebased LOADING was not anchored to raw SID identity`
+  );
+  o = step(o, { type: "expire", requestId: o.requestId, atMs: 9100 });
+  assert(o.disposition === "pending", `${context}: long load expired`);
+  o = observe(o, rawStatus(9200, "PLAYING", "8", 1, context));
+  retired(o, `${context}: same-number session rebase`);
+}
+// Same epoch generations must move forward, not merely differ. A late older
+// receipt cannot prove this selection; a new supervisor epoch can.
+o = beginPlayOperation({
+  requestId: 32,
+  path: rawSID,
+  baselineSession: 1,
+  baselineTransportEpoch: "megavgm-phase2a.fixture",
+  baselineSwitchGeneration: "8",
+  requestedAtMs: 100,
+});
+o = observe(o, rawStatus(200, "PLAYING", "7", 1, "DIRECTORY"));
+assert(o.disposition === "pending", "older switch generation confirmed Play");
+o = observe(o, {
+  ...rawStatus(300, "PLAYING", "1", 1, "DIRECTORY"),
+  transport: {
+    ...transport("1", "PLAYING"),
+    epoch: "megavgm-phase2a.successor",
+  },
+});
+retired(o, "new switch epoch with rebased session");
+// C->C still uses the ordinary session advance and does not need an RBF reload.
+o = beginPlayOperation({
+  requestId: 33,
+  path: rawSID,
+  baselineSession: 1,
+  baselineTransportEpoch: "megavgm-phase2a.fixture",
+  baselineSwitchGeneration: "8",
+  requestedAtMs: 100,
+});
+o = observe(o, rawStatus(200, "PLAYING", "8", 2, "DIRECTORY"));
+retired(o, "C to C session advance");
 // Freshness: response to a poll started before tap, and out-of-order polls.
 o = observe(start(), status(1, 1, 99));
 assert(

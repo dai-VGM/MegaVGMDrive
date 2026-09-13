@@ -73,6 +73,8 @@ interface PlayIntent {
   path: string;
   baselineSession?: number;
   baselineIndex?: number;
+  baselineTransportEpoch?: string;
+  baselineSwitchGeneration?: string;
   requestedAtMs: number;
 }
 
@@ -600,6 +602,14 @@ export default function MegaVGMPlayer({
         status.data?.mode === "MEGAVGM" ? status.data.session : undefined,
       baselineIndex:
         status.data?.mode === "MEGAVGM" ? status.data.index : undefined,
+      baselineTransportEpoch:
+        status.data?.mode === "MEGAVGM"
+          ? status.data.transport?.epoch
+          : undefined,
+      baselineSwitchGeneration:
+        status.data?.mode === "MEGAVGM"
+          ? status.data.transport?.switchGeneration
+          : undefined,
     };
     latestPlayRequestId.current = requestId;
     beginPlay(request);
@@ -627,6 +637,14 @@ export default function MegaVGMPlayer({
         status.data?.mode === "MEGAVGM" ? status.data.session : undefined,
       baselineIndex:
         status.data?.mode === "MEGAVGM" ? status.data.index : undefined,
+      baselineTransportEpoch:
+        status.data?.mode === "MEGAVGM"
+          ? status.data.transport?.epoch
+          : undefined,
+      baselineSwitchGeneration:
+        status.data?.mode === "MEGAVGM"
+          ? status.data.transport?.switchGeneration
+          : undefined,
     };
     console.info("MegaVGM playlist Play requested", {
       requestId,

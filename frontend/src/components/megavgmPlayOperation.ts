@@ -49,6 +49,30 @@ export function playOperationRemaining(
   );
 }
 
+function compareGeneration(a: string, b: string): number {
+  return a.length - b.length || a.localeCompare(b);
+}
+
+function switchGenerationAdvanced(
+  operation: PlayOperation,
+  status: MegaVGMStatus
+): boolean {
+  const transport = status.transport;
+  if (
+    !transport ||
+    operation.baselineTransportEpoch === undefined ||
+    operation.baselineSwitchGeneration === undefined
+  )
+    return false;
+  return (
+    transport.epoch !== operation.baselineTransportEpoch ||
+    compareGeneration(
+      transport.switchGeneration,
+      operation.baselineSwitchGeneration
+    ) > 0
+  );
+}
+
 export function reducePlayOperation(
   operation: PlayOperation,
   event: PlayOperationEvent
@@ -80,6 +104,11 @@ export function reducePlayOperation(
       (operation.baselineSession === undefined
         ? session > 0
         : session !== operation.baselineSession);
+    // RBF replacement legitimately rebases the FPGA session counter. The old
+    // and new engines may therefore publish the same numeric session. A newer
+    // authoritative switch generation is the freshness proof in that case.
+    const freshPlaybackGeneration =
+      newSession || switchGenerationAdvanced(operation, s);
     const contextMatches =
       operation.expectedPlaylist === undefined ||
       (s.context === "PLAYLIST" && s.playlist === operation.expectedPlaylist);
@@ -93,7 +122,7 @@ export function reducePlayOperation(
     }
     if (
       active &&
-      newSession &&
+      freshPlaybackGeneration &&
       targetMatches &&
       (s.state === "LOADING" || s.state === "PLAYING")
     ) {
@@ -125,7 +154,7 @@ export function reducePlayOperation(
     const missedShortTrack =
       active &&
       contextMatches &&
-      newSession &&
+      freshPlaybackGeneration &&
       s.state === "PLAYING" &&
       s.path !== undefined &&
       s.path !== operation.path;
