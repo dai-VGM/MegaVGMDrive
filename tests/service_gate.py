@@ -31,6 +31,9 @@ track = fixture / 'library' / '01 Coin.vgm'
 track.write_bytes(b'Vgm ' + b'\0'*64)
 sid_track = fixture / 'library' / '02 Commando.mvgmsid'
 sid_track.write_bytes(b'MVGMSID\0' + b'\0'*120)
+raw_sid_track = fixture / 'library' / 'SID' / 'Commando.sid'
+raw_sid_track.parent.mkdir()
+raw_sid_track.write_bytes(b'PSID' + b'\0'*124)
 playlist = {'version': 1, 'playlists': {'Favorites': [str(track)], 'Existing': [str(track)]}}
 (fixture / 'playlists.json').write_text(json.dumps(playlist))
 os.mkfifo(fixture / 'playlist.cmd')
@@ -121,7 +124,10 @@ try:
     assert s['soundChips']==['YM2612'] and s['transport']['currentProfile']=='PROFILE_A',s
     assert api('/favorites')[1]['entries'][0]['path']==str(track)
     assert api('/playlists/Existing')[0]==200
-    assert api('/browse', 'GET')[0]==200
+    code,browse=api('/browse', 'GET'); assert code==200
+    assert {'name':'SID','type':'directory'} in browse['entries'],browse
+    code,browse=api('/browse?path=SID', 'GET'); assert code==200
+    assert {'name':'Commando.sid','type':'file'} in browse['entries'],browse
     assert api('/playlists','POST',{'name':'New'})[0] in (200,201)
     assert api('/playlists/New','PATCH',{'name':'Renamed'})[0]==200
     assert api('/playlists/Renamed/tracks','POST',{'path':str(track)})[0]==200

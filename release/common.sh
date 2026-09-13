@@ -37,6 +37,9 @@ if [ "$offline" = 1 ] && [ "${MEGAVGM_PREFLIGHT_TEST:-0}" = 1 ]; then
   runtime_root=${MEGAVGM_RUNTIME_ROOT:?missing test runtime root}
   stock_main_sha256=${MEGAVGM_TEST_STOCK_SHA256:?missing test stock SHA}
 fi
+service_checks=1
+if [ "$offline" = 1 ]; then service_checks=${MEGAVGM_INSTALL_SERVICE_TEST:-0}; fi
+case "$service_checks" in 0|1) ;; *) fail 'Invalid service-test mode' ;; esac
 # Refuse symlink targets/parents, including in offline tests.
 safe_path() {
   check=$1
@@ -123,10 +126,52 @@ lock_install() {
 }
 daemon="$package/media/fat/MegaVGMPlayer/megavgm_remote"
 stop_daemon() {
-  [ "$offline" = 1 ] && return
+  [ "$service_checks" = 1 ] || return 0
   if "$daemon" -service status >/dev/null 2>&1; then
     "$daemon" -service stop || fail 'Standalone drain/identity check failed; no force kill'
-  elif [ -e /tmp/megavgm_remote.pid ] || [ -e /tmp/megavgm_remote.identity ]; then
+  elif [ -e "$runtime_root/megavgm_remote.pid" ] || [ -e "$runtime_root/megavgm_remote.identity" ]; then
     fail 'Standalone identity is unverifiable; inspect before replacement'
   fi
+}
+verify_installed_targets() {
+  while IFS= read -r rel; do
+    target="$fat/$rel"
+    safe_path "$target"
+    [ -f "$target" ] || fail "Installed target missing/not regular: $rel"
+    expected=$(sha "$package/media/fat/$rel") || fail "Cannot hash packaged target: $rel"
+    actual=$(sha "$target") || fail "Cannot hash installed target: $rel"
+    [ "$actual" = "$expected" ] ||
+      fail "Installed target SHA mismatch: $rel expected=$expected actual=$actual"
+  done <<EOF
+$(targets)
+EOF
+}
+verify_running_remote() {
+  [ "$service_checks" = 1 ] || return 0
+  installed="$fat/MegaVGMPlayer/megavgm_remote"
+  runtime="$runtime_root/megavgm_remote"
+  expected=$(sha "$package/media/fat/MegaVGMPlayer/megavgm_remote") || fail 'Cannot hash packaged Remote'
+  [ -f "$installed" ] || fail 'Installed Remote missing/not regular'
+  [ "$(sha "$installed")" = "$expected" ] || fail 'Installed Remote SHA mismatch'
+  [ -f "$runtime" ] || fail 'Runtime Remote missing/not regular'
+  runtime_sha=$(sha "$runtime") || fail 'Cannot hash runtime Remote'
+  [ "$runtime_sha" = "$expected" ] ||
+    fail "Runtime Remote SHA mismatch: expected=$expected actual=$runtime_sha"
+  state=$("$installed" -service status 2>&1) || {
+    printf '%s\n' "$state" >&2
+    fail 'Cannot verify running Remote service'
+  }
+  pid=$(printf '%s\n' "$state" | sed -n 's/^running pid=\([0-9][0-9]*\) sha256=[0-9a-f][0-9a-f]* port=8183$/\1/p')
+  reported=$(printf '%s\n' "$state" | sed -n 's/^running pid=[0-9][0-9]* sha256=\([0-9a-f][0-9a-f]*\) port=8183$/\1/p')
+  [ -n "$pid" ] && [ "$state" = "running pid=$pid sha256=$reported port=8183" ] ||
+    fail "Invalid Remote service status: $state"
+  [ "$reported" = "$expected" ] ||
+    fail "Running Remote reported SHA mismatch: expected=$expected actual=$reported"
+  process_exe=$(readlink "$proc_root/$pid/exe" 2>/dev/null) || fail 'Running Remote executable identity unavailable'
+  [ "$process_exe" = "$runtime" ] ||
+    fail "Running Remote executable path mismatch: expected=$runtime actual=$process_exe"
+  process_sha=$(sha "$proc_root/$pid/exe") || fail 'Cannot hash running Remote executable'
+  [ "$process_sha" = "$expected" ] ||
+    fail "Running Remote executable SHA mismatch: expected=$expected actual=$process_sha"
+  echo "Verified running Remote: pid=$pid path=$runtime sha256=$expected"
 }

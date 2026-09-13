@@ -30,7 +30,13 @@ done <<EOF
 $(targets)
 EOF
 if [ "$changed" = 0 ]; then
-  echo 'Already installed; no payload/startup changes and no new rollback checkpoint.'
+  verify_installed_targets
+  if [ "$service_checks" = 1 ]; then
+    stop_daemon
+    "$fat/MegaVGMPlayer/megavgm_remote" -service start || fail 'Standalone Remote start failed'
+    verify_running_remote
+  fi
+  echo 'Already installed and verified; no payload/startup changes and no new rollback checkpoint.'
   exit 0
 fi
 backup=$(mktemp -d "$fat/MegaVGMPlayer/backups-v2.2-$(date +%Y%m%d-%H%M%S)-XXXXXX")
@@ -39,10 +45,10 @@ printf '%s\n' "$backup" > "$work/BACKUP"
 : > "$backup/BEFORE.sha256"
 : > "$backup/AFTER.sha256"
 for_service=0
-if [ "$offline" != 1 ] && "$daemon" -service status > "$work/service-status" 2>/dev/null; then
+if [ "$service_checks" = 1 ] && "$daemon" -service status > "$work/service-status" 2>/dev/null; then
   service_pid=$(sed -n 's/^running pid=\([0-9]*\) .*/\1/p' "$work/service-status")
   service_sha=$(sed -n 's/.*sha256=\([0-9a-f]*\) .*/\1/p' "$work/service-status")
-  cp "/proc/$service_pid/exe" "$backup/previous-daemon"
+  cp "$proc_root/$service_pid/exe" "$backup/previous-daemon"
   [ "$(sha "$backup/previous-daemon")" = "$service_sha" ] || fail 'Running daemon identity changed'
   chmod 755 "$backup/previous-daemon"
   for_service=1
@@ -89,8 +95,12 @@ while IFS= read -r rel; do
 done <<EOF
 $paths
 EOF
-touch "$backup/COMPLETE"
+verify_installed_targets
+if [ "$service_checks" = 1 ]; then
+  "$fat/MegaVGMPlayer/megavgm_remote" -service start || fail 'Standalone Remote start failed'
+  verify_running_remote
+fi
 printf '%s\n' "$backup" > "$work/last-backup"
 mv -f "$work/last-backup" "$fat/MegaVGMPlayer/.v22-last-backup"
-if [ "$for_service" = 1 ]; then "$fat/MegaVGMPlayer/megavgm_remote" -service start; fi
+touch "$backup/COMPLETE"
 echo 'Installed. Existing remote.sh and playlists.json untouched. Reboot and follow README hardware checks.'

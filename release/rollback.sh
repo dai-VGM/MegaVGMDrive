@@ -38,7 +38,7 @@ while IFS= read -r rel; do
 done <<EOF
 $paths
 EOF
-if [ "$offline" != 1 ] && [ "$(cat "$backup/WAS_RUNNING")" = 1 ]; then
+if [ "$service_checks" = 1 ] && [ "$(cat "$backup/WAS_RUNNING")" = 1 ]; then
   "$backup/previous-daemon" -service start
 fi
 touch "$backup/ROLLED_BACK"

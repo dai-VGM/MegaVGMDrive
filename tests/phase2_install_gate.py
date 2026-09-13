@@ -48,6 +48,10 @@ def installed(fat):
     s=(fat/'linux/user-startup.sh').read_bytes()
     assert s.count(b'# BEGIN MegaVGMPlayer v2.1') == 1
     assert s.endswith((package/'startup.block').read_bytes())
+def incomplete_backups(fat):
+    backups=list((fat/'MegaVGMPlayer').glob('backups-v2.2-*'))
+    assert backups
+    assert all(not (backup/'COMPLETE').exists() for backup in backups)
 
 def preflight_fixture(name, supervisor_state='unavailable', main='stock',
                       controller=False, multiple=False, active_session=False,
@@ -156,7 +160,9 @@ for mode in ('clean','v2upgrade','phase1'):
     if mode=='clean': assert not (fat/'linux/user-startup.sh').exists()
     else: assert (fat/'linux/user-startup.sh').read_bytes()==startup
     unchanged(fat,saved)
-    print(mode, 'install + duplicate + rollback + persistence PASS')
+    run(fat,'install.sh' if mode=='clean' else 'upgrade.sh')
+    installed(fat); unchanged(fat,saved)
+    print(mode, 'install + duplicate + rollback + reinstall + persistence PASS')
 
 # Reject unknown/duplicated startup and symlink destinations without touching payload.
 for name, data in [('unknown', startup+b' /tmp/megavgm_remote -service start\n'),
@@ -194,6 +200,107 @@ assert (fat/'Scripts/megavgm_ctl').read_bytes()==old
 assert (fat/'linux/user-startup.sh').read_bytes()==startup
 assert not (fat/'MegaVGMPlayer/megavgm_remote').exists()
 print('interrupted multi-file transaction recovery PASS')
+
+# A successful rename is not transaction completion. Every installed production
+# target is re-hashed before COMPLETE; missing or stale bytes are a hard failure.
+real_mv=shutil.which('mv')
+assert real_mv
+wrapper_dir=root/'tamper-bin'; wrapper_dir.mkdir()
+mv_wrapper=wrapper_dir/'mv'
+mv_wrapper.write_text(f'''#!/bin/sh
+"{real_mv}" "$@"
+last=
+for argument in "$@"; do last=$argument; done
+target="$MEGAVGM_FAT_ROOT/$MEGAVGM_TEST_TAMPER_REL"
+if [ "$last" = "$target" ]; then
+  case "$MEGAVGM_TEST_TAMPER_MODE" in
+    missing) rm -f "$target" ;;
+    stale) printf 'STALE INSTALLED ARTIFACT' > "$target" ;;
+    *) exit 97 ;;
+  esac
+fi
+''')
+mv_wrapper.chmod(0o755)
+for name,rel,mode in (
+    ('controller-missing','MegaVGMPlayer/megavgm_playlist-phase2a','missing'),
+    ('preparer-stale','MegaVGMPlayer/megavgm_sid_prepare','stale'),
+    ('remote-stale','MegaVGMPlayer/megavgm_remote','stale'),
+):
+    fat=root/name
+    env={'PATH':str(wrapper_dir)+os.pathsep+os.environ['PATH'],
+         'MEGAVGM_TEST_TAMPER_REL':rel,'MEGAVGM_TEST_TAMPER_MODE':mode}
+    run(fat,'install.sh',ok=False,extra_env=env)
+    incomplete_backups(fat)
+print('post-rename installed SHA/missing verification and no-COMPLETE gates PASS')
+
+# Exercise the live-only restart/identity contract in an isolated tree. The
+# fixture daemon uses the same start/status surface and creates a synthetic
+# /proc/<pid>/exe identity; production never accepts these override paths.
+service_package=root/'service-package'
+shutil.copytree(package,service_package)
+fake_remote=service_package/'media/fat/MegaVGMPlayer/megavgm_remote'
+fake_remote.write_text('''#!/bin/sh
+runtime="$MEGAVGM_RUNTIME_ROOT"
+proc="$MEGAVGM_PROC_ROOT"
+pid=4242
+case "${2:-}" in
+  start)
+    cp "$0" "$runtime/megavgm_remote"
+    chmod 755 "$runtime/megavgm_remote"
+    if [ "${MEGAVGM_FAKE_RUNTIME_MODE:-valid}" = stale ]; then
+      printf 'STALE RUNTIME REMOTE' > "$runtime/megavgm_remote"
+      chmod 755 "$runtime/megavgm_remote"
+    fi
+    mkdir -p "$proc/$pid"
+    rm -f "$proc/$pid/exe"
+    ln -s "$runtime/megavgm_remote" "$proc/$pid/exe"
+    printf '%s\n' "$pid" > "$runtime/megavgm_remote.pid"
+    printf '{}\n' > "$runtime/megavgm_remote.identity"
+    : > "$runtime/running"
+    ;;
+  stop)
+    rm -f "$runtime/running" "$runtime/megavgm_remote.pid" "$runtime/megavgm_remote.identity"
+    rm -f "$proc/$pid/exe"
+    ;;
+  status)
+    [ -f "$runtime/running" ] || exit 1
+    digest=$(sha256sum "$runtime/megavgm_remote" | cut -d ' ' -f 1)
+    printf 'running pid=%s sha256=%s port=8183\n' "$pid" "$digest"
+    ;;
+  *) exit 2 ;;
+esac
+''')
+fake_remote.chmod(0o755)
+sum_file=service_package/'SHA256SUMS'
+sum_file.write_text(''.join(
+    hashlib.sha256(p.read_bytes()).hexdigest()+'  '+str(p.relative_to(service_package))+'\n'
+    for p in sorted(service_package.rglob('*')) if p.is_file() and p != sum_file))
+original=package; package=service_package
+for name,mode,ok,initially_running in (
+    ('service-restart-success','valid',True,True),
+    ('service-stale-runtime','stale',False,False),
+):
+    fat,env=preflight_fixture(name)
+    env.update({'MEGAVGM_INSTALL_SERVICE_TEST':'1','MEGAVGM_FAKE_RUNTIME_MODE':mode})
+    if initially_running:
+        runtime=Path(env['MEGAVGM_RUNTIME_ROOT'])
+        proc=Path(env['MEGAVGM_PROC_ROOT'])
+        old=runtime/'megavgm_remote'; old.write_text('#!/bin/sh\nexit 0\n'); old.chmod(0o755)
+        remote_proc=proc/'4242'; remote_proc.mkdir()
+        (remote_proc/'exe').symlink_to(old)
+        (runtime/'megavgm_remote.pid').write_text('4242\n')
+        (runtime/'megavgm_remote.identity').write_text('{}\n')
+        (runtime/'running').touch()
+    run(fat,'install.sh',ok=ok,extra_env=env)
+    if ok:
+        installed(fat)
+        backup=Path((fat/'MegaVGMPlayer/.v22-last-backup').read_text().strip())
+        assert (backup/'COMPLETE').is_file()
+        assert (Path(env['MEGAVGM_RUNTIME_ROOT'])/'megavgm_remote').read_bytes()==fake_remote.read_bytes()
+    else:
+        incomplete_backups(fat)
+package=original
+print('service restart/runtime SHA/process identity/no-COMPLETE gates PASS')
 
 # Corrupted payload fails checksum before changing existing files.
 bad=root/'bad-package'; shutil.copytree(package,bad)
