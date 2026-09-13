@@ -35,6 +35,13 @@ counts, generation/domain rebase, races, repeats, shuffle, invalid input, strict
 RBF argv, production default, and STOCK restoration. Remote tests cover Browse,
 Favorites persistence, status metadata, `PROFILE_C`, and exact ARM HTTP assets.
 
+Raw-SID controller tests additionally cover the 120-second prepare watchdog,
+75-second completion, completion at the deadline, timeout generation
+invalidation with no PROFILE request/index-1/PLAYING publication, immediate
+retry, cooperative SIGTERM and forced SIGKILL reap, and PID-scoped temporary
+payload cleanup. Cleanup preserves published cache pairs, lock files, other-PID
+temps, near matches, symlinks, and directories; failures are logged.
+
 The production-default regression also covers missing test-profile directory and
 missing profile file: both select `PHASE2A_AUTO` and
 `/media/fat/MegaVGMPlayer/megavgm_playlist-phase2a`. Explicit lab profiles retain

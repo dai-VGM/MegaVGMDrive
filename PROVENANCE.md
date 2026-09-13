@@ -7,7 +7,7 @@ RTL/audio, Packed-v2 format, or transport/fade contract.
 
 | Component | Exact source commit | ARM artifact SHA-256 |
 |---|---|---|
-| Controller | `ece0ddaef18892159714f4937f2eb909ea046e17` | `d056a06f00eb56e4bcc1b7a2cf8abd9d18765de082aaa169a40a6c5ee6e5ce22`; rebuilt at `48f61a29bfb2c12eb63920914ee815bb3978f697` and byte-identical |
+| Controller | `ae16cc33cb69eace9b875bb33dff9d673801bf2c` | `2744748c79e0469360569df5835c1494f26bc508e15d324482b31dfac85c7613`; 120-second cold SID prepare watchdog with unchanged 60-second profile/session timeout, bounded SIGTERM/SIGKILL reap, and exact child-PID temporary-payload cleanup |
 | Supervisor | `48f61a29bfb2c12eb63920914ee815bb3978f697` | `0e6ecabf5403ba7029129c8b3f9837223a9b30f60a28954fb2e3fad5d50692ac`; production default remains `PHASE2A_AUTO`; prerequisite admission accepts exact-case direct `.vgm`, `.mvgmsid`, and raw `.sid` members without relaxing regular-file or direct-child checks |
 | Standalone Remote/frontend | `ab73b066cbabfc80555ba6f738460151d81c1dad` | `c01d024bcdd7ec9d4691c2bc6516f730092d3a5d351ece334d4850c93fe07087`; embedded `assets/megavgm-adf2d3f9.js` SHA `008a4849839814a26d6cab37b2f3f99f835bb570b36f559393c0722f3bbf338c` |
 | Direct Packed-v2 SID preparer | `ff6904fbaf22ea2d4db2a487e14c7e9cf5a7a914` | `4dbb5cd5d918c14fab9f25783f7e2d0c7acbbcf84086cc9abc04e017cde5f87b` |
