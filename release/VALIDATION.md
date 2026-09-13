@@ -35,6 +35,20 @@ counts, generation/domain rebase, races, repeats, shuffle, invalid input, strict
 RBF argv, production default, and STOCK restoration. Remote tests cover Browse,
 Favorites persistence, status metadata, `PROFILE_C`, and exact ARM HTTP assets.
 
+The production-default regression also covers missing test-profile directory and
+missing profile file: both select `PHASE2A_AUTO` and
+`/media/fat/MegaVGMPlayer/megavgm_playlist-phase2a`. Explicit lab profiles retain
+their previous selection behavior.
+
+Installer gates compare every installed production payload with the package SHA,
+including the Phase2A controller, SID preparer, Supervisor, Remote, all three RBFs,
+Main, importer, and control helper. The service gate then requires the packaged,
+installed, and runtime `/tmp/megavgm_remote` SHA values to match, and verifies that
+the reported PID executes that exact runtime path. A stale controller, preparer,
+installed Remote, runtime Remote, or failed service identity check cannot create
+the transaction `COMPLETE` marker. Clean install, upgrade, rollback/reinstall,
+interrupted recovery, and the deployed ARM Remote `.sid` Browse path are covered.
+
 The generated Remote, controller, Supervisor, and preparer are ARM32 EABI5
 hard-float and static with no PT_INTERP or DT_NEEDED. These are host/QEMU
 results; final C6 auto-prepare and A/B/C switching remain hardware-unverified

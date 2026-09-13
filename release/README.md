@@ -58,6 +58,13 @@ Existing v2.1 RBFs under `_Custom Cores/Cores` or `_Utility` are not deleted or
 modified. User Remote files, playlists, Favorites, and the VGM library are not
 payloads.
 
+Before declaring the transaction complete, the installer re-hashes every installed
+production target against the packaged payload, restarts the standalone Remote,
+and verifies that the package, installed Remote, runtime `/tmp/megavgm_remote`,
+service-reported SHA, and `/proc/<pid>/exe` identity all agree. Any mismatch leaves
+the transaction incomplete and eligible for recovery; the mere presence of staged
+or replaced files is not an install-success condition.
+
 The existing v2.1 standalone startup block is deliberately retained because
 service semantics did not change. An unrecognized or duplicated startup block,
 symlink target, non-STOCK state, checksum mismatch, or concurrent install causes

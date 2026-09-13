@@ -7,7 +7,8 @@ RTL/audio, Packed-v2 format, or transport/fade contract.
 
 | Component | Exact source commit | ARM artifact SHA-256 |
 |---|---|---|
-| Controller + Supervisor | `ece0ddaef18892159714f4937f2eb909ea046e17` | controller `d056a06f00eb56e4bcc1b7a2cf8abd9d18765de082aaa169a40a6c5ee6e5ce22`; Supervisor `63e675224e520f6f854112f99099547ef717cffc125ed54a4305b6c8965277f0` |
+| Controller | `ece0ddaef18892159714f4937f2eb909ea046e17` | `d056a06f00eb56e4bcc1b7a2cf8abd9d18765de082aaa169a40a6c5ee6e5ce22`; rebuilt at `fdafbd9d75378edd15d268fd6019a3aa711c85d3` and byte-identical |
+| Supervisor | `fdafbd9d75378edd15d268fd6019a3aa711c85d3` | `ebb45c3cacb4fba5e0bd56be9e89ea25b9cde6525d4743a0fe291cde7054a239`; production default restored to `PHASE2A_AUTO` without changing C6 A/B/C routing |
 | Standalone Remote/frontend | `ab73b066cbabfc80555ba6f738460151d81c1dad` | `c01d024bcdd7ec9d4691c2bc6516f730092d3a5d351ece334d4850c93fe07087`; embedded `assets/megavgm-adf2d3f9.js` SHA `008a4849839814a26d6cab37b2f3f99f835bb570b36f559393c0722f3bbf338c` |
 | Direct Packed-v2 SID preparer | `ff6904fbaf22ea2d4db2a487e14c7e9cf5a7a914` | `4dbb5cd5d918c14fab9f25783f7e2d0c7acbbcf84086cc9abc04e017cde5f87b` |
 
@@ -23,6 +24,12 @@ emulator and records native PHI1 cycle, SID index, register, and data. It does
 not poll registers, reconstruct snapshots, or generate MVGMSID v1. The raw SID
 path preserves the original track as queue/status identity; only a strictly
 validated atomic cache artifact is passed to the existing PROFILE_C classifier.
+
+Release installer commit `bde4bef` treats package bytes as the deployment
+authority. It re-hashes every installed production target, restarts the
+standalone Remote, then requires the package, installed file, runtime copy,
+service identity, and `/proc/<pid>/exe` SHA/path to agree before creating the
+transaction `COMPLETE` marker.
 
 ## Engine C C5 production integration
 

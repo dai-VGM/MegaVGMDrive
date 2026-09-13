@@ -48,6 +48,12 @@ installerはpackage全体を検証し、FAT volume内でstageとbackupを作っ�
 renameで置換します。旧v2.1 RBF（`_Custom Cores/Cores`または`_Utility`）は削除も
 変更もしません。Remote、Playlist、Favorites、VGM libraryもpayload外です。
 
+transaction完了前に、installerは全production targetをpackage payloadとSHA-256で
+再照合し、standalone Remoteを再起動します。その後、package、installed Remote、
+runtime `/tmp/megavgm_remote`、serviceが報告するSHA、`/proc/<pid>/exe`の実行identityが
+すべて一致することを要求します。不一致時はtransactionを`COMPLETE`にせず、stageや
+置換済みfileが存在するだけではinstall成功と扱いません。
+
 service semanticsは不変なのでv2.1 standalone startup blockを維持します。
 checksum不一致、非STOCK、未知/重複startup、symlink、同時installでは安全に拒否します。
 
