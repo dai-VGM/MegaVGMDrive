@@ -133,6 +133,21 @@ try:
     assert api('/playlists/Renamed/tracks','POST',{'path':str(track)})[0]==200
     assert api('/playlists/Renamed/tracks','DELETE',{'path':str(track)})[0]==200
     assert api('/playlists/Renamed','DELETE')[0]==200
+    # A resident controller remains the warm handoff owner after Stop. Playlist
+    # admission accepts exact STOPPED, while transition states still reject
+    # before invoking the helper.
+    stopped = (fixture/'playlist.status').read_text().replace('state=PLAYING', 'state=STOPPED', 1)
+    (fixture/'playlist.status').write_text(stopped)
+    baseline = no_commands()
+    code,response = api('/playlists/Favorites/play','POST',{'index':0})
+    assert code==202 and response['accepted'] is True,(code,response)
+    stopped_commands = no_commands()
+    assert stopped_commands!=baseline and 'playlist ' in stopped_commands[len(baseline):],stopped_commands
+    (fixture/'playlist.status').write_text(stopped.replace('state=STOPPED', 'state=PREPARING', 1))
+    code,response = api('/playlists/Favorites/play','POST',{'index':0})
+    assert code==409 and response['error']=='controller_not_playing',(code,response)
+    assert no_commands()==stopped_commands
+    status()
     for p,data in [('/next',{}),('/prev',{}),('/stop',{}),('/repeat',{'mode':'one'}),('/repeat',{'mode':'all'}),('/shuffle',{'enabled':True}),('/play',{'path':str(track)})]:
         assert api(p,'POST',data)[0]==202,(p,api(p,'POST',data))
     assert api('/repeat','POST',{'mode':'invalid'})[0]==400

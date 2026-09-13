@@ -22,7 +22,7 @@ ITEMS = [
  ('MegaVGMPlayer/megavgm_playlist-phase2a', HOST / 'megavgm-c6-watchdog-ae16cc3-arm/megavgm_playlist', '2744748c79e0469360569df5835c1494f26bc508e15d324482b31dfac85c7613', 'ae16cc33cb69eace9b875bb33dff9d673801bf2c; 120-second cold SID prepare watchdog; generation invalidation plus bounded cancel/reap and exact child-PID cache-temp cleanup'),
  ('MegaVGMPlayer/megavgm_sid_prepare', HOST / 'megavgm_sid_prepare', '4dbb5cd5d918c14fab9f25783f7e2d0c7acbbcf84086cc9abc04e017cde5f87b', 'ff6904fbaf22ea2d4db2a487e14c7e9cf5a7a914; static ARM; atomic Packed MVGMSID v2 pair publication with parent-directory fsync'),
  ('Scripts/vgm_md_import.sh', V2 / 'Scripts/vgm_md_import.sh', '700542daaeac0f59998d23a868073e6c6c165a4c350fc1119de28456f5f59103', 'e01c872d6854edce77c1fbc7a8f68239f8ecf045; unchanged importer'),
- ('MegaVGMPlayer/megavgm_remote', HOST / 'megavgm_remote-c6', 'c01d024bcdd7ec9d4691c2bc6516f730092d3a5d351ece334d4850c93fe07087', 'ab73b066cbabfc80555ba6f738460151d81c1dad; static ARM; raw SID browse and PREPARING status; embedded assets/megavgm-adf2d3f9.js'),
+ ('MegaVGMPlayer/megavgm_remote', HOST / 'megavgm_remote-c6-stop-warm-7851cc1', 'c675b235f78a88cc1d77b85ec2167685f8244eb704ffad1f5f17f7871ba19ab1', '7851cc15d8c6b2f55c6fdeba03fcf393b47ba896; static ARM; exact PLAYING/STOPPED playlist warm admission with traced transitional-state rejection; embedded assets/megavgm-adf2d3f9.js'),
  ('Scripts/megavgm_ctl', P1 / 'megavgm_ctl.production', '378905c80c22f0b072e248d6fdb67238f2727a38287f4407b2596c8c2a9ae45b', '9e2dd45fbd986378bbdaba326d8e722df2b89c27; exact five compile inputs, official GCC 10.2 static stripped + GNU OSABI'),
 ]
 SOURCE_ITEMS = [

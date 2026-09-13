@@ -18,7 +18,8 @@ c5_frontend_changes = {
     'megavgmTransportDisplay.test.ts',
 }
 c6_backend_changes = {
-    'browse_play_test.go', 'megavgm.go', 'megavgm_test.go', 'track_files.go',
+    'browse_play_test.go', 'megavgm.go', 'megavgm_test.go', 'playlists.go',
+    'playlists_test.go', 'track_files.go',
 }
 c6_frontend_changes = {
     'MegaVGMPlayer.tsx', 'megavgmFavorites.ts', 'megavgmPlayOperation.test.ts',

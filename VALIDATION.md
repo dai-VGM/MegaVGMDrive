@@ -27,7 +27,9 @@
 - Exact distributed ARM executable, QEMU foreground: `/megavgm`, `/megavgm/`,
   embedded JS/CSS/logo/fonts, manifest/all icons HTTP 200; all Remote-only routes
   tested return 404. Existing fixture playlists/favorites, CRUD, controls, error
-  JSON, Transport Status and soundChips tested over real HTTP.
+  JSON, Transport Status and soundChips tested over real HTTP. Playlist warm
+  handoff accepts exact STOPPED as well as PLAYING, while PREPARING rejects
+  without helper dispatch.
 - A→B→B→A **status fixtures** accept rebased session 57→1 and forward current
   profile/generation; STOCK fixture is reflected. These are not hardware switches.
 - Byte equality of frozen Player components and five backend production files.

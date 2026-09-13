@@ -35,6 +35,13 @@ counts, generation/domain rebase, races, repeats, shuffle, invalid input, strict
 RBF argv, production default, and STOCK restoration. Remote tests cover Browse,
 Favorites persistence, status metadata, `PROFILE_C`, and exact ARM HTTP assets.
 
+Playlist warm-admission tests accept exactly controller `PLAYING` and `STOPPED`,
+dispatch one `PLAYLIST` helper command for either state, and reject PREPARING,
+LOADING, SUSPENDED, COMPLETE, FATAL, unknown, or malformed status without a
+helper dispatch. Rejections record controller status, HTTP 409, error code, and
+operation ID. The exact ARM HTTP gate also covers STOPPED acceptance and
+PREPARING rejection.
+
 Raw-SID controller tests additionally cover the 120-second prepare watchdog,
 75-second completion, completion at the deadline, timeout generation
 invalidation with no PROFILE request/index-1/PLAYING publication, immediate

@@ -14,6 +14,8 @@
   inputs are explicitly unsupported in this initial stage.
 - Browse, Playlists, Favorites, status, and the Player carry SID 6581/8580
   metadata without using display metadata for routing.
+- Playlist Play can immediately hand off to a resident controller after Stop;
+  transitional and terminal non-playable controller states remain rejected.
 - Engine A/B payloads are byte-identical to v2.1; no FPGA resynthesis occurred.
 - Legacy v2.1 RBFs are preserved and may coexist with the new names.
 - The package includes matching exact-path Supervisor/controller builds and a

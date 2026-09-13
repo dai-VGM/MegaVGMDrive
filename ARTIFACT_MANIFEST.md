@@ -10,7 +10,7 @@ source artifact passes its frozen SHA gate.
 | Engine C RBF | Packed v2 RTL `53291cd59a64dee7c3c4edb5a2f0f0a8e69c99db` | `0f205de6ab30e86477fdf1b0797e82158cc5b14fdfa37e7011f3c94cbb72c479` | production `MegaVGMDrive_C.rbf`, exact hardware-tested bytes |
 | Supervisor | `48f61a29bfb2c12eb63920914ee815bb3978f697` | `0e6ecabf5403ba7029129c8b3f9837223a9b30f60a28954fb2e3fad5d50692ac` | C6 A/B/C switch owner with `PHASE2A_AUTO` default and exact `.vgm`/`.mvgmsid`/`.sid` direct-member admission |
 | Controller | `ae16cc33cb69eace9b875bb33dff9d673801bf2c` | `2744748c79e0469360569df5835c1494f26bc508e15d324482b31dfac85c7613` | 120-second cold SID prepare watchdog; generation invalidation plus bounded cancel/reap and exact child-PID cache-temp cleanup |
-| Standalone Remote | `ab73b066cbabfc80555ba6f738460151d81c1dad` | `c01d024bcdd7ec9d4691c2bc6516f730092d3a5d351ece334d4850c93fe07087` | `.sid` discovery plus PREPARING/status/UI pass-through; `assets/megavgm-adf2d3f9.js` |
+| Standalone Remote | `7851cc15d8c6b2f55c6fdeba03fcf393b47ba896` | `c675b235f78a88cc1d77b85ec2167685f8244eb704ffad1f5f17f7871ba19ab1` | `.sid` discovery plus PREPARING/status/UI pass-through; exact PLAYING/STOPPED playlist warm admission and diagnosed early-reject trace; `assets/megavgm-adf2d3f9.js` |
 | SID preparer | `ff6904fbaf22ea2d4db2a487e14c7e9cf5a7a914` | `4dbb5cd5d918c14fab9f25783f7e2d0c7acbbcf84086cc9abc04e017cde5f87b` | static ARM, atomic Packed-v2 payload/provenance publication plus parent-directory fsync |
 | libsidplayfp | 3.1.1 / `732fa8ec8131fc75aafc2eaea583ddcdeea2a3cc` | archive `12b79190593bf480b2d11481b5c2de62bac07f344437a66cd8d887329875c626` | exact upstream source plus observer patch and GPL text included |
 

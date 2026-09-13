@@ -13,7 +13,9 @@
 8. Play A→C→B→C→A and confirm exact order, one switch per boundary, and no
    duplicate load/session/ENDED.
 9. Verify Repeat Off completion restores STOCK; verify mixed Shuffle.
-10. Verify Stop and cross-profile Next/Previous.
+10. Verify Stop and cross-profile Next/Previous; immediately after Stop, tap a
+    Playlist track in the same profile and another profile and confirm both are
+    admitted without a lockout.
 11. Confirm same-profile A→A, B→B, C→C perform zero RBF reloads.
 12. Confirm `error=00`, no stale audio, no permanent mute, and no phantom ENDED.
 13. Check Player labels `SID 6581`/`SID 8580` and metadata without changing route.
