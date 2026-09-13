@@ -122,7 +122,10 @@ for mode in ('clean','v2upgrade','phase1'):
     if mode != 'clean':
         put(fat,'linux/user-startup.sh',startup)
         for rel in payload:
-            if str(rel) in ('MegaVGMPlayer/megavgm_remote','Scripts/megavgm_ctl'): continue
+            if str(rel) in ('MegaVGMPlayer/megavgm_remote',
+                            'MegaVGMPlayer/megavgm_sid_prepare',
+                            'Scripts/megavgm_ctl'):
+                continue
             if mode=='v2upgrade' and not str(rel).endswith('.rbf'):
                 data=(v2/rel).read_bytes()
             elif mode=='v2upgrade':
