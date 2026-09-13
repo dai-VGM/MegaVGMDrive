@@ -178,6 +178,133 @@ func TestPlaylistPlaySnapshotStartMiddleCrossDirectoryAndEditIsolation(t *testin
 	_ = os.Remove(snapshotPath)
 }
 
+func TestWarmPlaylistAdmissionAcceptsOnlyPlayingAndStopped(t *testing.T) {
+	tests := []struct {
+		state  string
+		accept bool
+	}{
+		{"PLAYING", true},
+		{"STOPPED", true},
+		{"PREPARING", false},
+		{"LOADING", false},
+		{"SUSPENDED", false},
+		{"COMPLETE", false},
+		{"FATAL", false},
+		{"UNKNOWN", false},
+	}
+
+	for _, test := range tests {
+		t.Run(test.state, func(t *testing.T) {
+			var invocations [][]string
+			adapter := newTestAdapter(t, t.TempDir(), nil)
+			selected := createFavoriteVGM(t, adapter, "Warm/01 Track.vgm")
+			if recorder := favoriteRequest(t, http.MethodPost, selected,
+				adapter.HandleAddFavorite); recorder.Code != http.StatusOK {
+				t.Fatal(recorder.Body.String())
+			}
+			writeSupervisor(t, adapter, "MEGAVGM", "MODIFIED", "RUNNING",
+				filepath.Dir(selected))
+			makeFIFO(t, adapter.config.CommandPath)
+			writeExecutable(t, adapter.config.CtlPath)
+
+			statusForState := func(state string) string {
+				status := strings.Replace(validStatus, "state=PLAYING", "state="+state, 1)
+				status = strings.Replace(status,
+					"path=/media/fat/Music/04 Beyond the Galaxy.vgm", "path="+selected, 1)
+				status = strings.Replace(status, "index=4", "index=1", 1)
+				status = strings.Replace(status, "count=10", "count=1", 1)
+				return status + "context=PLAYLIST\nplaylist=Favorites\n"
+			}
+			writeFile(t, adapter.config.StatusPath, statusForState(test.state), 0644)
+			adapter.run = func(_ context.Context, command string,
+				args ...string) ([]byte, error) {
+				invocations = append(invocations, append([]string{command}, args...))
+				writeFile(t, adapter.config.StatusPath, statusForState("PLAYING"), 0644)
+				return nil, nil
+			}
+
+			recorder := playlistHTTPRequest(t, http.MethodPost, "Favorites",
+				`{"index":0}`, adapter.HandlePlayPlaylist)
+			if test.accept {
+				if recorder.Code != http.StatusAccepted {
+					t.Fatalf("state=%s status=%d body=%s",
+						test.state, recorder.Code, recorder.Body.String())
+				}
+				if len(invocations) != 1 || len(invocations[0]) != 3 ||
+					invocations[0][0] != adapter.config.CtlPath ||
+					invocations[0][1] != "playlist" {
+					t.Fatalf("state=%s invocations=%#v", test.state, invocations)
+				}
+				return
+			}
+
+			assertAPIError(t, recorder, http.StatusConflict, "controller_not_playing")
+			if len(invocations) != 0 {
+				t.Fatalf("state=%s dispatched=%#v", test.state, invocations)
+			}
+			traces := readHandoffTraces(t, adapter)
+			var rejection playlistHandoffTrace
+			for _, trace := range traces {
+				if trace.Event == "playlist_http_response" &&
+					trace.Phase == "warm_admission" {
+					rejection = trace
+				}
+			}
+			if rejection.HTTPStatus != http.StatusConflict ||
+				rejection.ErrorCode != "controller_not_playing" ||
+				rejection.Result != "rejected" ||
+				rejection.OperationID == 0 {
+				t.Fatalf("state=%s rejection trace=%#v", test.state, rejection)
+			}
+			if test.state == "UNKNOWN" {
+				if rejection.StatusState != "" || rejection.StatusError == "" {
+					t.Fatalf("invalid state trace=%#v", rejection)
+				}
+			} else if rejection.StatusState != test.state || rejection.StatusError != "" {
+				t.Fatalf("state=%s rejection trace=%#v", test.state, rejection)
+			}
+		})
+	}
+}
+
+func TestWarmPlaylistAdmissionRejectsInvalidControllerStatusWithTrace(t *testing.T) {
+	var invocations int
+	adapter := newTestAdapter(t, t.TempDir(), func(_ context.Context,
+		_ string, _ ...string) ([]byte, error) {
+		invocations++
+		return nil, nil
+	})
+	selected := createFavoriteVGM(t, adapter, "Warm/01 Track.vgm")
+	if recorder := favoriteRequest(t, http.MethodPost, selected,
+		adapter.HandleAddFavorite); recorder.Code != http.StatusOK {
+		t.Fatal(recorder.Body.String())
+	}
+	writeSupervisor(t, adapter, "MEGAVGM", "MODIFIED", "RUNNING",
+		filepath.Dir(selected))
+	makeFIFO(t, adapter.config.CommandPath)
+	writeExecutable(t, adapter.config.CtlPath)
+	writeFile(t, adapter.config.StatusPath, "state=PLAYING\nindex=not-a-number\n", 0644)
+
+	recorder := playlistHTTPRequest(t, http.MethodPost, "Favorites",
+		`{"index":0}`, adapter.HandlePlayPlaylist)
+	assertAPIError(t, recorder, http.StatusConflict, "controller_not_playing")
+	if invocations != 0 {
+		t.Fatalf("invalid status dispatched %d command(s)", invocations)
+	}
+	traces := readHandoffTraces(t, adapter)
+	var rejection playlistHandoffTrace
+	for _, trace := range traces {
+		if trace.Event == "playlist_http_response" && trace.Phase == "warm_admission" {
+			rejection = trace
+		}
+	}
+	if rejection.HTTPStatus != http.StatusConflict ||
+		rejection.ErrorCode != "controller_not_playing" ||
+		rejection.StatusError == "" || rejection.OperationID == 0 {
+		t.Fatalf("invalid status rejection trace=%#v", rejection)
+	}
+}
+
 func TestPlaylistPlayRejectsUnavailableDeterministically(t *testing.T) {
 	adapter := newTestAdapter(t, t.TempDir(), nil)
 	if recorder := request(t, http.MethodPost, strings.NewReader(`{"name":"Broken"}`), adapter.HandleCreatePlaylist); recorder.Code != 201 {

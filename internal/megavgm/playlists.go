@@ -90,6 +90,7 @@ type playlistHandoffTrace struct {
 	StatusSession  uint32   `json:"status_session,omitempty"`
 	Mismatched     []string `json:"mismatched_fields,omitempty"`
 	StatusError    string   `json:"status_error,omitempty"`
+	ErrorCode      string   `json:"error_code,omitempty"`
 	OperationID    uint64   `json:"operation_id,omitempty"`
 	Phase          string   `json:"phase,omitempty"`
 }
@@ -554,14 +555,17 @@ func (a *Adapter) tracePlaylistStatusDuringDispatch(ctx context.Context,
 	}
 }
 
-func (a *Adapter) controllerIsPlaying() bool {
+func (a *Adapter) readControllerPlaylistStatus() (playlistStatus, error) {
 	file, err := os.Open(a.config.StatusPath)
 	if err != nil {
-		return false
+		return playlistStatus{}, err
 	}
 	defer file.Close()
-	status, err := ParseStatus(file)
-	return err == nil && status.State == "PLAYING"
+	return ParseStatus(file)
+}
+
+func acceptsWarmPlaylistState(state string) bool {
+	return state == "PLAYING" || state == "STOPPED"
 }
 
 type supervisorCommandResult struct {
@@ -803,9 +807,31 @@ func (a *Adapter) HandlePlayPlaylist(w http.ResponseWriter, r *http.Request) {
 	} else if supervisor.Mode != "MEGAVGM" || supervisor.Main != "MODIFIED" || supervisor.Controller != "RUNNING" {
 		writeAPIError(w, 409, "supervisor_busy")
 		return
-	} else if !a.controllerIsPlaying() {
-		writeAPIError(w, 409, "controller_not_playing")
-		return
+	} else {
+		controllerStatus, statusErr := a.readControllerPlaylistStatus()
+		if statusErr != nil || !acceptsWarmPlaylistState(controllerStatus.State) {
+			statusError := ""
+			if statusErr != nil {
+				statusError = statusErr.Error()
+			}
+			a.appendPlaylistHandoffTrace(playlistHandoffTrace{
+				Event: "playlist_http_response", Playlist: name,
+				PlaylistCount: len(paths), SelectedIndex: start, Selected: selected,
+				ElapsedMS:  time.Since(requestStarted).Milliseconds(),
+				HTTPStatus: http.StatusConflict, Result: "rejected",
+				StatusState:    controllerStatus.State,
+				StatusContext:  controllerStatus.Context,
+				StatusPlaylist: controllerStatus.Playlist,
+				StatusPath:     controllerStatus.Path,
+				StatusIndex:    controllerStatus.Index,
+				StatusCount:    controllerStatus.Count,
+				StatusSession:  controllerStatus.Session,
+				StatusError:    statusError, ErrorCode: "controller_not_playing",
+				OperationID: operationID, Phase: "warm_admission",
+			})
+			writeAPIError(w, http.StatusConflict, "controller_not_playing")
+			return
+		}
 	}
 	if running, fifoErr := isFIFO(a.config.CommandPath); fifoErr != nil || !running || !isExecutable(a.config.CtlPath) {
 		writeAPIError(w, 503, "controller_unavailable")
