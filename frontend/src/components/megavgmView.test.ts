@@ -51,6 +51,11 @@ const active: MegaVGMStatus = {
   session: 27,
 };
 assert(megaVGMView(active) === "active", "MEGAVGM must render Now Playing");
+const preparing = { ...active, state: "PREPARING" };
+assert(
+  navigationEnabled(preparing, false) && stopEnabled(preparing, false),
+  "Next/Previous/Stop must remain available during SID preparation"
+);
 assert(
   lifecycleRequestSucceeded(active, "start"),
   "authoritative active status must reconcile a late Start response"

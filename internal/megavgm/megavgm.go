@@ -41,7 +41,7 @@ const (
 )
 
 var validStates = map[string]bool{
-	"IDLE": true, "LOADING": true, "PLAYING": true, "ENDED": true,
+	"IDLE": true, "PREPARING": true, "LOADING": true, "PLAYING": true, "ENDED": true,
 	"FATAL": true, "NEXT": true, "PREV": true, "SUSPENDED": true,
 	"PLAY": true, "STOPPED": true, "COMPLETE": true,
 }

@@ -227,7 +227,11 @@ export default function MegaVGMPlayer({
     ? transportDisplay.receipt?.path
     : undefined;
   const pendingLabel = (path: string) =>
-    switchingPath === path ? "Switching…" : "Loading…";
+    status.data?.state === "PREPARING" && status.data.path === path
+      ? "Preparing SID…"
+      : switchingPath === path
+      ? "Switching…"
+      : "Loading…";
   const shellRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const [optionsAnchor, setOptionsAnchor] = useState<HTMLElement | null>(null);
@@ -769,7 +773,7 @@ export default function MegaVGMPlayer({
                   width="100%"
                 >
                   <Box component="span" sx={trackTitleSx}>
-                    {entry.name.replace(/\.(?:vgm|mvgmsid)$/, "")}
+                    {entry.name.replace(/\.(?:vgm|mvgmsid|sid)$/, "")}
                   </Box>
                   {rowState === "pending" && (
                     <Box
@@ -1310,6 +1314,8 @@ export default function MegaVGMPlayer({
             <span role="status">
               {transportDisplay.switching
                 ? "Switching…"
+                : status.data?.state === "PREPARING"
+                ? "Preparing SID…"
                 : playTarget || status.data?.state === "LOADING"
                 ? "Loading…"
                 : displayState(status.data?.state)}

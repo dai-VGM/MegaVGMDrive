@@ -88,6 +88,9 @@ export function reducePlayOperation(
       s.path === operation.path &&
       (operation.expectedPlaylistIndex === undefined ||
         s.index === operation.expectedPlaylistIndex + 1);
+    if (active && targetMatches && s.state === "PREPARING") {
+      return { ...next, playbackProgressObserved: true, message: undefined };
+    }
     if (
       active &&
       newSession &&
@@ -170,6 +173,7 @@ export function reducePlayOperation(
     event.type === "expire" &&
     playOperationRemaining(operation, event.atMs) === 0
   ) {
+    if (operation.playbackProgressObserved) return operation;
     // No assertion that playback failed merely because a poll/ack was missed.
     return { ...operation, disposition: "invalidated", message: undefined };
   }

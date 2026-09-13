@@ -65,7 +65,7 @@ function lastPathComponent(path: string): string {
 export function displayDirectory(path: string | undefined): string {
   if (!path) return "Music Library";
   let directory = path;
-  if (/\.(?:vgm|mvgmsid)$/i.test(lastPathComponent(path))) {
+  if (/\.(?:vgm|mvgmsid|sid)$/i.test(lastPathComponent(path))) {
     const separator = path.lastIndexOf("/");
     directory = separator < 0 ? "" : path.slice(0, separator);
   }

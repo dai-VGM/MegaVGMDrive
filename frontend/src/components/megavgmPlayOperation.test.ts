@@ -137,6 +137,22 @@ assert(
 );
 o = observe(o, status(4, 4, 9000));
 retired(o, "late progress after timeout");
+// Raw SID preparation is authoritative progress before a new FPGA session.
+// It keeps the receipt alive past the ordinary 8s HTTP/loading UX bound, but
+// does not fabricate selected-track PLAYING success.
+o = observe(start(21, 1, 7), status(1, 7, 200, "PREPARING"));
+assert(
+  o.disposition === "pending" &&
+    o.playbackProgressObserved &&
+    !o.selectedPlayingObserved &&
+    o.selectedSession === undefined,
+  "PREPARING must be progress, not playback success"
+);
+o = step(o, { type: "expire", requestId: 21, atMs: 9000 });
+assert(o.disposition === "pending", "active preparation must not show timeout");
+o = observe(o, status(1, 8, 9100, "LOADING"));
+o = observe(o, status(1, 8, 9200, "PLAYING"));
+retired(o, "raw SID prepare to PLAYING");
 // Freshness: response to a poll started before tap, and out-of-order polls.
 o = observe(start(), status(1, 1, 99));
 assert(

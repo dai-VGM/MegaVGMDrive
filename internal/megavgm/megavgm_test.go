@@ -53,6 +53,15 @@ func TestParseValidPlayingStatus(t *testing.T) {
 	}
 }
 
+func TestParsePreparingSIDStatus(t *testing.T) {
+	content := strings.Replace(validStatus, "state=PLAYING", "state=PREPARING", 1)
+	content = strings.Replace(content, "04 Beyond the Galaxy.vgm", "Commando.sid", 1)
+	status, err := ParseStatus(strings.NewReader(content))
+	if err != nil || status.State != "PREPARING" || status.Title != "Commando" {
+		t.Fatalf("raw SID preparation status=%+v err=%v", status, err)
+	}
+}
+
 func TestParseStoppedStatusRetainsTrackIdentity(t *testing.T) {
 	status, err := ParseStatus(strings.NewReader(strings.Replace(
 		validStatus, "state=PLAYING", "state=STOPPED", 1)))

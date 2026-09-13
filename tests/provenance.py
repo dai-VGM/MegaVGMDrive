@@ -17,17 +17,25 @@ c5_frontend_changes = {
     'MegaVGMPlayer.tsx', 'megavgmFavorites.ts', 'megavgmPresentation.ts',
     'megavgmTransportDisplay.test.ts',
 }
+c6_backend_changes = {
+    'browse_play_test.go', 'megavgm.go', 'megavgm_test.go', 'track_files.go',
+}
+c6_frontend_changes = {
+    'MegaVGMPlayer.tsx', 'megavgmFavorites.ts', 'megavgmPlayOperation.test.ts',
+    'megavgmPlayOperation.ts', 'megavgmPresentation.ts', 'megavgmView.test.ts',
+    'megavgmView.ts',
+}
 for directory, commit in [(backend.parents[2], '6ef56324b91df854080f65f5c4c0f0535740b4ca'), (frontend.parents[1], '8dc1988b106276e215de5e3164a2307e90aa9017')]:
     assert subprocess.check_output(['git','rev-parse','HEAD'],cwd=directory,text=True).strip()==commit
 for p in sorted(backend.glob('*.go')):
-    if p.name in c5_backend_changes:
+    if p.name in c5_backend_changes | c6_backend_changes:
         continue
     expected=p.read_text()
     if p.name=='megavgm_test.go':
         expected=expected.replace('\treturn newAdapter(config, runner)\n', '\tadapter := newAdapter(config, runner)\n\tt.Cleanup(func() { retireFixture(adapter) })\n\treturn adapter\n')
     assert (root/'internal/megavgm'/p.name).read_text()==expected,p
 for p in sorted((root/'frontend/src/components').glob('*')):
-    if p.name == 'MegaVGMStandaloneStyles.tsx' or p.name in c5_frontend_changes:
+    if p.name == 'MegaVGMStandaloneStyles.tsx' or p.name in c5_frontend_changes | c6_frontend_changes:
         continue  # Dedicated shell or reviewed C5 prepared-SID integration.
     assert p.read_bytes()==(frontend/p.name).read_bytes(),p
 allowed = {
@@ -42,6 +50,23 @@ changed = set(subprocess.check_output(
 ).splitlines())
 assert changed == allowed, (sorted(changed - allowed), sorted(allowed - changed))
 print('Frozen backend/Player files match; C5 source delta is the exact reviewed allowlist')
+c6_allowed = {
+    'internal/megavgm/' + name for name in c6_backend_changes
+} | {
+    'frontend/src/components/' + name for name in c6_frontend_changes
+}
+c6_changed = set(subprocess.check_output(
+    ['git', 'diff', '--name-only', '98a7572..HEAD', '--',
+     'internal/megavgm', 'frontend/src/components'], cwd=root, text=True
+).splitlines())
+# Include the working tree while the C6 commit itself is being validated.
+c6_changed |= set(subprocess.check_output(
+    ['git', 'diff', '--name-only', '--', 'internal/megavgm',
+     'frontend/src/components'], cwd=root, text=True
+).splitlines())
+assert c6_changed == c6_allowed, (sorted(c6_changed - c6_allowed),
+                                  sorted(c6_allowed - c6_changed))
+print('C6 raw-SID/status/UI source delta is the exact reviewed allowlist')
 old=(backend.parent/'main.go').read_text()
 new=(root/'cmd/megavgm_remote/http.go').read_text()
 routes=lambda s: sorted(re.findall(r'HandleFunc\("(/megavgm[^\"]*)", \w+\.(\w+)\)\.Methods\("(\w+)"\)',s))

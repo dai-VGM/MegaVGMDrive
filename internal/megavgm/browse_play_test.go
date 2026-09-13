@@ -63,6 +63,7 @@ func TestBrowseRootNestedFilteringAndBytewiseOrder(t *testing.T) {
 		{Name: "Space Folder", Type: "directory"},
 		{Name: "Zeta", Type: "directory"},
 		{Name: "[Arcade]", Type: "directory"},
+		{Name: "raw.sid", Type: "file"},
 		{Name: "日本語", Type: "directory"},
 	}
 	if !reflect.DeepEqual(response.Entries, want) {
@@ -102,10 +103,17 @@ func TestPreparedSIDPlayUsesExistingSupervisorRoute(t *testing.T) {
 	if recorder.Code != http.StatusAccepted || len(invocation) != 5 || invocation[2] != "--start-file" || invocation[3] != canonicalSelected {
 		t.Fatalf("status=%d invocation=%#v body=%s", recorder.Code, invocation, recorder.Body.String())
 	}
-	for _, rejected := range []string{"raw.sid", "packed.mvgmsid2"} {
+	for _, rejected := range []string{"packed.mvgmsid2"} {
 		path := filepath.Join(adapter.config.DefaultPlaylistPath, rejected)
 		writeFile(t, path, "x", 0644)
 		assertAPIError(t, playRequest(t, adapter, path), http.StatusBadRequest, "invalid_vgm_path")
+	}
+	writeSupervisor(t, adapter, "STOCK", "STOCK", "STOPPED", "")
+	raw := filepath.Join(adapter.config.DefaultPlaylistPath, "raw.sid")
+	writeFile(t, raw, "PSID", 0644)
+	if response := playRequest(t, adapter, raw); response.Code != http.StatusAccepted {
+		t.Fatalf("raw SID was not admitted to the existing Supervisor route: %d %s",
+			response.Code, response.Body.String())
 	}
 }
 
