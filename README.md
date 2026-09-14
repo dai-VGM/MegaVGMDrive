@@ -12,6 +12,7 @@ See [release/README.md](release/README.md),
 [hardware acceptance](release/HARDWARE_CHECKLIST.md).
 
 Engine A/B routing decisions, Player semantics, transport/fade ownership, OSD,
-SID RTL/audio, and the 4 MiB Engine C capacity are unchanged. Prepared cache
-files are hidden outside the music library. Legacy v2.1 RBFs remain available
-for rollback.
+and SID RTL/audio are unchanged. The candidate raises the implementation
+capacity to 8 MiB without changing Packed MVGMSID v2 format; that capacity
+extension remains hardware-unverified. Prepared cache files are hidden outside
+the music library. Legacy v2.1 RBFs remain available for rollback.
