@@ -13,6 +13,8 @@ V2 = PROJECTS / 'MegaVGMPlayer_v2_Release_Final_Staging/MegaVGMPlayer-v2.0/media
 P1 = PROJECTS / 'MegaVGMPlayer_Standalone_Phase1/artifacts'
 HOST = ROOT / 'artifacts'
 TOOLING = PROJECTS / 'MegaVGMPlayer_EngineC_PhaseC6/tools/engine_c_c6'
+TOOLING_COMMIT = '6aee1ee2abad8555d2a9c34b1fd7b20f3ad295d9'
+MISSTAMPED_TOOLING_COMMIT = '81fa235b7f6ef180b6c6392a042502952e72252e'
 ITEMS = [
  ('_Custom Cores/Cores/MegaVGMDrive_A.rbf', V2 / '_Custom Cores/Cores/MegaVGMPlayer_Transport13FadeOnly_A_MiSTer.rbf', '5755b74d9b1e10e1da1d6c101892bc95ca8960851a851cc9076d1861c9571f1e', 'byte-identical v2.1 Engine A; QSF 67d7fa2922114852d315536daac79f83a0c40f1b; functional 4488ac0a518f3713cc5b38364aa226e5eded0e27'),
  ('_Custom Cores/Cores/MegaVGMDrive_B.rbf', V2 / '_Custom Cores/Cores/MegaVGMPlayer_Transport13FadeOnly_B_MiSTer.rbf', 'b435417f268a81a39af6bf2408f364945d151e391425775ab7d01ed4899bec95', 'byte-identical v2.1 Engine B; c59009f320f2e1d8db9e3582ee04a61ed18d47a3'),
@@ -49,9 +51,23 @@ def main():
     out = Path(sys.argv[1]).resolve()
     if out.exists():
         raise SystemExit('Refusing to overwrite existing staging: '+str(out))
+    actual_tooling_commit = subprocess.check_output(
+        ['git', '-C', str(TOOLING), 'rev-parse', '--verify', 'HEAD^{commit}'],
+        text=True,
+    ).strip()
+    assert actual_tooling_commit == TOOLING_COMMIT, (
+        actual_tooling_commit, 'tooling source commit mismatch')
+    tooling_status = subprocess.check_output(
+        ['git', '-C', str(TOOLING), 'status', '--porcelain=v1',
+         '--untracked-files=normal'], text=True)
+    assert not tooling_status, ('tooling source checkout is dirty', tooling_status)
     sources = ITEMS
     for rel, source, expected, _ in sources:
         assert sha(source) == expected, (source, 'frozen SHA mismatch')
+    preparer_bytes = (HOST / 'megavgm_sid_prepare').read_bytes()
+    assert TOOLING_COMMIT.encode() in preparer_bytes, 'preparer source commit missing'
+    assert MISSTAMPED_TOOLING_COMMIT.encode() not in preparer_bytes, (
+        'preparer contains superseded source commit')
     out.mkdir(parents=True)
     manifest = ['# MegaVGMPlayer v2.2 — Engine C C6 production candidate', '',
       'Raw single-SID files are prepared on demand into Packed MVGMSID v2 before entering the unchanged production A/B/C switching contract. SID RTL/audio, transport, OSD, and A/B classifier decisions are unchanged.',
