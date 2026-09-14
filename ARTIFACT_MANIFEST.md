@@ -11,7 +11,7 @@ source artifact passes its frozen SHA gate.
 | Supervisor | `5bddeee892e8d8280fef55313d76d85ed492156a` | `201119a748b039b2110f27a5293faf4a6c1684df2b8c1bb7da9a7eccb6097740` | shared classifier accepts Packed v2 through exact 8 MiB; C6 routing and prerequisite semantics unchanged |
 | Controller | `5bddeee892e8d8280fef55313d76d85ed492156a` | `87713696860a1dc57514cf9d82a18a66eefee14356bd34ca4fac6f58086f9ceb` | shared classifier accepts Packed v2 through exact 8 MiB; 120-second prepare watchdog/cancellation contract unchanged |
 | Standalone Remote | `9f13f04d0117036809fa06c756540e92df8bfd50` | `4f8a6762441291ccc6bc0c8ce395937197b5a27a7aca06698de15e967f2a05bb` | `.sid` discovery plus PREPARING/status/UI pass-through; exact PLAYING/STOPPED playlist warm admission; authoritative switch generation retires Loading across equal-number session rebases; `assets/megavgm-f6c226d2.js` |
-| SID preparer | `6aee1ee2abad8555d2a9c34b1fd7b20f3ad295d9` | `d3213f73cdb9926759f728b06c29f98cf2d8231b7ed0ee838204fa8d523b8661` | static ARM; explicit `capacity_bytes=8388608` cache identity/provenance; atomic publication plus parent-directory fsync |
+| SID preparer | `6aee1ee2abad8555d2a9c34b1fd7b20f3ad295d9` | `0166decd284e88ce3c4dea00e9ccf6da068293f124c1b3a5a22e9b982a93ec74` | static ARM; embedded source commit verified by clean-checkout build guard; explicit `capacity_bytes=8388608` cache identity/provenance; atomic publication plus parent-directory fsync |
 | libsidplayfp | 3.1.1 / `732fa8ec8131fc75aafc2eaea583ddcdeea2a3cc` | archive `12b79190593bf480b2d11481b5c2de62bac07f344437a66cd8d887329875c626` | exact upstream source plus observer patch and GPL text included |
 
 Main, importer, and helper remain frozen. Old RBF files are not package targets

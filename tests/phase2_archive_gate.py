@@ -30,13 +30,16 @@ assert rbfs==['_Custom Cores/Cores/MegaVGMDrive_A.rbf',
               '_Custom Cores/Cores/MegaVGMDrive_C.rbf']
 assert len([p for p in (package/'media/fat').rglob('*') if p.is_file()])==10
 preparer=package/'media/fat/MegaVGMPlayer/megavgm_sid_prepare'
-assert hashlib.sha256(preparer.read_bytes()).hexdigest()=='d3213f73cdb9926759f728b06c29f98cf2d8231b7ed0ee838204fa8d523b8661'
+assert hashlib.sha256(preparer.read_bytes()).hexdigest()=='0166decd284e88ce3c4dea00e9ccf6da068293f124c1b3a5a22e9b982a93ec74'
+assert b'6aee1ee2abad8555d2a9c34b1fd7b20f3ad295d9' in preparer.read_bytes()
+assert b'81fa235b7f6ef180b6c6392a042502952e72252e' not in preparer.read_bytes()
 source=package/'source/megavgm_sid_prepare'
 assert hashlib.sha256((source/'libsidplayfp-3.1.1.tar.gz').read_bytes()).hexdigest()=='12b79190593bf480b2d11481b5c2de62bac07f344437a66cd8d887329875c626'
 assert (source/'COPYING').is_file()
 assert (source/'patches/libsidplayfp-3.1.1-write-observer.patch').is_file()
 assert (source/'native/megavgm_sid_prepare.cpp').is_file()
 assert (source/'native/test_packed_v2_capacity.cpp').is_file()
+assert (source/'production_build_arm.sh').is_file()
 expected = {
     'MegaVGMDrive_A.rbf': '5755b74d9b1e10e1da1d6c101892bc95ca8960851a851cc9076d1861c9571f1e',
     'MegaVGMDrive_B.rbf': 'b435417f268a81a39af6bf2408f364945d151e391425775ab7d01ed4899bec95',
@@ -48,7 +51,7 @@ for name, sha in expected.items():
 runtime_expected = {
     'megavgm_playlist-phase2a': '87713696860a1dc57514cf9d82a18a66eefee14356bd34ca4fac6f58086f9ceb',
     'megavgm_supervisor': '201119a748b039b2110f27a5293faf4a6c1684df2b8c1bb7da9a7eccb6097740',
-    'megavgm_sid_prepare': 'd3213f73cdb9926759f728b06c29f98cf2d8231b7ed0ee838204fa8d523b8661',
+    'megavgm_sid_prepare': '0166decd284e88ce3c4dea00e9ccf6da068293f124c1b3a5a22e9b982a93ec74',
 }
 for name, expected_sha in runtime_expected.items():
     data=(package/'media/fat/MegaVGMPlayer'/name).read_bytes()

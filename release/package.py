@@ -20,7 +20,7 @@ ITEMS = [
  ('MegaVGMPlayer/MiSTer.megavgm', V2 / 'MegaVGMPlayer/MiSTer.megavgm', 'a0e7b7d3557457a80ecd62a6bb4643585c33b78fbe515a7a7a5783b05b5addb5', 'a409745a00ca428999e909edb69646f1a5fc62d4; existing v2.0 Main, dynamically linked by design'),
  ('MegaVGMPlayer/megavgm_supervisor', HOST / 'megavgm-c6-capacity-8m-5bddeee-arm/megavgm_supervisor', '201119a748b039b2110f27a5293faf4a6c1684df2b8c1bb7da9a7eccb6097740', '5bddeee892e8d8280fef55313d76d85ed492156a; static ARM; shared Packed-v2 classifier accepts exact 8 MiB while preserving C6 production routing and prerequisite admission'),
  ('MegaVGMPlayer/megavgm_playlist-phase2a', HOST / 'megavgm-c6-capacity-8m-5bddeee-arm/megavgm_playlist', '87713696860a1dc57514cf9d82a18a66eefee14356bd34ca4fac6f58086f9ceb', '5bddeee892e8d8280fef55313d76d85ed492156a; static ARM; shared Packed-v2 classifier accepts exact 8 MiB; existing 120-second watchdog and bounded cancellation contract unchanged'),
- ('MegaVGMPlayer/megavgm_sid_prepare', HOST / 'megavgm_sid_prepare', 'd3213f73cdb9926759f728b06c29f98cf2d8231b7ed0ee838204fa8d523b8661', '6aee1ee2abad8555d2a9c34b1fd7b20f3ad295d9; static ARM; 8 MiB capacity policy in cache identity/provenance; atomic Packed MVGMSID v2 pair publication with parent-directory fsync'),
+ ('MegaVGMPlayer/megavgm_sid_prepare', HOST / 'megavgm_sid_prepare', '0166decd284e88ce3c4dea00e9ccf6da068293f124c1b3a5a22e9b982a93ec74', '6aee1ee2abad8555d2a9c34b1fd7b20f3ad295d9; static ARM; reproducible clean-checkout guard; 8 MiB capacity policy in cache identity/provenance; atomic Packed MVGMSID v2 pair publication with parent-directory fsync'),
  ('Scripts/vgm_md_import.sh', V2 / 'Scripts/vgm_md_import.sh', '700542daaeac0f59998d23a868073e6c6c165a4c350fc1119de28456f5f59103', 'e01c872d6854edce77c1fbc7a8f68239f8ecf045; unchanged importer'),
  ('MegaVGMPlayer/megavgm_remote', HOST / 'megavgm_remote-c6-loading-reconcile-9f13f04', '4f8a6762441291ccc6bc0c8ce395937197b5a27a7aca06698de15e967f2a05bb', '9f13f04d0117036809fa06c756540e92df8bfd50; static ARM; exact PLAYING/STOPPED playlist warm admission plus authoritative switch-generation Loading reconciliation; embedded assets/megavgm-f6c226d2.js'),
  ('Scripts/megavgm_ctl', P1 / 'megavgm_ctl.production', '378905c80c22f0b072e248d6fdb67238f2727a38287f4407b2596c8c2a9ae45b', '9e2dd45fbd986378bbdaba326d8e722df2b89c27; exact five compile inputs, official GCC 10.2 static stripped + GNU OSABI'),
@@ -40,6 +40,7 @@ SOURCE_ITEMS = [
  ('native/test_packed_v2_capacity.cpp', TOOLING / 'native/test_packed_v2_capacity.cpp'),
  ('native/sha256.cpp', TOOLING / 'native/sha256.cpp'),
  ('native/sha256.h', TOOLING / 'native/sha256.h'),
+ ('production_build_arm.sh', ROOT / 'release/build_sid_preparer_arm.sh'),
 ]
 def sha(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()

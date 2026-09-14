@@ -11,7 +11,7 @@ Packed-v2 format, and transport/fade contracts are unchanged.
 | Controller | `5bddeee892e8d8280fef55313d76d85ed492156a` | `87713696860a1dc57514cf9d82a18a66eefee14356bd34ca4fac6f58086f9ceb`; Packed-v2 classifier accepts exact 8 MiB; existing 120-second watchdog, 60-second profile/session timeout, and bounded cancel/reap remain unchanged |
 | Supervisor | `5bddeee892e8d8280fef55313d76d85ed492156a` | `201119a748b039b2110f27a5293faf4a6c1684df2b8c1bb7da9a7eccb6097740`; shared Packed-v2 classifier accepts exact 8 MiB; production default and exact direct-member admission remain unchanged |
 | Standalone Remote/frontend | `9f13f04d0117036809fa06c756540e92df8bfd50` | `4f8a6762441291ccc6bc0c8ce395937197b5a27a7aca06698de15e967f2a05bb`; exact PLAYING/STOPPED playlist warm admission and status/error/operation trace; authoritative transport epoch/switch generation retires local Loading across legal equal-number session rebases; embedded `assets/megavgm-f6c226d2.js` SHA `6f7aed749a58c8ae87e7f231e6d12bff11d86f6581b20b637d89c3b42b93bba1` |
-| Direct Packed-v2 SID preparer | `6aee1ee2abad8555d2a9c34b1fd7b20f3ad295d9` | `d3213f73cdb9926759f728b06c29f98cf2d8231b7ed0ee838204fa8d523b8661`; cache key and provenance include `capacity_bytes=8388608` |
+| Direct Packed-v2 SID preparer | `6aee1ee2abad8555d2a9c34b1fd7b20f3ad295d9` | `0166decd284e88ce3c4dea00e9ccf6da068293f124c1b3a5a22e9b982a93ec74`; embedded converter commit is the exact source authority; cache key and provenance include `capacity_bytes=8388608` |
 | Engine C Packed-v2 RBF | RTL `1a66fcb5e0eaf963fc57a40d78c580f79ce591f5` | `efb29a236cb5858d00d462bb049ad9d65d8dea55c7b7bb50afc3434a8967a633`; 2,677,904 bytes; Windows Quartus Full Compilation; hardware validation pending |
 
 The preparer statically links libsidplayfp 3.1.1, fixed upstream commit
@@ -20,6 +20,13 @@ The preparer statically links libsidplayfp 3.1.1, fixed upstream commit
 The release carries that archive, GPL-2.0-or-later text, exact observer patch,
 preparer source, dependency lock, tests, and native/ARM build recipes under
 `source/megavgm_sid_prepare/`. No Commodore ROM or SID tune is included.
+
+The production ARM build uses `production_build_arm.sh` around the authority
+commit's unchanged `build_arm.sh`. The guard requires an explicit full source
+SHA, proves that it equals the checkout's real `HEAD`, and rejects tracked or
+untracked dirt before compilation. The production build was made from an
+independent detached checkout at `6aee1ee2abad8555d2a9c34b1fd7b20f3ad295d9`;
+it does not follow a host linked-worktree `.git` pointer inside the Lima VM.
 
 The hook executes immediately before `sidemu::writeReg(addr,data)` reaches the
 emulator and records native PHI1 cycle, SID index, register, and data. It does

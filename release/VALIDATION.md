@@ -36,6 +36,14 @@ WRITE or address wrap. FPGA upload accepts final byte `0x7fffff` and rejects
 machine-readable provenance include `capacity_bytes=8388608`, preventing old
 4 MiB-policy Volfied cache entries from becoming new-policy hits.
 
+The production preparer build is guarded by an explicit full source commit.
+The guard verifies the independent checkout's actual `HEAD`, rejects any
+tracked or untracked dirt, and only then invokes the authority commit's existing
+ARM build script. The packaged binary embeds
+`6aee1ee2abad8555d2a9c34b1fd7b20f3ad295d9`; a cache produced by the superseded
+mis-stamped `81fa235b7f6ef180b6c6392a042502952e72252e` binary is therefore a strict
+cache miss and remains untouched on disk.
+
 Controller and Supervisor ARM/QEMU suites cover AAA, BBB, CCC, AABBA, CCCCC,
 ACCA, BCB, ABCBA, ACBCA, same-profile zero reload, cross-profile exact switch
 counts, generation/domain rebase, races, repeats, shuffle, invalid input, strict
