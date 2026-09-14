@@ -13,9 +13,10 @@ identityを保持し、cache fileはBrowseへ表示しません。
 /media/fat/_Custom Cores/Cores/MegaVGMDrive_C.rbf
 ```
 
-Engine A/Bはv2.1実機PASS RBFのbyte-identical copyです。Engine Cは実機確認済み
-Packed v2 artifact (`0f205de6…`)そのものを最終pathから使用します。C→CはRBFを
-reloadせず、A↔C/B↔Cは既存fade/park/switch/rebind transactionを使います。
+Engine A/Bはv2.1実機PASS RBFのbyte-identical copyです。Engine Cは8 MiB Packed-v2
+RTL authorityからWindows QuartusでFull Compilationしたartifact (`efb29a23…`)を
+最終pathから使用します。拡張容量は実機未確認です。C→CはRBFをreloadせず、
+A↔C/B↔Cは既存fade/park/switch/rebind transactionを使います。
 
 3つのCORENAMEはすべて正確に`MegaVGMDrive`のままです。
 
@@ -32,6 +33,10 @@ C64 ROMや著作権SID曲は同梱しません。
 
 durationはoptional `MegaVGMPlayer/sid/Songlengths.md5`のcontent-MD5+subtune照合、
 exact sidecar、300秒capture limitの順です。basename照合やloop推測はしません。
+
+prepared file上限はexact 8 MiBです。Packed MVGMSID v2のformat/versionは変更しません。
+cache keyには`capacity_bytes=8388608`を含めるため、旧4 MiB cacheはdiskに残りますが
+このbuildのcache hitにはなりません。
 
 ## install / upgrade
 
@@ -97,7 +102,6 @@ v2.1 Supervisorが元のexact pathを使用できます。install後のユーザ
 
 ## 範囲
 
-今回RBF再合成は行いません。A/B RBF、Main、importer、transport、OSD、音源実装は
-変更していません。host/Remote変更はraw SID discovery、prepare ownership、PREPARING
-publication、既存strict PROFILE_C handoffに限定しています。C6 production統合の実機PASSは
-同梱checklistをユーザーが完了するまで報告しません。
+8 MiB storage/parser上限のためEngine Cだけを再compileしました。A/B RBF、Main、Remote、
+Frontend、importer、transport、OSD、音源実装は変更していません。C6 production統合の
+実機PASSは同梱checklistをユーザーが完了するまで報告しません。

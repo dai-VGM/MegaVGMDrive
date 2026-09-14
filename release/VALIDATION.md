@@ -4,15 +4,15 @@
 
 - A: `5755b74d9b1e10e1da1d6c101892bc95ca8960851a851cc9076d1861c9571f1e`.
 - B: `b435417f268a81a39af6bf2408f364945d151e391425775ab7d01ed4899bec95`.
-- C: `0f205de6ab30e86477fdf1b0797e82158cc5b14fdfa37e7011f3c94cbb72c479`,
-  2,669,332 bytes, Packed v2 RTL commit
-  `53291cd59a64dee7c3c4edb5a2f0f0a8e69c99db`, QPF
+- C: `efb29a236cb5858d00d462bb049ad9d65d8dea55c7b7bb50afc3434a8967a633`,
+  2,677,904 bytes, 8 MiB Packed-v2 RTL commit
+  `1a66fcb5e0eaf963fc57a40d78c580f79ce591f5`, QPF
   `hw/engine_c_packed_v2/MegaVGMPlayer_EngineC_PackedV2_Validation_MiSTer.qpf`,
-  macro-selected CORENAME `MegaVGMDrive`.
+  `C2_MAX_FILE_BYTES=8388608`, macro-selected CORENAME `MegaVGMDrive`.
 
-The exact C bytes completed the user-reported Commando Packed v2 270-second and
-Volfied digi/voice hardware tests. This evidence fixes the RBF provenance; it
-does not claim the new production host integration has passed hardware testing.
+The C bytes are a Windows Quartus Full Compilation from the stated source
+authority. Existing 4 MiB C hardware evidence belongs to the superseded RBF;
+the new 8 MiB capacity and production host integration remain hardware-unverified.
 
 ## Host contract
 
@@ -28,6 +28,13 @@ the emulator write using the native PHI1 cycle. Tests cover cache hit/miss,
 source/version identity, corruption regeneration, concurrent producers,
 unknown metadata, malformed/multi-SID input, exact sidecars, duration DB hit and
 miss, deterministic Packed v2 output, and C1→Packed-v2 byte equivalence.
+
+The implementation maximum is exact 8 MiB. Native, classifier, and RTL tests
+accept 4 MiB+1, 8 MiB-1, and exact 8 MiB; 8 MiB+1 is rejected without partial
+WRITE or address wrap. FPGA upload accepts final byte `0x7fffff` and rejects
+`0x800000`. Packed-v2 format/version is unchanged. Cache identity and
+machine-readable provenance include `capacity_bytes=8388608`, preventing old
+4 MiB-policy Volfied cache entries from becoming new-policy hits.
 
 Controller and Supervisor ARM/QEMU suites cover AAA, BBB, CCC, AABBA, CCCCC,
 ACCA, BCB, ABCBA, ACBCA, same-profile zero reload, cross-profile exact switch

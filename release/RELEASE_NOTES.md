@@ -5,6 +5,9 @@
 - Frozen MVGMSID v1 remains supported by the same Engine C RBF.
 - Raw single-SID `.sid` files now appear in Browse and are prepared on demand
   into a persistent, strictly validated Packed v2 cache on MiSTer.
+- Packed-v2 capacity is raised from 4 MiB to exact 8 MiB without a format or
+  version change. Cache identity includes `capacity_bytes=8388608`, so existing
+  4 MiB-policy cache files remain untouched but are not reused by this build.
 - Cache misses publish authoritative `Preparing SID…`; cache hits use the
   normal C5 load path. Stop/Next/Previous/new Play cancel the prior preparation.
 - Pinned libsidplayfp 3.1.1 captures actual SID bus WRITEs at native PHI1 cycle
@@ -19,7 +22,8 @@
 - Long raw-SID engine switches clear the optimistic `Loading…` receipt from the
   authoritative switch generation even when the new RBF rebases to the same
   numeric session; raw `.sid` remains the user-visible identity.
-- Engine A/B payloads are byte-identical to v2.1; no FPGA resynthesis occurred.
+- Engine A/B payloads are byte-identical to v2.1. Engine C was rebuilt from the
+  fixed 8 MiB RTL authority; its extended capacity awaits MiSTer validation.
 - Legacy v2.1 RBFs are preserved and may coexist with the new names.
 - The package includes matching exact-path Supervisor/controller builds and a
   transactional v2.1-to-v2.2 rollback path.

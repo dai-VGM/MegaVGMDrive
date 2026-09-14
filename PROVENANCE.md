@@ -1,16 +1,18 @@
-# Frozen inputs, C6 preparer, and helper provenance
+# Frozen inputs, C6 8 MiB preparer, and helper provenance
 
 ## Engine C C6 raw SID auto prepare
 
-The C6 runtime adds three source lineages without changing any RBF, Main, SID
-RTL/audio, Packed-v2 format, or transport/fade contract.
+The current C6 candidate combines the 8 MiB preparer/classifier policy with a
+matching Engine C Full Compilation. Main, Remote, Frontend, SID audio logic,
+Packed-v2 format, and transport/fade contracts are unchanged.
 
 | Component | Exact source commit | ARM artifact SHA-256 |
 |---|---|---|
-| Controller | `ae16cc33cb69eace9b875bb33dff9d673801bf2c` | `2744748c79e0469360569df5835c1494f26bc508e15d324482b31dfac85c7613`; 120-second cold SID prepare watchdog with unchanged 60-second profile/session timeout, bounded SIGTERM/SIGKILL reap, and exact child-PID temporary-payload cleanup |
-| Supervisor | `48f61a29bfb2c12eb63920914ee815bb3978f697` | `0e6ecabf5403ba7029129c8b3f9837223a9b30f60a28954fb2e3fad5d50692ac`; production default remains `PHASE2A_AUTO`; prerequisite admission accepts exact-case direct `.vgm`, `.mvgmsid`, and raw `.sid` members without relaxing regular-file or direct-child checks |
+| Controller | `5bddeee892e8d8280fef55313d76d85ed492156a` | `87713696860a1dc57514cf9d82a18a66eefee14356bd34ca4fac6f58086f9ceb`; Packed-v2 classifier accepts exact 8 MiB; existing 120-second watchdog, 60-second profile/session timeout, and bounded cancel/reap remain unchanged |
+| Supervisor | `5bddeee892e8d8280fef55313d76d85ed492156a` | `201119a748b039b2110f27a5293faf4a6c1684df2b8c1bb7da9a7eccb6097740`; shared Packed-v2 classifier accepts exact 8 MiB; production default and exact direct-member admission remain unchanged |
 | Standalone Remote/frontend | `9f13f04d0117036809fa06c756540e92df8bfd50` | `4f8a6762441291ccc6bc0c8ce395937197b5a27a7aca06698de15e967f2a05bb`; exact PLAYING/STOPPED playlist warm admission and status/error/operation trace; authoritative transport epoch/switch generation retires local Loading across legal equal-number session rebases; embedded `assets/megavgm-f6c226d2.js` SHA `6f7aed749a58c8ae87e7f231e6d12bff11d86f6581b20b637d89c3b42b93bba1` |
-| Direct Packed-v2 SID preparer | `ff6904fbaf22ea2d4db2a487e14c7e9cf5a7a914` | `4dbb5cd5d918c14fab9f25783f7e2d0c7acbbcf84086cc9abc04e017cde5f87b` |
+| Direct Packed-v2 SID preparer | `6aee1ee2abad8555d2a9c34b1fd7b20f3ad295d9` | `d3213f73cdb9926759f728b06c29f98cf2d8231b7ed0ee838204fa8d523b8661`; cache key and provenance include `capacity_bytes=8388608` |
+| Engine C Packed-v2 RBF | RTL `1a66fcb5e0eaf963fc57a40d78c580f79ce591f5` | `efb29a236cb5858d00d462bb049ad9d65d8dea55c7b7bb50afc3434a8967a633`; 2,677,904 bytes; Windows Quartus Full Compilation; hardware validation pending |
 
 The preparer statically links libsidplayfp 3.1.1, fixed upstream commit
 `732fa8ec8131fc75aafc2eaea583ddcdeea2a3cc`. The exact upstream archive SHA is
@@ -24,6 +26,12 @@ emulator and records native PHI1 cycle, SID index, register, and data. It does
 not poll registers, reconstruct snapshots, or generate MVGMSID v1. The raw SID
 path preserves the original track as queue/status identity; only a strictly
 validated atomic cache artifact is passed to the existing PROFILE_C classifier.
+
+The 8 MiB conversion policy changes output identity without changing Packed
+MVGMSID v2 format/version. The cache key explicitly includes
+`capacity_bytes=8388608`, so a valid 4 MiB-policy cache remains on disk but
+cannot be selected as a new-policy hit. The new preparer publishes under the
+new key after the existing strict payload/provenance validation contract.
 
 Release installer commit `bde4bef` treats package bytes as the deployment
 authority. It re-hashes every installed production target, restarts the

@@ -30,19 +30,28 @@ assert rbfs==['_Custom Cores/Cores/MegaVGMDrive_A.rbf',
               '_Custom Cores/Cores/MegaVGMDrive_C.rbf']
 assert len([p for p in (package/'media/fat').rglob('*') if p.is_file()])==10
 preparer=package/'media/fat/MegaVGMPlayer/megavgm_sid_prepare'
-assert hashlib.sha256(preparer.read_bytes()).hexdigest()=='4dbb5cd5d918c14fab9f25783f7e2d0c7acbbcf84086cc9abc04e017cde5f87b'
+assert hashlib.sha256(preparer.read_bytes()).hexdigest()=='d3213f73cdb9926759f728b06c29f98cf2d8231b7ed0ee838204fa8d523b8661'
 source=package/'source/megavgm_sid_prepare'
 assert hashlib.sha256((source/'libsidplayfp-3.1.1.tar.gz').read_bytes()).hexdigest()=='12b79190593bf480b2d11481b5c2de62bac07f344437a66cd8d887329875c626'
 assert (source/'COPYING').is_file()
 assert (source/'patches/libsidplayfp-3.1.1-write-observer.patch').is_file()
 assert (source/'native/megavgm_sid_prepare.cpp').is_file()
+assert (source/'native/test_packed_v2_capacity.cpp').is_file()
 expected = {
     'MegaVGMDrive_A.rbf': '5755b74d9b1e10e1da1d6c101892bc95ca8960851a851cc9076d1861c9571f1e',
     'MegaVGMDrive_B.rbf': 'b435417f268a81a39af6bf2408f364945d151e391425775ab7d01ed4899bec95',
-    'MegaVGMDrive_C.rbf': '0f205de6ab30e86477fdf1b0797e82158cc5b14fdfa37e7011f3c94cbb72c479',
+    'MegaVGMDrive_C.rbf': 'efb29a236cb5858d00d462bb049ad9d65d8dea55c7b7bb50afc3434a8967a633',
 }
 for name, sha in expected.items():
     data=(package/'media/fat/_Custom Cores/Cores'/name).read_bytes()
     assert hashlib.sha256(data).hexdigest()==sha,name
+runtime_expected = {
+    'megavgm_playlist-phase2a': '87713696860a1dc57514cf9d82a18a66eefee14356bd34ca4fac6f58086f9ceb',
+    'megavgm_supervisor': '201119a748b039b2110f27a5293faf4a6c1684df2b8c1bb7da9a7eccb6097740',
+    'megavgm_sid_prepare': 'd3213f73cdb9926759f728b06c29f98cf2d8231b7ed0ee838204fa8d523b8661',
+}
+for name, expected_sha in runtime_expected.items():
+    data=(package/'media/fat/MegaVGMPlayer'/name).read_bytes()
+    assert hashlib.sha256(data).hexdigest()==expected_sha,name
 print('ZIP/internal SHA256SUMS/payload exclusions/canonical paths PASS',digest)
 print('EXTRACTED_PACKAGE',package)

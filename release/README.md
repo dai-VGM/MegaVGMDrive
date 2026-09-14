@@ -15,9 +15,10 @@ status identity; cache files are not shown in Browse.
 ```
 
 Engine A and B remain byte-identical copies of the v2.1 production RBFs. Engine C
-is the exact hardware-validated Packed v2 artifact (`0f205de6…`) and is routed
-through its final path. Same-profile C→C keeps the resident RBF; A↔C and B↔C use
-the established fade/park/switch/rebind transaction.
+is the Windows Quartus Full Compilation of the 8 MiB Packed-v2 RTL authority
+(`efb29a23…`) and is routed through its final path. Its extended capacity awaits
+MiSTer validation. Same-profile C→C keeps the resident RBF; A↔C and B↔C use the
+established fade/park/switch/rebind transaction.
 
 All three RBFs keep the exact core name `MegaVGMDrive`. Do not rename CORENAME
 to include A, B, or C.
@@ -39,6 +40,10 @@ tune is included.
 Duration priority is an optional `MegaVGMPlayer/sid/Songlengths.md5` exact
 content-MD5/subtune lookup, then an exact sidecar duration, then a documented
 300-second capture limit. No basename matching or loop guessing is used.
+
+The prepared-file limit is exact 8 MiB. This does not change Packed MVGMSID v2
+format/version. The cache key contains `capacity_bytes=8388608`; an old 4 MiB
+cache remains on disk but is not reused by this build.
 
 ## Install or upgrade
 
@@ -112,8 +117,7 @@ Later user edits cause rollback to refuse rather than overwrite them.
 
 ## Scope
 
-No RBF was synthesized for this integration. A/B RBF bytes, Main, importer,
-transport, OSD, and chip implementation are unchanged. Host/Remote changes are
-limited to raw-SID discovery, preparation ownership, PREPARING publication, and
-the existing strict PROFILE_C handoff. Production C6 integration still requires the
-included MiSTer checklist; host/QEMU results are not reported as hardware PASS.
+Only Engine C was recompiled for the 8 MiB storage/parser limit. A/B RBF bytes,
+Main, Remote, Frontend, importer, transport, OSD, and chip implementation are
+unchanged. Production C6 integration still requires the included MiSTer
+checklist; host/QEMU and Quartus results are not reported as hardware PASS.

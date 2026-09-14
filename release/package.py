@@ -16,11 +16,11 @@ TOOLING = PROJECTS / 'MegaVGMPlayer_EngineC_PhaseC6/tools/engine_c_c6'
 ITEMS = [
  ('_Custom Cores/Cores/MegaVGMDrive_A.rbf', V2 / '_Custom Cores/Cores/MegaVGMPlayer_Transport13FadeOnly_A_MiSTer.rbf', '5755b74d9b1e10e1da1d6c101892bc95ca8960851a851cc9076d1861c9571f1e', 'byte-identical v2.1 Engine A; QSF 67d7fa2922114852d315536daac79f83a0c40f1b; functional 4488ac0a518f3713cc5b38364aa226e5eded0e27'),
  ('_Custom Cores/Cores/MegaVGMDrive_B.rbf', V2 / '_Custom Cores/Cores/MegaVGMPlayer_Transport13FadeOnly_B_MiSTer.rbf', 'b435417f268a81a39af6bf2408f364945d151e391425775ab7d01ed4899bec95', 'byte-identical v2.1 Engine B; c59009f320f2e1d8db9e3582ee04a61ed18d47a3'),
- ('_Custom Cores/Cores/MegaVGMDrive_C.rbf', PROJECTS / 'MegaVGMPlayer_EngineC_PackedV2_Validation_MiSTer.rbf', '0f205de6ab30e86477fdf1b0797e82158cc5b14fdfa37e7011f3c94cbb72c479', 'exact Packed v2 hardware-validation RBF; RTL 53291cd59a64dee7c3c4edb5a2f0f0a8e69c99db; QPF hw/engine_c_packed_v2/MegaVGMPlayer_EngineC_PackedV2_Validation_MiSTer.qpf; CORENAME MegaVGMDrive'),
+ ('_Custom Cores/Cores/MegaVGMDrive_C.rbf', PROJECTS / 'MegaVGMPlayer_EngineC_PackedV2_Validation_MiSTer.rbf', 'efb29a236cb5858d00d462bb049ad9d65d8dea55c7b7bb50afc3434a8967a633', 'Windows Quartus Full Compilation from 8 MiB Packed-v2 RTL 1a66fcb5e0eaf963fc57a40d78c580f79ce591f5; QPF hw/engine_c_packed_v2/MegaVGMPlayer_EngineC_PackedV2_Validation_MiSTer.qpf; C2_MAX_FILE_BYTES=8388608; CORENAME MegaVGMDrive; hardware validation pending'),
  ('MegaVGMPlayer/MiSTer.megavgm', V2 / 'MegaVGMPlayer/MiSTer.megavgm', 'a0e7b7d3557457a80ecd62a6bb4643585c33b78fbe515a7a7a5783b05b5addb5', 'a409745a00ca428999e909edb69646f1a5fc62d4; existing v2.0 Main, dynamically linked by design'),
- ('MegaVGMPlayer/megavgm_supervisor', HOST / 'megavgm-c6-sid-member-arm-48f61a2-exact/megavgm_supervisor', '0e6ecabf5403ba7029129c8b3f9837223a9b30f60a28954fb2e3fad5d50692ac', '48f61a29bfb2c12eb63920914ee815bb3978f697; static ARM; C6 production default plus exact .vgm/.mvgmsid/.sid direct-member prerequisite admission'),
- ('MegaVGMPlayer/megavgm_playlist-phase2a', HOST / 'megavgm-c6-watchdog-ae16cc3-arm/megavgm_playlist', '2744748c79e0469360569df5835c1494f26bc508e15d324482b31dfac85c7613', 'ae16cc33cb69eace9b875bb33dff9d673801bf2c; 120-second cold SID prepare watchdog; generation invalidation plus bounded cancel/reap and exact child-PID cache-temp cleanup'),
- ('MegaVGMPlayer/megavgm_sid_prepare', HOST / 'megavgm_sid_prepare', '4dbb5cd5d918c14fab9f25783f7e2d0c7acbbcf84086cc9abc04e017cde5f87b', 'ff6904fbaf22ea2d4db2a487e14c7e9cf5a7a914; static ARM; atomic Packed MVGMSID v2 pair publication with parent-directory fsync'),
+ ('MegaVGMPlayer/megavgm_supervisor', HOST / 'megavgm-c6-capacity-8m-5bddeee-arm/megavgm_supervisor', '201119a748b039b2110f27a5293faf4a6c1684df2b8c1bb7da9a7eccb6097740', '5bddeee892e8d8280fef55313d76d85ed492156a; static ARM; shared Packed-v2 classifier accepts exact 8 MiB while preserving C6 production routing and prerequisite admission'),
+ ('MegaVGMPlayer/megavgm_playlist-phase2a', HOST / 'megavgm-c6-capacity-8m-5bddeee-arm/megavgm_playlist', '87713696860a1dc57514cf9d82a18a66eefee14356bd34ca4fac6f58086f9ceb', '5bddeee892e8d8280fef55313d76d85ed492156a; static ARM; shared Packed-v2 classifier accepts exact 8 MiB; existing 120-second watchdog and bounded cancellation contract unchanged'),
+ ('MegaVGMPlayer/megavgm_sid_prepare', HOST / 'megavgm_sid_prepare', 'd3213f73cdb9926759f728b06c29f98cf2d8231b7ed0ee838204fa8d523b8661', '6aee1ee2abad8555d2a9c34b1fd7b20f3ad295d9; static ARM; 8 MiB capacity policy in cache identity/provenance; atomic Packed MVGMSID v2 pair publication with parent-directory fsync'),
  ('Scripts/vgm_md_import.sh', V2 / 'Scripts/vgm_md_import.sh', '700542daaeac0f59998d23a868073e6c6c165a4c350fc1119de28456f5f59103', 'e01c872d6854edce77c1fbc7a8f68239f8ecf045; unchanged importer'),
  ('MegaVGMPlayer/megavgm_remote', HOST / 'megavgm_remote-c6-loading-reconcile-9f13f04', '4f8a6762441291ccc6bc0c8ce395937197b5a27a7aca06698de15e967f2a05bb', '9f13f04d0117036809fa06c756540e92df8bfd50; static ARM; exact PLAYING/STOPPED playlist warm admission plus authoritative switch-generation Loading reconciliation; embedded assets/megavgm-f6c226d2.js'),
  ('Scripts/megavgm_ctl', P1 / 'megavgm_ctl.production', '378905c80c22f0b072e248d6fdb67238f2727a38287f4407b2596c8c2a9ae45b', '9e2dd45fbd986378bbdaba326d8e722df2b89c27; exact five compile inputs, official GCC 10.2 static stripped + GNU OSABI'),
@@ -37,6 +37,7 @@ SOURCE_ITEMS = [
  ('native/megavgm_sid_prepare.cpp', TOOLING / 'native/megavgm_sid_prepare.cpp'),
  ('native/packed_v2.cpp', TOOLING / 'native/packed_v2.cpp'),
  ('native/packed_v2.h', TOOLING / 'native/packed_v2.h'),
+ ('native/test_packed_v2_capacity.cpp', TOOLING / 'native/test_packed_v2_capacity.cpp'),
  ('native/sha256.cpp', TOOLING / 'native/sha256.cpp'),
  ('native/sha256.h', TOOLING / 'native/sha256.h'),
 ]
@@ -54,7 +55,7 @@ def main():
     manifest = ['# MegaVGMPlayer v2.2 — Engine C C6 production candidate', '',
       'Raw single-SID files are prepared on demand into Packed MVGMSID v2 before entering the unchanged production A/B/C switching contract. SID RTL/audio, transport, OSD, and A/B classifier decisions are unchanged.',
       'Packaging source commit: `'+subprocess.check_output(['git','-C',str(ROOT),'rev-parse','HEAD'],text=True).strip()+'`.',
-      'Engine A/B are byte-identical copies of the v2.1 hardware-PASS RBFs. Engine C is the exact user-confirmed Packed v2 hardware-validation RBF and is production-routed as PROFILE_C.', '',
+      'Engine A/B are byte-identical copies of the v2.1 hardware-PASS RBFs. Engine C is the Windows Quartus Full Compilation from the 8 MiB Packed-v2 RTL authority and is production-routed as PROFILE_C; its new capacity remains hardware-unverified.', '',
       '| Runtime relative to /media/fat | Bytes | SHA-256 | Source / provenance |',
       '|---|---:|---|---|']
     for rel, source, expected, provenance in sources:

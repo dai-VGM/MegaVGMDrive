@@ -7,11 +7,11 @@ source artifact passes its frozen SHA gate.
 |---|---|---|---|
 | Engine A RBF | v2.1 production artifact | `5755b74d9b1e10e1da1d6c101892bc95ca8960851a851cc9076d1861c9571f1e` | unchanged `MegaVGMDrive_A.rbf` |
 | Engine B RBF | v2.1 production artifact | `b435417f268a81a39af6bf2408f364945d151e391425775ab7d01ed4899bec95` | unchanged `MegaVGMDrive_B.rbf` |
-| Engine C RBF | Packed v2 RTL `53291cd59a64dee7c3c4edb5a2f0f0a8e69c99db` | `0f205de6ab30e86477fdf1b0797e82158cc5b14fdfa37e7011f3c94cbb72c479` | production `MegaVGMDrive_C.rbf`, exact hardware-tested bytes |
-| Supervisor | `48f61a29bfb2c12eb63920914ee815bb3978f697` | `0e6ecabf5403ba7029129c8b3f9837223a9b30f60a28954fb2e3fad5d50692ac` | C6 A/B/C switch owner with `PHASE2A_AUTO` default and exact `.vgm`/`.mvgmsid`/`.sid` direct-member admission |
-| Controller | `ae16cc33cb69eace9b875bb33dff9d673801bf2c` | `2744748c79e0469360569df5835c1494f26bc508e15d324482b31dfac85c7613` | 120-second cold SID prepare watchdog; generation invalidation plus bounded cancel/reap and exact child-PID cache-temp cleanup |
+| Engine C RBF | Packed v2 RTL `1a66fcb5e0eaf963fc57a40d78c580f79ce591f5` | `efb29a236cb5858d00d462bb049ad9d65d8dea55c7b7bb50afc3434a8967a633` | production `MegaVGMDrive_C.rbf`, Windows Full Compilation, 2,677,904 bytes; 8 MiB hardware validation pending |
+| Supervisor | `5bddeee892e8d8280fef55313d76d85ed492156a` | `201119a748b039b2110f27a5293faf4a6c1684df2b8c1bb7da9a7eccb6097740` | shared classifier accepts Packed v2 through exact 8 MiB; C6 routing and prerequisite semantics unchanged |
+| Controller | `5bddeee892e8d8280fef55313d76d85ed492156a` | `87713696860a1dc57514cf9d82a18a66eefee14356bd34ca4fac6f58086f9ceb` | shared classifier accepts Packed v2 through exact 8 MiB; 120-second prepare watchdog/cancellation contract unchanged |
 | Standalone Remote | `9f13f04d0117036809fa06c756540e92df8bfd50` | `4f8a6762441291ccc6bc0c8ce395937197b5a27a7aca06698de15e967f2a05bb` | `.sid` discovery plus PREPARING/status/UI pass-through; exact PLAYING/STOPPED playlist warm admission; authoritative switch generation retires Loading across equal-number session rebases; `assets/megavgm-f6c226d2.js` |
-| SID preparer | `ff6904fbaf22ea2d4db2a487e14c7e9cf5a7a914` | `4dbb5cd5d918c14fab9f25783f7e2d0c7acbbcf84086cc9abc04e017cde5f87b` | static ARM, atomic Packed-v2 payload/provenance publication plus parent-directory fsync |
+| SID preparer | `6aee1ee2abad8555d2a9c34b1fd7b20f3ad295d9` | `d3213f73cdb9926759f728b06c29f98cf2d8231b7ed0ee838204fa8d523b8661` | static ARM; explicit `capacity_bytes=8388608` cache identity/provenance; atomic publication plus parent-directory fsync |
 | libsidplayfp | 3.1.1 / `732fa8ec8131fc75aafc2eaea583ddcdeea2a3cc` | archive `12b79190593bf480b2d11481b5c2de62bac07f344437a66cd8d887329875c626` | exact upstream source plus observer patch and GPL text included |
 
 Main, importer, and helper remain frozen. Old RBF files are not package targets
