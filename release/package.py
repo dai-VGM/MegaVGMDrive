@@ -73,7 +73,7 @@ def main():
     sources = ITEMS
     for rel, source, expected, _ in sources:
         assert sha(source) == expected, (source, 'frozen SHA mismatch')
-    preparer_bytes = (HOST / 'megavgm_sid_prepare').read_bytes()
+    preparer_bytes = (CANDIDATE / 'build-artifacts/megavgm_sid_prepare').read_bytes()
     assert TOOLING_COMMIT.encode() in preparer_bytes, 'preparer source commit missing'
     assert MISSTAMPED_TOOLING_COMMIT.encode() not in preparer_bytes, (
         'preparer contains superseded source commit')
