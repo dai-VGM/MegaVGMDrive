@@ -131,7 +131,10 @@ for mode in ('clean','v2upgrade','phase1'):
                             'Scripts/megavgm_ctl'):
                 continue
             if mode=='v2upgrade' and not str(rel).endswith('.rbf'):
-                data=(v2/rel).read_bytes()
+                legacy=v2/rel
+                if not legacy.is_file():
+                    continue
+                data=legacy.read_bytes()
             elif mode=='v2upgrade':
                 continue
             else:
