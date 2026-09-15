@@ -4,7 +4,7 @@ module engine_c_lab #(
     parameter integer AW=23, MAX_FILE_BYTES=`C2_MAX_FILE_BYTES,
     parameter integer MAX_RECORDS=((MAX_FILE_BYTES-128)/16)/2+1, SYS_HZ=20000000
 )(
-    input logic clk, reset, start, transport_halt,
+    input logic clk, reset, start, transport_halt,loop_halt,
     input logic [31:0] file_size,
     output logic rd_req,
     output logic [AW-1:0] rd_addr,
@@ -18,7 +18,9 @@ module engine_c_lab #(
     output logic [63:0] native_cycle,
     output logic signed [17:0] audio,
     output logic sample_valid, audio_ready,
-    output logic [31:0] writes,
+	output logic [31:0] writes,
+	output logic loop_valid,loop_entry_pulse,loop_boundary_pulse,
+	output logic [31:0] loop_count,transport_ticks,
     input logic store_busy,store_valid,
     input logic [63:0] store_dout,
     output logic store_rd,store_we,
@@ -35,7 +37,8 @@ module engine_c_lab #(
     end
     logic wr, parser_fatal, scheduler_fatal, launched, pipeline_running;
     logic [RW-1:0] wa, ra;
-    logic [77:0] wd, q;
+    logic [77:0] wd;
+	logic [78:0] q;
     logic [RW:0] record_count;
     logic [63:0] total_cycles;
     logic [7:0] parser_error_code;
@@ -52,10 +55,13 @@ module engine_c_lab #(
     logic [28:0] v1_store_addr;
     logic [63:0] v1_store_din;
     logic [7:0] v1_store_be,v1_store_burst;
-    logic [77:0] v1_q,v2_q;
+	logic [77:0] v1_q;
+	logic [78:0] v2_q;
     logic v2_loaded,v2_fatal,v2_model,v2_mem_valid,v2_rd;
     logic [7:0] v2_error,v2_timing,v2_burst;
     logic [31:0] v2_num,v2_den;
+	logic v2_loop_valid;
+	logic [63:0] v2_loop_start_cycle;
     logic [28:0] v2_addr;
     version_dispatch #(.AW(AW)) dispatch(
         .clk(clk),.reset(reset),.start(start),.file_size(file_size),
@@ -72,7 +78,8 @@ module engine_c_lab #(
     assign session_clock_num=use_v2?v2_num:v1_num;
     assign session_clock_den=use_v2?v2_den:v1_den;
     assign valid=use_v2?v2_mem_valid:v1_mem_valid;
-    assign q=use_v2?v2_q:v1_q;
+	assign q=use_v2?v2_q:{1'b0,v1_q};
+	assign loop_valid=use_v2&&v2_loop_valid;
     assign store_rd=use_v2?v2_rd:v1_store_rd;
     assign store_we=use_v2?1'b0:v1_store_we;
     assign store_addr=use_v2?v2_addr:v1_store_addr;
@@ -83,6 +90,7 @@ module engine_c_lab #(
         .clk(clk),.reset(reset || !use_v2),.start(v2_start),.halt(transport_halt),
         .file_size(file_size),.loaded(v2_loaded),.fatal(v2_fatal),.error_code(v2_error),
         .session_model(v2_model),.session_timing(v2_timing),.session_clock_num(v2_num),.session_clock_den(v2_den),
+		.loop_valid(v2_loop_valid),.loop_start_cycle(v2_loop_start_cycle),
         .mem_req(req && use_v2),.mem_addr(ra),.mem_valid(v2_mem_valid),.mem_data(v2_q),
         .d_busy(store_busy),.d_valid(store_valid && use_v2),.d_dout(store_dout),
         .d_rd(v2_rd),.d_addr(v2_addr),.d_burst(v2_burst));
@@ -106,11 +114,14 @@ module engine_c_lab #(
         .stream_cycles(total_cycles)
     );
     sid_native_scheduler #(.SYS_HZ(SYS_HZ),.RW(RW)) scheduler (
-        .clk(clk),.reset(reset),.enable(loaded && !parser_fatal),.halt(transport_halt),
+		.clk(clk),.reset(reset),.enable(loaded && !parser_fatal),.halt(transport_halt),.halt_loop(loop_halt),
+		.loop_valid(loop_valid),.loop_start_cycle(v2_loop_start_cycle),
         .clock_num(session_clock_num),.clock_den(session_clock_den),
         .mem_req(req),.mem_addr(ra),.mem_valid(valid),.mem_data(q),
         .ce_sid(ce_sid),.reg_write(reg_write),.reg_addr(reg_addr),.reg_data(reg_data),
-        .busy(busy),.done(done),.fatal(scheduler_fatal),.native_cycle(native_cycle),.launched(launched)
+		.busy(busy),.done(done),.fatal(scheduler_fatal),.native_cycle(native_cycle),.launched(launched),
+		.loop_entry_pulse(loop_entry_pulse),.loop_boundary_pulse(loop_boundary_pulse),
+		.loop_count(loop_count),.transport_ticks(transport_ticks)
     );
     wire signed [17:0] sid_audio;
     wire sid_valid;

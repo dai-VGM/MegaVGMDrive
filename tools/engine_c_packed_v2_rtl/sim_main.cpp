@@ -38,7 +38,7 @@ int main(int argc,char** argv) try {
     bool alternating=std::getenv("ALTERNATE_V2");
     Vc2_sim_top d;
     auto edge=[&](){ d.clk=0; d.eval(); d.clk=1; d.eval(); };
-    d.reference_reset=1; d.rd_ready=1; d.start=0; d.rd_valid=0;
+    d.reference_reset=1; d.loop_halt=0; d.rd_ready=1; d.start=0; d.rd_valid=0;
     d.ddr_busy=0; d.ddr_valid=0; d.ddr_dout=0;
     std::vector<uint64_t> memory(1572864,0xabcdef0123456789ULL);
     std::vector<Write> expected; uint64_t expected_cycles=0;

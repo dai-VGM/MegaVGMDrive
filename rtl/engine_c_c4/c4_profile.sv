@@ -3,7 +3,7 @@
 module engine_c_transport_profile #(
     parameter integer VGM_ADDR_WIDTH=23, CLK_SYS_HZ=20000000
 )(
-    input logic clk_sys, reset, download_active, transport_finish, io_fault,
+    input logic clk_sys, reset, download_active, transport_finish, transport_loop_halt,io_fault,
     output logic profile_started, parser_done, audio_ready,
     input logic [31:0] uploaded_physical_size,
     input logic upload_complete, file_read_ready, file_read_valid,
@@ -20,6 +20,8 @@ module engine_c_transport_profile #(
     output logic playback_active, profile_done, profile_fatal,
     output logic [15:0] profile_status, debug_page_data,
     output logic [31:0] parser_start_count, scanner_start_count, sound_write_count,
+	output logic loop_valid,loop_entry_pulse,loop_boundary_pulse,
+	output logic [31:0] loop_count,transport_ticks,
     input logic store_busy,store_valid,
     input logic [63:0] store_dout,
     output logic store_rd,store_we,
@@ -49,13 +51,15 @@ module engine_c_transport_profile #(
         else if(start) parser_start_count<=parser_start_count+1;
     end
     engine_c_lab #(.AW(VGM_ADDR_WIDTH),.SYS_HZ(CLK_SYS_HZ)) engine (
-        .clk(clk_sys),.reset(session_reset),.start(start),.transport_halt(finished || io_fault),.file_size(uploaded_physical_size),
+		.clk(clk_sys),.reset(session_reset),.start(start),.transport_halt(finished || io_fault),
+		.loop_halt(transport_loop_halt),.file_size(uploaded_physical_size),
         .rd_req(file_read_request),.rd_addr(file_read_address),.rd_ready(file_read_ready),
         .rd_valid(file_read_valid),.rd_data(file_read_data),.busy(raw_busy),
         .done(raw_done),.fatal(engine_fatal),.loaded(loaded),.error_code(error_code),
         .ce_sid(),.reg_write(),.reg_addr(),.reg_data(),.native_cycle(),
         .audio(audio),.sample_valid(profile_audio_sample_valid),.audio_ready(ready),
-        .writes(sound_write_count),
+		.writes(sound_write_count),.loop_valid(loop_valid),.loop_entry_pulse(loop_entry_pulse),
+		.loop_boundary_pulse(loop_boundary_pulse),.loop_count(loop_count),.transport_ticks(transport_ticks),
         .store_busy(store_busy),.store_valid(store_valid),.store_dout(store_dout),
         .store_rd(store_rd),.store_we(store_we),.store_addr(store_addr),.store_din(store_din),
         .store_be(store_be),.store_burst(store_burst)

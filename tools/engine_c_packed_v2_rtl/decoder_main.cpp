@@ -12,7 +12,7 @@ static uint64_t le(const std::vector<uint8_t>& b,size_t p,int n){uint64_t v=0;fo
 int main(int argc,char**argv)try{
     Verilated::commandArgs(argc,argv);check(argc>=4,"FILE EXPECTED_TRACE good|reject|short [latency]");
     auto bytes=read(argv[1]);auto expected=read(argv[2]);std::string mode=argv[3];
-    bool good=mode=="good";unsigned latency=argc>4?std::stoul(argv[4]):64;
+    bool good=mode=="good"||mode=="loop";unsigned latency=argc>4?std::stoul(argv[4]):64;
     Vdecoder_top d;d.reset=1;d.clk=0;d.eval();d.clk=1;d.eval();d.reset=0;
     d.file_size=bytes.size();d.start=1;d.halt=0;d.d_busy=0;d.d_valid=0;d.mem_req=0;d.mem_addr=0;
     size_t record=0;unsigned remaining=0,address=0,delay=0,max_word=0;bool waiting=false;
@@ -27,12 +27,17 @@ int main(int argc,char**argv)try{
             check(good,"record published before rejected preflight");check((record+1)*10<=expected.size(),"extra record");
             uint64_t cycle=(uint64_t(d.mem_data[0])>>13)|(uint64_t(d.mem_data[1])<<19)|(uint64_t(d.mem_data[2]&0x1fff)<<51);
             unsigned addr=(d.mem_data[0]>>8)&31,data=d.mem_data[0]&255,eof=(d.mem_data[2]>>13)&1;
+            unsigned boundary=(d.mem_data[2]>>14)&1;
             uint64_t want=le(expected,record*10,8);unsigned wa=expected[record*10+8],wd=expected[record*10+9];
-            check(cycle==want && (eof?255:addr)==wa && data==wd,
+            unsigned actual_tag=boundary?254:(eof?255:addr);
+            check(cycle==want && actual_tag==wa && data==wd,
                 "first difference record="+std::to_string(record)+" cycle="+std::to_string(cycle)+" expected="+std::to_string(want)+
                 " addr="+std::to_string(addr)+" data="+std::to_string(data));
             record++;waiting=false;
-            if(eof){
+			if(mode=="loop" && record*10==expected.size()) {
+				std::cout<<"LOOP TRACE EXACT records="<<record<<" SYS="<<sys<<" delay="<<latency<<"\n";return 0;
+			}
+            if(eof && !boundary){
                 check(record*10==expected.size(),"early EOF");
                 check(d.session_model==(bytes[28]==2)&&d.session_timing==bytes[29]&&
                       d.session_clock_num==le(bytes,20,4)&&d.session_clock_den==le(bytes,24,4),"metadata mismatch");

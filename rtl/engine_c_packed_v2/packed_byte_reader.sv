@@ -33,7 +33,7 @@ module packed_byte_reader #(
         $fatal(1,"invalid packed byte FIFO geometry");
     always @(posedge clk) begin
         if(reset) begin
-            wp<=0;rp<=0;count<=0;lane<=0;fetched<=first_byte>>3;consumed<=first_byte;
+            wp<=0;rp<=0;count<=0;lane<=first_byte[2:0];fetched<=first_byte>>3;consumed<=first_byte;
             timer<=0;remaining<=0;pending<=0;fatal<=0;d_rd<=0;d_addr<=0;d_burst<=0;
         end else begin
             d_rd<=0;

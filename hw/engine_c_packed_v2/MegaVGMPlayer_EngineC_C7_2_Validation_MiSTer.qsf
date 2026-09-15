@@ -1,0 +1,4 @@
+# C7.2 manual-loop validation. Source the complete Packed-v2 production
+# candidate project, changing only the revision output directory.
+source MegaVGMPlayer_EngineC_PackedV2_Validation_MiSTer.qsf
+set_global_assignment -name PROJECT_OUTPUT_DIRECTORY output_files_c7_2

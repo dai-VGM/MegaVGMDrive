@@ -628,7 +628,10 @@ module mister_vgm_md_top #(
     wire transport_loop_valid;
     wire [15:0] transport_loop_count;
     wire profile_started, parser_done, profile_ready;
+	wire profile_loop_valid,profile_loop_entry_pulse,profile_loop_boundary_pulse;
+	wire [31:0] profile_loop_count,profile_transport_ticks;
     wire transition_finish, transition_fade, transition_released;
+	wire transition_halt_loop;
     wire [8:0] transition_gain;
     // Global Stop/reset, upload faults, and validation faults win immediately.
     // busy/done of the native scheduler must NEVER gate the audible EOF tail.
@@ -646,10 +649,11 @@ module mister_vgm_md_top #(
         .vgm_load_busy(upload_load_busy),.vgm_load_error(upload_load_error || io_fault),
         .vgm_load_overflow(upload_load_overflow),.vgm_player_error(vgm_player_error),
         .audio_runtime_open(transition_audio_open),
-        .vgm_wait_ticks_consumed_debug(32'd0),
-        .mode5_player_loop_entry_pulse(1'b0),.mode5_player_loop_boundary_pulse(1'b0),
+		.vgm_wait_ticks_consumed_debug(profile_transport_ticks),
+		.mode5_player_loop_entry_pulse(profile_loop_entry_pulse),
+		.mode5_player_loop_boundary_pulse(profile_loop_boundary_pulse),
         .mode5_ioctl_download(admitted_download),.mode5_ioctl_wr(admitted_write),
-        .ioctl_wait(ioctl_wait),.mode5_load_begin_pulse(),.halt_loop(),
+		.ioctl_wait(ioctl_wait),.mode5_load_begin_pulse(),.halt_loop(transition_halt_loop),
         .gain(transition_gain),.fade_active(transition_fade),
         .released(transition_released),.end_pulse(transition_finish),.loop_limit_active()
     );
@@ -661,7 +665,8 @@ module mister_vgm_md_top #(
         .upload_error(upload_load_error || io_fault),.upload_overflow(upload_load_overflow),
         .profile_started(profile_started),.profile_busy(profile_playback_active),
         .profile_done(profile_done),.profile_fatal(profile_fatal),
-        .profile_error(profile_status[15:8]),.profile_loop_valid(1'b0),.profile_loop_count(32'd0),
+		.profile_error(profile_status[15:8]),.profile_loop_valid(profile_loop_valid),
+		.profile_loop_count(profile_loop_count),
         .hps_status(transport_hps_status),.status_in(transport_status_in),.status_set(transport_status_set),
         .playback_busy(player_busy),.player_error(vgm_player_error),
         .vgm_download(transport_vgm_download),.policy_download(),
@@ -692,8 +697,9 @@ module mister_vgm_md_top #(
     ) v1_1_profile (
         .clk_sys(clk),
         .reset(reset),
-        .download_active(transport_vgm_download),
-        .transport_finish(transition_finish),.profile_started(profile_started),.io_fault(io_fault),
+		.download_active(transport_vgm_download),
+		.transport_finish(transition_finish),.transport_loop_halt(transition_halt_loop),
+		.profile_started(profile_started),.io_fault(io_fault),
         .parser_done(parser_done),.audio_ready(profile_ready),
         .uploaded_physical_size(uploaded_physical_size),
         .upload_complete(upload_load_done),
@@ -708,6 +714,9 @@ module mister_vgm_md_top #(
         .pcm_b_read_address(profile_pcm_b_read_address),
         .osd_audio_lpf_mode(audio_lpf_mode),
         .osd_audio_gain_boost(audio_gain_boost),
+		.loop_valid(profile_loop_valid),.loop_entry_pulse(profile_loop_entry_pulse),
+		.loop_boundary_pulse(profile_loop_boundary_pulse),.loop_count(profile_loop_count),
+		.transport_ticks(profile_transport_ticks),
         .osd_audio_psg_level(audio_psg_level),
         .title_valid(1'b0),
         .title_text_byte(8'd0),
@@ -951,13 +960,13 @@ module mister_vgm_md_top #(
     assign vgm_data_start_debug = '0;
     assign vgm_current_pc_debug = '0;
     assign vgm_loop_pc_debug = '0;
-    assign vgm_loop_valid_debug = '0;
-    assign vgm_loop_taken_debug = '0;
+	assign vgm_loop_valid_debug = profile_loop_valid;
+	assign vgm_loop_taken_debug = profile_loop_boundary_pulse;
     assign vgm_end_command_seen = '0;
     assign vgm_restarted_from_data_start = '0;
     assign vgm_pcm_oob = '0;
     assign vgm_pcm_oob_count = '0;
-    assign vgm_wait_ticks_consumed_debug = '0;
+	assign vgm_wait_ticks_consumed_debug = profile_transport_ticks;
     assign dac_stream_cmd_count = '0;
     assign dac_stream_wait_samples_total = '0;
     assign dac_stream_clk_cycles_total = '0;

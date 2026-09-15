@@ -55,7 +55,9 @@ and 1,398,058-WRITE capacity tests exercise ordinal wrap without truncation.
 
 The C4 subset is unchanged: single SID, 6581/8580, exact PAL 985248 Hz or NTSC
 1022727 Hz, including equivalent rational encodings. Both versions explicitly
-reject LOOP_VALID; no loop is inferred or ignored. This is a subset restriction,
+reject LOOP_VALID in the pre-C7.2 baseline; no loop is inferred or ignored. C7.2
+adds the strict manual-loop replay contract documented in
+`docs/ENGINE_C_C7_2_MANUAL_LOOPS.md`. This remains a subset restriction for v1,
 not a change to the v1/v2 format specification. Duration/capture/override flags
 keep their existing validation contract; reserved and unknown values reject.
 

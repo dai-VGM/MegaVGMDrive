@@ -7,7 +7,7 @@ module decoder_top(
     input logic mem_req,
     input logic [17:0] mem_addr,
     output logic mem_valid,
-    output logic [77:0] mem_data,
+    output logic [78:0] mem_data,
     input logic d_busy,d_valid,
     input logic [63:0] d_dout,
     output logic d_rd,
@@ -22,6 +22,7 @@ module decoder_top(
         .clk(clk),.reset(reset),.start(start),.halt(halt),.file_size(file_size),
         .loaded(loaded),.fatal(fatal),.error_code(error_code),.session_model(session_model),
         .session_timing(session_timing),.session_clock_num(session_clock_num),.session_clock_den(session_clock_den),
+		.loop_valid(),.loop_start_cycle(),
         .mem_req(mem_req),.mem_addr(mem_addr),.mem_valid(mem_valid),.mem_data(mem_data),
         .d_busy(store_busy),.d_valid(store_valid),.d_dout(store_dout),
         .d_rd(store_rd),.d_addr(store_addr),.d_burst(store_burst));

@@ -1,5 +1,5 @@
 module c2_sim_top(
-    input logic clk, reset, start, reference_reset,
+    input logic clk, reset, start, reference_reset, loop_halt,
     input logic [31:0] file_size,
     input logic ddr_busy, ddr_valid,
     input logic [63:0] ddr_dout,
@@ -25,7 +25,10 @@ module c2_sim_top(
     output logic [3:0] pipe_state,
     output logic observed_model, sid_model,
     output logic [7:0] observed_timing,
-    output logic [31:0] observed_num,observed_den
+    output logic [31:0] observed_num,observed_den,
+	output logic loop_valid,loop_entry_pulse,loop_boundary_pulse,
+	output logic [31:0] loop_count,transport_ticks,
+	output logic sid_reset
 );
     wire store_busy,store_valid,store_rd,store_we;
     wire [63:0] store_dout,store_din;
@@ -51,6 +54,7 @@ module c2_sim_top(
     assign observed_timing=dut.session_timing;
     assign observed_num=dut.session_clock_num;
     assign observed_den=dut.session_clock_den;
+	assign sid_reset=dut.sound.reset;
     sid_session_wrapper clean_reference(
         .clk(clk),.reset(reference_reset || reset || !loaded),.ce_sid(ce_sid),.model(observed_model),
         .reg_addr(reg_addr),.reg_data(reg_data),.reg_write(reg_write),

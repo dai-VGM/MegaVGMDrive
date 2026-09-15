@@ -49,6 +49,17 @@ def main():
             tracepath.write_bytes(b''.join(struct.pack('<QBB',*w) for w in t.writes)+struct.pack('<QBB',t.metadata.stream_cycles,255,0))
         else:tracepath.write_bytes(b'')
         run(name,[out/'decoder/Vdecoder_top',path,tracepath,'good' if good else 'reject'])
+    def loop_vector(name,raw,repetitions=3):
+        path=out/(name+'.mvgmsid2');path.write_bytes(raw)
+        t=packed.decode(raw);m=t.metadata;period=m.loop_end_cycle-m.loop_start_cycle
+        records=list(t.writes)+[(m.loop_end_cycle,254,0)]
+        for iteration in range(1,repetitions):
+            records.extend((cycle+iteration*period,addr,data)
+                           for cycle,addr,data in t.writes[m.loop_write_index:])
+            records.append((m.loop_end_cycle+iteration*period,254,0))
+        tracepath=out/(name+'.trace')
+        tracepath.write_bytes(b''.join(struct.pack('<QBB',*record) for record in records))
+        run(name,[out/'decoder/Vdecoder_top',path,tracepath,'loop'])
     if args.only in ('decoder','all'):
         build('decoder','decoder_top',extra[:2]+[ROOT/'rtl/engine_c_c2_capacity/c2_ddr_mux.sv',HERE/'decoder_top.sv'],HERE/'decoder_main.cpp')
         for timing in ('pal','ntsc'):
@@ -91,10 +102,24 @@ def main():
             except packed.FormatError:pass
             else:raise AssertionError('host unexpectedly accepted '+name)
             vector(name,raw,False)
-        for name,raw in [('loop-unsupported',packed.encode(packed.Trace(packed.Metadata(flags=v.LOOP_VALID,
-                            stream_cycles=10,loop_start_cycle=1,loop_end_cycle=10),((1,0,0),)))),
-                         ('wrong-clock',packed.encode(packed.Trace(packed.Metadata(clock_num=1),())))]:
-            vector(name,raw,False) # Valid format; explicitly outside C4 admitted subset.
+        loop_vector('loop-intro',packed.encode(packed.Trace(
+            packed.Metadata(flags=v.LOOP_VALID,stream_cycles=30,loop_write_index=1,
+                            loop_start_cycle=10,loop_end_cycle=30),
+            ((0,0,1),(10,1,2),(20,2,3)))))
+        loop_vector('loop-no-intro',packed.encode(packed.Trace(
+            packed.Metadata(flags=v.LOOP_VALID,stream_cycles=20,loop_write_index=0,
+                            loop_start_cycle=0,loop_end_cycle=20),((0,0,1),(10,1,2)))))
+        loop_vector('loop-wait-only',packed.encode(packed.Trace(
+            packed.Metadata(flags=v.LOOP_VALID,stream_cycles=10,loop_write_index=0,
+                            loop_start_cycle=0,loop_end_cycle=10),())))
+        loop_vector('loop-wait-target',packed.encode(packed.Trace(
+            packed.Metadata(flags=v.LOOP_VALID,stream_cycles=70,loop_write_index=1,
+                            loop_start_cycle=10,loop_end_cycle=70),((0,0,1),(30,1,2)))))
+        collision_body=b'\x00\x00\x01\x0a\x01\x02\x00\xff'
+        collision_header=packed.Header(packed.Metadata(flags=v.LOOP_VALID,stream_cycles=10,
+            loop_write_index=0,loop_start_cycle=0,loop_end_cycle=10),2,len(collision_body)).encode()
+        vector('loop-boundary-collision',collision_header+collision_body,False)
+        vector('wrong-clock',packed.encode(packed.Trace(packed.Metadata(clock_num=1),())),False)
         run('ddr-short',[out/'decoder/Vdecoder_top',out/'Commando_60s.mvgmsid2',out/'Commando_60s.trace','short'])
         for delay in (128,256,512):
             run('latency-'+str(delay),[out/'decoder/Vdecoder_top',out/'Volfied_10s.mvgmsid2',out/'Volfied_10s.trace','good',delay])
@@ -123,6 +148,10 @@ def main():
             a=prior/(name+'.mvgmsid');b=out/(name+'.v2');b.write_bytes(packed.pack(a.read_bytes()))
             run('v2-scheduler-'+name,[out/'raw/Vc2_sim_top',b,'good'],dict(os.environ,GOLDEN_V1=str(a)))
     if args.only in ('timing','all'):
+        tick_test=out/'scheduler-ticks'
+        run('build-scheduler-ticks',['iverilog','-g2012','-s','tb_scheduler_ticks','-o',tick_test,
+            HERE/'tb_scheduler_ticks.sv',ROOT/'rtl/engine_c_c4/sid_native_scheduler.sv'])
+        run('scheduler-ticks',["vvp",tick_test])
         build('raw','c2_sim_top',sources()+[ROOT/'tools/engine_c_c4/sim_top.sv'],HERE/'sim_main.cpp')
         a=prior/'record-capacity.mvgmsid';b=out/'dense.mvgmsid2';b.write_bytes(packed.pack(a.read_bytes()))
         for delay in (64,128,256,512):
@@ -135,6 +164,33 @@ def main():
         run('integrated-commando270',[out/'raw/Vc2_sim_top',b,'prefix'],dict(os.environ,GOLDEN_V1=str(a),DDR_DELAY='64'))
     if args.only in ('audio','all'):
         build('raw','c2_sim_top',sources()+[ROOT/'tools/engine_c_c4/sim_top.sv'],HERE/'sim_main.cpp')
+        build('loop','c2_sim_top',sources()+[ROOT/'tools/engine_c_c4/sim_top.sv'],HERE/'loop_main.cpp')
+        loop_writes=((0,0,0x34),(1,1,0x12),(2,5,0x11),(3,6,0xf1),(4,4,0x21),
+                     (5,24,0x0f),(200,0,0x48),(300,24,0x08),(350,0,0x34))
+        for timing,clock in (('pal',985248),('ntsc',1022727)):
+            for model in (6581,8580):
+                stem=f'loop-{timing}-{model}'
+                metadata=packed.Metadata(flags=v.LOOP_VALID,clock_num=clock,sid_model=1 if model==6581 else 2,
+                    timing_standard=1 if timing=='pal' else 2,stream_cycles=500,
+                    loop_write_index=6,loop_start_cycle=200,loop_end_cycle=500)
+                loop_raw=packed.encode(packed.Trace(metadata,loop_writes));(out/(stem+'.mvgmsid2')).write_bytes(loop_raw)
+                full_writes=list(loop_writes)
+                for iteration in (1,2):
+                    full_writes.extend((cycle+iteration*300,addr,data) for cycle,addr,data in loop_writes[6:])
+                full_metadata=replace(metadata,flags=0,stream_cycles=1100,loop_write_index=0,
+                    loop_start_cycle=0,loop_end_cycle=0)
+                (out/(stem+'-full.mvgmsid2')).write_bytes(packed.encode(packed.Trace(full_metadata,tuple(full_writes))))
+                run(stem,[out/'loop/Vc2_sim_top',out/(stem+'.mvgmsid2'),'loop',out/(stem+'-loop.native32')])
+                run(stem+'-reference',[out/'loop/Vc2_sim_top',out/(stem+'-full.mvgmsid2'),'finite',out/(stem+'-full.native32')])
+                assert (out/(stem+'-loop.native32')).read_bytes()==(out/(stem+'-full.native32')).read_bytes(),stem+' loop PCM continuity'
+                print('LOOP PCM BIT-EXACT',stem,hashlib.sha256((out/(stem+'-loop.native32')).read_bytes()).hexdigest(),flush=True)
+                if stem=='loop-pal-6581':
+                    run('loop-repeat-one-long-run',[out/'loop/Vc2_sim_top',out/(stem+'.mvgmsid2'),
+                        'repeat',out/'loop-repeat-one.native32'])
+        wait_metadata=packed.Metadata(flags=v.LOOP_VALID,stream_cycles=100,loop_write_index=0,
+            loop_start_cycle=0,loop_end_cycle=100)
+        (out/'loop-wait-only.mvgmsid2').write_bytes(packed.encode(packed.Trace(wait_metadata,())))
+        run('loop-wait-only-integrated',[out/'loop/Vc2_sim_top',out/'loop-wait-only.mvgmsid2','loop',out/'loop-wait-only.native32'])
         for timing in ('pal','ntsc'):
             for model in (6581,8580):
                 name=f'tone-{timing}-{model}';a=prior/(name+'.mvgmsid');b=out/(name+'.mvgmsid2')
@@ -151,6 +207,10 @@ def main():
         run('fifo-starvation',[out/'raw/Vc2_sim_top',b,'starve'],dict(os.environ,GOLDEN_V1=str(a)))
         run('v1-commando270-oversize',[out/'raw/Vc2_sim_top','/Users/daizo/Downloads/Commando_270s.mvg','reject'])
     if args.only in ('transport','all'):
+        loop_owner=out/'loop-owner'
+        run('build-loop-owner',['iverilog','-g2012','-I'+str(ROOT),'-s','tb_loop_owner','-o',loop_owner,
+            HERE/'tb_loop_owner.sv',ROOT/'rtl/transport_v1_3/megavgm_transport_owner.sv'])
+        run('loop-owner',['vvp',loop_owner])
         shell=[ROOT/'rtl/engine_c_c4'/n for n in ('mister_vgm_md_top.sv','c4_profile.sv','ddr_health.sv','transport.sv','megavgm_playlist_status_export.sv')]
         shell += [ROOT/'rtl/transport_v1_3/megavgm_transport_owner.sv',ROOT/'rtl/engine_c_c2/shell/golden_player_shell_upload.sv',ROOT/'rtl/vgm_ddram_backend.sv',*sources()]
         build('transport','tb_transport',[ROOT/'tools/engine_c_c4/defines.sv',HERE/'tb_transport.sv',*shell])
