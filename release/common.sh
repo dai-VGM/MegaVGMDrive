@@ -21,7 +21,9 @@ targets() {
     'MegaVGMPlayer/MiSTer.megavgm' 'MegaVGMPlayer/megavgm_supervisor' \
     'MegaVGMPlayer/megavgm_playlist-phase2a' 'MegaVGMPlayer/megavgm_remote' \
     'MegaVGMPlayer/megavgm_sid_prepare' \
-    'Scripts/megavgm_ctl' 'Scripts/vgm_md_import.sh'
+    'Scripts/megavgm_ctl' 'Scripts/vgm_md_import.sh' \
+    'MegaVGMDrive/C7_2_Hardware_Test/C7_2_Manual_Loop_PAL_6581.sid' \
+    'MegaVGMDrive/C7_2_Hardware_Test/C7_2_Manual_Loop_PAL_6581.sid.loop.json'
 }
 paths="$(targets)
 linux/user-startup.sh"

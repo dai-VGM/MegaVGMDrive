@@ -1,4 +1,11 @@
-# MegaVGMPlayer v2.2 Engine C C6候補
+# MegaVGMPlayer v2.2 Engine C C7.2実機検証候補
+
+> **これはlab用実機検証packageです。公開版・最終v2.2 RCではありません。**
+
+Engine C RBF、SID preparer、Controller、Supervisorのみをstrict C7.2
+manual-loop lineageへ差し替えます。オリジナルのPAL/6581 synthetic SIDと
+sidecarは`/media/fat/MegaVGMDrive/C7_2_Hardware_Test/`へ配置されます。
+`HARDWARE_CHECKLIST.md`に従い、Commando/Volfiedのloop pointはまだ作成しないでください。
 
 この候補版は、実機確認済みC5 A/B/C routeへraw SIDの自動prepareを追加します。
 `.sid`を`/media/fat/MegaVGMDrive/`へ置いてBrowseから選ぶと、HPSがPacked MVGMSID v2

@@ -1,18 +1,17 @@
-# v2.2 Engine C C6 validation scope
+# v2.2 Engine C C7.2 hardware-candidate validation scope
 
 ## Frozen FPGA artifacts
 
 - A: `5755b74d9b1e10e1da1d6c101892bc95ca8960851a851cc9076d1861c9571f1e`.
 - B: `b435417f268a81a39af6bf2408f364945d151e391425775ab7d01ed4899bec95`.
-- C: `efb29a236cb5858d00d462bb049ad9d65d8dea55c7b7bb50afc3434a8967a633`,
-  2,677,904 bytes, 8 MiB Packed-v2 RTL commit
-  `1a66fcb5e0eaf963fc57a40d78c580f79ce591f5`, QPF
-  `hw/engine_c_packed_v2/MegaVGMPlayer_EngineC_PackedV2_Validation_MiSTer.qpf`,
-  `C2_MAX_FILE_BYTES=8388608`, macro-selected CORENAME `MegaVGMDrive`.
+- C: `d6d7bb22beed1366be41b34ab12699cbc3174c46f00705c8f36cd16fd1510dc5`,
+  2,677,792 bytes, C7.2 RTL commit
+  `8e5f1111f8b0afdd6b75ae0011ba891ef344a87d`, QPF
+  `hw/engine_c_packed_v2/MegaVGMPlayer_EngineC_C7_2_Validation_MiSTer.qpf`,
+  strict Packed-v2 manual-loop checkpoint/replay and CORENAME `MegaVGMDrive`.
 
-The C bytes are a Windows Quartus Full Compilation from the stated source
-authority. Existing 4 MiB C hardware evidence belongs to the superseded RBF;
-the new 8 MiB capacity and production host integration remain hardware-unverified.
+The C bytes are the supplied Windows Quartus Full Compilation from the stated
+source authority. Manual-loop replay remains hardware-unverified.
 
 ## Host contract
 
@@ -40,7 +39,7 @@ The production preparer build is guarded by an explicit full source commit.
 The guard verifies the independent checkout's actual `HEAD`, rejects any
 tracked or untracked dirt, and only then invokes the authority commit's existing
 ARM build script. The packaged binary embeds
-`6aee1ee2abad8555d2a9c34b1fd7b20f3ad295d9`; a cache produced by the superseded
+`247d0f198d52ca7789a845a878679c87b2f7e7dc`; a cache produced by the superseded
 mis-stamped `81fa235b7f6ef180b6c6392a042502952e72252e` binary is therefore a strict
 cache miss and remains untouched on disk.
 
@@ -94,5 +93,5 @@ interrupted recovery, and the deployed ARM Remote `.sid` Browse path are covered
 
 The generated Remote, controller, Supervisor, and preparer are ARM32 EABI5
 hard-float and static with no PT_INTERP or DT_NEEDED. These are host/QEMU
-results; final C6 auto-prepare and A/B/C switching remain hardware-unverified
+results; C7.2 manual-loop playback remains hardware-unverified
 until `HARDWARE_CHECKLIST.md` is run.

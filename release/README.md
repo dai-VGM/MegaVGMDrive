@@ -1,4 +1,12 @@
-# MegaVGMPlayer v2.2 Engine C C6 candidate
+# MegaVGMPlayer v2.2 Engine C C7.2 hardware candidate
+
+> **Lab hardware-validation package. This is not a public or final v2.2 RC.**
+
+This candidate replaces only the Engine C RBF, SID preparer, Controller, and
+Supervisor with the strict C7.2 manual-loop lineage. It also installs an
+original PAL/6581 synthetic SID and adjacent loop sidecar under
+`/media/fat/MegaVGMDrive/C7_2_Hardware_Test/`. Follow
+`HARDWARE_CHECKLIST.md`; do not create Commando/Volfied loop points yet.
 
 This candidate adds automatic raw SID preparation to the hardware-tested C5
 A/B/C route. Put a `.sid` file under `/media/fat/MegaVGMDrive/`, select it in

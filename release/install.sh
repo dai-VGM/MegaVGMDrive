@@ -60,7 +60,7 @@ while IFS= read -r rel; do
   if [ "$rel" = linux/user-startup.sh ]; then src="$work/startup"; else src="$package/media/fat/$rel"; fi
   cp "$src" "$work/files/$rel"
   [ "$(sha "$src")" = "$(sha "$work/files/$rel")" ] || fail "Stage mismatch: $rel"
-  case "$rel" in *.rbf) chmod 644 "$work/files/$rel";; *) chmod 755 "$work/files/$rel";; esac
+  case "$rel" in *.rbf|*.sid|*.json) chmod 644 "$work/files/$rel";; *) chmod 755 "$work/files/$rel";; esac
   if [ -f "$fat/$rel" ]; then
     cp -p "$fat/$rel" "$backup/files/$rel"
     printf '%s  files/%s\n' "$(sha "$backup/files/$rel")" "$rel" >> "$backup/BEFORE.sha256"

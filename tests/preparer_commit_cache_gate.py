@@ -10,7 +10,7 @@ import subprocess
 import tempfile
 
 
-CORRECT = "6aee1ee2abad8555d2a9c34b1fd7b20f3ad295d9"
+CORRECT = "247d0f198d52ca7789a845a878679c87b2f7e7dc"
 MISSTAMPED = "81fa235b7f6ef180b6c6392a042502952e72252e"
 CAPACITY = 8 * 1024 * 1024
 

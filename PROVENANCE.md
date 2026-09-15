@@ -1,18 +1,19 @@
-# Frozen inputs, C6 8 MiB preparer, and helper provenance
+# Frozen inputs and Engine C C7.2 hardware-candidate provenance
 
-## Engine C C6 raw SID auto prepare
+## Engine C C7.2 manual loop hardware candidate
 
-The current C6 candidate combines the 8 MiB preparer/classifier policy with a
-matching Engine C Full Compilation. Main, Remote, Frontend, SID audio logic,
-Packed-v2 format, and transport/fade contracts are unchanged.
+This lab candidate adds strict manually authored loop metadata and matching
+Packed-v2 checkpoint/replay. It is not a public or final v2.2 RC. Engine A/B,
+Main, Remote, Frontend, Packed-v2 format/version, SID audio calculations, and
+the established transport/fade ownership remain unchanged.
 
 | Component | Exact source commit | ARM artifact SHA-256 |
 |---|---|---|
-| Controller | `5bddeee892e8d8280fef55313d76d85ed492156a` | `87713696860a1dc57514cf9d82a18a66eefee14356bd34ca4fac6f58086f9ceb`; Packed-v2 classifier accepts exact 8 MiB; existing 120-second watchdog, 60-second profile/session timeout, and bounded cancel/reap remain unchanged |
-| Supervisor | `5bddeee892e8d8280fef55313d76d85ed492156a` | `201119a748b039b2110f27a5293faf4a6c1684df2b8c1bb7da9a7eccb6097740`; shared Packed-v2 classifier accepts exact 8 MiB; production default and exact direct-member admission remain unchanged |
+| Controller | `1cffacda1feed2cb26e54f0d557565ca2f68203b` | `6e1b11f1b84cac228459ace91fb69f27469024d74062f28007e1edb6af9c221c`; strict Packed-v2 v2 loop validation; existing watchdog/cancellation and routing ownership unchanged |
+| Supervisor | `1cffacda1feed2cb26e54f0d557565ca2f68203b` | `4200ae6b6ab7a5e359bc7a080a94ee3fae456c73c4e4e2abd178f6fdd53760dd`; shared strict classifier and production A/B/C route |
 | Standalone Remote/frontend | `9f13f04d0117036809fa06c756540e92df8bfd50` | `4f8a6762441291ccc6bc0c8ce395937197b5a27a7aca06698de15e967f2a05bb`; exact PLAYING/STOPPED playlist warm admission and status/error/operation trace; authoritative transport epoch/switch generation retires local Loading across legal equal-number session rebases; embedded `assets/megavgm-f6c226d2.js` SHA `6f7aed749a58c8ae87e7f231e6d12bff11d86f6581b20b637d89c3b42b93bba1` |
-| Direct Packed-v2 SID preparer | `6aee1ee2abad8555d2a9c34b1fd7b20f3ad295d9` | `0166decd284e88ce3c4dea00e9ccf6da068293f124c1b3a5a22e9b982a93ec74`; embedded converter commit is the exact source authority; cache key and provenance include `capacity_bytes=8388608` |
-| Engine C Packed-v2 RBF | RTL `1a66fcb5e0eaf963fc57a40d78c580f79ce591f5` | `efb29a236cb5858d00d462bb049ad9d65d8dea55c7b7bb50afc3434a8967a633`; 2,677,904 bytes; Windows Quartus Full Compilation; hardware validation pending |
+| Direct Packed-v2 SID preparer | `247d0f198d52ca7789a845a878679c87b2f7e7dc` | `4c640b2c5946e4b541cfdae11d298ec9d3e5a01c9fa840dae9dab5afe4da3f0f`; embedded commit matches the clean checkout; manual sidecar identity and resolved boundaries are included in cache/provenance |
+| Engine C C7.2 RBF | RTL `8e5f1111f8b0afdd6b75ae0011ba891ef344a87d` | `d6d7bb22beed1366be41b34ab12699cbc3174c46f00705c8f36cd16fd1510dc5`; 2,677,792 bytes; supplied Windows Quartus Full Compilation; hardware validation pending |
 
 The preparer statically links libsidplayfp 3.1.1, fixed upstream commit
 `732fa8ec8131fc75aafc2eaea583ddcdeea2a3cc`. The exact upstream archive SHA is
@@ -25,7 +26,7 @@ The production ARM build uses `production_build_arm.sh` around the authority
 commit's unchanged `build_arm.sh`. The guard requires an explicit full source
 SHA, proves that it equals the checkout's real `HEAD`, and rejects tracked or
 untracked dirt before compilation. The production build was made from an
-independent detached checkout at `6aee1ee2abad8555d2a9c34b1fd7b20f3ad295d9`;
+independent detached checkout at `247d0f198d52ca7789a845a878679c87b2f7e7dc`;
 it does not follow a host linked-worktree `.git` pointer inside the Lima VM.
 
 The hook executes immediately before `sidemu::writeReg(addr,data)` reaches the
@@ -34,11 +35,11 @@ not poll registers, reconstruct snapshots, or generate MVGMSID v1. The raw SID
 path preserves the original track as queue/status identity; only a strictly
 validated atomic cache artifact is passed to the existing PROFILE_C classifier.
 
-The 8 MiB conversion policy changes output identity without changing Packed
-MVGMSID v2 format/version. The cache key explicitly includes
-`capacity_bytes=8388608`, so a valid 4 MiB-policy cache remains on disk but
-cannot be selected as a new-policy hit. The new preparer publishes under the
-new key after the existing strict payload/provenance validation contract.
+Manual loop metadata changes output identity without changing Packed MVGMSID
+v2 format/version. The cache key includes the exact sidecar SHA, requested
+boundaries, subtune, source SHA, snap policy, converter commit, and the existing
+`capacity_bytes=8388608`. Sidecar removal or editing naturally selects another
+key without deleting an old cache entry.
 
 Release installer commit `bde4bef` treats package bytes as the deployment
 authority. It re-hashes every installed production target, restarts the

@@ -1,4 +1,8 @@
-# MegaVGMPlayer v2.2 C6 candidate — Raw SID Auto Prepare
+# MegaVGMPlayer v2.2 Engine C C7.2 hardware candidate
+
+This is an unpublished lab candidate for validating strict manual SID loop
+metadata and Engine C decoder checkpoint/replay. It is not a release candidate
+for public v2.2 publication.
 
 - Packed MVGMSID v2 Engine C is available as `MegaVGMDrive_C.rbf` under
   `/media/fat/_Custom Cores/Cores/` and joins automatic A/B/C switching.

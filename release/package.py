@@ -13,19 +13,23 @@ V2 = PROJECTS / 'MegaVGMPlayer_v2_Release_Final_Staging/MegaVGMPlayer-v2.0/media
 P1 = PROJECTS / 'MegaVGMPlayer_Standalone_Phase1/artifacts'
 HOST = ROOT / 'artifacts'
 TOOLING = PROJECTS / 'MegaVGMPlayer_EngineC_PhaseC6/tools/engine_c_c6'
-TOOLING_COMMIT = '6aee1ee2abad8555d2a9c34b1fd7b20f3ad295d9'
+TOOLING_C7 = PROJECTS / 'MegaVGMPlayer_EngineC_PhaseC6/tools/engine_c_c7_2'
+CANDIDATE = PROJECTS / 'MegaVGMPlayer_EngineC_C7_2_Hardware_Candidate'
+TOOLING_COMMIT = '247d0f198d52ca7789a845a878679c87b2f7e7dc'
 MISSTAMPED_TOOLING_COMMIT = '81fa235b7f6ef180b6c6392a042502952e72252e'
 ITEMS = [
  ('_Custom Cores/Cores/MegaVGMDrive_A.rbf', V2 / '_Custom Cores/Cores/MegaVGMPlayer_Transport13FadeOnly_A_MiSTer.rbf', '5755b74d9b1e10e1da1d6c101892bc95ca8960851a851cc9076d1861c9571f1e', 'byte-identical v2.1 Engine A; QSF 67d7fa2922114852d315536daac79f83a0c40f1b; functional 4488ac0a518f3713cc5b38364aa226e5eded0e27'),
  ('_Custom Cores/Cores/MegaVGMDrive_B.rbf', V2 / '_Custom Cores/Cores/MegaVGMPlayer_Transport13FadeOnly_B_MiSTer.rbf', 'b435417f268a81a39af6bf2408f364945d151e391425775ab7d01ed4899bec95', 'byte-identical v2.1 Engine B; c59009f320f2e1d8db9e3582ee04a61ed18d47a3'),
- ('_Custom Cores/Cores/MegaVGMDrive_C.rbf', PROJECTS / 'MegaVGMPlayer_EngineC_PackedV2_Validation_MiSTer.rbf', 'efb29a236cb5858d00d462bb049ad9d65d8dea55c7b7bb50afc3434a8967a633', 'Windows Quartus Full Compilation from 8 MiB Packed-v2 RTL 1a66fcb5e0eaf963fc57a40d78c580f79ce591f5; QPF hw/engine_c_packed_v2/MegaVGMPlayer_EngineC_PackedV2_Validation_MiSTer.qpf; C2_MAX_FILE_BYTES=8388608; CORENAME MegaVGMDrive; hardware validation pending'),
+ ('_Custom Cores/Cores/MegaVGMDrive_C.rbf', PROJECTS / 'MegaVGMPlayer_EngineC_C7_2_Validation_MiSTer.rbf', 'd6d7bb22beed1366be41b34ab12699cbc3174c46f00705c8f36cd16fd1510dc5', 'C7.2 Windows Quartus Full Compilation from RTL 8e5f1111f8b0afdd6b75ae0011ba891ef344a87d; manual Packed-v2 loop replay; hardware validation pending'),
  ('MegaVGMPlayer/MiSTer.megavgm', V2 / 'MegaVGMPlayer/MiSTer.megavgm', 'a0e7b7d3557457a80ecd62a6bb4643585c33b78fbe515a7a7a5783b05b5addb5', 'a409745a00ca428999e909edb69646f1a5fc62d4; existing v2.0 Main, dynamically linked by design'),
- ('MegaVGMPlayer/megavgm_supervisor', HOST / 'megavgm-c6-capacity-8m-5bddeee-arm/megavgm_supervisor', '201119a748b039b2110f27a5293faf4a6c1684df2b8c1bb7da9a7eccb6097740', '5bddeee892e8d8280fef55313d76d85ed492156a; static ARM; shared Packed-v2 classifier accepts exact 8 MiB while preserving C6 production routing and prerequisite admission'),
- ('MegaVGMPlayer/megavgm_playlist-phase2a', HOST / 'megavgm-c6-capacity-8m-5bddeee-arm/megavgm_playlist', '87713696860a1dc57514cf9d82a18a66eefee14356bd34ca4fac6f58086f9ceb', '5bddeee892e8d8280fef55313d76d85ed492156a; static ARM; shared Packed-v2 classifier accepts exact 8 MiB; existing 120-second watchdog and bounded cancellation contract unchanged'),
- ('MegaVGMPlayer/megavgm_sid_prepare', HOST / 'megavgm_sid_prepare', '0166decd284e88ce3c4dea00e9ccf6da068293f124c1b3a5a22e9b982a93ec74', '6aee1ee2abad8555d2a9c34b1fd7b20f3ad295d9; static ARM; reproducible clean-checkout guard; 8 MiB capacity policy in cache identity/provenance; atomic Packed MVGMSID v2 pair publication with parent-directory fsync'),
+ ('MegaVGMPlayer/megavgm_supervisor', CANDIDATE / 'build-artifacts/megavgm_supervisor', '4200ae6b6ab7a5e359bc7a080a94ee3fae456c73c4e4e2abd178f6fdd53760dd', '1cffacda1feed2cb26e54f0d557565ca2f68203b; static ARM; strict Packed-v2 manual-loop classification'),
+ ('MegaVGMPlayer/megavgm_playlist-phase2a', CANDIDATE / 'build-artifacts/megavgm_playlist-phase2a', '6e1b11f1b84cac228459ace91fb69f27469024d74062f28007e1edb6af9c221c', '1cffacda1feed2cb26e54f0d557565ca2f68203b; static ARM; existing playlist and transition contract unchanged'),
+ ('MegaVGMPlayer/megavgm_sid_prepare', CANDIDATE / 'build-artifacts/megavgm_sid_prepare', '4c640b2c5946e4b541cfdae11d298ec9d3e5a01c9fa840dae9dab5afe4da3f0f', '247d0f198d52ca7789a845a878679c87b2f7e7dc; static ARM; strict manual-loop sidecar snap/canonicalization and 8 MiB policy'),
  ('Scripts/vgm_md_import.sh', V2 / 'Scripts/vgm_md_import.sh', '700542daaeac0f59998d23a868073e6c6c165a4c350fc1119de28456f5f59103', 'e01c872d6854edce77c1fbc7a8f68239f8ecf045; unchanged importer'),
  ('MegaVGMPlayer/megavgm_remote', HOST / 'megavgm_remote-c6-loading-reconcile-9f13f04', '4f8a6762441291ccc6bc0c8ce395937197b5a27a7aca06698de15e967f2a05bb', '9f13f04d0117036809fa06c756540e92df8bfd50; static ARM; exact PLAYING/STOPPED playlist warm admission plus authoritative switch-generation Loading reconciliation; embedded assets/megavgm-f6c226d2.js'),
  ('Scripts/megavgm_ctl', P1 / 'megavgm_ctl.production', '378905c80c22f0b072e248d6fdb67238f2727a38287f4407b2596c8c2a9ae45b', '9e2dd45fbd986378bbdaba326d8e722df2b89c27; exact five compile inputs, official GCC 10.2 static stripped + GNU OSABI'),
+ ('MegaVGMDrive/C7_2_Hardware_Test/C7_2_Manual_Loop_PAL_6581.sid', CANDIDATE / 'fixtures/C7_2_Manual_Loop_PAL_6581.sid', '424c07eb9c5aa6878958c431595d0c87a37ea68ece365ea5c5955097550e3f4f', 'original PAL/6581 synthetic SID; one-second intro plus two-second manual loop'),
+ ('MegaVGMDrive/C7_2_Hardware_Test/C7_2_Manual_Loop_PAL_6581.sid.loop.json', CANDIDATE / 'fixtures/C7_2_Manual_Loop_PAL_6581.sid.loop.json', 'eb71bea2428c01ffd94480674a58ae6edb622b424f893d5c4b3b64895ee093c7', 'strict MegaVGMPlayer-SID-loop-v1 sidecar bound to the synthetic source SHA/subtune'),
 ]
 SOURCE_ITEMS = [
  ('README.md', TOOLING / 'README.md'),
@@ -42,7 +46,12 @@ SOURCE_ITEMS = [
  ('native/test_packed_v2_capacity.cpp', TOOLING / 'native/test_packed_v2_capacity.cpp'),
  ('native/sha256.cpp', TOOLING / 'native/sha256.cpp'),
  ('native/sha256.h', TOOLING / 'native/sha256.h'),
+ ('generate_hardware_fixture.py', TOOLING_C7 / 'generate_hardware_fixture.py'),
  ('production_build_arm.sh', ROOT / 'release/build_sid_preparer_arm.sh'),
+]
+VALIDATION_ITEMS = [
+ ('C7_2_Manual_Loop_PAL_6581.mvgmsid', CANDIDATE / 'prepared-cache-final/05c08152edf3b1bd5e24a3d25d3e079d4acdc66480c51490991200c4a9a365fc.mvgmsid', 'f348221bfdafe1fa4ec73e5bf3e299a1d977a6e6c9493fc5cf18cb1dfcc9ec19'),
+ ('C7_2_Manual_Loop_PAL_6581.provenance.json', CANDIDATE / 'prepared-cache-final/05c08152edf3b1bd5e24a3d25d3e079d4acdc66480c51490991200c4a9a365fc.json', '2140697043aa156318062f379fb58cabbc072956da5d35b89fc2150898dc7b81'),
 ]
 def sha(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
@@ -69,17 +78,18 @@ def main():
     assert MISSTAMPED_TOOLING_COMMIT.encode() not in preparer_bytes, (
         'preparer contains superseded source commit')
     out.mkdir(parents=True)
-    manifest = ['# MegaVGMPlayer v2.2 — Engine C C6 production candidate', '',
-      'Raw single-SID files are prepared on demand into Packed MVGMSID v2 before entering the unchanged production A/B/C switching contract. SID RTL/audio, transport, OSD, and A/B classifier decisions are unchanged.',
+    manifest = ['# MegaVGMPlayer v2.2 — Engine C C7.2 hardware validation candidate', '',
+      '**LAB/HARDWARE CANDIDATE — NOT A PUBLIC OR FINAL v2.2 RC.**', '',
+      'The included original SID and strict manual sidecar exercise Packed MVGMSID v2 loop checkpoint/replay through the unchanged production A/B/C switching contract.',
       'Packaging source commit: `'+subprocess.check_output(['git','-C',str(ROOT),'rev-parse','HEAD'],text=True).strip()+'`.',
-      'Engine A/B are byte-identical copies of the v2.1 hardware-PASS RBFs. Engine C is the Windows Quartus Full Compilation from the 8 MiB Packed-v2 RTL authority and is production-routed as PROFILE_C; its new capacity remains hardware-unverified.', '',
+      'Engine A/B, Main, Remote, Frontend, importer, and helper are unchanged. Engine C is the supplied C7.2 Windows Quartus Full Compilation and remains hardware-unverified.', '',
       '| Runtime relative to /media/fat | Bytes | SHA-256 | Source / provenance |',
       '|---|---:|---|---|']
     for rel, source, expected, provenance in sources:
         dst = out/'media/fat'/rel
         dst.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(source, dst)
-        dst.chmod(0o644 if rel.endswith('.rbf') else 0o755)
+        dst.chmod(0o644 if rel.endswith(('.rbf', '.sid', '.json')) else 0o755)
         assert sha(dst) == expected
         manifest.append(f'| `{rel}` | {dst.stat().st_size} | `{expected}` | {provenance} |')
     manifest += ['', '## Exact original local sources', '']
@@ -91,7 +101,7 @@ def main():
       'Legacy v2.1 RBF names and files are never deleted. Rollback restores the prior Supervisor/controller and retains introduced files recoverably.',
       'Embedded entry: assets/megavgm-f6c226d2.js; SHA-256 6f7aed749a58c8ae87e7f231e6d12bff11d86f6581b20b637d89c3b42b93bba1.',
       'The GPL-linked SID preparer corresponding source is included under source/megavgm_sid_prepare/.',
-      'Frozen Phase 1/C5 provenance plus C6 provenance is retained under provenance/.', '']
+      'C7.2 source authority, resolved fixture loop metadata, and hardware scope are retained under provenance/.', '']
     (out/'ARTIFACT_MANIFEST.md').write_text('\n'.join(manifest))
     for name in ('install.sh','upgrade.sh','rollback.sh','common.sh','startup.block','README.md','README.ja.md','RELEASE_NOTES.md','HARDWARE_CHECKLIST.md','VALIDATION.md'):
         shutil.copy2(ROOT/'release'/name, out/name)
@@ -102,6 +112,11 @@ def main():
         dst.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(source, dst)
         if rel.endswith('.sh'): dst.chmod(0o755)
+    validation_root = out/'validation/manual-loop-fixture'
+    validation_root.mkdir(parents=True)
+    for rel, source, expected in VALIDATION_ITEMS:
+        assert sha(source) == expected, (source, 'validation artifact SHA mismatch')
+        shutil.copy2(source, validation_root/rel)
     (out/'provenance').mkdir()
     shutil.copy2(ROOT/'PROVENANCE.md', out/'provenance/PROVENANCE.md')
     shutil.copy2(ROOT/'LICENSE.backend', out/'provenance/LICENSE.backend')
