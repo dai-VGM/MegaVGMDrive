@@ -46,8 +46,14 @@ module tb_loop_owner;
         advance(100);loop_boundary=1;tick();loop_boundary=0;tick();
         assert(ended==1 && released && gain==0 && session==1)else $fatal(1,"finite loop completion");
         repeat(20)tick();assert(ended==1)else $fatal(1,"duplicate finite END");
-        // Stop/reset clears the retained owner. Repeat One never asserts halt.
+        // Stop during an active loop clears the retained owner immediately.
         reset=1;tick();reset=0;ticks=0;ended=0;playback_started=0;player_busy=0;tick();
+        policy(0);load();playback_started=1;player_busy=1;loop_entry=1;tick();loop_entry=0;
+        advance(20);loop_boundary=1;tick();loop_boundary=0;advance(10);
+        reset=1;tick();
+        assert(gain==256 && ended==0 && !halt_loop)else $fatal(1,"Stop during loop retained owner");
+        // A clean repeated session can start and Repeat One never asserts halt.
+        reset=0;ticks=0;playback_started=0;player_busy=0;tick();
         policy(0);load();playback_started=1;player_busy=1;loop_entry=1;tick();loop_entry=0;
         advance(50);loop_boundary=1;tick();loop_boundary=0;advance(50);
         loop_boundary=1;tick();loop_boundary=0;repeat(5)tick();
@@ -58,7 +64,9 @@ module tb_loop_owner;
         assert(ended==1 && session==1 && gain==0)else $fatal(1,"FADE_ONLY loop session");
         repeat(100)tick();assert(ended==1)else $fatal(1,"duplicate FADE_ONLY END");
         // Replacement owns the same fade but does not manufacture ENDED.
-        reset=1;tick();reset=0;ended=0;playback_started=1;player_busy=1;advance(1);
+        reset=1;tick();reset=0;ended=0;ticks=0;playback_started=0;player_busy=0;tick();
+        policy(0);load();playback_started=1;player_busy=1;loop_entry=1;tick();loop_entry=0;
+        advance(20);loop_boundary=1;tick();loop_boundary=0;advance(1);
         index=1;download=1;tick();assert(wait_io && fade)else $fatal(1,"replacement fade missing");
         while(wait_io)tick();assert(gain==0 && ended==0)else $fatal(1,"replacement phantom END");
         download=0;tick();
