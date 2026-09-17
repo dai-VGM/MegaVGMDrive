@@ -4382,6 +4382,7 @@ module emu
         .sid_activity_history(sid_activity_history),
         .sid_model_8580(sid_model_8580),
         .sid_timing_ntsc(sid_timing_ntsc),
+        .player_state(VGM_PLAYER_STATE),
 `endif
         .text_pixel(title_text_pixel),
         .panel_pixel(title_panel_pixel),

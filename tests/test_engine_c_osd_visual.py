@@ -47,4 +47,15 @@ assert '`ifdef MEGAVGMDRIVE_ENGINE_C_ACTIVITY_OSD\n\tvgm_status_heartbeat_pixel 
 engine=(ROOT/'rtl/engine_c_packed_v2/engine_c_lab.sv').read_text()
 assert 'assign sid_model_8580=session_model;' in engine
 assert 'assign sid_timing_ntsc=(session_timing==8\'d2);' in engine
+renderer=(ROOT/'rtl/engine_c_packed_v2/megavgm_title_renderer_engine_c.sv').read_text()
+assert "STATUS_BADGE_X = 10'd388" in renderer
+assert "STATUS_BADGE_Y = 9'd224" in renderer
+assert '2\'d0: unique case(index)' in renderer
+assert '2\'d1: unique case(index)' in renderer
+assert '2\'d2: unique case(index)' in renderer
+assert "ACTIVITY_OFF_COLOR = 24'h102838" in renderer
+assert "ACTIVITY_ON_COLOR = 24'h40c5d8" in renderer
+assert 'STATUS:' not in renderer
+assert '.player_state(VGM_PLAYER_STATE)' in emu
 print('ENGINE_C_OSD_STATIC_GRAPH_PASS production=%d visual=%d'%(len(pf),len(vf)))
+print('COMMON_STATUS_BADGE_PASS engine=C x=388 y=224 states=STOP/LOAD/PLAY')

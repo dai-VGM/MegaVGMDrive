@@ -13,6 +13,7 @@ module megavgm_title_renderer (
     input  logic [23:0] sid_activity_history,
     input  logic        sid_model_8580,
     input  logic        sid_timing_ntsc,
+    input  logic [1:0]  player_state,
     output logic       text_pixel,
     output logic       panel_pixel,
     output logic [23:0] panel_rgb
@@ -29,6 +30,8 @@ module megavgm_title_renderer (
     localparam logic [8:0] LANE2_Y = 9'd94;
     localparam logic [8:0] LANE3_Y = 9'd106;
     localparam logic [9:0] HISTORY_X = 10'd192;
+    localparam logic [9:0] STATUS_BADGE_X = 10'd388;
+    localparam logic [8:0] STATUS_BADGE_Y = 9'd224;
     localparam logic [23:0] PANEL_COLOR = 24'h000818;
     localparam logic [23:0] ACTIVITY_OFF_COLOR = 24'h102838;
     localparam logic [23:0] ACTIVITY_ON_COLOR = 24'h40c5d8;
@@ -42,6 +45,33 @@ module megavgm_title_renderer (
     logic [8:0] lane_y;
     logic lane_valid, history_pixel, history_on;
     logic [2:0] history_slot;
+    logic status_badge_cell, status_badge_pixel;
+    logic [1:0] status_badge_index;
+    logic [23:0] status_badge_color;
+
+    function automatic logic [7:0] status_badge_character(
+        input logic [1:0] state,
+        input logic [1:0] index
+    );
+        begin
+            status_badge_character = " ";
+            unique case(state)
+                2'd0: unique case(index)
+                    0: status_badge_character = "S"; 1: status_badge_character = "T";
+                    2: status_badge_character = "O"; 3: status_badge_character = "P";
+                endcase
+                2'd1: unique case(index)
+                    0: status_badge_character = "L"; 1: status_badge_character = "O";
+                    2: status_badge_character = "A"; 3: status_badge_character = "D";
+                endcase
+                2'd2: unique case(index)
+                    0: status_badge_character = "P"; 1: status_badge_character = "L";
+                    2: status_badge_character = "A"; 3: status_badge_character = "Y";
+                endcase
+                default: status_badge_character = " ";
+            endcase
+        end
+    endfunction
 
     function automatic logic [7:0] info_character(input logic [4:0] index);
         begin
@@ -85,6 +115,8 @@ module megavgm_title_renderer (
         character=" "; glyph_x=0; glyph_y=0; title_read_addr=0; cell_visible=0;
         relative_x=0; character_index=0; character_cell_x=0;
         lane=0; lane_y=0; lane_valid=0; history_pixel=0; history_on=0; history_slot=0;
+        status_badge_cell=0; status_badge_pixel=0; status_badge_index=0;
+        status_badge_color=(player_state==2'd0)?ACTIVITY_OFF_COLOR:ACTIVITY_ON_COLOR;
         panel_pixel=drawing_active && h_count>=PANEL_LEFT && h_count<=PANEL_RIGHT && v_count<=PANEL_BOTTOM;
 
         if(v_count>=LANE0_Y && v_count<LANE0_Y+7) begin lane=0;lane_y=LANE0_Y;lane_valid=1;end
@@ -100,7 +132,22 @@ module megavgm_title_renderer (
         panel_rgb=!panel_pixel ? 24'h000000 : history_on ? ACTIVITY_ON_COLOR :
                   history_pixel ? ACTIVITY_OFF_COLOR : PANEL_COLOR;
 
-        if(panel_pixel && h_count>=TEXT_X) begin
+        if(panel_pixel && h_count>=STATUS_BADGE_X && h_count<STATUS_BADGE_X+24 &&
+           v_count>=STATUS_BADGE_Y && v_count<STATUS_BADGE_Y+7) begin
+            status_badge_cell=1;
+            if(h_count<STATUS_BADGE_X+6) begin
+                status_badge_index=0;glyph_x=h_count-STATUS_BADGE_X;
+            end else if(h_count<STATUS_BADGE_X+12) begin
+                status_badge_index=1;glyph_x=h_count-(STATUS_BADGE_X+6);
+            end else if(h_count<STATUS_BADGE_X+18) begin
+                status_badge_index=2;glyph_x=h_count-(STATUS_BADGE_X+12);
+            end else begin
+                status_badge_index=3;glyph_x=h_count-(STATUS_BADGE_X+18);
+            end
+            glyph_y=v_count-STATUS_BADGE_Y;
+            character=status_badge_character(player_state,status_badge_index);
+            cell_visible=1;
+        end else if(panel_pixel && h_count>=TEXT_X) begin
             relative_x=h_count-TEXT_X;
             character_index=relative_x/6;
             character_cell_x=character_index*6;
@@ -115,6 +162,8 @@ module megavgm_title_renderer (
                 glyph_y=v_count-lane_y; character=lane_character(lane,character_index[3:0]); cell_visible=1;
             end
         end
-        text_pixel=cell_visible && glyph_x<5 && glyph_pixel;
+        status_badge_pixel=status_badge_cell && glyph_x<5 && glyph_pixel;
+        if(status_badge_pixel) panel_rgb=status_badge_color;
+        text_pixel=!status_badge_cell && cell_visible && glyph_x<5 && glyph_pixel;
     end
 endmodule

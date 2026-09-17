@@ -4,7 +4,9 @@ module tb_engine_c_title_renderer;
     logic title_valid=0; logic [5:0] directory_length=0,basename_length=0;
     logic [6:0] title_read_addr; logic [7:0] title_read_data=0;
     logic [23:0] sid_activity_history=0; logic sid_model_8580=0,sid_timing_ntsc=0;
+    logic [1:0] player_state=0;
     logic text_pixel,panel_pixel; logic [23:0] panel_rgb;
+    integer state_index,x,y,badge_pixels;
     megavgm_title_renderer dut(.*);
     initial begin
         #1;
@@ -25,6 +27,17 @@ module tb_engine_c_title_renderer;
         if(title_read_addr!==0)$fatal(1,"directory title address regression");
         basename_length=1;v_count=34;#1;
         if(title_read_addr!==32)$fatal(1,"basename title address regression");
+        for(state_index=0;state_index<3;state_index=state_index+1) begin
+            player_state=state_index;badge_pixels=0;
+            for(y=224;y<231;y=y+1) begin
+                for(x=388;x<412;x=x+1) begin
+                    h_count=x;v_count=y;#1;
+                    if(panel_rgb==((state_index==0)?24'h102838:24'h40c5d8)) badge_pixels=badge_pixels+1;
+                    if(text_pixel)$fatal(1,"badge leaked into title text color");
+                end
+            end
+            if(badge_pixels==0)$fatal(1,"STOP/LOAD/PLAY badge missing");
+        end
         $display("ENGINE_C_TITLE_RENDERER_PASS");$finish;
     end
 endmodule
