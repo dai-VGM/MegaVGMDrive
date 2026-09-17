@@ -1,8 +1,12 @@
-# MegaVGMPlayer v2.2 Engine C C7.2 hardware candidate
+# MegaVGMPlayer v2.2 Switch-Latency Hardware Candidate
 
-This is an unpublished lab candidate for validating strict manual SID loop
-metadata and Engine C decoder checkpoint/replay. It is not a release candidate
-for public v2.2 publication.
+This is an unpublished lab candidate combining the already validated C7.2
+manual-loop lineage with Supervisor Phase 1 condition-based successor-Main
+verification and Main's 100 ms ProgressMessage publication throttle. It is not
+a release candidate for public v2.2 publication.
+
+The rejected 50 ms Supervisor cadence experiment is absent. Cadence remains
+200 ms and stable-zero remains 1500 ms.
 
 - Packed MVGMSID v2 Engine C is available as `MegaVGMDrive_C.rbf` under
   `/media/fat/_Custom Cores/Cores/` and joins automatic A/B/C switching.
@@ -34,6 +38,6 @@ for public v2.2 publication.
 - Upgrade preflight accepts the normal post-reboot absence of Supervisor runtime
   status only after strict live process/path/SHA and inactive-session verification.
 
-No SID RTL/audio, OSD, transport/fade, Main, importer, or A/B routing semantics
-change is included. This candidate is not published and awaits the A/B/C MiSTer
-hardware checklist.
+No SID RTL/audio, OSD text/design, transfer/CRC/SPI protocol, transport/fade,
+importer, or A/B/C routing semantics change is included. This candidate is not
+published and awaits the A/B/C MiSTer hardware checklist.

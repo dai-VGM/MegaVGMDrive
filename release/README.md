@@ -1,9 +1,12 @@
-# MegaVGMPlayer v2.2 Engine C C7.2 hardware candidate
+# MegaVGMPlayer v2.2 Switch-Latency Hardware Candidate
 
 > **Lab hardware-validation package. This is not a public or final v2.2 RC.**
 
-This candidate replaces only the Engine C RBF, SID preparer, Controller, and
-Supervisor with the strict C7.2 manual-loop lineage. It also installs an
+This candidate combines the validated C7.2 manual-loop lineage with exactly two
+latency candidates: Supervisor Phase 1 condition-based successor-Main
+verification and a 100 ms upload ProgressMessage publication throttle in Main.
+The rejected 50 ms Supervisor-cadence experiment is not included: cadence stays
+at 200 ms and stable-zero stays at 1500 ms. It also installs an
 original PAL/6581 synthetic SID and adjacent loop sidecar under
 `/media/fat/MegaVGMDrive/C7_2_Hardware_Test/`. Follow
 `HARDWARE_CHECKLIST.md`; do not create Commando/Volfied loop points yet.
@@ -24,8 +27,8 @@ status identity; cache files are not shown in Browse.
 
 Engine A and B remain byte-identical copies of the v2.1 production RBFs. Engine C
 is the Windows Quartus Full Compilation of the 8 MiB Packed-v2 RTL authority
-(`efb29a23…`) and is routed through its final path. Its extended capacity awaits
-MiSTer validation. Same-profile C→C keeps the resident RBF; A↔C and B↔C use the
+(`d6d7bb22…`) and is routed through its final path. Its C7.2 manual-loop behavior
+remains a hardware validation target. Same-profile C→C keeps the resident RBF; A↔C and B↔C use the
 established fade/park/switch/rebind transaction.
 
 All three RBFs keep the exact core name `MegaVGMDrive`. Do not rename CORENAME
@@ -125,7 +128,9 @@ Later user edits cause rollback to refuse rather than overwrite them.
 
 ## Scope
 
-Only Engine C was recompiled for the 8 MiB storage/parser limit. A/B RBF bytes,
-Main, Remote, Frontend, importer, transport, OSD, and chip implementation are
-unchanged. Production C6 integration still requires the included MiSTer
-checklist; host/QEMU and Quartus results are not reported as hardware PASS.
+A/B/C RBF bytes, Controller, SID preparer, Remote, Frontend, importer, transport,
+and chip implementation are unchanged from the validated C7.2 candidate. Main
+changes only ProgressMessage publication frequency; Supervisor changes only the
+Phase 1 successor verification plus the exact expected Main SHA. The combined
+candidate still requires the included MiSTer checklist; host/QEMU results are
+not reported as hardware PASS.

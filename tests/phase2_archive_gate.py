@@ -16,7 +16,7 @@ with zipfile.ZipFile(archive) as z:
     assert all(not Path(n).is_absolute() and '..' not in Path(n).parts for n in names)
     assert not any(n.endswith('/remote.sh') or n.endswith('/playlists.json') for n in names)
     z.extractall(root)
-package=root/'MegaVGMPlayer-v2.2-EngineC-C7.2-Hardware-Candidate'
+package=root/'MegaVGMPlayer-v2.2-SwitchLatency-Hardware-Candidate'
 listed=[]
 for line in (package/'SHA256SUMS').read_text().splitlines():
     expected,rel=line.split('  ',1)
@@ -51,12 +51,13 @@ for name, sha in expected.items():
     assert hashlib.sha256(data).hexdigest()==sha,name
 runtime_expected = {
     'megavgm_playlist-phase2a': '6e1b11f1b84cac228459ace91fb69f27469024d74062f28007e1edb6af9c221c',
-    'megavgm_supervisor': '4200ae6b6ab7a5e359bc7a080a94ee3fae456c73c4e4e2abd178f6fdd53760dd',
+    'megavgm_supervisor': 'c83caf59e9685e4bbb777c2f225c90c2bf591a627f1431dffd00e7ef01aadc0e',
     'megavgm_sid_prepare': '4c640b2c5946e4b541cfdae11d298ec9d3e5a01c9fa840dae9dab5afe4da3f0f',
 }
 for name, expected_sha in runtime_expected.items():
     data=(package/'media/fat/MegaVGMPlayer'/name).read_bytes()
     assert hashlib.sha256(data).hexdigest()==expected_sha,name
+assert hashlib.sha256((package/'media/fat/MegaVGMPlayer/MiSTer.megavgm').read_bytes()).hexdigest()=='b691d783a26a9ab94a338433e4f43cf69237cc3a1f7e19bdd3f753f906dc0742'
 fixture=package/'media/fat/MegaVGMDrive/C7_2_Hardware_Test/C7_2_Manual_Loop_PAL_6581.sid'
 sidecar=fixture.with_name(fixture.name+'.loop.json')
 assert hashlib.sha256(fixture.read_bytes()).hexdigest()=='424c07eb9c5aa6878958c431595d0c87a37ea68ece365ea5c5955097550e3f4f'

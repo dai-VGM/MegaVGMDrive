@@ -1,9 +1,11 @@
-# MegaVGMPlayer v2.2 Engine C C7.2実機検証候補
+# MegaVGMPlayer v2.2 Switch-Latency実機検証候補
 
 > **これはlab用実機検証packageです。公開版・最終v2.2 RCではありません。**
 
-Engine C RBF、SID preparer、Controller、Supervisorのみをstrict C7.2
-manual-loop lineageへ差し替えます。オリジナルのPAL/6581 synthetic SIDと
+validated C7.2 manual-loop lineageに、Supervisor Phase 1のcondition-based
+successor-Main verificationとMainの100ms ProgressMessage publication throttleだけを
+統合します。非採用のSupervisor 50ms cadenceは含まず、200ms cadenceと
+stable-zero 1500msを維持します。オリジナルのPAL/6581 synthetic SIDと
 sidecarは`/media/fat/MegaVGMDrive/C7_2_Hardware_Test/`へ配置されます。
 `HARDWARE_CHECKLIST.md`に従い、Commando/Volfiedのloop pointはまだ作成しないでください。
 
@@ -21,8 +23,8 @@ identityを保持し、cache fileはBrowseへ表示しません。
 ```
 
 Engine A/Bはv2.1実機PASS RBFのbyte-identical copyです。Engine Cは8 MiB Packed-v2
-RTL authorityからWindows QuartusでFull Compilationしたartifact (`efb29a23…`)を
-最終pathから使用します。拡張容量は実機未確認です。C→CはRBFをreloadせず、
+RTL authorityからWindows QuartusでFull Compilationしたartifact (`d6d7bb22…`)を
+最終pathから使用します。C7.2 manual-loopは実機検証対象です。C→CはRBFをreloadせず、
 A↔C/B↔Cは既存fade/park/switch/rebind transactionを使います。
 
 3つのCORENAMEはすべて正確に`MegaVGMDrive`のままです。
@@ -109,6 +111,7 @@ v2.1 Supervisorが元のexact pathを使用できます。install後のユーザ
 
 ## 範囲
 
-8 MiB storage/parser上限のためEngine Cだけを再compileしました。A/B RBF、Main、Remote、
-Frontend、importer、transport、OSD、音源実装は変更していません。C6 production統合の
-実機PASSは同梱checklistをユーザーが完了するまで報告しません。
+A/B/C RBF、Controller、SID preparer、Remote、Frontend、importer、transport、音源実装は
+validated C7.2 candidateから変更していません。MainはProgressMessageのpublication頻度のみ、
+SupervisorはPhase 1 verificationとexact Main SHAのみ変更します。同梱checklist完了まで
+実機PASSとは報告しません。

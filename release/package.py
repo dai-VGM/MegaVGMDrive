@@ -15,14 +15,15 @@ HOST = PROJECTS / 'MegaVGMPlayer_V22_EngineC_C6_Host/artifacts'
 TOOLING = PROJECTS / 'MegaVGMPlayer_EngineC_PhaseC6/tools/engine_c_c6'
 TOOLING_C7 = PROJECTS / 'MegaVGMPlayer_EngineC_PhaseC6/tools/engine_c_c7_2'
 CANDIDATE = PROJECTS / 'MegaVGMPlayer_EngineC_C7_2_Hardware_Candidate'
+OPTIMIZED = PROJECTS / 'MegaVGMPlayer_v2.2_SwitchLatency_Hardware_Candidate_Build/artifacts'
 TOOLING_COMMIT = '247d0f198d52ca7789a845a878679c87b2f7e7dc'
 MISSTAMPED_TOOLING_COMMIT = '81fa235b7f6ef180b6c6392a042502952e72252e'
 ITEMS = [
  ('_Custom Cores/Cores/MegaVGMDrive_A.rbf', V2 / '_Custom Cores/Cores/MegaVGMPlayer_Transport13FadeOnly_A_MiSTer.rbf', '5755b74d9b1e10e1da1d6c101892bc95ca8960851a851cc9076d1861c9571f1e', 'byte-identical v2.1 Engine A; QSF 67d7fa2922114852d315536daac79f83a0c40f1b; functional 4488ac0a518f3713cc5b38364aa226e5eded0e27'),
  ('_Custom Cores/Cores/MegaVGMDrive_B.rbf', V2 / '_Custom Cores/Cores/MegaVGMPlayer_Transport13FadeOnly_B_MiSTer.rbf', 'b435417f268a81a39af6bf2408f364945d151e391425775ab7d01ed4899bec95', 'byte-identical v2.1 Engine B; c59009f320f2e1d8db9e3582ee04a61ed18d47a3'),
  ('_Custom Cores/Cores/MegaVGMDrive_C.rbf', PROJECTS / 'MegaVGMPlayer_EngineC_C7_2_Validation_MiSTer.rbf', 'd6d7bb22beed1366be41b34ab12699cbc3174c46f00705c8f36cd16fd1510dc5', 'C7.2 Windows Quartus Full Compilation from RTL 8e5f1111f8b0afdd6b75ae0011ba891ef344a87d; manual Packed-v2 loop replay; hardware validation pending'),
- ('MegaVGMPlayer/MiSTer.megavgm', V2 / 'MegaVGMPlayer/MiSTer.megavgm', 'a0e7b7d3557457a80ecd62a6bb4643585c33b78fbe515a7a7a5783b05b5addb5', 'a409745a00ca428999e909edb69646f1a5fc62d4; existing v2.0 Main, dynamically linked by design'),
- ('MegaVGMPlayer/megavgm_supervisor', CANDIDATE / 'build-artifacts/megavgm_supervisor', '4200ae6b6ab7a5e359bc7a080a94ee3fae456c73c4e4e2abd178f6fdd53760dd', '1cffacda1feed2cb26e54f0d557565ca2f68203b; static ARM; strict Packed-v2 manual-loop classification'),
+ ('MegaVGMPlayer/MiSTer.megavgm', OPTIMIZED / 'MiSTer.megavgm', 'b691d783a26a9ab94a338433e4f43cf69237cc3a1f7e19bdd3f753f906dc0742', '144ae51a2b289fc86f2e09131e3173be9f0e45e2; upload ProgressMessage publication throttled to a 100 ms monotonic interval; transfer/CRC/SPI semantics unchanged; dynamically linked by design'),
+ ('MegaVGMPlayer/megavgm_supervisor', OPTIMIZED / 'megavgm_supervisor', 'c83caf59e9685e4bbb777c2f225c90c2bf591a627f1431dffd00e7ef01aadc0e', '1ba36ce10cdd41d48ca0194de26d08ce2eb89c5d integration of Phase 1 authority 70d2aefd121f975210be6b59886a8211bd7ec150 with the candidate Main SHA; 200 ms service cadence retained; rejected db7b0f084edc33fd0471fcfdd7ad84bb057a6573 absent'),
  ('MegaVGMPlayer/megavgm_playlist-phase2a', CANDIDATE / 'build-artifacts/megavgm_playlist-phase2a', '6e1b11f1b84cac228459ace91fb69f27469024d74062f28007e1edb6af9c221c', '1cffacda1feed2cb26e54f0d557565ca2f68203b; static ARM; existing playlist and transition contract unchanged'),
  ('MegaVGMPlayer/megavgm_sid_prepare', CANDIDATE / 'build-artifacts/megavgm_sid_prepare', '4c640b2c5946e4b541cfdae11d298ec9d3e5a01c9fa840dae9dab5afe4da3f0f', '247d0f198d52ca7789a845a878679c87b2f7e7dc; static ARM; strict manual-loop sidecar snap/canonicalization and 8 MiB policy'),
  ('Scripts/vgm_md_import.sh', V2 / 'Scripts/vgm_md_import.sh', '700542daaeac0f59998d23a868073e6c6c165a4c350fc1119de28456f5f59103', 'e01c872d6854edce77c1fbc7a8f68239f8ecf045; unchanged importer'),
@@ -78,11 +79,12 @@ def main():
     assert MISSTAMPED_TOOLING_COMMIT.encode() not in preparer_bytes, (
         'preparer contains superseded source commit')
     out.mkdir(parents=True)
-    manifest = ['# MegaVGMPlayer v2.2 — Engine C C7.2 hardware validation candidate', '',
+    manifest = ['# MegaVGMPlayer v2.2 — Switch-latency hardware validation candidate', '',
       '**LAB/HARDWARE CANDIDATE — NOT A PUBLIC OR FINAL v2.2 RC.**', '',
-      'The included original SID and strict manual sidecar exercise Packed MVGMSID v2 loop checkpoint/replay through the unchanged production A/B/C switching contract.',
+      'This unpublished candidate combines only Supervisor Phase 1 condition-based successor-Main verification and the Main 100 ms ProgressMessage publication throttle. The included C7.2 SID fixture continues to exercise the validated manual-loop lineage.',
       'Packaging source commit: `'+subprocess.check_output(['git','-C',str(ROOT),'rev-parse','HEAD'],text=True).strip()+'`.',
-      'Engine A/B, Main, Remote, Frontend, importer, and helper are unchanged. Engine C is the supplied C7.2 Windows Quartus Full Compilation and remains hardware-unverified.', '',
+      'Engine A/B/C RBFs, Controller, SID preparer, Remote, Frontend, importer, and helper are unchanged. Engine C is the supplied C7.2 Windows Quartus Full Compilation. The combined Main/Supervisor candidate remains hardware-unverified.',
+      'The rejected Supervisor Phase 2 commit `db7b0f084edc33fd0471fcfdd7ad84bb057a6573` is not an ancestor of this build; the production Supervisor service cadence remains 200 ms and stable-zero remains 1500 ms.', '',
       '| Runtime relative to /media/fat | Bytes | SHA-256 | Source / provenance |',
       '|---|---:|---|---|']
     for rel, source, expected, provenance in sources:

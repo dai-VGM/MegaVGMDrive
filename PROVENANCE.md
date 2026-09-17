@@ -1,4 +1,18 @@
-# Frozen inputs and Engine C C7.2 hardware-candidate provenance
+# Frozen inputs and switch-latency hardware-candidate provenance
+
+## Adopted latency optimizations
+
+This unpublished hardware candidate combines exactly two adopted changes:
+
+- Supervisor Phase 1 authority `70d2aefd121f975210be6b59886a8211bd7ec150`, integrated at `1ba36ce10cdd41d48ca0194de26d08ce2eb89c5d` only to pin the candidate Main SHA. The successor Main uses condition-based verification. The 200 ms service cadence and 1500 ms stable-zero contract remain unchanged.
+- Main authority `144ae51a2b289fc86f2e09131e3173be9f0e45e2`, limiting upload ProgressMessage publication to a 100 ms monotonic interval while preserving immediate start, 0%, 100%, completion, error/cancel, and phase changes.
+
+Rejected Supervisor Phase 2 `db7b0f084edc33fd0471fcfdd7ad84bb057a6573` is not included. The integration was built from a clean independent checkout after proving that Phase 2 is not an ancestor.
+
+| Component | Source | Artifact SHA-256 |
+|---|---|---|
+| Main | `144ae51a2b289fc86f2e09131e3173be9f0e45e2` | `b691d783a26a9ab94a338433e4f43cf69237cc3a1f7e19bdd3f753f906dc0742` |
+| Supervisor | `1ba36ce10cdd41d48ca0194de26d08ce2eb89c5d` over Phase 1 `70d2aefd121f975210be6b59886a8211bd7ec150` | `c83caf59e9685e4bbb777c2f225c90c2bf591a627f1431dffd00e7ef01aadc0e` |
 
 ## Engine C C7.2 manual loop hardware candidate
 

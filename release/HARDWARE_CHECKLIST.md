@@ -1,8 +1,19 @@
-# Engine C C7.2 manual-loop hardware validation
+# v2.2 switch-latency hardware candidate validation
 
 This package is a lab hardware candidate, not a public or final v2.2 RC. Do
 not add manual loop metadata to Commando, Volfied, or another real tune during
 this first acceptance pass.
+
+## OSD and latency acceptance
+
+1. Load a large Engine A/B VGM and a multi-megabyte prepared SID.
+2. Confirm 0%, intermediate progress, 100%, and completion are visible and natural.
+3. Confirm no stale progress remains; error and cancel publication are not delayed.
+4. Exercise A→B→C, C→C, C→A, and C→B. Confirm switching is visibly faster without a stuck or wrong core.
+5. Confirm Stop, Next, Previous, and replacement retain their existing behavior.
+6. Record Supervisor status/log timestamps, Main ownership, active RBF, session, and subjective OSD notes.
+
+This candidate retains the 200 ms Supervisor cadence and 1500 ms stable-zero contract. It does not include the rejected 50 ms cadence experiment.
 
 ## Fixture authority
 

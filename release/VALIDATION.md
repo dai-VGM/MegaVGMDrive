@@ -1,4 +1,11 @@
-# v2.2 Engine C C7.2 hardware-candidate validation scope
+# v2.2 switch-latency hardware-candidate validation scope
+
+## Integrated candidate delta
+
+- Supervisor Phase 1: `70d2aefd121f975210be6b59886a8211bd7ec150`; integration commit `1ba36ce10cdd41d48ca0194de26d08ce2eb89c5d` pins only the new Main SHA.
+- Main ProgressMessage throttle: `144ae51a2b289fc86f2e09131e3173be9f0e45e2`.
+- Rejected Phase 2 `db7b0f084edc33fd0471fcfdd7ad84bb057a6573` is absent. Supervisor cadence is 200 ms; stable-zero is 1500 ms.
+- Controller, SID preparer, A/B/C RBF, Remote/Frontend, and C7.2 manual-loop semantics are frozen.
 
 ## Frozen FPGA artifacts
 
