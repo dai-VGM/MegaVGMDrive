@@ -549,7 +549,16 @@ module mister_vgm_md_top #(
     output logic              ddram_rd,
     output logic [63:0]       ddram_din,
     output logic [7:0]        ddram_be,
-    output logic              ddram_we
+    output logic              ddram_we,
+
+    // Display-only SID session observation. These signals never feed the
+    // transport or audio owner.
+    output logic              sid_reg_write,
+    output logic [4:0]        sid_reg_addr,
+    output logic [7:0]        sid_reg_data,
+    output logic              sid_model_8580,
+    output logic              sid_timing_ntsc,
+    output logic              sid_session_reset
 );
 
     wire reset = !reset_n;
@@ -733,10 +742,24 @@ module mister_vgm_md_top #(
         .parser_start_count(parser_start_count),
         .scanner_start_count(scanner_start_count),
         .sound_write_count(sound_write_count),
+`ifdef MEGAVGMDRIVE_ENGINE_C_ACTIVITY_OSD
+        .sid_reg_write(sid_reg_write),.sid_reg_addr(sid_reg_addr),.sid_reg_data(sid_reg_data),
+        .sid_model_8580(sid_model_8580),.sid_timing_ntsc(sid_timing_ntsc),
+        .sid_session_reset(sid_session_reset),
+`endif
         .store_busy(st_busy),.store_valid(st_valid),.store_dout(st_dout),
         .store_rd(st_rd),.store_we(st_we),.store_addr(st_addr),.store_din(st_din),
         .store_be(st_be),.store_burst(st_burst)
     );
+
+`ifndef MEGAVGMDRIVE_ENGINE_C_ACTIVITY_OSD
+    assign sid_reg_write=1'b0;
+    assign sid_reg_addr=5'd0;
+    assign sid_reg_data=8'd0;
+    assign sid_model_8580=1'b0;
+    assign sid_timing_ntsc=1'b0;
+    assign sid_session_reset=1'b0;
+`endif
 
     golden_player_shell_upload #(
         .VGM_ADDR_WIDTH(VGM_LOAD_ADDR_WIDTH),

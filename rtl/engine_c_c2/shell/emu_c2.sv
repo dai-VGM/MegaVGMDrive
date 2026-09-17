@@ -767,8 +767,10 @@ module emu
         "MegaVGM Engine C C2 Lab;;",
 `endif
         "F1,MVG,Load prepared SID;",
+`ifndef MEGAVGMDRIVE_ENGINE_C_ACTIVITY_OSD
         "O1,Audio Gain,Normal,Boost;",
         "O78,SegaPCM Audio,Normal,PCM Only,FM Only;",
+`endif
 `ifdef MEGAVGMDRIVE_DEV_OSD
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_LOADED_DDR_TEST
@@ -813,6 +815,13 @@ module emu
     wire  [6:0] title_read_addr;
     wire  [7:0] title_read_data;
     wire        title_metadata_busy;
+    wire        sid_reg_write;
+    wire [4:0]  sid_reg_addr;
+    wire [7:0]  sid_reg_data;
+    wire        sid_model_8580;
+    wire        sid_timing_ntsc;
+    wire        sid_session_reset;
+    wire [23:0] sid_activity_history;
     wire        vgm_load_done;
     wire        vgm_load_error;
     wire        vgm_load_overflow;
@@ -1785,6 +1794,14 @@ module emu
         .audio_lpf_mode        (audio_lpf_mode),
         .audio_gain_boost      (audio_gain_boost),
         .audio_psg_level       (audio_psg_level),
+`ifdef MEGAVGMDRIVE_ENGINE_C_ACTIVITY_OSD
+        .sid_reg_write         (sid_reg_write),
+        .sid_reg_addr          (sid_reg_addr),
+        .sid_reg_data          (sid_reg_data),
+        .sid_model_8580        (sid_model_8580),
+        .sid_timing_ntsc       (sid_timing_ntsc),
+        .sid_session_reset     (sid_session_reset),
+`endif
 `ifdef MEGAVGMDRIVE_SEGAPCM_SMOKE_TEST
         .segapcm_smoke_variant (segapcm_smoke_variant),
         .segapcm_smoke_variant_valid(1'b1),
@@ -2266,6 +2283,25 @@ module emu
         .de          (active),
         .vblank_start(video_vblank_start)
     );
+
+`ifdef MEGAVGMDRIVE_ENGINE_C_ACTIVITY_OSD
+    sid_activity_history sid_activity (
+        .clk(clk_sys),
+        .reset(reset || sid_session_reset),
+        .vblank_start(video_vblank_start),
+        .reg_write(sid_reg_write),
+        .reg_addr(sid_reg_addr),
+        .history(sid_activity_history)
+    );
+`else
+    assign sid_reg_write = 1'b0;
+    assign sid_reg_addr = 5'd0;
+    assign sid_reg_data = 8'd0;
+    assign sid_model_8580 = 1'b0;
+    assign sid_timing_ntsc = 1'b0;
+    assign sid_session_reset = 1'b0;
+    assign sid_activity_history = 24'd0;
+`endif
 
     reg       done_latched;
     reg       audio_seen_latched;
@@ -4342,6 +4378,11 @@ module emu
         .basename_length(title_basename_length),
         .title_read_addr(title_read_addr),
         .title_read_data(title_read_data),
+`ifdef MEGAVGMDRIVE_ENGINE_C_ACTIVITY_OSD
+        .sid_activity_history(sid_activity_history),
+        .sid_model_8580(sid_model_8580),
+        .sid_timing_ntsc(sid_timing_ntsc),
+`endif
         .text_pixel(title_text_pixel),
         .panel_pixel(title_panel_pixel),
         .panel_rgb(title_panel_rgb)

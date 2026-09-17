@@ -15,6 +15,8 @@ module engine_c_lab #(
     output logic ce_sid, reg_write,
     output logic [4:0] reg_addr,
     output logic [7:0] reg_data,
+    output logic sid_model_8580,
+    output logic sid_timing_ntsc,
     output logic [63:0] native_cycle,
     output logic signed [17:0] audio,
     output logic sample_valid, audio_ready,
@@ -77,6 +79,8 @@ module engine_c_lab #(
     assign session_timing=use_v2?v2_timing:v1_timing;
     assign session_clock_num=use_v2?v2_num:v1_num;
     assign session_clock_den=use_v2?v2_den:v1_den;
+    assign sid_model_8580=session_model;
+    assign sid_timing_ntsc=(session_timing==8'd2);
     assign valid=use_v2?v2_mem_valid:v1_mem_valid;
 	assign q=use_v2?v2_q:{1'b0,v1_q};
 	assign loop_valid=use_v2&&v2_loop_valid;

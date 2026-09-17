@@ -20,6 +20,11 @@ module engine_c_transport_profile #(
     output logic playback_active, profile_done, profile_fatal,
     output logic [15:0] profile_status, debug_page_data,
     output logic [31:0] parser_start_count, scanner_start_count, sound_write_count,
+`ifdef MEGAVGMDRIVE_ENGINE_C_ACTIVITY_OSD
+	output logic sid_reg_write, output logic [4:0] sid_reg_addr,
+	output logic [7:0] sid_reg_data, output logic sid_model_8580,
+	output logic sid_timing_ntsc, output logic sid_session_reset,
+`endif
 	output logic loop_valid,loop_entry_pulse,loop_boundary_pulse,
 	output logic [31:0] loop_count,transport_ticks,
     input logic store_busy,store_valid,
@@ -43,6 +48,9 @@ module engine_c_transport_profile #(
     logic [7:0] error_code;
     logic signed [17:0] audio;
     wire session_reset=reset || download_active;
+`ifdef MEGAVGMDRIVE_ENGINE_C_ACTIVITY_OSD
+    assign sid_session_reset=session_reset;
+`endif
     assign start=upload_complete && !claimed && !session_reset;
     always @(posedge clk_sys) begin
         if(session_reset) claimed<=0;
@@ -56,7 +64,13 @@ module engine_c_transport_profile #(
         .rd_req(file_read_request),.rd_addr(file_read_address),.rd_ready(file_read_ready),
         .rd_valid(file_read_valid),.rd_data(file_read_data),.busy(raw_busy),
         .done(raw_done),.fatal(engine_fatal),.loaded(loaded),.error_code(error_code),
-        .ce_sid(),.reg_write(),.reg_addr(),.reg_data(),.native_cycle(),
+        .ce_sid(),
+`ifdef MEGAVGMDRIVE_ENGINE_C_ACTIVITY_OSD
+        .reg_write(sid_reg_write),.reg_addr(sid_reg_addr),.reg_data(sid_reg_data),
+        .sid_model_8580(sid_model_8580),.sid_timing_ntsc(sid_timing_ntsc),.native_cycle(),
+`else
+        .reg_write(),.reg_addr(),.reg_data(),.native_cycle(),
+`endif
         .audio(audio),.sample_valid(profile_audio_sample_valid),.audio_ready(ready),
 		.writes(sound_write_count),.loop_valid(loop_valid),.loop_entry_pulse(loop_entry_pulse),
 		.loop_boundary_pulse(loop_boundary_pulse),.loop_count(loop_count),.transport_ticks(transport_ticks),

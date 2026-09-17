@@ -1449,6 +1449,7 @@ always @(posedge hdmi_tx_clk) begin
 	vgm_status_y_rel = 12'd0;
 	// The player/title lines are rendered in emu's native picture so HDMI,
 	// analog, and Direct Video share them. Keep only status/backend here.
+`ifndef MEGAVGMDRIVE_ENGINE_C_ACTIVITY_OSD
 	if ((vgm_status_y >= 12'd80) && (vgm_status_y < 12'd96)) begin
 		vgm_status_text_area = 1'b1;
 		vgm_status_line = 2'd1;
@@ -1458,6 +1459,7 @@ always @(posedge hdmi_tx_clk) begin
 		vgm_status_line = 2'd2;
 		vgm_status_y_rel = vgm_status_y - 12'd112;
 	end
+`endif
 
 	vgm_status_x_rel = (vgm_status_x >= 12'd48) ? (vgm_status_x - 12'd48) : 12'd0;
 	vgm_status_char_idx = vgm_status_x_rel[8:4];
@@ -1485,6 +1487,9 @@ always @(posedge hdmi_tx_clk) begin
 
 	vgm_heartbeat_y_base =
 		(vgm_status_height > 12'd96) ? (vgm_status_height - 12'd48) : 12'd192;
+`ifdef MEGAVGMDRIVE_ENGINE_C_ACTIVITY_OSD
+	vgm_status_heartbeat_pixel = 1'b0;
+`else
 	vgm_status_heartbeat_pixel =
 		de &&
 		!osd_status_hdmi &&
@@ -1494,6 +1499,7 @@ always @(posedge hdmi_tx_clk) begin
 		(vgm_status_x < 12'd64) &&
 		(vgm_status_y >= vgm_heartbeat_y_base) &&
 		(vgm_status_y < (vgm_heartbeat_y_base + 12'd16));
+`endif
 
 	vgm_status_pixel_q <= vgm_status_text_pixel || vgm_status_heartbeat_pixel;
 	vgm_status_rgb_q <= vgm_status_heartbeat_pixel ? 24'h40d878 :

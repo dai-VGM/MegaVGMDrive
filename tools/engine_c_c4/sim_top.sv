@@ -35,6 +35,7 @@ module c2_sim_top(
     wire [28:0] store_addr;
     wire [7:0] store_be,store_burst;
     wire transport_halt=1'b0;
+    wire sid_model_8580,sid_timing_ntsc;
     engine_c_lab dut(.*);
     c2_ddr_mux mux(.clk(clk),.reset(reset),
         .a_rd(1'b0),.a_we(1'b0),.a_addr(29'd0),.a_din(64'd0),.a_be(8'd0),.a_burst(8'd0),
