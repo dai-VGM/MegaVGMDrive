@@ -78,8 +78,8 @@ module megavgm_title_renderer (
             info_character = " ";
             case (index)
                 0: info_character="S"; 1: info_character="I"; 2: info_character="D";
-                4: info_character="6"; 5: info_character=sid_model_8580 ? "8" : "5";
-                6: info_character=sid_model_8580 ? "5" : "8"; 7: info_character=sid_model_8580 ? "8" : "1";
+                4: info_character=sid_model_8580 ? "8" : "6"; 5: info_character="5";
+                6: info_character="8"; 7: info_character=sid_model_8580 ? "0" : "1";
                 10: info_character=sid_timing_ntsc ? "N" : "P";
                 11: info_character=sid_timing_ntsc ? "T" : "A";
                 12: info_character=sid_timing_ntsc ? "S" : "L";
