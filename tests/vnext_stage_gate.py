@@ -1,15 +1,25 @@
 #!/usr/bin/env python3
 """Validate an unpublished four-engine staging directory."""
 import hashlib
+import json
 from pathlib import Path
+import subprocess
 import sys
 
+repo = Path(__file__).resolve().parents[1]
+registry = json.loads((repo / "release/production_engines.json").read_text())
+subprocess.run(
+    [sys.executable, str(repo / "tests/production_engine_admission_gate.py")],
+    cwd=repo, check=True)
 root = Path(sys.argv[1]).resolve()
 expected_rbfs = {
     "MegaVGMDrive_A.rbf": (3321456, "69efdc995e64383d5c0a7065c518aa2372e339dc54903311d1f337e4f13014d9"),
     "MegaVGMDrive_B.rbf": (3067640, "ae6c9f74d2d63528ef6a0cbe867099a0056e60a415c17f85870c5bc81ab4823f"),
     "MegaVGMDrive_C.rbf": (2687708, "e7fa0a6ca192d8ecac31048ec0497fcfd7f00944dfa8c3f5cfa4a8965e06e0e1"),
     "MegaVGMDrive_D.rbf": (2811416, "274283072f3263070e5c747f7e67408f70ca765a0506a0c1839b8bf13c319267"),
+}
+assert set(expected_rbfs) == {
+    engine["canonical_rbf"] for engine in registry["engines"]
 }
 def sha(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()

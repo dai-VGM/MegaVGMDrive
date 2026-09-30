@@ -1,0 +1,4 @@
+set_global_assignment -name TOP_LEVEL_ENTITY sys_top
+set_global_assignment -name VERILOG_MACRO "MEGAVGMDRIVE_PLAYLIST_STATUS_PHASE1B=1"
+set_global_assignment -name VERILOG_MACRO "MEGAVGMDRIVE_PLAYLIST_LOOP_PHASE1E=1"
+source files_engine_d_c140.qip

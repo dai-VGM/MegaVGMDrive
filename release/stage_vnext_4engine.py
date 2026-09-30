@@ -2,29 +2,37 @@
 """Stage the unpublished four-engine candidate from exact local authorities."""
 import argparse
 import hashlib
+import json
 from pathlib import Path
 import shutil
 import subprocess
+import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 PROJECTS = ROOT.parent
 PUBLIC = PROJECTS / "MegaVGMPlayer_v2.2_Release/MegaVGMPlayer-v2.2"
 PUBLIC_SUMS_SHA = "78a8a174890d341dab2c3d66bc1e762a131442627dfca31737ca8a2145d184e6"
 RUNTIME_HEAD = "27a93571a3b4da7cfc5ab38b35085ff901998d16"
+ENGINE_REGISTRY = json.loads(
+    (ROOT / "release/production_engines.json").read_text())
 
-RBF_ITEMS = [
-    ("A", PROJECTS / "MegaVGMPlayer_Transport13FadeOnly_A_MiSTer.rbf",
+RBF_AUTHORITIES = {
+    "A": (PROJECTS / "MegaVGMPlayer_Transport13FadeOnly_A_MiSTer.rbf",
      3321456, "69efdc995e64383d5c0a7065c518aa2372e339dc54903311d1f337e4f13014d9",
      "77573e6936a10ef1ad230477dbba57914d74d41c"),
-    ("B", PROJECTS / "MegaVGMPlayer_Transport13FadeOnly_B_MiSTer.rbf",
+    "B": (PROJECTS / "MegaVGMPlayer_Transport13FadeOnly_B_MiSTer.rbf",
      3067640, "ae6c9f74d2d63528ef6a0cbe867099a0056e60a415c17f85870c5bc81ab4823f",
      "bd253a550ffde16857cb7d4dcd1c5cb76d21d01e"),
-    ("C", Path("/Users/daizo/rbf/MegaVGMDrive_C.rbf"),
+    "C": (Path("/Users/daizo/rbf/MegaVGMDrive_C.rbf"),
      2687708, "e7fa0a6ca192d8ecac31048ec0497fcfd7f00944dfa8c3f5cfa4a8965e06e0e1",
      "b3ebce276a32c0e09cf780f1e139a675609d1304"),
-    ("D", PROJECTS / "MegaVGMDrive_D.rbf",
+    "D": (PROJECTS / "MegaVGMDrive_D.rbf",
      2811416, "274283072f3263070e5c747f7e67408f70ca765a0506a0c1839b8bf13c319267",
      "e55158db936cfd80ea04988110eb69f900ea0c61"),
+}
+RBF_ITEMS = [
+    (engine["id"], *RBF_AUTHORITIES[engine["id"]])
+    for engine in ENGINE_REGISTRY["engines"]
 ]
 
 def sha(path: Path) -> str:
@@ -50,6 +58,9 @@ def main() -> None:
     parser.add_argument("remote_binary", type=Path)
     parser.add_argument("--remote-source-head", required=True)
     args = parser.parse_args()
+    subprocess.run(
+        [sys.executable, str(ROOT / "tests/production_engine_admission_gate.py")],
+        cwd=ROOT, check=True)
     output = args.output.resolve()
     if output.exists():
         raise SystemExit(f"refusing to overwrite staging: {output}")

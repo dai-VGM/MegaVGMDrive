@@ -1,5 +1,20 @@
 # v2.2 switch-latency hardware-candidate validation scope
 
+## Production Engine Admission Gate
+
+Before staging, run `python3 tests/production_engine_admission_gate.py`. The
+engine list comes from `release/production_engines.json`; adding an engine to
+the release registry therefore adds it to the gate automatically. The gate
+checks the production QPF/QSF/QIP graph, Golden Shell/CORENAME, status exporter
+source and live wiring, pre-upload session-0/IDLE readiness, index-1 session
+ownership, DONE/FATAL correlation, loop telemetry, and canonical RBF naming.
+
+This is a static source-admission PASS, not a hardware claim. Promotion still
+requires standalone RBF hardware acceptance plus PWA cold-start, same-engine,
+cross-engine A-to-new-engine-to-A, loop-status, and reload/reset hardware tests
+against the exact RBF SHA-256. `stage_vnext_4engine.py` and
+`vnext_stage_gate.py` invoke the static gate before staging validation.
+
 ## Integrated candidate delta
 
 - Supervisor Phase 1: `70d2aefd121f975210be6b59886a8211bd7ec150`; integration commit `1ba36ce10cdd41d48ca0194de26d08ce2eb89c5d` pins only the new Main SHA.

@@ -1,0 +1,3 @@
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/emu.sv
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/megavgm_playlist_status_export.sv
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/c140_stage3_profile_body.svh

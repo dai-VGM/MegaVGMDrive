@@ -1,0 +1,172 @@
+{
+  "schema": 1,
+  "new_engine_required_macros": [
+    "MEGAVGMDRIVE_PLAYLIST_STATUS_PHASE1B",
+    "MEGAVGMDRIVE_PLAYLIST_LOOP_PHASE1E"
+  ],
+  "hardware_acceptance_required": [
+    "pwa_cold_start",
+    "same_engine_transition",
+    "cross_engine_a_new_a",
+    "loop_status_abi",
+    "reload_reset_contract"
+  ],
+  "engines": [
+    {
+      "id": "A",
+      "canonical_rbf": "MegaVGMDrive_A.rbf",
+      "source_worktree": "mister-vgm-fade-only-a",
+      "qpf": "MegaVGMPlayer_Transport13FadeOnly_A_MiSTer.qpf",
+      "qsf": "MegaVGMPlayer_Transport13FadeOnly_A_MiSTer.qsf",
+      "status_contract": "standard_phase1b",
+      "required_macros": [
+        "MEGAVGMDRIVE_PLAYLIST_STATUS_PHASE1B",
+        "MEGAVGMDRIVE_PLAYLIST_LOOP_PHASE1E"
+      ],
+      "shell_file": "rtl/emu.sv",
+      "exporter_file": "rtl/megavgm_playlist_status_export.sv",
+      "ready": {
+        "file": "rtl/mister_vgm_md_top.sv",
+        "signal": "mode5_load_ready",
+        "required": ["!reset", "mode5_cold_handoff_ready"],
+        "forbidden": ["load_done", "upload_done", "ioctl_download"]
+      },
+      "evidence": [
+        {
+          "file": "rtl/mister_vgm_md_top.sv",
+          "contains": [
+            "VGM_LOAD_FILE_INDEX = 16'd1",
+            "mode5_playback_session_id_i <= mode5_playback_session_id_i + 32'd1",
+            "mode5_done_session_id_i <= mode5_playback_session_id_i",
+            "mode5_error_session_id_i <= mode5_playback_session_id_i",
+            "assign vgm_loop_boundary_pulse_debug = mode5_player_loop_boundary_pulse"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "B",
+      "canonical_rbf": "MegaVGMDrive_B.rbf",
+      "source_worktree": "MegaVGMPlayer_EngineB_FM6_Activity",
+      "qpf": "hw/transport_v1_3/MegaVGMPlayer_Transport13FadeOnly_B_MiSTer.qpf",
+      "qsf": "hw/transport_v1_3/MegaVGMPlayer_Transport13FadeOnly_B_MiSTer.qsf",
+      "status_contract": "frozen_golden_transport",
+      "required_macros": [
+        "GOLDEN_TRANSPORT_V1_2",
+        "GOLDEN_TRANSPORT_PHASE1B",
+        "MEGAVGMDRIVE_PLAYLIST_LOOP_PHASE1E"
+      ],
+      "shell_file": "rtl/emu.sv",
+      "exporter_file": "rtl/megavgm_playlist_status_export.sv",
+      "ready": {
+        "file": "rtl/golden_player_shell_phase1b/mister_vgm_md_top_v1_2.sv",
+        "signal": "mode5_load_ready",
+        "required": ["!reset"],
+        "forbidden": ["load_done", "upload_done", "ioctl_download"]
+      },
+      "evidence": [
+        {
+          "file": "rtl/golden_player_shell_v1_2_compat/transport.sv",
+          "contains": [
+            "assign vgm_download = !reset && download && index == 16'd1",
+            "session_id <= session_id + 1",
+            "done_session_id <= session_id",
+            "assign error_session_id = session_id",
+            ".player_loop_valid(owned_loop_valid)",
+            ".player_loop_boundary_pulse(loop_boundary)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "C",
+      "canonical_rbf": "MegaVGMDrive_C.rbf",
+      "source_worktree": "MegaVGMPlayer_Release_C",
+      "qpf": "hw/engine_c_packed_v2/MegaVGMPlayer_EngineC_C7_2_Validation_MiSTer.qpf",
+      "qsf": "hw/engine_c_packed_v2/MegaVGMPlayer_EngineC_C7_2_Validation_MiSTer.qsf",
+      "status_contract": "frozen_golden_transport",
+      "required_macros": [
+        "GOLDEN_TRANSPORT_V1_2",
+        "ENGINE_C_C4_MEGAVGMDRIVE_CORENAME",
+        "MEGAVGMDRIVE_PLAYLIST_LOOP_PHASE1E"
+      ],
+      "shell_file": "rtl/engine_c_c2/shell/emu_c2.sv",
+      "exporter_file": "rtl/engine_c_c4/megavgm_playlist_status_export.sv",
+      "ready": {
+        "file": "rtl/engine_c_c4/transport.sv",
+        "direct_exporter_reset": ".clk(clk), .reset(reset)",
+        "required": ["reset"],
+        "forbidden": ["load_done", "upload_done", "ioctl_download"]
+      },
+      "evidence": [
+        {
+          "file": "rtl/engine_c_c4/transport.sv",
+          "contains": [
+            "assign vgm_download = !reset && download && index == 16'd1",
+            "session_id <= session_id + 1",
+            "done_session_id <= session_id",
+            "assign error_session_id = session_id",
+            ".player_loop_valid(owned_loop_valid)",
+            ".player_loop_boundary_pulse(loop_boundary)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "D",
+      "canonical_rbf": "MegaVGMDrive_D.rbf",
+      "source_worktree": "MegaVGMPlayer_EngineD_C140",
+      "qpf": "MegaVGMDrive_D.qpf",
+      "qsf": "MegaVGMDrive_D.qsf",
+      "status_contract": "standard_phase1b",
+      "required_macros": [
+        "MEGAVGMDRIVE_PLAYLIST_STATUS_PHASE1B",
+        "MEGAVGMDRIVE_PLAYLIST_LOOP_PHASE1E"
+      ],
+      "shell_file": "rtl/emu.sv",
+      "exporter_file": "rtl/megavgm_playlist_status_export.sv",
+      "ready": {
+        "file": "rtl/megavgm_engine_d_runtime_status_bridge.sv",
+        "signal": "runtime_ready",
+        "required": ["!reset"],
+        "forbidden": ["load_done", "upload_done", "ioctl_download"]
+      },
+      "observation_bridge": {
+        "file": "rtl/megavgm_engine_d_runtime_status_bridge.sv",
+        "allowed_outputs": [
+          "runtime_ready",
+          "playback_session_id",
+          "done_session_id",
+          "error_session_id",
+          "player_loop_valid",
+          "player_loop_boundary_pulse"
+        ]
+      },
+      "evidence": [
+        {
+          "file": "rtl/c140_stage3_profile_body.svh",
+          "contains": [
+            "megavgm_engine_d_runtime_status_bridge engine_d_runtime_status_bridge",
+            "assign mode5_load_ready = profile_runtime_status_ready",
+            "assign mode5_playback_session_id = profile_status_session_id",
+            "assign mode5_done_session_id = profile_status_done_session_id",
+            "assign vgm_error_session_id = profile_status_error_session_id",
+            "assign vgm_loop_valid_debug = profile_status_loop_valid",
+            "profile_status_loop_boundary_pulse"
+          ]
+        },
+        {
+          "file": "rtl/megavgm_engine_d_runtime_status_bridge.sv",
+          "contains": [
+            "FILE_INDEX = 8'd1",
+            "playback_session_id <= playback_session_id + 32'd1",
+            "done_session_id <= playback_session_id",
+            "error_session_id <= playback_session_id",
+            "assign player_loop_valid",
+            "assign player_loop_boundary_pulse"
+          ]
+        }
+      ]
+    }
+  ]
+}

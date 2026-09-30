@@ -1,0 +1,36 @@
+{
+  "schema": 1,
+  "new_engine_required_macros": [
+    "MEGAVGMDRIVE_PLAYLIST_STATUS_PHASE1B",
+    "MEGAVGMDRIVE_PLAYLIST_LOOP_PHASE1E"
+  ],
+  "hardware_acceptance_required": [
+    "pwa_cold_start",
+    "same_engine_transition",
+    "cross_engine_a_new_a",
+    "loop_status_abi",
+    "reload_reset_contract"
+  ],
+  "engines": [
+    {
+      "id": "D",
+      "canonical_rbf": "MegaVGMDrive_D.rbf",
+      "source_worktree": "old_d_missing_status",
+      "qpf": "MegaVGMDrive_D.qpf",
+      "qsf": "MegaVGMDrive_D.qsf",
+      "status_contract": "standard_phase1b",
+      "required_macros": [
+        "MEGAVGMDRIVE_PLAYLIST_STATUS_PHASE1B",
+        "MEGAVGMDRIVE_PLAYLIST_LOOP_PHASE1E"
+      ],
+      "shell_file": "rtl/emu.sv",
+      "exporter_file": "rtl/megavgm_playlist_status_export.sv",
+      "ready": {
+        "file": "rtl/c140_stage3_profile_body.svh",
+        "signal": "mode5_load_ready",
+        "required": ["!reset"],
+        "forbidden": ["load_done", "upload_done", "ioctl_download"]
+      }
+    }
+  ]
+}
