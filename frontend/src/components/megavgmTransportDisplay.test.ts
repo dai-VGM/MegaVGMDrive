@@ -33,7 +33,12 @@ const status = (transport: MegaVGMTransportStatus): MegaVGMStatus => ({
   count: 10,
   clientPollStartedMs: ++clock,
 });
-for (const profile of ["PROFILE_A", "PROFILE_B", "PROFILE_C"] as const) {
+for (const profile of [
+  "PROFILE_A",
+  "PROFILE_B",
+  "PROFILE_C",
+  "PROFILE_D",
+] as const) {
   const s = status({
     ...t,
     currentProfile: profile,
@@ -53,6 +58,10 @@ for (const [from, to] of [
   ["PROFILE_C", "PROFILE_B"],
   ["PROFILE_B", "PROFILE_C"],
   ["PROFILE_C", "PROFILE_A"],
+  ["PROFILE_C", "PROFILE_D"],
+  ["PROFILE_D", "PROFILE_A"],
+  ["PROFILE_A", "PROFILE_D"],
+  ["PROFILE_D", "PROFILE_C"],
 ] as const) {
   let display = emptyTransportDisplay();
   for (const state of ["FADING", "SWITCHING", "PARKED", "READY"] as const) {
@@ -123,7 +132,11 @@ assert(
 );
 assert(
   playbackContextLabel({
-    ...status({ ...t, currentProfile: "PROFILE_C", requiredProfile: "PROFILE_C" }),
+    ...status({
+      ...t,
+      currentProfile: "PROFILE_C",
+      requiredProfile: "PROFILE_C",
+    }),
     soundChips: ["SID 6581"],
   }) === "Favorites · SID 6581 · 4/10",
   "SID chip label comes from track metadata"
@@ -141,5 +154,5 @@ assert(
   "legacy producer remains supported"
 );
 console.log(
-  "Transport display A/B/C same/cross-profile, stale generations/epochs, Stop/error, profile/source: PASS"
+  "Transport display A/B/C/D same/cross-profile, stale generations/epochs, Stop/error, profile/source: PASS"
 );

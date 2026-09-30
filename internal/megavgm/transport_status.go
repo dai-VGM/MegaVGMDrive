@@ -38,7 +38,9 @@ func parseTransportStatus(v map[string]string) (*TransportStatus, error) {
 	if present != len(transportKeys) || !transportEpoch.MatchString(v["switch_epoch"]) || len(v["switch_epoch"]) > 128 || !transportStates[v["switch_state"]] {
 		return nil, invalid
 	}
-	profile := func(p string) bool { return p == "PROFILE_A" || p == "PROFILE_B" || p == "PROFILE_C" }
+	profile := func(p string) bool {
+		return p == "PROFILE_A" || p == "PROFILE_B" || p == "PROFILE_C" || p == "PROFILE_D"
+	}
 	if !profile(v["current_profile"]) || (!profile(v["required_profile"]) && v["required_profile"] != "UNKNOWN") {
 		return nil, invalid
 	}

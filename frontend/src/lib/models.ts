@@ -102,8 +102,13 @@ export interface MegaVGMTransportStatus {
     | "ENDED"
     | "STOPPED"
     | "FAILED";
-  currentProfile: "PROFILE_A" | "PROFILE_B" | "PROFILE_C";
-  requiredProfile: "PROFILE_A" | "PROFILE_B" | "PROFILE_C" | "UNKNOWN";
+  currentProfile: "PROFILE_A" | "PROFILE_B" | "PROFILE_C" | "PROFILE_D";
+  requiredProfile:
+    | "PROFILE_A"
+    | "PROFILE_B"
+    | "PROFILE_C"
+    | "PROFILE_D"
+    | "UNKNOWN";
   domain: string;
   baseline: number;
   profileChanged: boolean;

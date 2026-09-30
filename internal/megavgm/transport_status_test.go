@@ -29,6 +29,11 @@ func TestTransportStatus(t *testing.T) {
 	if e != nil || c.Transport.CurrentProfile != "PROFILE_C" || c.Transport.RequiredProfile != "PROFILE_C" {
 		t.Fatal(c, e)
 	}
+	dProfile := strings.Replace(strings.Replace(transportFixture, "PROFILE_A", "PROFILE_D", 1), "PROFILE_B", "PROFILE_D", 1)
+	d, e := ParseSupervisorStatus(strings.NewReader(base + dProfile))
+	if e != nil || d.Transport.CurrentProfile != "PROFILE_D" || d.Transport.RequiredProfile != "PROFILE_D" {
+		t.Fatal(d, e)
+	}
 	for _, bad := range []string{
 		strings.Replace(transportFixture, "SWITCHING", "WAIT_MAGIC", 1),
 		strings.Replace(transportFixture, "switch_changed=1\n", "", 1),
