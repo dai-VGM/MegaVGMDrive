@@ -25,6 +25,11 @@
       ],
       "shell_file": "rtl/emu.sv",
       "exporter_file": "rtl/megavgm_playlist_status_export.sv",
+      "status_hierarchy": {
+        "authority": "source_path",
+        "instance_path": "emu.playlist_status_export",
+        "module_path": ["emu", "megavgm_playlist_status_export"]
+      },
       "ready": {
         "file": "rtl/mister_vgm_md_top.sv",
         "signal": "mode5_load_ready",
@@ -58,6 +63,16 @@
       ],
       "shell_file": "rtl/emu.sv",
       "exporter_file": "rtl/megavgm_playlist_status_export.sv",
+      "status_hierarchy": {
+        "authority": "source_path",
+        "instance_path": "emu.md_sound.transport.publisher",
+        "module_path": [
+          "emu",
+          "mister_vgm_md_top",
+          "golden_shell_transport",
+          "megavgm_playlist_status_export"
+        ]
+      },
       "ready": {
         "file": "rtl/golden_player_shell_phase1b/mister_vgm_md_top_v1_2.sv",
         "signal": "mode5_load_ready",
@@ -92,6 +107,16 @@
       ],
       "shell_file": "rtl/engine_c_c2/shell/emu_c2.sv",
       "exporter_file": "rtl/engine_c_c4/megavgm_playlist_status_export.sv",
+      "status_hierarchy": {
+        "authority": "source_path",
+        "instance_path": "emu.md_sound.transport.publisher",
+        "module_path": [
+          "emu",
+          "mister_vgm_md_top",
+          "golden_shell_transport",
+          "megavgm_playlist_status_export"
+        ]
+      },
       "ready": {
         "file": "rtl/engine_c_c4/transport.sv",
         "direct_exporter_reset": ".clk(clk), .reset(reset)",
@@ -125,6 +150,16 @@
       ],
       "shell_file": "rtl/emu.sv",
       "exporter_file": "rtl/megavgm_playlist_status_export.sv",
+      "status_hierarchy": {
+        "authority": "elaboration_assertion",
+        "module": "megavgm_playlist_status_export",
+        "instance_path": "emu.playlist_status_export",
+        "assertion_file": "tests/assert_engine_d_status_elaboration.py",
+        "runner_file": "tests/run_engine_d_c140_production.sh",
+        "command": ["bash", "tests/run_engine_d_c140_production.sh"],
+        "pass_marker": "ENGINE_D_STATUS_HIERARCHY_PASS emu.playlist_status_export->emu.hps_io",
+        "timeout_seconds": 600
+      },
       "ready": {
         "file": "rtl/megavgm_engine_d_runtime_status_bridge.sv",
         "signal": "runtime_ready",

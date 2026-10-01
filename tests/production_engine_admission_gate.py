@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import subprocess
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -24,10 +25,200 @@ STANDARD_MACROS = {
 }
 STATE_NAMES = ("STATE_IDLE", "STATE_LOADING", "STATE_PLAYING",
                "STATE_ENDED", "STATE_FATAL")
+STATUS_EXPORTER_MODULE = "megavgm_playlist_status_export"
 
 
 def normalized(text: str) -> str:
     return " ".join(text.split())
+
+
+def sv_without_comments(text: str) -> str:
+    """Remove comments without joining tokens or treating comment text as RTL."""
+    return re.sub(
+        r"//[^\n]*|/\*.*?\*/",
+        lambda match: "\n" * match.group(0).count("\n"),
+        text,
+        flags=re.DOTALL,
+    )
+
+
+def skip_space(text: str, offset: int) -> int:
+    while offset < len(text) and text[offset].isspace():
+        offset += 1
+    return offset
+
+
+def skip_balanced_parentheses(text: str, offset: int) -> int | None:
+    if offset >= len(text) or text[offset] != "(":
+        return None
+    depth = 0
+    in_string = False
+    escaped = False
+    for index in range(offset, len(text)):
+        char = text[index]
+        if in_string:
+            if escaped:
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif char == '"':
+                in_string = False
+            continue
+        if char == '"':
+            in_string = True
+        elif char == "(":
+            depth += 1
+        elif char == ")":
+            depth -= 1
+            if depth == 0:
+                return index + 1
+    return None
+
+
+def sv_module_instances(text: str, module_name: str) -> list[str]:
+    """Find direct SV instances, including optional #(parameter overrides)."""
+    text = sv_without_comments(text)
+    instances: list[str] = []
+    module_pattern = re.compile(rf"\b{re.escape(module_name)}\b")
+    identifier_pattern = re.compile(r"[A-Za-z_][A-Za-z0-9_$]*")
+    for match in module_pattern.finditer(text):
+        offset = skip_space(text, match.end())
+        if offset < len(text) and text[offset] == "#":
+            offset = skip_space(text, offset + 1)
+            offset = skip_balanced_parentheses(text, offset)
+            if offset is None:
+                continue
+            offset = skip_space(text, offset)
+        instance = identifier_pattern.match(text, offset)
+        if instance is None:
+            continue
+        offset = skip_space(text, instance.end())
+        if offset < len(text) and text[offset] == "(":
+            instances.append(instance.group(0))
+    return instances
+
+
+def sv_module_bodies(text: str, module_name: str) -> list[str]:
+    text = sv_without_comments(text)
+    starts = list(re.finditer(
+        rf"\bmodule\s+{re.escape(module_name)}\b", text))
+    bodies = []
+    for start in starts:
+        end = re.search(r"\bendmodule\b", text[start.end():])
+        if end is not None:
+            bodies.append(text[start.end():start.end() + end.start()])
+    return bodies
+
+
+def validate_source_hierarchy(authority: dict, root: Path, graph: "SourceGraph",
+                              errors: list[str]) -> str:
+    instance_path = authority.get("instance_path", "")
+    module_path = authority.get("module_path", [])
+    instance_parts = instance_path.split(".")
+    if (len(instance_parts) < 2 or len(module_path) != len(instance_parts) or
+            module_path[-1] != STATUS_EXPORTER_MODULE):
+        fail(errors, "invalid-status-source-hierarchy", instance_path)
+        return ""
+
+    module_sources: dict[str, list[tuple[Path, str]]] = {}
+    for module_name in module_path[:-1]:
+        definitions = []
+        for source in graph.sources:
+            for body in sv_module_bodies(
+                    source.read_text(errors="replace"), module_name):
+                definitions.append((source, body))
+        module_sources[module_name] = definitions
+
+    for index, (parent_module, child_module, instance_name) in enumerate(zip(
+            module_path, module_path[1:], instance_parts[1:])):
+        definitions = module_sources.get(parent_module, [])
+        if len(definitions) != 1:
+            fail(errors, "status-hierarchy-parent-count",
+                 f"{parent_module}:{len(definitions)}")
+            return ""
+        source, body = definitions[0]
+        instances = sv_module_instances(body, child_module)
+        if instances.count(instance_name) != 1:
+            fail(errors, "status-hierarchy-edge-count",
+                 f"{parent_module}.{instance_name}:{instances.count(instance_name)}")
+            return ""
+        if index == 0 and source != (root / authority["shell_file"]).resolve():
+            fail(errors, "status-hierarchy-root-not-production-shell", str(source))
+            return ""
+    return instance_path
+
+
+def status_hierarchy_instance(engine: dict, root: Path, graph: "SourceGraph",
+                              errors: list[str]) -> str | None:
+    """Validate a registry-declared elaboration assertion, if available."""
+    authority = engine.get("status_hierarchy")
+    if authority is None:
+        return None
+
+    authority_kind = authority.get("authority")
+    if authority_kind == "source_path":
+        source_authority = dict(authority)
+        source_authority["shell_file"] = engine["shell_file"]
+        return validate_source_hierarchy(
+            source_authority, root, graph, errors)
+    if authority_kind != "elaboration_assertion":
+        fail(errors, "unknown-status-hierarchy-authority",
+             str(authority_kind))
+        return ""
+
+    module = authority.get("module")
+    path = authority.get("instance_path", "")
+    assertion_relative = authority.get("assertion_file", "")
+    runner_relative = authority.get("runner_file", "")
+    if module != STATUS_EXPORTER_MODULE or "." not in path:
+        fail(errors, "invalid-status-hierarchy-authority", path)
+        return ""
+    parent, instance = path.rsplit(".", 1)
+    assertion_path = (root / assertion_relative).resolve()
+    runner_path = (root / runner_relative).resolve()
+    if not assertion_path.is_file() or not runner_path.is_file():
+        fail(errors, "missing-status-hierarchy-proof",
+             f"{assertion_relative},{runner_relative}")
+        return ""
+
+    assertion_text = sv_without_comments(
+        assertion_path.read_text(errors="replace"))
+    require_cell = re.compile(
+        rf"require_cell\(\s*['\"]{re.escape(parent)}['\"]\s*,\s*"
+        rf"['\"]{re.escape(instance)}['\"]\s*,\s*"
+        rf"['\"]{re.escape(module)}['\"]\s*\)")
+    runner_text = sv_without_comments(runner_path.read_text(errors="replace"))
+    runner_has_proof = (
+        assertion_relative in runner_text and
+        re.search(rf"--top-module\s+{re.escape(parent)}\b", runner_text) and
+        "--json-only" in runner_text
+    )
+    if not require_cell.search(assertion_text) or not runner_has_proof:
+        fail(errors, "invalid-status-hierarchy-proof", path)
+        return ""
+
+    command = authority.get("command", [])
+    pass_marker = authority.get("pass_marker", "")
+    if (not isinstance(command, list) or not command or
+            not all(isinstance(part, str) and part for part in command) or
+            not pass_marker):
+        fail(errors, "invalid-status-hierarchy-command", path)
+        return ""
+    try:
+        result = subprocess.run(
+            command, cwd=root, text=True, capture_output=True,
+            timeout=authority.get("timeout_seconds", 600), check=False)
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        fail(errors, "status-hierarchy-elaboration-error", str(exc))
+        return ""
+    if result.returncode != 0 or pass_marker not in result.stdout:
+        detail_lines = (result.stdout + result.stderr).splitlines()[-5:]
+        fail(errors, "status-hierarchy-elaboration-failed",
+             " | ".join(detail_lines))
+        return ""
+    print(f"ENGINE_{engine.get('id', '?')}_STATUS_HIERARCHY_PASS "
+          f"instance={path} authority=elaboration")
+    return path
 
 
 @dataclass
@@ -163,12 +354,16 @@ def audit_engine(engine: dict, projects_root: Path) -> list[str]:
         if token not in shell_text:
             fail(errors, "missing-shell-status-wiring", token)
 
-    source_texts = [p.read_text(errors="replace") for p in graph.sources]
-    instances = sum(len(re.findall(
-        r'\bmegavgm_playlist_status_export\s+[A-Za-z_][A-Za-z0-9_]*\s*\(',
-        text)) for text in source_texts)
-    if instances != 1:
-        fail(errors, "status-exporter-instance-count", str(instances))
+    hierarchy_instance = status_hierarchy_instance(engine, root, graph, errors)
+    shell_instances = sv_module_instances(shell_text, STATUS_EXPORTER_MODULE)
+    # An executed production-hierarchy assertion is stronger than source text:
+    # it rejects registered-but-uninstantiated modules and inactive branches.
+    # Without one, restrict fallback matching to the production shell itself.
+    if hierarchy_instance is None and len(shell_instances) != 1:
+        fail(errors, "status-exporter-instance-count",
+             str(len(shell_instances)))
+    elif hierarchy_instance == "":
+        pass
 
     for state in STATE_NAMES:
         if state not in exporter_text:
