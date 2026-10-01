@@ -62,7 +62,7 @@ import {
 } from "./megavgmTransportDisplay";
 import {
   displayDirectory,
-  playbackContextDetails,
+  playbackEnginePositionLabel,
   MEGAVGM_DELETE_COLOR,
   MEGAVGM_DELETE_HOVER_COLOR,
   trackRowState,
@@ -1184,11 +1184,8 @@ export default function MegaVGMPlayer({
       : view === "failure"
       ? "MegaVGMPlayer needs attention."
       : undefined;
-  const playbackDetails = status.data?.controllerRunning
-    ? playbackContextDetails({
-        ...status.data,
-        transport: status.data.transport ? transportDisplay.receipt : undefined,
-      })
+  const playbackEnginePosition = status.data?.controllerRunning
+    ? playbackEnginePositionLabel(status.data)
     : undefined;
 
   return (
@@ -1253,9 +1250,15 @@ export default function MegaVGMPlayer({
         }}
       >
         <Box sx={{ maxWidth: 600, mx: "auto", minWidth: 0 }}>
-          <Stack direction="row" alignItems="center">
+          <Stack
+            direction="row"
+            alignItems="center"
+            spacing={0.75}
+            minWidth={0}
+          >
             <Box sx={{ flex: 1, minWidth: 0 }}>
               <Typography
+                data-testid="playback-title"
                 title={status.data?.title}
                 sx={{ ...trackTitleSx, fontWeight: 600, fontSize: "0.95rem" }}
               >
@@ -1264,6 +1267,22 @@ export default function MegaVGMPlayer({
                   : "Choose your music"}
               </Typography>
             </Box>
+            {playbackEnginePosition && (
+              <Typography
+                component="span"
+                data-testid="playback-engine-position"
+                title={playbackEnginePosition}
+                sx={{
+                  flex: "0 0 auto",
+                  whiteSpace: "nowrap",
+                  color: colors.secondary,
+                  fontSize: "0.6875rem",
+                  fontVariantNumeric: "tabular-nums",
+                }}
+              >
+                {playbackEnginePosition}
+              </Typography>
+            )}
             {status.data?.path && status.data.controllerRunning && (
               <IconButton
                 aria-label={
@@ -1298,51 +1317,6 @@ export default function MegaVGMPlayer({
               <MoreHorizIcon />
             </IconButton>
           </Stack>
-
-          <Box
-            data-testid="playback-context"
-            sx={{
-              display: "flex",
-              alignItems: "baseline",
-              gap: 1,
-              minWidth: 0,
-              pb: 0.25,
-              color: colors.secondary,
-              fontSize: "0.75rem",
-            }}
-          >
-            <Typography
-              component="span"
-              data-testid="playback-source-chips"
-              title={playbackDetails?.sourceAndChips}
-              sx={{
-                flex: "1 1 auto",
-                minWidth: 0,
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-                color: "inherit",
-                fontSize: "inherit",
-              }}
-            >
-              {playbackDetails?.sourceAndChips || "Browse or choose a playlist"}
-            </Typography>
-            {playbackDetails?.position && (
-              <Typography
-                component="span"
-                data-testid="playback-position"
-                sx={{
-                  flex: "0 0 auto",
-                  whiteSpace: "nowrap",
-                  color: "inherit",
-                  fontSize: "inherit",
-                  fontVariantNumeric: "tabular-nums",
-                }}
-              >
-                {playbackDetails.position}
-              </Typography>
-            )}
-          </Box>
 
           <Stack
             data-testid="playback-progress"

@@ -31,7 +31,18 @@ export function playbackContextDetails(status: MegaVGMStatus): {
   };
 }
 
-// Display only: PSG remains in classifier/status; no profile/path inference.
+export function playbackEnginePositionLabel(
+  status: MegaVGMStatus
+): string | undefined {
+  const engine = trackSoundChipLabel(status.soundChips);
+  const position =
+    status.index !== undefined && status.count !== undefined
+      ? `${status.index}/${status.count}`
+      : undefined;
+  return [engine, position].filter(Boolean).join(" · ") || undefined;
+}
+
+// Display only: use atomic classifier evidence; never infer from profile/path.
 export function trackSoundChipLabel(chips?: string[]): string | undefined {
   if (!Array.isArray(chips)) return undefined;
   const order = [
@@ -39,12 +50,14 @@ export function trackSoundChipLabel(chips?: string[]): string | undefined {
     "YM2151",
     "YM2203",
     "SegaPCM",
+    "PSG",
     "YM2610",
     "YM2610B",
     "SID 6581",
     "SID 8580",
+    "C140",
   ];
-  return order.filter((chip) => chips.includes(chip)).join(" / ") || undefined;
+  return order.filter((chip) => chips.includes(chip)).join(" + ") || undefined;
 }
 
 export const MEGAVGM_DELETE_COLOR = "#7F8B96";

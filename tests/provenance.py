@@ -27,6 +27,7 @@ c6_frontend_changes = {
     'MegaVGMPlayer.tsx',
     'megavgmFavorites.ts', 'megavgmPlayOperation.test.ts',
     'megavgmPlayOperation.ts', 'megavgmPresentation.ts',
+    'megavgmPresentation.test.ts',
     'megavgmPlaybackProgress.test.ts', 'megavgmPlaybackProgress.ts',
     'megavgmTransportDisplay.test.ts',
     'megavgmView.test.ts', 'megavgmView.ts',

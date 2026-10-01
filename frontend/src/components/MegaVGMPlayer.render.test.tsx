@@ -42,6 +42,7 @@ const status: MegaVGMStatus = {
   plannedDurationKind: "FINITE",
   plannedDurationMs: 222000,
   durationSource: "VGM_HEADER+TWO_LOOPS",
+  soundChips: ["YM2151", "SegaPCM"],
   clientPollStartedMs: 100,
   clientPollReceivedMs: 120,
   context: "PLAYLIST",
@@ -156,14 +157,13 @@ async function main() {
       "Now Playing star missing"
     );
     assert(
-      now.includes('data-testid="playback-source-chips"') &&
-        now.includes('data-testid="playback-position"') &&
-        now.includes("Favorites") &&
-        now.includes(">1/2<") &&
+      now.includes('data-testid="playback-title"') &&
+        now.includes('data-testid="playback-engine-position"') &&
+        now.includes(">YM2151 + SegaPCM · 1/2<") &&
         now.includes("font-variant-numeric:tabular-nums") &&
         now.includes("white-space:nowrap") &&
         now.includes("text-overflow:ellipsis"),
-      "Now Playing playlist context missing"
+      "Now Playing title-row engine/position missing"
     );
     assert(
       now.includes('aria-label="Player controls"') &&

@@ -6,7 +6,7 @@ const buildRoot=process.env.MEGAVGM_BUILD_ROOT||path.join(project,'frontend/buil
 fs.mkdirSync(out,{recursive:true});
 const port=5291, debug=9393, origin=`http://127.0.0.1:${port}`;
 const entries=Array.from({length:40},(_,i)=>({path:`/media/fat/MegaVGMDrive/Music/${i+1} Track.vgm`,title:`${i+1} Track`,filename:`${i+1} Track.vgm`,directory:'Music',available:true}));
-const status={mode:'MEGAVGM',main:'MODIFIED',supervisorController:'RUNNING',controllerRunning:true,state:'PLAYING',session:4,context:'PLAYLIST',playlist:'Favorites',path:entries[3].path,title:entries[3].title,index:4,count:40,repeat:'ALL',shuffle:true,soundChips:['YM2612']};
+const status={mode:'MEGAVGM',main:'MODIFIED',supervisorController:'RUNNING',controllerRunning:true,state:'PLAYING',session:4,context:'PLAYLIST',playlist:'Favorites',path:entries[1].path,title:'Magical Sound Shower',index:2,count:10,repeat:'ALL',shuffle:true,soundChips:['YM2151','SegaPCM']};
 const requests=[],errors=[];
 const server=http.createServer((req,res)=>{
  const u=new URL(req.url,origin); requests.push(u.pathname);
@@ -48,7 +48,7 @@ const server=http.createServer((req,res)=>{
   for(const width of (process.env.MEGAVGM_REDUCED_PERCENT_ROOT ? [393] : [320,393])) {
    await send('Emulation.setDeviceMetricsOverride',{width,height:852,deviceScaleFactor:1,mobile:true});
    await send('Page.navigate',{url:origin+'/megavgm'});
-   await wait("document.querySelector('[data-testid=playback-position]')?.textContent==='4/40'");
+   await wait("document.querySelector('[data-testid=playback-engine-position]')?.textContent==='YM2151 + SegaPCM · 2/10'");
    assert(await evaluate("matchMedia('(display-mode: standalone)').matches"));
    await wait("document.querySelectorAll('[data-track-state]').length===40");
    if(process.env.MEGAVGM_REDUCED_PERCENT_ROOT) {
@@ -57,7 +57,7 @@ const server=http.createServer((req,res)=>{
     // contain the independent lvh child despite a reduced preferred root height.
     await evaluate("document.documentElement.style.height='calc(100lvh - env(safe-area-inset-top))'");
    }
-   const read=()=>evaluate(`(()=>{const box=s=>{const e=document.querySelector(s),r=e.getBoundingClientRect(),c=getComputedStyle(e);return {top:r.top,bottom:r.bottom,height:r.height,minHeight:c.minHeight,maxHeight:c.maxHeight,paddingTop:parseFloat(c.paddingTop),paddingBottom:parseFloat(c.paddingBottom),scrollTop:e.scrollTop};};return {html:box('html'),body:box('body'),root:box('#root'),shell:box('[data-standalone-shell]'),header:box('header'),content:box('[data-testid=music-content]'),player:box('[data-testid=mini-player]'),nav:box('nav'),tabs:box('nav .MuiTabs-flexContainer'),docHeight:document.scrollingElement.scrollHeight,docWidth:document.scrollingElement.scrollWidth};})()`);
+   const read=()=>evaluate(`(()=>{const box=s=>{const e=document.querySelector(s),r=e.getBoundingClientRect(),c=getComputedStyle(e);return {top:r.top,bottom:r.bottom,left:r.left,right:r.right,width:r.width,height:r.height,minHeight:c.minHeight,maxHeight:c.maxHeight,paddingTop:parseFloat(c.paddingTop),paddingBottom:parseFloat(c.paddingBottom),scrollTop:e.scrollTop,clientWidth:e.clientWidth,scrollWidth:e.scrollWidth,whiteSpace:c.whiteSpace,overflow:c.overflow,textOverflow:c.textOverflow,text:e.textContent};};return {html:box('html'),body:box('body'),root:box('#root'),shell:box('[data-standalone-shell]'),header:box('header'),content:box('[data-testid=music-content]'),player:box('[data-testid=mini-player]'),title:box('[data-testid=playback-title]'),enginePosition:box('[data-testid=playback-engine-position]'),favorite:box('[aria-label$="current favorite"]'),progress:box('[data-testid=playback-progress]'),nav:box('nav'),tabs:box('nav .MuiTabs-flexContainer'),docHeight:document.scrollingElement.scrollHeight,docWidth:document.scrollingElement.scrollWidth};})()`);
    const before=await read();
    fs.writeFileSync(path.join(out,`initial-${width}.json`),JSON.stringify(before,null,2));
    fs.writeFileSync(path.join(out,`initial-${width}.png`),Buffer.from((await send('Page.captureScreenshot',{format:'png'})).data,'base64'));
@@ -68,6 +68,12 @@ const server=http.createServer((req,res)=>{
     assert.equal(before[key].maxHeight,'852px',`${key}: full root maximum missing`);
    }
    assert.equal(before.shell.maxHeight,'100%');
+   assert.equal(before.enginePosition.text,'YM2151 + SegaPCM · 2/10');
+   assert.equal(before.enginePosition.whiteSpace,'nowrap');
+   assert.equal(before.title.textOverflow,'ellipsis');
+   assert(before.title.right<=before.enginePosition.left+0.5,'title and engine/position overlap');
+   assert(before.enginePosition.right<=before.favorite.left+0.5,'engine/position and favorite overlap');
+   assert(before.player.left>=0&&before.player.right<=width,'fixed player exceeds viewport');
    assert.equal(before.nav.bottom-before.tabs.bottom,34,'safe bottom must be inside navigation');
    assert(await evaluate("[...document.querySelectorAll('nav [role=tab]')].every(e=>e.getBoundingClientRect().bottom<=818)"));
    await evaluate("document.querySelector('[data-testid=music-content]').scrollTo(0,420)");

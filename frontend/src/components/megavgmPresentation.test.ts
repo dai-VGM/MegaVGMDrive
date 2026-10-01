@@ -2,6 +2,7 @@ import {
   displayDirectory,
   playbackContextLabel,
   playbackContextDetails,
+  playbackEnginePositionLabel,
   MEGAVGM_DELETE_COLOR,
   MEGAVGM_DELETE_HOVER_COLOR,
   preservePlaybackTab,
@@ -55,12 +56,13 @@ function assert(condition: boolean, message: string): void {
 }
 
 for (const [chips, label] of [
-  [["PSG", "YM2612"], "YM2612"],
-  [["YM2151", "SegaPCM"], "YM2151 / SegaPCM"],
+  [["PSG", "YM2612"], "YM2612 + PSG"],
+  [["YM2151", "SegaPCM"], "YM2151 + SegaPCM"],
   [["YM2203"], "YM2203"],
   [["YM2610B"], "YM2610B"],
   [["YM2610"], "YM2610"],
   [["SegaPCM"], "SegaPCM"],
+  [["YM2151", "C140"], "YM2151 + C140"],
 ] as [string[], string][]) {
   assert(trackSoundChipLabel(chips) === label, "actual chip label");
   assert(
@@ -80,15 +82,31 @@ for (const [chips, label] of [
   );
 }
 assert(
-  trackSoundChipLabel(["PSG"]) === undefined,
-  "PSG-only: no guessed primary chip"
+  trackSoundChipLabel(["PSG"]) === "PSG",
+  "PSG-only classifier evidence must remain visible"
 );
 assert(trackSoundChipLabel(["PROFILE_A"]) === undefined, "no RBF inference");
 assert(
-  trackSoundChipLabel(["YM2612", "YM2612", "PSG"]) === "YM2612",
-  "dedup and display-only PSG exclusion"
+  trackSoundChipLabel(["YM2612", "YM2612", "PSG"]) === "YM2612 + PSG",
+  "dedup authoritative chip evidence"
 );
 assert(trackSoundChipLabel(undefined) === undefined, "legacy metadata absent");
+assert(
+  playbackEnginePositionLabel({
+    ...contextStatus,
+    soundChips: ["YM2151", "SegaPCM"],
+    index: 2,
+    count: 10,
+  }) === "YM2151 + SegaPCM · 2/10",
+  "title-row engine/position comes from atomic status evidence"
+);
+assert(
+  playbackEnginePositionLabel({
+    ...contextStatus,
+    soundChips: undefined,
+  }) === "4/10",
+  "legacy status retains authoritative position without guessing an engine"
+);
 
 assert(
   MEGAVGM_DELETE_COLOR === "#7F8B96" &&
