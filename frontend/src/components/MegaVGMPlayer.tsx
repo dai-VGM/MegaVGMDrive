@@ -257,7 +257,6 @@ export default function MegaVGMPlayer({
   }, []);
   const [tab, setTab] = useState<MegaVGMTab>(initialTab);
   const [browsePath, setBrowsePath] = useState(initialBrowsePath);
-  const [queuedPlay, setQueuedPlay] = useState<PlayIntent>();
   const [playOperation, setPlayOperation] = useState<PlayOperation>();
   const operationRef = useRef<PlayOperation>();
   const statusRef = useRef(status.data);
@@ -525,17 +524,6 @@ export default function MegaVGMPlayer({
   }, [status.data, exit.isError]);
 
   useEffect(() => {
-    if (!play.isLoading && queuedPlay) {
-      setQueuedPlay(undefined);
-      if (
-        playRequestIsCurrent(queuedPlay.requestId, latestPlayRequestId.current)
-      ) {
-        play.mutate(queuedPlay);
-      }
-    }
-  }, [play.isLoading, queuedPlay]);
-
-  useEffect(() => {
     if (!playTarget) return;
     const requestId = playTarget.requestId;
     const timer = window.setTimeout(() => {
@@ -555,7 +543,6 @@ export default function MegaVGMPlayer({
       transportDisplayRef.current
     );
     latestPlayRequestId.current = ++playRequestSequence.current;
-    setQueuedPlay(undefined);
     updatePlayOperation({ type: "supersede" });
     setPlayMessage(message);
   };
@@ -613,12 +600,11 @@ export default function MegaVGMPlayer({
     };
     latestPlayRequestId.current = requestId;
     beginPlay(request);
-    if (play.isLoading) {
-      setQueuedPlay(request);
-    } else {
-      play.reset();
-      play.mutate(request);
-    }
+    // A cold-start request may remain pending while the Supervisor converges.
+    // Dispatch every newer Browse intent immediately; requestId ownership keeps
+    // late callbacks from older requests from mutating the current receipt.
+    play.reset();
+    play.mutate(request);
   };
 
   const requestPlaylistPlay = (
@@ -654,7 +640,6 @@ export default function MegaVGMPlayer({
       requestedAtMs: request.requestedAtMs,
     });
     latestPlayRequestId.current = requestId;
-    setQueuedPlay(undefined);
     beginPlay(request, playlist, index);
     playlistPlay.reset();
     playlistPlay.mutate(request);

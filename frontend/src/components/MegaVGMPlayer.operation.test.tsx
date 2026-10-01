@@ -5,7 +5,7 @@ import { createRoot } from "react-dom/client";
 import { act } from "react-dom/test-utils";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import axios from "axios";
-import MegaVGMPlayer from "./MegaVGMPlayer";
+import MegaVGMPlayer, { MegaVGMTab } from "./MegaVGMPlayer";
 import type { MegaVGMStatus } from "../lib/models";
 
 function assert(v: unknown, text: string): asserts v {
@@ -25,6 +25,11 @@ const entries = names.map((title) => ({
   path: `/media/fat/MegaVGMDrive/Night Striker/${title}.vgm`,
   directory: "Night Striker",
   available: true,
+}));
+const browsePath = "Night Striker";
+const browseEntries = names.map((title) => ({
+  name: `${title}.vgm`,
+  type: "file" as const,
 }));
 const stock: MegaVGMStatus = {
   mode: "STOCK",
@@ -50,18 +55,35 @@ const playing = (n: number, session = n, state = "PLAYING"): MegaVGMStatus => ({
   clientPollStartedMs: performance.now(),
   clientPollReceivedMs: performance.now(),
 });
+const directoryPlaying = (
+  n: number,
+  session = n,
+  state = "PLAYING"
+): MegaVGMStatus => ({
+  ...playing(n, session, state),
+  context: "DIRECTORY",
+  playlist: undefined,
+});
+
+interface PendingRequest {
+  endpoint: "browse" | "playlist";
+  index: number;
+  path: string;
+  resolve: () => void;
+  reject: () => void;
+}
 
 async function scenario(
   name: string,
   run: (h: any) => Promise<void>,
-  initial = stock
+  initial = stock,
+  initialTab: MegaVGMTab = "playlists"
 ) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false, cacheTime: Infinity } },
   });
   let current = initial;
-  const requests: { index: number; resolve: () => void; reject: () => void }[] =
-    [];
+  const requests: PendingRequest[] = [];
   axios.defaults.adapter = async (config) => {
     let data: any = {};
     if (config.url === "/megavgm/status") data = current;
@@ -76,11 +98,35 @@ async function scenario(
       data = { version: 1, name: "Favorites", reserved: true, entries };
     else if (config.url === "/megavgm/favorites")
       data = { version: 1, playlist: "Favorites", entries };
-    else if (config.url?.endsWith("/play")) {
+    else if (config.url === "/megavgm/browse")
+      data = { path: browsePath, parent: "", entries: browseEntries };
+    else if (config.url === "/megavgm/play") {
+      const path = JSON.parse(config.data).path;
+      const index = browseEntries.findIndex(
+        (entry) => `${browsePath}/${entry.name}` === path
+      );
+      assert(index >= 0, `${name}: unknown Browse path ${path}`);
+      await new Promise<void>((resolve, reject) =>
+        requests.push({
+          endpoint: "browse",
+          index,
+          path,
+          resolve,
+          reject: () => reject(new Error("fixture rejection")),
+        })
+      );
+      data = {
+        accepted: true,
+        mode: "MEGAVGM",
+        path: entries[index].path,
+      };
+    } else if (config.url?.endsWith("/play")) {
       const index = JSON.parse(config.data).index;
       await new Promise<void>((resolve, reject) =>
         requests.push({
+          endpoint: "playlist",
           index,
+          path: entries[index].path,
           resolve,
           reject: () => reject(new Error("fixture rejection")),
         })
@@ -120,6 +166,11 @@ async function scenario(
     reserved: true,
     entries,
   });
+  client.setQueryData(["megavgm", "browse", browsePath], {
+    path: browsePath,
+    parent: "",
+    entries: browseEntries,
+  });
   const container = document.createElement("div");
   document.body.appendChild(container);
   const root = createRoot(container);
@@ -140,7 +191,7 @@ async function scenario(
   await act(async () => {
     root.render(
       <QueryClientProvider client={client}>
-        <MegaVGMPlayer initialTab="playlists" />
+        <MegaVGMPlayer initialTab={initialTab} initialBrowsePath={browsePath} />
       </QueryClientProvider>
     );
   });
@@ -205,6 +256,112 @@ async function scenario(
 }
 
 export async function main() {
+  for (const profileChanged of [false, true]) {
+    await scenario(
+      `Browse cold immediate ${
+        profileChanged ? "cross-engine" : "same-engine"
+      } retarget`,
+      async (h) => {
+        await h.tap(1);
+        assert(h.requests.length === 1, "first Browse POST was not dispatched");
+        assert(
+          h.requests[0].endpoint === "browse" &&
+            h.requests[0].path === `${browsePath}/${browseEntries[0].name}`,
+          "first Browse POST payload mismatch"
+        );
+
+        const firstTransport = {
+          epoch: "megavgm-browse-cold.fixture",
+          switchGeneration: "1",
+          switchState: "PLAYING" as const,
+          currentProfile: "PROFILE_A" as const,
+          requiredProfile: "PROFILE_A" as const,
+          domain: "1",
+          baseline: 0,
+          profileChanged: false,
+          path: entries[0].path,
+        };
+        await h.publish({
+          ...directoryPlaying(1, 1),
+          transport: firstTransport,
+        });
+        assert(h.state(1) === "playing", "first Browse track not PLAYING");
+
+        // The first cold-start HTTP request intentionally remains unsettled.
+        // A second row tap must still dispatch its own POST immediately.
+        await h.tap(2);
+        assert(
+          h.requests.length === 2,
+          "second Browse tap was queued instead of issuing HTTP"
+        );
+        assert(
+          h.requests[1].endpoint === "browse" &&
+            h.requests[1].path === `${browsePath}/${browseEntries[1].name}`,
+          "second Browse POST payload mismatch"
+        );
+
+        const secondTransport = {
+          ...firstTransport,
+          switchGeneration: "2",
+          switchState: "SWITCHING" as const,
+          requiredProfile: profileChanged
+            ? ("PROFILE_D" as const)
+            : ("PROFILE_A" as const),
+          profileChanged,
+          path: entries[1].path,
+        };
+        await h.publish({
+          ...directoryPlaying(2, 2, "LOADING"),
+          transport: secondTransport,
+        });
+        assert(h.state(2) === "pending", "second Browse LOADING not shown");
+        await h.ack(1);
+        await h.publish({
+          ...directoryPlaying(2, 2),
+          transport: {
+            ...secondTransport,
+            switchState: "PLAYING" as const,
+            currentProfile: secondTransport.requiredProfile,
+          },
+        });
+        assert(h.state(2) === "playing", "second Browse track not PLAYING");
+
+        await h.ack(0);
+        assert(
+          h.state(1) === "idle" && h.state(2) === "playing",
+          "late first Browse response overrode the newer selection"
+        );
+      },
+      stock,
+      "browse"
+    );
+  }
+
+  await scenario(
+    "Browse rapid taps dispatch and latest selection wins",
+    async (h) => {
+      await h.tap(1);
+      await h.tap(2);
+      await h.tap(3);
+      assert(h.requests.length === 3, "rapid Browse POSTs were serialized");
+      assert(
+        h.requests.every(
+          (request: PendingRequest, index: number) =>
+            request.endpoint === "browse" && request.index === index
+        ),
+        "rapid Browse POST order mismatch"
+      );
+      await h.ack(0);
+      await h.ack(1);
+      assert(h.state(3) === "pending", "older ACK retired latest Browse tap");
+      await h.publish(directoryPlaying(3, 3));
+      await h.ack(2);
+      assert(h.state(3) === "playing", "latest Browse selection did not win");
+    },
+    stock,
+    "browse"
+  );
+
   await scenario("A/E short cold before ACK", async (h) => {
     await h.tap(1);
     assert(h.state(1) === "pending", "tap must show loading");
@@ -241,6 +398,13 @@ export async function main() {
   await scenario("D newer request beats late ACK", async (h) => {
     await h.tap(1);
     await h.tap(5);
+    assert(
+      h.requests.length === 2 &&
+        h.requests.every(
+          (request: PendingRequest) => request.endpoint === "playlist"
+        ),
+      "Favorites direct selections were not dispatched immediately"
+    );
     await h.ack(0);
     assert(
       h.state(1) === "idle" && h.state(5) === "pending",
