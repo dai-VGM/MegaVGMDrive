@@ -240,6 +240,9 @@ async function scenario(
       browseHeading: () => container.querySelector("h6")?.textContent,
       playbackTitle: () =>
         container.querySelector('[data-testid="playback-title"]')?.textContent,
+      playbackEnginePosition: () =>
+        container.querySelector('[data-testid="playback-engine-position"]')
+          ?.textContent,
       exit: async () => {
         await click(
           container.querySelector('button[aria-label="Player options"]')
@@ -307,6 +310,10 @@ export async function main() {
         h.playbackTitle() === "04 Urban Trail",
         "playback display changed"
       );
+      assert(
+        h.playbackEnginePosition() === "YM2151 + SegaPCM · 4/5",
+        "playback source/position missing before Browse parent navigation"
+      );
 
       await h.tab("Browse");
       assert(
@@ -327,8 +334,12 @@ export async function main() {
       );
       assert(h.requests.length === 0, "Browse navigation disturbed playback");
       assert(h.playbackTitle() === "04 Urban Trail", "current track was lost");
+      assert(
+        h.playbackEnginePosition() === "YM2151 + SegaPCM · 4/5",
+        "Browse parent navigation changed playback source/position"
+      );
     },
-    playing(4, 20),
+    { ...playing(4, 20), soundChips: ["YM2151", "SegaPCM"] },
     "playlists",
     navigationBrowsePath
   );

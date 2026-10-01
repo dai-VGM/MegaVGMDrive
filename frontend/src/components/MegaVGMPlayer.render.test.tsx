@@ -165,6 +165,14 @@ async function main() {
         now.includes("text-overflow:ellipsis"),
       "Now Playing title-row engine/position missing"
     );
+    const engineDNow = render("playlists", "", {
+      ...status,
+      soundChips: ["YM2151", "C140"],
+    });
+    assert(
+      engineDNow.includes(">YM2151 + C140 · 1/2<"),
+      "Engine D title-row engine/position missing"
+    );
     assert(
       now.includes('aria-label="Player controls"') &&
         now.includes('aria-label="Repeat"') &&

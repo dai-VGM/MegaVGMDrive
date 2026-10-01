@@ -8,7 +8,7 @@ import (
 )
 
 func TestSoundChipMetadata(t *testing.T) {
-	for _, value := range []string{"PSG,YM2612", "YM2151,SegaPCM", "YM2203", "YM2610B", "YM2610", "PSG", "SID 6581", "SID 8580"} {
+	for _, value := range []string{"PSG,YM2612", "YM2151,SegaPCM", "YM2151,C140", "C140", "YM2203", "YM2610B", "YM2610", "PSG", "SID 6581", "SID 8580"} {
 		s, err := ParseStatus(strings.NewReader(validStatus + "sound_chips=" + value + "\n"))
 		if err != nil || !reflect.DeepEqual(s.SoundChips, strings.Split(value, ",")) || s.Session != 27 || s.Index != 4 || s.Count != 10 {
 			t.Fatalf("%s: %+v %v", value, s, err)
@@ -55,7 +55,7 @@ func TestStatusChipPassthroughNotProfileInference(t *testing.T) {
 	a := newTestAdapter(t, t.TempDir(), nil)
 	writeFile(t, a.config.SupervisorStatusPath, supervisorStatus("MEGAVGM", "MODIFIED", "RUNNING", a.config.DefaultPlaylistPath)+transportFixture, 0644)
 	makeFIFO(t, a.config.CommandPath)
-	for _, chips := range []string{"PSG,YM2612", "YM2203", "YM2151,SegaPCM", "YM2610B", ""} {
+	for _, chips := range []string{"PSG,YM2612", "YM2203", "YM2151,SegaPCM", "YM2151,C140", "C140", "YM2610B", ""} {
 		content := validStatus
 		if chips != "" {
 			content += "sound_chips=" + chips + "\n"
