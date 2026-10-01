@@ -19,12 +19,16 @@ c5_frontend_changes = {
 }
 c6_backend_changes = {
     'browse_play_test.go', 'megavgm.go', 'megavgm_test.go', 'playlists.go',
-    'playlists_test.go', 'track_files.go',
+    'playlists_test.go', 'track_files.go', 'transport_status.go',
+    'transport_status_test.go',
 }
 c6_frontend_changes = {
-    'MegaVGMPlayer.operation.test.tsx', 'MegaVGMPlayer.tsx',
+    'MegaVGMPlayer.operation.test.tsx', 'MegaVGMPlayer.render.test.tsx',
+    'MegaVGMPlayer.tsx',
     'megavgmFavorites.ts', 'megavgmPlayOperation.test.ts',
     'megavgmPlayOperation.ts', 'megavgmPresentation.ts',
+    'megavgmPlaybackProgress.test.ts', 'megavgmPlaybackProgress.ts',
+    'megavgmTransportDisplay.test.ts',
     'megavgmView.test.ts', 'megavgmView.ts',
 }
 for directory, commit in [(backend.parents[2], '6ef56324b91df854080f65f5c4c0f0535740b4ca'), (frontend.parents[1], '8dc1988b106276e215de5e3164a2307e90aa9017')]:
@@ -63,7 +67,7 @@ c6_changed = set(subprocess.check_output(
 ).splitlines())
 # Include the working tree while the C6 commit itself is being validated.
 c6_changed |= set(subprocess.check_output(
-    ['git', 'diff', '--name-only', '--', 'internal/megavgm',
+    ['git', 'diff', '--name-only', 'HEAD', '--', 'internal/megavgm',
      'frontend/src/components'], cwd=root, text=True
 ).splitlines())
 assert c6_changed == c6_allowed, (sorted(c6_changed - c6_allowed),

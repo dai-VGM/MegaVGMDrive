@@ -90,6 +90,10 @@ type Status struct {
 	Title                 string           `json:"title,omitempty"`
 	Session               uint32           `json:"session,omitempty"`
 	LoopCount             uint16           `json:"loopCount,omitempty"`
+	ElapsedMS             uint64           `json:"elapsedMs"`
+	PlannedDurationKind   string           `json:"plannedDurationKind,omitempty"`
+	PlannedDurationMS     *uint64          `json:"plannedDurationMs,omitempty"`
+	DurationSource        string           `json:"durationSource,omitempty"`
 	Context               string           `json:"context,omitempty"`
 	Playlist              string           `json:"playlist,omitempty"`
 	Repeat                string           `json:"repeat,omitempty"`
@@ -100,20 +104,24 @@ type Status struct {
 }
 
 type playlistStatus struct {
-	SoundChips []string
-	SID        *SIDMetadata
-	State      string
-	Index      uint64
-	Count      uint64
-	Path       string
-	Title      string
-	Session    uint32
-	LoopCount  uint16
-	Context    string
-	Playlist   string
-	Repeat     string
-	Shuffle    bool
-	Traversal  string
+	SoundChips          []string
+	SID                 *SIDMetadata
+	State               string
+	Index               uint64
+	Count               uint64
+	Path                string
+	Title               string
+	Session             uint32
+	LoopCount           uint16
+	ElapsedMS           uint64
+	PlannedDurationKind string
+	PlannedDurationMS   *uint64
+	DurationSource      string
+	Context             string
+	Playlist            string
+	Repeat              string
+	Shuffle             bool
+	Traversal           string
 }
 
 type SIDMetadata struct {
@@ -264,6 +272,8 @@ func ParseStatus(reader io.Reader) (playlistStatus, error) {
 	allowed := map[string]bool{
 		"state": true, "index": true, "count": true, "path": true,
 		"session": true, "loop_count": true,
+		"elapsed_ms": true, "planned_duration": true,
+		"planned_duration_ms": true, "duration_source": true,
 		"context": true, "playlist": true,
 		"repeat": true, "shuffle": true, "traversal": true,
 		"sound_chips":        true,
@@ -300,6 +310,34 @@ func ParseStatus(reader io.Reader) (playlistStatus, error) {
 	loopCount, err := parseUnsigned(values["loop_count"], 16)
 	if err != nil {
 		return playlistStatus{}, errors.New("invalid loop_count")
+	}
+	elapsedMS := uint64(0)
+	if values["elapsed_ms"] != "" {
+		elapsedMS, err = parseUnsigned(values["elapsed_ms"], 64)
+		if err != nil {
+			return playlistStatus{}, errors.New("invalid elapsed_ms")
+		}
+	}
+	plannedKind := values["planned_duration"]
+	if plannedKind == "" {
+		plannedKind = "UNKNOWN"
+	}
+	if plannedKind != "UNKNOWN" && plannedKind != "FINITE" && plannedKind != "INFINITE" {
+		return playlistStatus{}, errors.New("invalid planned_duration")
+	}
+	var plannedMS *uint64
+	if values["planned_duration_ms"] != "" {
+		parsed, plannedErr := parseUnsigned(values["planned_duration_ms"], 64)
+		if plannedErr != nil || parsed == 0 || plannedKind != "FINITE" {
+			return playlistStatus{}, errors.New("invalid planned_duration_ms")
+		}
+		plannedMS = &parsed
+	} else if plannedKind == "FINITE" {
+		return playlistStatus{}, errors.New("missing planned_duration_ms")
+	}
+	durationSource := values["duration_source"]
+	if len(durationSource) > 128 || hasControl(durationSource) {
+		return playlistStatus{}, errors.New("invalid duration_source")
 	}
 	context := values["context"]
 	playlist := values["playlist"]
@@ -368,6 +406,8 @@ func ParseStatus(reader io.Reader) (playlistStatus, error) {
 		SoundChips: parseSoundChips(values["sound_chips"]), SID: sid,
 		State: values["state"], Index: index, Count: count, Path: values["path"],
 		Title: title, Session: uint32(session), LoopCount: uint16(loopCount),
+		ElapsedMS: elapsedMS, PlannedDurationKind: plannedKind,
+		PlannedDurationMS: plannedMS, DurationSource: durationSource,
 		Context: context, Playlist: playlist,
 		Repeat: repeat, Shuffle: shuffle, Traversal: traversal,
 	}, nil
@@ -511,6 +551,10 @@ func (a *Adapter) HandleStatus(w http.ResponseWriter, _ *http.Request) {
 	status.SoundChips = playlist.SoundChips
 	status.SID = playlist.SID
 	status.Session, status.LoopCount = playlist.Session, playlist.LoopCount
+	status.ElapsedMS = playlist.ElapsedMS
+	status.PlannedDurationKind = playlist.PlannedDurationKind
+	status.PlannedDurationMS = playlist.PlannedDurationMS
+	status.DurationSource = playlist.DurationSource
 	status.Context, status.Playlist = playlist.Context, playlist.Playlist
 	status.Repeat, status.Shuffle, status.Traversal =
 		playlist.Repeat, playlist.Shuffle, playlist.Traversal

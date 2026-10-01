@@ -67,6 +67,11 @@ import {
   MEGAVGM_DELETE_HOVER_COLOR,
   trackRowState,
 } from "./megavgmPresentation";
+import {
+  observePlaybackTelemetry,
+  playbackProgress,
+  PlaybackTelemetry,
+} from "./megavgmPlaybackProgress";
 
 interface PlayIntent {
   requestId: number;
@@ -263,6 +268,37 @@ export default function MegaVGMPlayer({
   statusRef.current = status.data;
   const playTarget =
     playOperation?.disposition === "pending" ? playOperation : undefined;
+  const playbackTelemetryRef = useRef<PlaybackTelemetry>();
+  playbackTelemetryRef.current = observePlaybackTelemetry(
+    playbackTelemetryRef.current,
+    status.data
+  );
+  const playbackTelemetry = playbackTelemetryRef.current;
+  const [progressClock, setProgressClock] = useState(() => performance.now());
+  useEffect(() => {
+    setProgressClock(performance.now());
+    if (playbackTelemetry?.state !== "PLAYING") return;
+    const timer = window.setInterval(
+      () => setProgressClock(performance.now()),
+      250
+    );
+    return () => window.clearInterval(timer);
+  }, [
+    playbackTelemetry?.session,
+    playbackTelemetry?.path,
+    playbackTelemetry?.state,
+    playbackTelemetry?.pollStartedMs,
+  ]);
+  const progressLoading =
+    transportDisplay.switching ||
+    !!playTarget ||
+    status.data?.state === "PREPARING" ||
+    status.data?.state === "LOADING";
+  const progress = playbackProgress(
+    playbackTelemetry,
+    progressClock,
+    progressLoading
+  );
   const [playMessage, setPlayMessage] = useState<string>();
   const playRequestSequence = useRef(0);
   const latestPlayRequestId = useRef(0);
@@ -1308,7 +1344,84 @@ export default function MegaVGMPlayer({
             )}
           </Box>
 
-          {/* No timing/progress UI until the authoritative API provides values. */}
+          <Stack
+            data-testid="playback-progress"
+            direction="row"
+            alignItems="center"
+            spacing={1}
+            sx={{ pb: 0.25, color: colors.secondary }}
+          >
+            <Typography
+              component="span"
+              data-testid="playback-elapsed"
+              sx={{
+                minWidth: "3.2em",
+                fontSize: "0.6875rem",
+                fontVariantNumeric: "tabular-nums",
+              }}
+            >
+              {progress.elapsedLabel}
+            </Typography>
+            <Box
+              role="progressbar"
+              aria-label="Playback progress"
+              aria-valuemin={progress.determinate ? 0 : undefined}
+              aria-valuemax={progress.determinate ? 100 : undefined}
+              aria-valuenow={
+                progress.determinate
+                  ? Math.round(progress.fraction * 100)
+                  : undefined
+              }
+              data-progress-mode={
+                progress.determinate ? "finite" : progress.kind.toLowerCase()
+              }
+              sx={{
+                position: "relative",
+                flex: 1,
+                height: 3,
+                overflow: "hidden",
+                borderRadius: 2,
+                bgcolor: "rgba(154,169,183,0.2)",
+                "@keyframes megavgm-progress-indeterminate": {
+                  "0%": { transform: "translateX(-140%)" },
+                  "100%": { transform: "translateX(300%)" },
+                },
+              }}
+            >
+              <Box
+                sx={{
+                  position: "absolute",
+                  inset: 0,
+                  width: progress.determinate
+                    ? `${progress.fraction * 100}%`
+                    : progressLoading
+                    ? 0
+                    : "35%",
+                  bgcolor: colors.accent,
+                  opacity: progress.determinate ? 0.9 : 0.55,
+                  animation:
+                    !progress.determinate &&
+                    !progressLoading &&
+                    playbackTelemetry?.state === "PLAYING"
+                      ? "megavgm-progress-indeterminate 1.4s ease-in-out infinite"
+                      : "none",
+                }}
+              />
+            </Box>
+            <Typography
+              component="span"
+              data-testid="playback-total"
+              title={playbackTelemetry?.durationSource}
+              sx={{
+                minWidth: "3.2em",
+                textAlign: "right",
+                fontSize: "0.6875rem",
+                fontVariantNumeric: "tabular-nums",
+              }}
+            >
+              {progress.totalLabel}
+            </Typography>
+          </Stack>
           <Stack
             direction="row"
             justifyContent="center"

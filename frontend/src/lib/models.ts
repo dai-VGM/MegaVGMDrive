@@ -78,6 +78,10 @@ export interface MegaVGMStatus {
   title?: string;
   session?: number;
   loopCount?: number;
+  elapsedMs?: number;
+  plannedDurationKind?: "UNKNOWN" | "FINITE" | "INFINITE";
+  plannedDurationMs?: number;
+  durationSource?: string;
   context?: "DIRECTORY" | "PLAYLIST";
   playlist?: string;
   repeat?: "OFF" | "ONE" | "ALL";

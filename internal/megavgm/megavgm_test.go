@@ -93,6 +93,38 @@ func TestParsePlaybackModes(t *testing.T) {
 	}
 }
 
+func TestParsePlaybackTelemetry(t *testing.T) {
+	finite := validStatus +
+		"elapsed_ms=37000\nplanned_duration=FINITE\n" +
+		"planned_duration_ms=222000\nduration_source=VGM_HEADER+TWO_LOOPS\n"
+	status, err := ParseStatus(strings.NewReader(finite))
+	if err != nil || status.ElapsedMS != 37000 || status.PlannedDurationMS == nil ||
+		*status.PlannedDurationMS != 222000 || status.PlannedDurationKind != "FINITE" ||
+		status.DurationSource != "VGM_HEADER+TWO_LOOPS" {
+		t.Fatalf("finite telemetry=%+v err=%v", status, err)
+	}
+	infinite, err := ParseStatus(strings.NewReader(validStatus +
+		"elapsed_ms=10\nplanned_duration=INFINITE\nduration_source=REPEAT_ONE\n"))
+	if err != nil || infinite.PlannedDurationKind != "INFINITE" ||
+		infinite.PlannedDurationMS != nil {
+		t.Fatalf("infinite telemetry=%+v err=%v", infinite, err)
+	}
+	legacy, err := ParseStatus(strings.NewReader(validStatus))
+	if err != nil || legacy.ElapsedMS != 0 || legacy.PlannedDurationKind != "UNKNOWN" {
+		t.Fatalf("legacy telemetry=%+v err=%v", legacy, err)
+	}
+	for _, invalid := range []string{
+		"elapsed_ms=-1\nplanned_duration=UNKNOWN\n",
+		"elapsed_ms=0\nplanned_duration=FINITE\n",
+		"elapsed_ms=0\nplanned_duration=INFINITE\nplanned_duration_ms=1\n",
+		"elapsed_ms=0\nplanned_duration=BAD\n",
+	} {
+		if _, err := ParseStatus(strings.NewReader(validStatus + invalid)); err == nil {
+			t.Fatalf("invalid telemetry accepted: %q", invalid)
+		}
+	}
+}
+
 func TestParseStatusRejectsMalformedValues(t *testing.T) {
 	tests := []string{
 		strings.Replace(validStatus, "state=PLAYING", "bad line", 1),
@@ -223,7 +255,8 @@ func TestStatusCombinesSupervisorAndPlaylist(t *testing.T) {
 	writeSupervisor(t, adapter, "MEGAVGM", "MODIFIED", "RUNNING", adapter.config.DefaultPlaylistPath)
 	makeFIFO(t, adapter.config.CommandPath)
 	writeFile(t, adapter.config.StatusPath,
-		validStatus+"repeat=ONE\nshuffle=1\ntraversal=SHUFFLE\n", 0644)
+		validStatus+"elapsed_ms=1234\nplanned_duration=INFINITE\n"+
+			"duration_source=REPEAT_ONE\nrepeat=ONE\nshuffle=1\ntraversal=SHUFFLE\n", 0644)
 	recorder := request(t, http.MethodGet, nil, adapter.HandleStatus)
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("status = %d, body = %s", recorder.Code, recorder.Body.String())
@@ -235,6 +268,10 @@ func TestStatusCombinesSupervisorAndPlaylist(t *testing.T) {
 	}
 	if status.Repeat != "ONE" || !status.Shuffle || status.Traversal != "SHUFFLE" {
 		t.Fatalf("playback mode truth missing from API: %#v", status)
+	}
+	if status.ElapsedMS != 1234 || status.PlannedDurationKind != "INFINITE" ||
+		status.PlannedDurationMS != nil || status.DurationSource != "REPEAT_ONE" {
+		t.Fatalf("playback telemetry missing from API: %#v", status)
 	}
 	if status.StatusFileMtimeUnixMs <= 0 || status.StatusReadUnixMs < status.StatusFileMtimeUnixMs {
 		t.Fatalf("missing status timing: %#v", status)

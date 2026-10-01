@@ -12,7 +12,7 @@ ROOT = Path(__file__).resolve().parents[1]
 PROJECTS = ROOT.parent
 PUBLIC = PROJECTS / "MegaVGMPlayer_v2.2_Release/MegaVGMPlayer-v2.2"
 PUBLIC_SUMS_SHA = "78a8a174890d341dab2c3d66bc1e762a131442627dfca31737ca8a2145d184e6"
-RUNTIME_HEAD = "27a93571a3b4da7cfc5ab38b35085ff901998d16"
+RUNTIME_HEAD = "76cf4abff9eac21a7acc090514385d5c8c534b10"
 ENGINE_REGISTRY = json.loads(
     (ROOT / "release/production_engines.json").read_text())
 

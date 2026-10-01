@@ -38,6 +38,12 @@ const status: MegaVGMStatus = {
   title: "01 First",
   session: 12,
   loopCount: 1,
+  elapsedMs: 37000,
+  plannedDurationKind: "FINITE",
+  plannedDurationMs: 222000,
+  durationSource: "VGM_HEADER+TWO_LOOPS",
+  clientPollStartedMs: 100,
+  clientPollReceivedMs: 120,
   context: "PLAYLIST",
   playlist: "Favorites",
   repeat: "ONE",
@@ -130,8 +136,14 @@ async function main() {
 
     const now = render("playlists");
     assert(
-      !now.includes("—:—") && !now.includes('data-testid="playback-progress"'),
-      "time placeholders/progress must not render without authoritative data"
+      now.includes('data-testid="playback-progress"') &&
+        now.includes('data-testid="playback-elapsed"') &&
+        now.includes(">0:37<") &&
+        now.includes('data-testid="playback-total"') &&
+        now.includes(">3:42<") &&
+        now.includes('data-progress-mode="finite"') &&
+        now.includes('aria-label="Playback progress"'),
+      "authoritative finite playback progress missing"
     );
     assert(
       !now.includes('value="now"') &&
@@ -188,6 +200,29 @@ async function main() {
         stoppedNow.includes('aria-label="Stop"') &&
         stoppedNow.includes("disabled"),
       "STOPPED transport presentation missing"
+    );
+    const repeatOneUnknown = render("playlists", "", {
+      ...status,
+      repeat: "ONE",
+      plannedDurationKind: "INFINITE",
+      plannedDurationMs: undefined,
+      durationSource: "REPEAT_ONE",
+    });
+    assert(
+      repeatOneUnknown.includes('data-progress-mode="infinite"') &&
+        repeatOneUnknown.includes(">∞<"),
+      "Repeat One infinite progress presentation missing"
+    );
+    const unknownDuration = render("playlists", "", {
+      ...status,
+      plannedDurationKind: "UNKNOWN",
+      plannedDurationMs: undefined,
+      durationSource: undefined,
+    });
+    assert(
+      unknownDuration.includes('data-progress-mode="unknown"') &&
+        unknownDuration.includes(">--:--<"),
+      "unknown duration presentation missing"
     );
     const stockNow = render("playlists", "", {
       ...status,
