@@ -3,6 +3,7 @@ import {
   playbackContextLabel,
   playbackContextDetails,
   playbackEnginePositionLabel,
+  playbackParentFolder,
   MEGAVGM_DELETE_COLOR,
   MEGAVGM_DELETE_HOVER_COLOR,
   preservePlaybackTab,
@@ -106,6 +107,17 @@ assert(
     soundChips: undefined,
   }) === "4/10",
   "legacy status retains authoritative position without guessing an engine"
+);
+assert(
+  playbackParentFolder(
+    "/media/fat/MegaVGMDrive/05 C140/Dragon_Saber_-_After_Story_of_Dragon_Spirit/23 Ending.vgm"
+  ) === "Dragon_Saber_-_After_Story_of_Dragon_Spirit",
+  "playback folder is the exact parent basename of the authoritative track"
+);
+assert(
+  playbackParentFolder(undefined) === undefined &&
+    playbackParentFolder("Ending.vgm") === undefined,
+  "missing parent path must not invent a playback folder"
 );
 
 assert(

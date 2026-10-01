@@ -165,12 +165,17 @@ async function main() {
         now.includes("text-overflow:ellipsis"),
       "Now Playing title-row engine/position missing"
     );
+    assert(
+      /data-testid="playback-folder"[^>]*>Album<\/p>/.test(now),
+      "playlist playback folder must come from the authoritative track path"
+    );
     const engineDNow = render("playlists", "", {
       ...status,
       soundChips: ["YM2151", "C140"],
     });
     assert(
-      engineDNow.includes(">YM2151 + C140 · 1/2<"),
+      engineDNow.includes(">YM2151 + C140 · 1/2<") &&
+        engineDNow.includes(">Album<"),
       "Engine D title-row engine/position missing"
     );
     assert(
@@ -242,7 +247,8 @@ async function main() {
     });
     assert(
       stockNow.includes("Start Favorites playlist") &&
-        !stockNow.includes("Start default playlist"),
+        !stockNow.includes("Start default playlist") &&
+        !stockNow.includes('data-testid="playback-folder"'),
       "cold-start action must launch the existing Favorites playlist"
     );
 

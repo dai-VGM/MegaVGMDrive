@@ -63,6 +63,7 @@ import {
 import {
   displayDirectory,
   playbackEnginePositionLabel,
+  playbackParentFolder,
   MEGAVGM_DELETE_COLOR,
   MEGAVGM_DELETE_HOVER_COLOR,
   trackRowState,
@@ -1191,6 +1192,9 @@ export default function MegaVGMPlayer({
   const playbackEnginePosition = status.data?.controllerRunning
     ? playbackEnginePositionLabel(status.data)
     : undefined;
+  const playbackFolder = status.data?.controllerRunning
+    ? playbackParentFolder(status.data.path)
+    : undefined;
 
   return (
     <Box ref={shellRef} sx={pageSx} data-testid="player-shell">
@@ -1321,6 +1325,25 @@ export default function MegaVGMPlayer({
               <MoreHorizIcon />
             </IconButton>
           </Stack>
+
+          {playbackFolder && (
+            <Typography
+              data-testid="playback-folder"
+              title={playbackFolder}
+              sx={{
+                mt: -0.25,
+                mb: 0.25,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+                color: colors.secondary,
+                fontSize: "0.6875rem",
+                lineHeight: 1.15,
+              }}
+            >
+              {playbackFolder}
+            </Typography>
+          )}
 
           <Stack
             data-testid="playback-progress"

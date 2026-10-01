@@ -42,6 +42,16 @@ export function playbackEnginePositionLabel(
   return [engine, position].filter(Boolean).join(" · ") || undefined;
 }
 
+export function playbackParentFolder(
+  path: string | undefined
+): string | undefined {
+  if (!path) return undefined;
+  const normalized = path.replace(/\/+$/, "");
+  const separator = normalized.lastIndexOf("/");
+  if (separator < 0) return undefined;
+  return lastPathComponent(normalized.slice(0, separator)) || undefined;
+}
+
 // Display only: use atomic classifier evidence; never infer from profile/path.
 export function trackSoundChipLabel(chips?: string[]): string | undefined {
   if (!Array.isArray(chips)) return undefined;

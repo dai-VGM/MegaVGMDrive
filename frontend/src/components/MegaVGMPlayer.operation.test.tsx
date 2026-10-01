@@ -243,6 +243,8 @@ async function scenario(
       playbackEnginePosition: () =>
         container.querySelector('[data-testid="playback-engine-position"]')
           ?.textContent,
+      playbackFolder: () =>
+        container.querySelector('[data-testid="playback-folder"]')?.textContent,
       exit: async () => {
         await click(
           container.querySelector('button[aria-label="Player options"]')
@@ -314,6 +316,10 @@ export async function main() {
         h.playbackEnginePosition() === "YM2151 + SegaPCM · 4/5",
         "playback source/position missing before Browse parent navigation"
       );
+      assert(
+        h.playbackFolder() === "Night Striker",
+        "authoritative playback folder missing before Browse navigation"
+      );
 
       await h.tab("Browse");
       assert(
@@ -338,10 +344,42 @@ export async function main() {
         h.playbackEnginePosition() === "YM2151 + SegaPCM · 4/5",
         "Browse parent navigation changed playback source/position"
       );
+      assert(
+        h.playbackFolder() === "Night Striker",
+        "Browse parent navigation changed the playback folder"
+      );
     },
     { ...playing(4, 20), soundChips: ["YM2151", "SegaPCM"] },
     "playlists",
     navigationBrowsePath
+  );
+
+  await scenario(
+    "Playback folder follows authoritative track retarget",
+    async (h) => {
+      assert(
+        h.playbackFolder() === "Dragon_Saber_-_After_Story_of_Dragon_Spirit",
+        "generic track title lost its authoritative parent folder"
+      );
+      await h.publish({
+        ...playing(2, 21, "LOADING"),
+        title: "Credit",
+        path: "/media/fat/MegaVGMDrive/02 Arcade/Another_Game/02 Credit.vgm",
+        context: "PLAYLIST",
+        playlist: "Favorites",
+      });
+      assert(
+        h.playbackFolder() === "Another_Game",
+        "retarget did not update to the new authoritative parent folder"
+      );
+    },
+    {
+      ...playing(1, 20),
+      title: "Ending",
+      path: "/media/fat/MegaVGMDrive/05 C140/Dragon_Saber_-_After_Story_of_Dragon_Spirit/23 Ending.vgm",
+      context: "PLAYLIST",
+      playlist: "Favorites",
+    }
   );
 
   for (const profileChanged of [false, true]) {
@@ -445,6 +483,10 @@ export async function main() {
       await h.publish(directoryPlaying(3, 3));
       await h.ack(2);
       assert(h.state(3) === "playing", "latest Browse selection did not win");
+      assert(
+        h.playbackFolder() === "Night Striker",
+        "latest Browse owner did not control the playback folder"
+      );
     },
     stock,
     "browse"
