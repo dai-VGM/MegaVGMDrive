@@ -57,7 +57,14 @@ def main() -> None:
     parser.add_argument("runtime_build", type=Path)
     parser.add_argument("remote_binary", type=Path)
     parser.add_argument("--remote-source-head", required=True)
+    parser.add_argument("--supervisor-binary", type=Path)
+    parser.add_argument("--supervisor-source-head")
+    parser.add_argument("--embedded-pwa-filename", required=True)
+    parser.add_argument("--embedded-pwa-sha256", required=True)
     args = parser.parse_args()
+    supervisor_binary = (args.supervisor_binary or
+                         args.runtime_build / "megavgm_supervisor")
+    supervisor_source_head = args.supervisor_source_head or RUNTIME_HEAD
     subprocess.run(
         [sys.executable, str(ROOT / "tests/production_engine_admission_gate.py")],
         cwd=ROOT, check=True)
@@ -92,14 +99,15 @@ def main() -> None:
          PUBLIC / "media/fat/Scripts/vgm_md_import.sh", True,
          "public v2.2 importer"),
         ("media/fat/MegaVGMPlayer/megavgm_supervisor",
-         args.runtime_build / "megavgm_supervisor", True,
-         f"four-engine runtime source {RUNTIME_HEAD}"),
+         supervisor_binary, True,
+         f"four-engine Supervisor source {supervisor_source_head}"),
         ("media/fat/MegaVGMPlayer/megavgm_playlist-phase2a",
          args.runtime_build / "megavgm_playlist", True,
-         f"four-engine runtime source {RUNTIME_HEAD}"),
+         f"Golden Player Controller source {RUNTIME_HEAD}"),
         ("media/fat/MegaVGMPlayer/megavgm_remote",
          args.remote_binary, True,
-         f"Remote/PWA source {args.remote_source_head}"),
+         f"Golden Player Remote/PWA source {args.remote_source_head}; embedded "
+         f"{args.embedded_pwa_filename} SHA-256 {args.embedded_pwa_sha256}"),
     ]
     for relative, source, executable, provenance in fixed:
         item = copy_item(source, output / relative, executable)

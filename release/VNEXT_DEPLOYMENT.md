@@ -20,16 +20,13 @@ The accepted common Player baseline is documented in
 These source/artifact identities were verified locally. Their stated Player/UI
 behavior is hardware-PROVEN; this does not promote or mutate public v2.2.
 
-The existing generated staging tree at
+The generated staging tree at
 `/Users/daizo/Projects/MegaVGMPlayer_vNext_4Engine_Staging/MegaVGMPlayer-vNext-4Engine-RC`
-is **stale for the common Player binaries**: it contains Controller source
-`27a93571a3b4da7cfc5ab38b35085ff901998d16` / SHA-256
-`6b2ae98d9d996339710084c34862e5c2c737a939e50c970f1ef3b0335be3f73e`
-and Remote source `f63e358b7eb7014b891ff2bd7e4a782b26a94893` / SHA-256
-`22a67d0bb1262c0a2a88cb839520664f740a9321dee60c0edc31d69cc46df2ea`.
-Do not treat that directory as the final Player authority or silently replace it;
-regenerate a new staging directory from the authorities above in a separately
-approved promotion task. Its A/B/C/D RBF bytes already match current authorities.
+contains these accepted Controller and Remote bytes. Its Supervisor remains the
+previously staged source `27a93571a3b4da7cfc5ab38b35085ff901998d16`, SHA-256
+`7a8b48334f6bf9fa72fde4407cf88c00e1245cb8bb001bbcd56d40f67e8c2fc7`;
+this Platform promotion does not replace or reclassify that component. Its
+A/B/C/D RBF bytes remain the unchanged production authorities.
 
 On MiSTer, exit MegaVGMPlayer and verify STOCK before replacement. Upload every
 candidate as a distinct `.new` file, compare its SHA-256 with `SHA256SUMS`, retain
