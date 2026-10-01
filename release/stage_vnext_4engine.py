@@ -26,9 +26,9 @@ RBF_AUTHORITIES = {
     "C": (Path("/Users/daizo/rbf/MegaVGMDrive_C.rbf"),
      2687708, "e7fa0a6ca192d8ecac31048ec0497fcfd7f00944dfa8c3f5cfa4a8965e06e0e1",
      "b3ebce276a32c0e09cf780f1e139a675609d1304"),
-    "D": (PROJECTS / "MegaVGMDrive_D.rbf",
-     2811416, "274283072f3263070e5c747f7e67408f70ca765a0506a0c1839b8bf13c319267",
-     "e55158db936cfd80ea04988110eb69f900ea0c61"),
+    "D": (PROJECTS / "MegaVGMDrive_D6.rbf",
+     2876688, "155a87c1b3421397be62d51b1020bb96edfbad045759b8e5f7e71daa26860865",
+     "5cf9faea2f2a07ead9c3e54653b27fbff8a0b654"),
 }
 RBF_ITEMS = [
     (engine["id"], *RBF_AUTHORITIES[engine["id"]])

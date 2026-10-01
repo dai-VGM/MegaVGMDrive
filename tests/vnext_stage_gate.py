@@ -16,7 +16,7 @@ expected_rbfs = {
     "MegaVGMDrive_A.rbf": (3321456, "69efdc995e64383d5c0a7065c518aa2372e339dc54903311d1f337e4f13014d9"),
     "MegaVGMDrive_B.rbf": (3067640, "ae6c9f74d2d63528ef6a0cbe867099a0056e60a415c17f85870c5bc81ab4823f"),
     "MegaVGMDrive_C.rbf": (2687708, "e7fa0a6ca192d8ecac31048ec0497fcfd7f00944dfa8c3f5cfa4a8965e06e0e1"),
-    "MegaVGMDrive_D.rbf": (2811416, "274283072f3263070e5c747f7e67408f70ca765a0506a0c1839b8bf13c319267"),
+    "MegaVGMDrive_D.rbf": (2876688, "155a87c1b3421397be62d51b1020bb96edfbad045759b8e5f7e71daa26860865"),
 }
 assert set(expected_rbfs) == {
     engine["canonical_rbf"] for engine in registry["engines"]
@@ -45,7 +45,7 @@ for head in (
     "77573e6936a10ef1ad230477dbba57914d74d41c",
     "bd253a550ffde16857cb7d4dcd1c5cb76d21d01e",
     "b3ebce276a32c0e09cf780f1e139a675609d1304",
-    "e55158db936cfd80ea04988110eb69f900ea0c61",
+    "5cf9faea2f2a07ead9c3e54653b27fbff8a0b654",
 ):
     assert head in manifest
 assert "type 2" in manifest and "Filenames" in manifest
