@@ -19,8 +19,8 @@ c5_frontend_changes = {
 }
 c6_backend_changes = {
     'browse_play_test.go', 'megavgm.go', 'megavgm_test.go', 'playlists.go',
-    'playlists_test.go', 'track_files.go', 'transport_status.go',
-    'transport_status_test.go',
+    'playlists_test.go', 'sound_chips.go', 'sound_chips_test.go',
+    'track_files.go', 'transport_status.go', 'transport_status_test.go',
 }
 c6_frontend_changes = {
     'MegaVGMPlayer.operation.test.tsx', 'MegaVGMPlayer.render.test.tsx',
