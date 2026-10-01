@@ -380,6 +380,10 @@ export default function MegaVGMPlayer({
     rememberScroll();
     setBrowsePath(path);
   };
+  const selectParentFolder = () => {
+    if (!browse.data?.path) return;
+    selectFolder(browse.data.parent || "");
+  };
   const [newPlaylistName, setNewPlaylistName] = useState("");
   const [renamePlaylistName, setRenamePlaylistName] = useState("");
   const [playlistChooserPath, setPlaylistChooserPath] = useState<string>();
@@ -707,7 +711,7 @@ export default function MegaVGMPlayer({
           className="MegaVGM-browseOutlinedRow"
           variant="outlined"
           startIcon={<ArrowBackIcon />}
-          onClick={() => selectFolder(browse.data?.parent || "")}
+          onClick={selectParentFolder}
           sx={browseOutlinedRowSx}
         >
           Parent folder
@@ -1452,7 +1456,13 @@ export default function MegaVGMPlayer({
           },
         }}
       >
-        <Tab value="browse" label="Browse" />
+        <Tab
+          value="browse"
+          label="Browse"
+          onClick={() => {
+            if (tab === "browse") selectParentFolder();
+          }}
+        />
         <Tab value="playlists" label="Playlists" />
       </Tabs>
       <Menu

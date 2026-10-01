@@ -31,6 +31,24 @@ const browseEntries = names.map((title) => ({
   name: `${title}.vgm`,
   type: "file" as const,
 }));
+const navigationBrowsePath = "Arcade/Night Striker";
+const browseResponse = (path: string) => {
+  if (path === navigationBrowsePath)
+    return { path, parent: "Arcade", entries: browseEntries };
+  if (path === "Arcade")
+    return {
+      path,
+      parent: "",
+      entries: [{ name: "Night Striker", type: "directory" as const }],
+    };
+  if (path === "")
+    return {
+      path,
+      parent: "",
+      entries: [{ name: "Arcade", type: "directory" as const }],
+    };
+  return { path: browsePath, parent: "", entries: browseEntries };
+};
 const stock: MegaVGMStatus = {
   mode: "STOCK",
   main: "STOCK",
@@ -77,13 +95,15 @@ async function scenario(
   name: string,
   run: (h: any) => Promise<void>,
   initial = stock,
-  initialTab: MegaVGMTab = "playlists"
+  initialTab: MegaVGMTab = "playlists",
+  initialBrowsePath = browsePath
 ) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false, cacheTime: Infinity } },
   });
   let current = initial;
   const requests: PendingRequest[] = [];
+  const browseRequests: string[] = [];
   axios.defaults.adapter = async (config) => {
     let data: any = {};
     if (config.url === "/megavgm/status") data = current;
@@ -98,9 +118,11 @@ async function scenario(
       data = { version: 1, name: "Favorites", reserved: true, entries };
     else if (config.url === "/megavgm/favorites")
       data = { version: 1, playlist: "Favorites", entries };
-    else if (config.url === "/megavgm/browse")
-      data = { path: browsePath, parent: "", entries: browseEntries };
-    else if (config.url === "/megavgm/play") {
+    else if (config.url === "/megavgm/browse") {
+      const path = String(config.params?.path || "");
+      browseRequests.push(path);
+      data = browseResponse(path);
+    } else if (config.url === "/megavgm/play") {
       const path = JSON.parse(config.data).path;
       const index = browseEntries.findIndex(
         (entry) => `${browsePath}/${entry.name}` === path
@@ -166,11 +188,10 @@ async function scenario(
     reserved: true,
     entries,
   });
-  client.setQueryData(["megavgm", "browse", browsePath], {
-    path: browsePath,
-    parent: "",
-    entries: browseEntries,
-  });
+  client.setQueryData(
+    ["megavgm", "browse", initialBrowsePath],
+    browseResponse(initialBrowsePath)
+  );
   const container = document.createElement("div");
   document.body.appendChild(container);
   const root = createRoot(container);
@@ -191,7 +212,10 @@ async function scenario(
   await act(async () => {
     root.render(
       <QueryClientProvider client={client}>
-        <MegaVGMPlayer initialTab={initialTab} initialBrowsePath={browsePath} />
+        <MegaVGMPlayer
+          initialTab={initialTab}
+          initialBrowsePath={initialBrowsePath}
+        />
       </QueryClientProvider>
     );
   });
@@ -199,10 +223,23 @@ async function scenario(
   try {
     await run({
       requests,
+      browseRequests,
       state,
       tap: (n: number) => click(rows()[n - 1]?.querySelector("button") || null),
       control: (label: string) =>
         click(container.querySelector(`button[aria-label="${label}"]`)),
+      tab: (label: string) =>
+        click(
+          (Array.from(container.querySelectorAll('[role="tab"]')).find(
+            (item) => item.textContent === label
+          ) as HTMLButtonElement) || null
+        ),
+      selectedTab: () =>
+        container.querySelector('[role="tab"][aria-selected="true"]')
+          ?.textContent,
+      browseHeading: () => container.querySelector("h6")?.textContent,
+      playbackTitle: () =>
+        container.querySelector('[data-testid="playback-title"]')?.textContent,
       exit: async () => {
         await click(
           container.querySelector('button[aria-label="Player options"]')
@@ -256,6 +293,46 @@ async function scenario(
 }
 
 export async function main() {
+  await scenario(
+    "Browse tab retains path and climbs to root",
+    async (h) => {
+      assert(h.selectedTab() === "Playlists", "started on Browse");
+      await h.tab("Browse");
+      assert(h.selectedTab() === "Browse", "Browse tab was not selected");
+      assert(
+        h.browseHeading() === "Night Striker",
+        "saved Browse path was lost"
+      );
+      assert(
+        h.playbackTitle() === "04 Urban Trail",
+        "playback display changed"
+      );
+
+      await h.tab("Browse");
+      assert(
+        h.browseHeading() === "Arcade",
+        "Browse child did not select parent"
+      );
+      await h.tab("Browse");
+      assert(
+        h.browseHeading() === "Music Library",
+        "Browse did not reach root"
+      );
+
+      const requestsAtRoot = h.browseRequests.length;
+      await h.tab("Browse");
+      assert(
+        h.browseRequests.length === requestsAtRoot,
+        "Browse root triggered an unnecessary reload"
+      );
+      assert(h.requests.length === 0, "Browse navigation disturbed playback");
+      assert(h.playbackTitle() === "04 Urban Trail", "current track was lost");
+    },
+    playing(4, 20),
+    "playlists",
+    navigationBrowsePath
+  );
+
   for (const profileChanged of [false, true]) {
     await scenario(
       `Browse cold immediate ${
