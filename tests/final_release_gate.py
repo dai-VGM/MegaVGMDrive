@@ -93,7 +93,7 @@ def main():
     checks["staging_matches_package"] = (promotion.STAGING / "SHA256SUMS").is_file() and digest(promotion.STAGING / "SHA256SUMS") == digest(package / "SHA256SUMS")
     if checks["staging_matches_package"]:
         promotion.verify(promotion.STAGING, records)
-    archive = package.with_suffix(".zip")
+    archive = package.parent / (package.name + ".zip")
     checks["archive_inventory_hash_modes"] = False
     if archive.is_file():
         files = {str(p.relative_to(package.parent)): p for p in package.rglob("*") if p.is_file()}

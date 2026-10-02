@@ -193,7 +193,7 @@ def main():
     if args.archive:
         package = args.archive.resolve()
         verify(package, records)
-        archive = package.with_suffix(".zip")
+        archive = package.parent / (package.name + ".zip")
         with zipfile.ZipFile(archive, "x", zipfile.ZIP_DEFLATED) as handle:
             for path in sorted(package.rglob("*")):
                 if path.is_file():
