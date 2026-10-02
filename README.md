@@ -74,18 +74,35 @@ SID compatibility depends on the source tune, metadata, selected subtune, timing
 
 ## Installation
 
-Download both release assets:
+### Easy installation (SD card copy)
 
-- [MegaVGMPlayer-v2.3.zip](https://github.com/dai-VGM/MegaVGMDrive/releases/download/v2.3/MegaVGMPlayer-v2.3.zip)
-- [MegaVGMPlayer-v2.3.zip.sha256](https://github.com/dai-VGM/MegaVGMDrive/releases/download/v2.3/MegaVGMPlayer-v2.3.zip.sha256)
+No SSH, root shell, or command-line setup is required for normal use. You can copy the release files using your computer's file manager. For a first installation, also add the included startup block with a text editor as described below; the ZIP does not include a ready-made `linux/user-startup.sh`.
 
-The final v2.3 ZIP SHA-256 is:
+1. Download and extract [MegaVGMPlayer-v2.3.zip](https://github.com/dai-VGM/MegaVGMDrive/releases/download/v2.3/MegaVGMPlayer-v2.3.zip).
+2. When updating, return MegaVGMPlayer to STOCK mode and close open Player browser/PWA tabs. Power off the MiSTer before removing its SD card.
+3. Copy **all contents of `MegaVGMPlayer-v2.3/media/fat/`** to the **root of the MiSTer SD card**, preserving the folder structure. Merge the folders and replace existing MegaVGMPlayer release files when updating. Do not copy the outer `MegaVGMPlayer-v2.3`, `media`, or `fat` directory as a new folder on the SD card.
+4. For a first installation without an existing MegaVGMPlayer startup block, open `linux/user-startup.sh` on the SD card in a text editor and append the entire contents of the extracted package's `startup.block` unchanged. If that file does not exist, create it with `#!/bin/sh` as its first line, followed by the block. Preserve any existing startup entries. When updating an installation that already has this block, keep it and do not add a duplicate.
+5. Reinsert the SD card and boot the MiSTer normally. Open `http://<MiSTer-IP>:8183/megavgm` in a browser, or install it as a PWA, and start playback normally.
+
+The copy destinations are:
+
+| Extracted ZIP folder | MiSTer SD card folder | MiSTer Linux path |
+| --- | --- | --- |
+| `media/fat/_Custom Cores/Cores/` | `_Custom Cores/Cores/` | `/media/fat/_Custom Cores/Cores/` |
+| `media/fat/MegaVGMPlayer/` | `MegaVGMPlayer/` | `/media/fat/MegaVGMPlayer/` |
+| `media/fat/Scripts/` | `Scripts/` | `/media/fat/Scripts/` |
+
+Copy the **complete release set**, not individual RBFs or runtime components. The RBFs, modified Main, runtime binaries and helpers are validated together; mixing components from different releases can break playback or engine switching. Merge folders rather than deleting existing ones, and keep your music, playlists and favorites, legacy rescue RBFs, and `Scripts/remote.sh`.
+
+### Optional checksum verification
+
+Download [MegaVGMPlayer-v2.3.zip.sha256](https://github.com/dai-VGM/MegaVGMDrive/releases/download/v2.3/MegaVGMPlayer-v2.3.zip.sha256) to verify the ZIP before copying it. The final v2.3 ZIP SHA-256 is:
 
 ```text
 b33397b2868a11ea83a99614d003429bcde7dfa70a2dcdb6ef712e7fcc34c61b
 ```
 
-Verify it with the downloaded checksum file, using the command available on your computer:
+If you prefer command-line verification on your computer:
 
 ```sh
 sha256sum -c MegaVGMPlayer-v2.3.zip.sha256
@@ -93,14 +110,11 @@ sha256sum -c MegaVGMPlayer-v2.3.zip.sha256
 shasum -a 256 -c MegaVGMPlayer-v2.3.zip.sha256
 ```
 
-1. Verify the downloaded ZIP against the checksum file.
-2. Extract `MegaVGMPlayer-v2.3.zip`.
-3. Return MegaVGMPlayer to STOCK mode and close open Player browser/PWA tabs.
-4. Copy the extracted package to the MiSTer and run `sh install.sh` as `root`.
-5. Reboot the MiSTer.
-6. Open `http://<MiSTer-IP>:8183/megavgm` in a browser, or install it as a PWA.
+### Advanced: optional transactional installer
 
-For an existing installation, `upgrade.sh` uses the same transactional installation path. `rollback.sh` restores the captured pre-upgrade files. The installer preserves legacy rescue RBFs and backs up replaced files for rollback. It does not replace `/media/fat/Scripts/remote.sh` or modify playlist/favorites data.
+The installer scripts are optional and provide a transactional install/upgrade route with hash verification, backups and rollback. They also merge the startup block while preserving existing entries. To use this route, verify and extract the ZIP, return MegaVGMPlayer to STOCK mode, close open Player browser/PWA tabs, copy the extracted package to the MiSTer, and run `sh install.sh` as `root`. Then reboot and open the Player URL above.
+
+For an existing installation, `upgrade.sh` uses the same transactional installation path. `rollback.sh` restores the captured pre-upgrade files. The installer preserves legacy rescue RBFs and backs up replaced files for rollback. It does not replace `/media/fat/Scripts/remote.sh` or modify playlist/favorites data. Keep the backup path printed by the installer; manual SD-card copying does not create an installer rollback checkpoint.
 
 The standalone player coexists with MiSTer Remote. MiSTer Remote normally remains on port 8182; MegaVGMPlayer uses port 8183.
 
