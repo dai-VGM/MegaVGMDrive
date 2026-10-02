@@ -354,11 +354,12 @@ func writePlaylistSnapshot(directory, name string, paths []string, start int) (s
 func (a *Adapter) waitForPlayingPlaylist(ctx context.Context, selected,
 	name string, index, count int) bool {
 	return a.waitForPlayingPlaylistOperation(ctx, selected, name, index, count, 0,
-		time.Now())
+		time.Now(), false, 0)
 }
 
 func (a *Adapter) waitForPlayingPlaylistOperation(ctx context.Context, selected,
-	name string, index, count int, operationID uint64, requestStarted time.Time) bool {
+	name string, index, count int, operationID uint64, requestStarted time.Time,
+	requireNewSession bool, baselineSession uint32) bool {
 	deadline := ""
 	if value, ok := ctx.Deadline(); ok {
 		deadline = value.UTC().Format(time.RFC3339Nano)
@@ -401,6 +402,9 @@ func (a *Adapter) waitForPlayingPlaylistOperation(ctx context.Context, selected,
 			}
 			if !sameCanonicalPath(status.Path, selected) {
 				mismatched = append(mismatched, "path")
+			}
+			if requireNewSession && status.Session == baselineSession {
+				mismatched = append(mismatched, "session")
 			}
 		}
 		observation := fmt.Sprintf("%s|%s|%s|%s|%d|%d|%d|%s|%s",
@@ -464,7 +468,8 @@ func (a *Adapter) beginPlaylistOperation() uint64 {
 }
 
 func (a *Adapter) startPlaylistConvergenceMonitor(operationID uint64,
-	requestStarted time.Time, selected, name string, index, count int) {
+	requestStarted time.Time, selected, name string, index, count int,
+	requireNewSession bool, baselineSession uint32) {
 	a.appendPlaylistHandoffTrace(playlistHandoffTrace{
 		Event: "background_monitor_start", Playlist: name,
 		PlaylistCount: count, SelectedIndex: index, Selected: selected,
@@ -488,7 +493,8 @@ func (a *Adapter) startPlaylistConvergenceMonitor(operationID uint64,
 
 	go func() {
 		converged := a.waitForPlayingPlaylistOperation(ctx, selected, name,
-			index, count, operationID, requestStarted)
+			index, count, operationID, requestStarted, requireNewSession,
+			baselineSession)
 		a.playlistConvergenceMu.Lock()
 		current := a.playlistConvergenceID == operationID
 		if current {
@@ -802,12 +808,15 @@ func (a *Adapter) HandlePlayPlaylist(w http.ResponseWriter, r *http.Request) {
 		})
 		releasePlaylistLock()
 		a.startPlaylistConvergenceMonitor(operationID, requestStarted,
-			selected, name, start, len(paths))
+			selected, name, start, len(paths), false, 0)
 		return
 	} else if supervisor.Mode != "MEGAVGM" || supervisor.Main != "MODIFIED" || supervisor.Controller != "RUNNING" {
 		writeAPIError(w, 409, "supervisor_busy")
 		return
-	} else {
+	}
+	requireNewSession := false
+	var baselineSession uint32
+	if supervisor.Mode == "MEGAVGM" {
 		controllerStatus, statusErr := a.readControllerPlaylistStatus()
 		if statusErr != nil || !acceptsWarmPlaylistState(controllerStatus.State) {
 			statusError := ""
@@ -832,6 +841,13 @@ func (a *Adapter) HandlePlayPlaylist(w http.ResponseWriter, r *http.Request) {
 			writeAPIError(w, http.StatusConflict, "controller_not_playing")
 			return
 		}
+		requireNewSession = controllerStatus.State == "PLAYING" &&
+			controllerStatus.Context == "PLAYLIST" &&
+			controllerStatus.Playlist == name &&
+			controllerStatus.Index == uint64(start+1) &&
+			controllerStatus.Count == uint64(len(paths)) &&
+			sameCanonicalPath(controllerStatus.Path, selected)
+		baselineSession = controllerStatus.Session
 	}
 	if running, fifoErr := isFIFO(a.config.CommandPath); fifoErr != nil || !running || !isExecutable(a.config.CtlPath) {
 		writeAPIError(w, 503, "controller_unavailable")
@@ -865,5 +881,5 @@ func (a *Adapter) HandlePlayPlaylist(w http.ResponseWriter, r *http.Request) {
 	})
 	releasePlaylistLock()
 	a.startPlaylistConvergenceMonitor(operationID, requestStarted,
-		selected, name, start, len(paths))
+		selected, name, start, len(paths), requireNewSession, baselineSession)
 }

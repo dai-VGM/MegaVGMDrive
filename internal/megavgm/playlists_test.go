@@ -595,6 +595,51 @@ func TestPlaylistConvergenceTraceIdentifiesLastMismatchedField(t *testing.T) {
 	}
 }
 
+func TestPlaylistSameTargetConvergenceRequiresNewSession(t *testing.T) {
+	adapter := newTestAdapter(t, t.TempDir(), nil)
+	selected := createFavoriteVGM(t, adapter, "Album/01 Selected.vgm")
+	status := strings.Replace(validStatus,
+		"path=/media/fat/Music/04 Beyond the Galaxy.vgm", "path="+selected, 1)
+	status = strings.Replace(status, "index=4", "index=1", 1)
+	status = strings.Replace(status, "count=10", "count=1", 1)
+	status += "context=PLAYLIST\nplaylist=Favorites\n"
+	writeFile(t, adapter.config.StatusPath, status, 0644)
+
+	writeErrors := make(chan error, 1)
+	go func() {
+		time.Sleep(80 * time.Millisecond)
+		writeErrors <- atomicReplaceFile(adapter.config.StatusPath,
+			[]byte(strings.Replace(status, "session=27", "session=28", 1)))
+	}()
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	if !adapter.waitForPlayingPlaylistOperation(ctx, selected, "Favorites", 0, 1,
+		77, time.Now(), true, 27) {
+		t.Fatal("old matching PLAYING session was accepted as the restart")
+	}
+	if err := <-writeErrors; err != nil {
+		t.Fatal(err)
+	}
+
+	traces := readHandoffTraces(t, adapter)
+	sawOldSessionRejected := false
+	sawNewSessionConverged := false
+	for _, trace := range traces {
+		if trace.Event == "playlist_status_observation" && trace.StatusSession == 27 &&
+			strings.Join(trace.Mismatched, ",") == "session" {
+			sawOldSessionRejected = true
+		}
+		if trace.Event == "playlist_status_converged" && trace.StatusSession == 28 &&
+			len(trace.Mismatched) == 0 {
+			sawNewSessionConverged = true
+		}
+	}
+	if !sawOldSessionRejected || !sawNewSessionConverged {
+		t.Fatalf("missing restart-session convergence evidence: %#v", traces)
+	}
+}
+
 func TestPlaylistHTTPAcceptanceDoesNotWaitForStatusConvergence(t *testing.T) {
 	adapter := newTestAdapter(t, t.TempDir(), nil)
 	adapter.config.StartTimeout = time.Second
