@@ -1,4 +1,13 @@
-# MegaVGMPlayer v2.2 Engine C C6 candidate
+# MegaVGMPlayer v2.3 four-engine final release candidate
+
+Current packaging/version authority: [final promotion](release/FINAL_PROMOTION.md).
+The twelve accepted payloads are unchanged. Tag and GitHub Release creation are
+not authorized yet; existing public v2.2 remains immutable.
+
+## Historical v2.2 Engine C C6 candidate notes
+
+The following notes describe the earlier lab milestone, not the current final
+candidate or its accepted payload authority.
 
 This branch integrates the hardware-tested Packed MVGMSID v2 Engine C into the
 existing automatic production routing and adds on-demand raw SID preparation.

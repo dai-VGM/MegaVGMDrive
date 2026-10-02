@@ -1,5 +1,5 @@
 {
-  "package_version": "2.2",
+  "package_version": "2.3",
   "runtime_head": "f381918ad9c536433effea6158e9d1dc8aa831ae",
   "hardware_acceptance": "User confirmed 2026-10-02: Round Start/Game Over/Lift-Off Profile A playback, Jc-Kal, YM2612-only, A/B/C/D switching, Exit to STOCK, Remote/PWA reconnect PASS",
   "embedded_pwa": {

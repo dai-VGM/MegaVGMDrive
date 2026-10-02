@@ -1,4 +1,7 @@
-# MegaVGMPlayer v2.2 Switch-Latency実機検証候補
+# 過去のMegaVGMPlayer v2.2 Switch-Latency実機検証候補
+
+これは過去のlab記録です。現行v2.3最終候補のpackage/authorityは
+[FINAL_PROMOTION.md](FINAL_PROMOTION.md)を参照してください。
 
 > **これはlab用実機検証packageです。公開版・最終v2.2 RCではありません。**
 

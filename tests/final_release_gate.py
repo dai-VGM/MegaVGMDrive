@@ -15,7 +15,7 @@ import uuid
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "release"))
-import promote_v22 as promotion
+import promote_v23 as promotion
 
 
 def digest(path):
@@ -25,10 +25,10 @@ def digest(path):
 def record_lifecycle(package, evidence):
     # Lima shared mounts may cache an older file even after macOS edits. Copy
     # exact current bytes into a fresh VM-local path; verify before executing.
-    vm_root = "/tmp/megavgm-v22-lifecycle-" + uuid.uuid4().hex
+    vm_root = "/tmp/megavgm-v23-lifecycle-" + uuid.uuid4().hex
     source = ROOT / "tests/phase2_install_gate.py"
     vm_test = vm_root + "/phase2_install_gate.py"
-    vm_package = vm_root + "/MegaVGMPlayer-v2.2"
+    vm_package = vm_root + "/" + package.name
     shell = ["limactl", "shell", "mister-gcc10"]
     subprocess.run(shell + ["mkdir", vm_root], check=True)
     subprocess.run(["limactl", "copy", str(source), "mister-gcc10:" + vm_test], check=True)
@@ -86,14 +86,18 @@ def main():
         results = json.loads((args.evidence / "results.json").read_text())
         results["lifecycle"] = record_lifecycle(package, args.evidence)
         results["lifecycle_test_sha256"] = digest(ROOT / "tests/phase2_install_gate.py")
+        results["package_sums_sha256"] = digest(package / "SHA256SUMS")
         (args.evidence / "results.json").write_text(json.dumps(results, indent=2) + "\n")
     authority, records = promotion.audit()
     promotion.verify(package, records)
-    checks = {"authority_manifest_inventory_modes": True}
+    checks = {"authority_manifest_inventory_modes": True,
+              "release_version_identity": authority["package_version"] == "2.3" and package.name == "MegaVGMPlayer-v2.3"}
     checks["staging_matches_package"] = (promotion.STAGING / "SHA256SUMS").is_file() and digest(promotion.STAGING / "SHA256SUMS") == digest(package / "SHA256SUMS")
     if checks["staging_matches_package"]:
         promotion.verify(promotion.STAGING, records)
     archive = package.parent / (package.name + ".zip")
+    sidecar = archive.with_suffix(".zip.sha256")
+    checks["archive_checksum_sidecar"] = archive.is_file() and sidecar.is_file() and sidecar.read_text() == f"{digest(archive)}  {archive.name}\n"
     checks["archive_inventory_hash_modes"] = False
     if archive.is_file():
         files = {str(p.relative_to(package.parent)): p for p in package.rglob("*") if p.is_file()}
@@ -115,6 +119,27 @@ def main():
                             for name, marker in markers.items())
     checks["arm_classifier_reproducible"] = digest(args.arm_build / "megavgm_classify") == next(r["sha256"] for r in records if r["destination"] == "Scripts/megavgm_classify")
     results = json.loads((args.evidence / "results.json").read_text())
+    # Reuse heavy regression evidence only across a proved metadata-only change.
+    # Never relabel an old test execution as testing the new package.
+    reused = results.get("reused_regressions")
+    if reused:
+        old_package = Path(reused["package"])
+        old_evidence = Path(reused["evidence"])
+        old_results = json.loads((old_evidence / "results.json").read_text())
+        old_report = json.loads(Path(reused["gate_report"]).read_text())
+        old_authority = json.loads((old_package / "provenance/final_authorities.json").read_text())
+        checks["reused_evidence_payload_identity"] = (
+            old_report["eligible_for_review"] and all(old_report["checks"].values()) and
+            old_results["package_sums_sha256"] == digest(old_package / "SHA256SUMS") == reused["package_sums_sha256"] and
+            old_authority["payloads"] == authority["payloads"] and
+            old_authority["runtime_head"] == authority["runtime_head"] and
+            old_authority["embedded_pwa"] == authority["embedded_pwa"] and
+            all(digest(old_package / "media/fat" / r["destination"]) == r["sha256"] and
+                (old_package / "media/fat" / r["destination"]).stat().st_size == r["bytes"] and
+                (old_package / "media/fat" / r["destination"]).stat().st_mode & 0o777 == int(r["mode"], 8)
+                for r in records) and
+            all(results[name] == old_results[name] and digest(old_evidence / (name + ".log")) == results[name]["log_sha256"]
+                for name in ("importer", "title", "autoplay2", "admission")))
     checks["test_evidence_matches_package"] = results["package_sums_sha256"] == digest(package / "SHA256SUMS")
     checks["lifecycle_test_matches_evidence"] = results["lifecycle_test_sha256"] == digest(ROOT / "tests/phase2_install_gate.py")
     checks["lifecycle_exact_vm_snapshot"] = results["lifecycle"].get("executed_test_sha256") == digest(ROOT / "tests/phase2_install_gate.py") and results["lifecycle"].get("executed_package_sums_sha256") == digest(package / "SHA256SUMS")

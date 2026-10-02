@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build/verify the unpublished v2.2 RC from exact accepted artifacts.
+"""Build/verify the unpublished v2.3 RC from exact accepted artifacts.
 
 No compilation, tag, publication, or MiSTer deployment is performed.
 The public predecessor is read-only. Existing staging is retained as a backup.
@@ -30,6 +30,7 @@ def git(worktree, *args):
 
 def audit():
     authority = json.loads(AUTHORITY.read_text())
+    assert authority["package_version"] == "2.3"
     runtime = PROJECTS / "MegaVGMPlayer_vNext_4Engine_Runtime"
     assert git(runtime, "rev-parse", "HEAD") == authority["runtime_head"]
     assert not git(runtime, "status", "--porcelain"), "Runtime is dirty"
@@ -57,6 +58,16 @@ def audit():
 
 
 def verify(package, records):
+    authority = json.loads(AUTHORITY.read_text())
+    assert json.loads((package / "provenance/final_authorities.json").read_text()) == authority
+    for name, heading in {
+        "README.md": "# MegaVGMPlayer v2.3 final release candidate",
+        "README.ja.md": "# MegaVGMPlayer v2.3 最終RC",
+        "RELEASE_NOTES.md": "# MegaVGMPlayer v2.3",
+        "ARTIFACT_MANIFEST.md": "# MegaVGMPlayer v2.3 final artifact manifest",
+        "provenance/PROVENANCE.md": "# MegaVGMPlayer v2.3 final RC provenance",
+    }.items():
+        assert (package / name).read_text().splitlines()[0] == heading, name
     expected = {r["destination"] for r in records}
     payload = package / "media/fat"
     actual = {str(p.relative_to(payload)) for p in payload.rglob("*") if p.is_file()}
@@ -80,6 +91,7 @@ def verify(package, records):
 
 
 def build(output, authority, records):
+    assert output.name == "MegaVGMPlayer-v2.3", "wrong release directory identity"
     assert not output.exists(), f"refusing overwrite: {output}"
     output.mkdir(parents=True)
     for r in records:
@@ -96,7 +108,7 @@ def build(output, authority, records):
         if name.endswith(".sh"):
             (output / name).chmod(0o755)
     shutil.copy2(AUTHORITY, output / "provenance/final_authorities.json")
-    provenance = ["# MegaVGMPlayer v2.2 final RC provenance", "",
+    provenance = ["# MegaVGMPlayer v2.3 final RC provenance", "",
                   f"Runtime authority: `{authority['runtime_head']}`.", "",
                   "All twelve payloads are byte-preserving copies of accepted local artifacts.",
                   "Source commits and input paths are recorded below; no Quartus/RBF regeneration occurs.", ""]
@@ -107,7 +119,7 @@ def build(output, authority, records):
                    "The unchanged control helper source authority is `9e2dd45fbd986378bbdaba326d8e722df2b89c27`.",
                    "No Commodore ROM, third-party SID tune, lab fixture or prepared test stream is installed.", ""]
     (output / "provenance/PROVENANCE.md").write_text("\n".join(provenance))
-    readme = """# MegaVGMPlayer v2.2 final release candidate
+    readme = """# MegaVGMPlayer v2.3 final release candidate
 
 Unpublished. User-confirmed hardware acceptance is recorded in the manifest.
 Publication/tag requires a separate reviewed release-gate approval.
@@ -131,11 +143,14 @@ the unpublished prepared body. Originals are preserved.
 Music, playlists/Favorites, legacy rescue RBFs, and Scripts/remote.sh are user
 data and are preserved. No diagnostic VGM/SID fixtures are installed.
 The existing startup block/service semantics and package layout are unchanged.
+The existing public v2.2 release remains unchanged. New rollback checkpoints
+use backups-v2.3-* and .v23-last-backup. The v2.1 startup markers and shared
+.v22-install-lock are retained compatibility identifiers, not release versions.
 """
     (output / "README.md").write_text(readme)
-    (output / "README.ja.md").write_text("# MegaVGMPlayer v2.2 最終RC\n\n未公開。STOCKへ戻して `sh install.sh`、更新は `sh upgrade.sh`、復旧は `sh rollback.sh`。\nbackup pathを保存してください。Importerとclassifierは0755のmatched setです。\n詳細と配置はREADME.md、全artifactの実測hashはARTIFACT_MANIFEST.mdを参照してください。\n")
-    (output / "RELEASE_NOTES.md").write_text("# v2.2 final RC\n\nFour-engine accepted authorities; transparent INFO/loading, Engine B Stage 6 bank fix, same-track restart, and preparation-only missing SN76489 clock normalization. No version bump/tag/publication performed.\n")
-    manifest = ["# MegaVGMPlayer v2.2 final artifact manifest", "", "Unpublished final RC; exact user-accepted hardware artifacts.", "", f"Runtime authority: `{authority['runtime_head']}`.", "", authority["hardware_acceptance"], "", f"Embedded PWA: `{Path(authority['embedded_pwa']['path']).name}` SHA256 `{authority['embedded_pwa']['sha256']}`.", "", "| Installed path relative to /media/fat | Bytes | SHA256 | Mode | Source HEAD |", "|---|---:|---|---|---|"]
+    (output / "README.ja.md").write_text("# MegaVGMPlayer v2.3 最終RC\n\n未公開。既存public v2.2は変更しません。STOCKへ戻して `sh install.sh`、更新は `sh upgrade.sh`、復旧は `sh rollback.sh`。\nbackup pathを保存してください。Importerとclassifierは0755のmatched setです。\n詳細と配置はREADME.md、全artifactの実測hashはARTIFACT_MANIFEST.mdを参照してください。\n")
+    (output / "RELEASE_NOTES.md").write_text("# MegaVGMPlayer v2.3\n\nFour-engine accepted authorities; transparent INFO/loading, Engine B Stage 6 bank fix, same-track restart, and preparation-only missing SN76489 clock normalization.\n\nThis candidate is versioned v2.3 to preserve the existing public v2.2 release. All twelve accepted payloads are unchanged; only release/package metadata and installer version identifiers changed. No tag, GitHub Release, or public publication has been performed.\n")
+    manifest = ["# MegaVGMPlayer v2.3 final artifact manifest", "", "Unpublished final RC; exact user-accepted hardware artifacts.", "", f"Runtime authority: `{authority['runtime_head']}`.", "", authority["hardware_acceptance"], "", f"Embedded PWA: `{Path(authority['embedded_pwa']['path']).name}` SHA256 `{authority['embedded_pwa']['sha256']}`.", "", "| Installed path relative to /media/fat | Bytes | SHA256 | Mode | Source HEAD |", "|---|---:|---|---|---|"]
     for r in records:
         p = output / "media/fat" / r["destination"]
         manifest.append(f"| `{r['destination']}` | {p.stat().st_size} | `{sha(p)}` | {r['mode']} | `{r.get('source_head', 'retained public v2.2 authority')}` |")
@@ -178,8 +193,8 @@ def main():
     if args.promote_staging:
         package = args.promote_staging.resolve()
         verify(package, records)
-        backup = STAGING.with_name(STAGING.name + ".pre-final-f381918")
-        new = STAGING.with_name(STAGING.name + ".new-f381918")
+        backup = STAGING.with_name(STAGING.name + ".pre-v2.3-" + git(ROOT, "rev-parse", "--short", "HEAD"))
+        new = STAGING.with_name(STAGING.name + ".new-v2.3")
         assert not backup.exists() and not new.exists()
         shutil.copytree(package, new)
         verify(new, records)
@@ -192,6 +207,7 @@ def main():
         print(f"STAGING_PROMOTION_PASS previous retained at {backup}")
     if args.archive:
         package = args.archive.resolve()
+        assert package.name == "MegaVGMPlayer-v2.3"
         verify(package, records)
         archive = package.parent / (package.name + ".zip")
         with zipfile.ZipFile(archive, "x", zipfile.ZIP_DEFLATED) as handle:

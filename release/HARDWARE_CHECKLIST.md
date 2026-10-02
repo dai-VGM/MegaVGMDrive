@@ -1,4 +1,8 @@
-# v2.2 switch-latency hardware candidate validation
+# Historical v2.2 switch-latency hardware candidate validation
+
+Archived checklist for the earlier lab candidate. Current v2.3 accepted payloads
+are unchanged; this version-only correction does not require a new hardware run.
+See [FINAL_PROMOTION.md](FINAL_PROMOTION.md).
 
 This package is a lab hardware candidate, not a public or final v2.2 RC. Do
 not add manual loop metadata to Commando, Volfied, or another real tune during

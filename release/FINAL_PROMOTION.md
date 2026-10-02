@@ -1,62 +1,50 @@
-# v2.2 final promotion
+# v2.3 final promotion
 
-Package version remains 2.2. This is an unpublished replacement RC; no tag or
-GitHub/public release may be changed until the final gate report is reviewed.
+The accepted four-engine candidate is version 2.3, proposed tag `v2.3` and
+release title `MegaVGMPlayer v2.3`. Existing public v2.2 is immutable.
+No tag or GitHub Release may be created until DAI explicitly approves.
 
-`final_authorities.json` pins the 12 hardware-accepted payloads and Runtime HEAD
-`f381918ad9c536433effea6158e9d1dc8aa831ae`. The official accepted binaries are
-copied; fresh regression build outputs do not supersede hardware authority.
-Engine C is OSD_Visual. The embedded PWA remains megavgm-ff892105.js.
+`final_authorities.json` pins the unchanged 12 hardware-accepted payloads and
+Runtime HEAD `f381918ad9c536433effea6158e9d1dc8aa831ae`. Official binaries are
+copied without compilation. Engine C is OSD_Visual; PWA is megavgm-ff892105.js.
+SID preparer/control-helper source paths retain public v2.2 provenance.
 
-Generate into a new output directory:
-
-```sh
-python3 release/promote_v22.py --audit
-python3 release/promote_v22.py --build /absolute/new-output/MegaVGMPlayer-v2.2
-python3 release/promote_v22.py --verify /absolute/new-output/MegaVGMPlayer-v2.2
-```
-
-Use the canonical Runtime host/ARM build_and_test route and the Runtime importer,
-title integration, and autoplay2 suites. Playlist/same-track, profile/sound-chip,
-Supervisor, process stabilization, and SID preparation are covered by canonical
-host and ARM builds. The historical standalone playlist runner is not an
-authority and is not changed for this promotion.
-
-On the existing Linux VM, run the isolated lifecycle test:
+Generate into a new directory using the canonical promotion path:
 
 ```sh
-limactl shell mister-gcc10 env PYTHONDONTWRITEBYTECODE=1 python3 \
-  /Users/daizo/Projects/MegaVGMPlayer_vNext_4Engine_RC/tests/phase2_install_gate.py \
-  /absolute/new-output/MegaVGMPlayer-v2.2
+python3 -B release/package.py --audit
+python3 -B release/package.py --build /absolute/new-output/MegaVGMPlayer-v2.3
+python3 -B release/package.py --verify /absolute/new-output/MegaVGMPlayer-v2.3
+python3 -B release/package.py --promote-staging /absolute/new-output/MegaVGMPlayer-v2.3
+python3 -B release/package.py --archive /absolute/new-output/MegaVGMPlayer-v2.3
 ```
 
-After lifecycle validation, promote the verified package into the existing
-four-engine staging path; its predecessor is retained recoverably:
+The ZIP is `MegaVGMPlayer-v2.3.zip`; its actual SHA256 is recorded in
+`MegaVGMPlayer-v2.3.zip.sha256`. Staging predecessors are retained recoverably.
+Both manifest and provenance describe package version 2.3. Historical public
+v2.2 source references and SID corresponding source/licenses remain intact.
 
-```sh
-python3 release/promote_v22.py --promote-staging /absolute/new-output/MegaVGMPlayer-v2.2
-python3 release/promote_v22.py --archive /absolute/new-output/MegaVGMPlayer-v2.2
-```
+New stage/restore/last-backup identifiers use `.v23-*`; checkpoints use
+`backups-v2.3-*`. The shared `.v22-install-lock` remains compatible with older
+installers to prevent concurrent transactions. Accepted v2.1 startup markers
+remain compatibility identifiers, not current release-version declarations.
 
-Release gate requires: clean relevant worktrees (including pre-existing
-untracked files); authority/manifest/hash/mode/inventory match; canonical host
-and ARM/QEMU PASS; importer/metadata/idempotency/8 MiB/overflow/title/autoplay2
-PASS; A/B/C/D admission PASS; negative fixtures rejected; fresh install,
-v2.2-predecessor upgrade, rollback/reinstall and interruption recovery PASS.
-Per-file renames are atomic; multi-file failures retain PREPARED backups and
-must be recovered before publishing COMPLETE. Later user edits are preserved.
+For metadata-only correction, prove all payload bytes, hashes, sizes, modes,
+Runtime HEAD and embedded PWA unchanged before reusing host/ARM and
+importer/title/autoplay2/admission evidence. Preserve the original results and
+package SHA in `reused_regressions`; do not claim they executed against the
+new package. `tests/final_release_gate.py` checks this proof.
 
-The executable final gate is `tests/final_release_gate.py`. Provide the exact
-canonical host/ARM build directories and an evidence directory. Its
-`--run-supplemental` option records importer/title/autoplay2/admission/lifecycle
-logs and exit codes. It verifies the evidence against the tested package hash
-and lifecycle-test source, then rechecks all relevant worktrees. Any non-green
-condition returns exit 1 and is recorded in the requested JSON report.
+Rerun only the isolated Linux installer/lifecycle gate after changing installer
+version identifiers. Use `--rerun-lifecycle` with copied evidence; it copies an
+exact current package/test snapshot into the existing Linux VM and verifies
+both hashes before execution. Clean install, historical public v2.2 upgrade,
+rollback/reinstall, interruption recovery, mode repair and user-data preservation
+must pass. No heavy Runtime, Quartus or hardware rerun is needed.
 
-Keep source/megavgm_sid_prepare and its corresponding-source/license files in
-the package. No lab tune, fixture, old classifier/importer, or legacy RBF is a
-current payload. Recoverable transaction backups are not active payloads.
-
-Only after a green gate and explicit review approval should release/tag commands
-be considered. The existing public v2.2 and tag are immutable during this phase;
-choosing a public tag/asset replacement policy is a separate publication action.
+The final gate also verifies version identity, archive/sidecar hashes,
+inventory/modes, staging equality, authority contracts, relevant worktree
+cleanliness and `git diff --check`. Any failed check prevents eligibility.
+Tag `v2.3` must be absent locally and on an explicitly approved GitHub remote
+before any tag operation. Never create or change `v2.2`, force-update a tag,
+or publish without separate explicit approval. If approved, create only a Draft.

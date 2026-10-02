@@ -4,8 +4,8 @@ set -eu
 verify_package
 stock_gate
 lock_install
-backup=${1:-$(cat "$fat/MegaVGMPlayer/.v22-last-backup")}
-case "$backup" in "$fat"/MegaVGMPlayer/backups-v2.2-*) ;; *) fail 'Invalid backup path';; esac
+backup=${1:-$(cat "$fat/MegaVGMPlayer/.v23-last-backup")}
+case "$backup" in "$fat"/MegaVGMPlayer/backups-v2.3-*) ;; *) fail 'Invalid backup path';; esac
 safe_path "$backup"
 [ -f "$backup/PREPARED" ] || fail 'Backup not prepared'
 [ ! -f "$backup/ROLLED_BACK" ] || fail 'Already rolled back'
@@ -27,7 +27,7 @@ EOF
 stop_daemon
 while IFS= read -r rel; do
   if [ -f "$backup/files/$rel" ]; then
-    stage=$(mktemp "$fat/$(dirname "$rel")/.v22-restore-XXXXXX")
+    stage=$(mktemp "$fat/$(dirname "$rel")/.v23-restore-XXXXXX")
     cp -p "$backup/files/$rel" "$stage"
     mv -f "$stage" "$fat/$rel"
   elif grep -Fxq "$rel" "$backup/ABSENT" && [ -f "$fat/$rel" ]; then

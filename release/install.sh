@@ -9,7 +9,7 @@ printf '%s\n' "$paths" | while IFS= read -r rel; do
   [ ! -e "$fat/$rel" ] || [ -f "$fat/$rel" ] || fail "Not a regular file: $rel"
 done
 startup="$fat/linux/user-startup.sh"
-work=$(mktemp -d "$fat/MegaVGMPlayer/.v22-stage-XXXXXX")
+work=$(mktemp -d "$fat/MegaVGMPlayer/.v23-stage-XXXXXX")
 # Staging/backup may be retained on failure for diagnosis, never delete user files.
 if [ -f "$startup" ]; then cp -p "$startup" "$work/startup"; else printf '#!/bin/sh\n' > "$work/startup"; fi
 if grep -q 'megavgm_remote\|BEGIN MegaVGMPlayer\|END MegaVGMPlayer' "$work/startup"; then
@@ -41,7 +41,7 @@ if [ "$changed" = 0 ]; then
   rm -rf "$work"
   exit 0
 fi
-backup=$(mktemp -d "$fat/MegaVGMPlayer/backups-v2.2-$(date +%Y%m%d-%H%M%S)-XXXXXX")
+backup=$(mktemp -d "$fat/MegaVGMPlayer/backups-v2.3-$(date +%Y%m%d-%H%M%S)-XXXXXX")
 printf '%s\n' "$backup" > "$work/BACKUP"
 : > "$backup/ABSENT"
 : > "$backup/BEFORE.sha256"
@@ -103,7 +103,7 @@ if [ "$service_checks" = 1 ]; then
   verify_running_remote
 fi
 printf '%s\n' "$backup" > "$work/last-backup"
-mv -f "$work/last-backup" "$fat/MegaVGMPlayer/.v22-last-backup"
+mv -f "$work/last-backup" "$fat/MegaVGMPlayer/.v23-last-backup"
 touch "$backup/COMPLETE"
 rm -rf "$work"
 echo 'Installed. Existing remote.sh and playlists.json untouched. Reboot and follow README hardware checks.'

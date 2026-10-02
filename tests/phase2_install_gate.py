@@ -11,7 +11,7 @@ import tempfile
 package = Path(sys.argv[1]).resolve()
 v2 = Path('/Users/daizo/Projects/MegaVGMPlayer_v2_Release_Final_Staging/MegaVGMPlayer-v2.0/media/fat')
 v22 = Path('/Users/daizo/Projects/MegaVGMPlayer_v2.2_Release/MegaVGMPlayer-v2.2/media/fat')
-root = Path(tempfile.mkdtemp(prefix='megavgm-v22-install-'))
+root = Path(tempfile.mkdtemp(prefix='megavgm-v23-install-'))
 startup = b'''#!/bin/sh
 
 # mrext/remote
@@ -63,7 +63,7 @@ def installed(fat):
     assert s.count(b'# BEGIN MegaVGMPlayer v2.1') == 1
     assert s.endswith((package/'startup.block').read_bytes())
 def incomplete_backups(fat):
-    backups=list((fat/'MegaVGMPlayer').glob('backups-v2.2-*'))
+    backups=list((fat/'MegaVGMPlayer').glob('backups-v2.3-*'))
     assert backups
     assert all(not (backup/'COMPLETE').exists() for backup in backups)
 
@@ -168,11 +168,11 @@ for mode in ('clean','v2upgrade','v22upgrade','phase1'):
     before_modes = {rel: (fat/rel).stat().st_mode & 0o777 for rel in before}
     run(fat,'install.sh' if mode=='clean' else 'upgrade.sh')
     installed(fat); unchanged(fat,saved)
-    assert not list((fat/'MegaVGMPlayer').glob('.v22-stage-*'))
+    assert not list((fat/'MegaVGMPlayer').glob('.v23-stage-*'))
     if mode != 'clean': assert (fat/'linux/user-startup.sh').read_bytes().startswith(startup)
-    pointer=(fat/'MegaVGMPlayer/.v22-last-backup').read_text()
+    pointer=(fat/'MegaVGMPlayer/.v23-last-backup').read_text()
     run(fat,'install.sh')
-    assert (fat/'MegaVGMPlayer/.v22-last-backup').read_text()==pointer
+    assert (fat/'MegaVGMPlayer/.v23-last-backup').read_text()==pointer
     installed(fat); unchanged(fat,saved)
     # Playlist edits after installation must survive rollback too.
     saved['Scripts/.config/megavgm/playlists.json']=b'UPDATED FAVORITES'
@@ -229,7 +229,7 @@ print('unknown/duplicate startup, symlink, later-edit refusal PASS')
 fat=root/'interrupted'; put(fat,'linux/user-startup.sh',startup)
 old=put(fat,'Scripts/megavgm_ctl',b'OLD HELPER').read_bytes()
 run(fat,'install.sh')
-backup=Path((fat/'MegaVGMPlayer/.v22-last-backup').read_text().strip())
+backup=Path((fat/'MegaVGMPlayer/.v23-last-backup').read_text().strip())
 (backup/'COMPLETE').unlink()
 put(fat,'Scripts/megavgm_ctl',old)
 put(fat,'linux/user-startup.sh',startup)
@@ -334,7 +334,7 @@ for name,mode,ok,initially_running in (
     run(fat,'install.sh',ok=ok,extra_env=env)
     if ok:
         installed(fat)
-        backup=Path((fat/'MegaVGMPlayer/.v22-last-backup').read_text().strip())
+        backup=Path((fat/'MegaVGMPlayer/.v23-last-backup').read_text().strip())
         assert (backup/'COMPLETE').is_file()
         assert (Path(env['MEGAVGM_RUNTIME_ROOT'])/'megavgm_remote').read_bytes()==fake_remote.read_bytes()
     else:

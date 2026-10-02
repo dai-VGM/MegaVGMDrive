@@ -1,4 +1,7 @@
-# MegaVGMPlayer v2.2 Switch-Latency Hardware Candidate
+# Historical MegaVGMPlayer v2.2 Switch-Latency Hardware Candidate
+
+Archived lab documentation, not the current final candidate. Current v2.3
+packaging and accepted authority are defined in [FINAL_PROMOTION.md](FINAL_PROMOTION.md).
 
 > **Lab hardware-validation package. This is not a public or final v2.2 RC.**
 

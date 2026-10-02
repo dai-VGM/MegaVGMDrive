@@ -1,4 +1,7 @@
-# v2.2 switch-latency hardware-candidate validation scope
+# Historical v2.2 switch-latency hardware-candidate validation scope
+
+Archived lab evidence, not current final acceptance. See [FINAL_PROMOTION.md](FINAL_PROMOTION.md)
+for the v2.3 final authority and metadata-only gate policy.
 
 ## Production Engine Admission Gate
 
