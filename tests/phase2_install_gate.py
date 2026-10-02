@@ -10,6 +10,7 @@ import tempfile
 
 package = Path(sys.argv[1]).resolve()
 v2 = Path('/Users/daizo/Projects/MegaVGMPlayer_v2_Release_Final_Staging/MegaVGMPlayer-v2.0/media/fat')
+v22 = Path('/Users/daizo/Projects/MegaVGMPlayer_v2.2_Release/MegaVGMPlayer-v2.2/media/fat')
 root = Path(tempfile.mkdtemp(prefix='megavgm-v22-install-'))
 startup = b'''#!/bin/sh
 
@@ -21,6 +22,16 @@ startup = b'''#!/bin/sh
 '''
 payload = sorted(p.relative_to(package/'media/fat') for p in (package/'media/fat').rglob('*') if p.is_file())
 assert len(payload) == 12 and Path('Scripts/remote.sh') not in payload
+assert set(map(str, payload)) == {
+    '_Custom Cores/Cores/MegaVGMDrive_A.rbf',
+    '_Custom Cores/Cores/MegaVGMDrive_B.rbf',
+    '_Custom Cores/Cores/MegaVGMDrive_C.rbf',
+    '_Custom Cores/Cores/MegaVGMDrive_D.rbf',
+    'MegaVGMPlayer/MiSTer.megavgm', 'MegaVGMPlayer/megavgm_supervisor',
+    'MegaVGMPlayer/megavgm_playlist-phase2a', 'MegaVGMPlayer/megavgm_remote',
+    'MegaVGMPlayer/megavgm_sid_prepare', 'Scripts/megavgm_ctl',
+    'Scripts/vgm_md_import.sh', 'Scripts/megavgm_classify',
+}
 def put(root, rel, data):
     p = root/rel
     p.parent.mkdir(parents=True, exist_ok=True)
@@ -44,7 +55,10 @@ def user_files(fat):
 def unchanged(fat, saved):
     for r,data in saved.items(): assert (fat/r).read_bytes() == data, r
 def installed(fat):
-    for rel in payload: assert (fat/rel).read_bytes() == (package/'media/fat'/rel).read_bytes(), rel
+    for rel in payload:
+        assert (fat/rel).read_bytes() == (package/'media/fat'/rel).read_bytes(), rel
+        expected_mode = 0o644 if str(rel).endswith('.rbf') else 0o755
+        assert (fat/rel).stat().st_mode & 0o777 == expected_mode, rel
     s=(fat/'linux/user-startup.sh').read_bytes()
     assert s.count(b'# BEGIN MegaVGMPlayer v2.1') == 1
     assert s.endswith((package/'startup.block').read_bytes())
@@ -119,13 +133,18 @@ run(fat,'upgrade.sh',ok=False,extra_env=env)
 assert not (fat/'_Custom Cores/Cores/MegaVGMDrive_A.rbf').exists()
 print('reboot-like strict STOCK fallback and persisted-status regressions PASS')
 
-for mode in ('clean','v2upgrade','phase1'):
+for mode in ('clean','v2upgrade','v22upgrade','phase1'):
     fat=root/mode
     saved=user_files(fat)
     before={}
     if mode != 'clean':
         put(fat,'linux/user-startup.sh',startup)
         for rel in payload:
+            if mode == 'v22upgrade':
+                legacy = v22/rel
+                if legacy.is_file():
+                    before[rel] = put(fat,rel,legacy.read_bytes()).read_bytes()
+                continue
             if str(rel) in ('MegaVGMPlayer/megavgm_remote',
                             'MegaVGMPlayer/megavgm_sid_prepare',
                             'Scripts/megavgm_ctl'):
@@ -146,8 +165,10 @@ for mode in ('clean','v2upgrade','phase1'):
         saved['Scripts/remote.sh']=put(fat,'Scripts/remote.sh',data).read_bytes()
     if mode == 'phase1':
         saved['MegaVGMPlayer/megavgm_remote.phase1'] = put(fat,'MegaVGMPlayer/megavgm_remote.phase1',b'RESCUE').read_bytes()
+    before_modes = {rel: (fat/rel).stat().st_mode & 0o777 for rel in before}
     run(fat,'install.sh' if mode=='clean' else 'upgrade.sh')
     installed(fat); unchanged(fat,saved)
+    assert not list((fat/'MegaVGMPlayer').glob('.v22-stage-*'))
     if mode != 'clean': assert (fat/'linux/user-startup.sh').read_bytes().startswith(startup)
     pointer=(fat/'MegaVGMPlayer/.v22-last-backup').read_text()
     run(fat,'install.sh')
@@ -158,7 +179,9 @@ for mode in ('clean','v2upgrade','phase1'):
     put(fat,'Scripts/.config/megavgm/playlists.json',b'UPDATED FAVORITES')
     run(fat,'rollback.sh')
     for rel in payload:
-        if rel in before: assert (fat/rel).read_bytes()==before[rel]
+        if rel in before:
+            assert (fat/rel).read_bytes()==before[rel]
+            assert (fat/rel).stat().st_mode & 0o777 == before_modes[rel]
         else: assert not (fat/rel).exists()
     if mode=='clean': assert not (fat/'linux/user-startup.sh').exists()
     else: assert (fat/'linux/user-startup.sh').read_bytes()==startup
@@ -166,6 +189,18 @@ for mode in ('clean','v2upgrade','phase1'):
     run(fat,'install.sh' if mode=='clean' else 'upgrade.sh')
     installed(fat); unchanged(fat,saved)
     print(mode, 'install + duplicate + rollback + reinstall + persistence PASS')
+
+# Same bytes with a lost executable bit must be repaired, not treated as an
+# already-installed matched pair. Rollback must restore the previous mode.
+fat=root/'classifier-mode-repair'
+run(fat,'install.sh')
+classifier=fat/'Scripts/megavgm_classify'
+classifier.chmod(0o644)
+run(fat,'upgrade.sh'); installed(fat)
+run(fat,'rollback.sh')
+assert classifier.stat().st_mode & 0o777 == 0o644
+assert classifier.read_bytes() == (package/'media/fat/Scripts/megavgm_classify').read_bytes()
+print('classifier executable-mode repair + mode-preserving rollback PASS')
 
 # Reject unknown/duplicated startup and symlink destinations without touching payload.
 for name, data in [('unknown', startup+b' /tmp/megavgm_remote -service start\n'),
@@ -228,6 +263,8 @@ for name,rel,mode in (
     ('controller-missing','MegaVGMPlayer/megavgm_playlist-phase2a','missing'),
     ('preparer-stale','MegaVGMPlayer/megavgm_sid_prepare','stale'),
     ('remote-stale','MegaVGMPlayer/megavgm_remote','stale'),
+    ('importer-stale','Scripts/vgm_md_import.sh','stale'),
+    ('classifier-missing','Scripts/megavgm_classify','missing'),
 ):
     fat=root/name
     env={'PATH':str(wrapper_dir)+os.pathsep+os.environ['PATH'],

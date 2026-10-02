@@ -26,6 +26,7 @@ changed=0
 cmp -s "$work/startup" "$startup" || changed=1
 while IFS= read -r rel; do
   cmp -s "$package/media/fat/$rel" "$fat/$rel" || changed=1
+  case "$rel" in *.rbf) ;; *) [ -x "$fat/$rel" ] || changed=1;; esac
 done <<EOF
 $(targets)
 EOF
@@ -37,6 +38,7 @@ if [ "$changed" = 0 ]; then
     verify_running_remote
   fi
   echo 'Already installed and verified; no payload/startup changes and no new rollback checkpoint.'
+  rm -rf "$work"
   exit 0
 fi
 backup=$(mktemp -d "$fat/MegaVGMPlayer/backups-v2.2-$(date +%Y%m%d-%H%M%S)-XXXXXX")
@@ -103,4 +105,5 @@ fi
 printf '%s\n' "$backup" > "$work/last-backup"
 mv -f "$work/last-backup" "$fat/MegaVGMPlayer/.v22-last-backup"
 touch "$backup/COMPLETE"
+rm -rf "$work"
 echo 'Installed. Existing remote.sh and playlists.json untouched. Reboot and follow README hardware checks.'

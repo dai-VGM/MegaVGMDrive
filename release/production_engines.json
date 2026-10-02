@@ -96,9 +96,9 @@
     {
       "id": "C",
       "canonical_rbf": "MegaVGMDrive_C.rbf",
-      "source_worktree": "MegaVGMPlayer_Release_C",
-      "qpf": "hw/engine_c_packed_v2/MegaVGMPlayer_EngineC_C7_2_Validation_MiSTer.qpf",
-      "qsf": "hw/engine_c_packed_v2/MegaVGMPlayer_EngineC_C7_2_Validation_MiSTer.qsf",
+      "source_worktree": "MegaVGMPlayer_EngineC_TransparentInfo",
+      "qpf": "hw/engine_c_packed_v2/MegaVGMPlayer_EngineC_C7_2_OSD_Visual_MiSTer.qpf",
+      "qsf": "hw/engine_c_packed_v2/MegaVGMPlayer_EngineC_C7_2_OSD_Visual_MiSTer.qsf",
       "status_contract": "frozen_golden_transport",
       "required_macros": [
         "GOLDEN_TRANSPORT_V1_2",
@@ -140,7 +140,7 @@
     {
       "id": "D",
       "canonical_rbf": "MegaVGMDrive_D.rbf",
-      "source_worktree": "MegaVGMPlayer_EngineD_C140",
+      "source_worktree": "MegaVGMPlayer_EngineD_TransparentInfo",
       "qpf": "MegaVGMDrive_D.qpf",
       "qsf": "MegaVGMDrive_D.qsf",
       "status_contract": "standard_phase1b",

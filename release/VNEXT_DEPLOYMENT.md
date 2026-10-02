@@ -1,6 +1,6 @@
 # Four-engine candidate deployment
 
-This is an unpublished hardware-acceptance candidate. Do not replace or edit the
+This is the unpublished hardware-accepted final RC. Do not replace or edit the
 public v2.2 release, tag, ZIP, or assets.
 
 ## Golden Player Platform authority
@@ -8,25 +8,34 @@ public v2.2 release, tag, ZIP, or assets.
 The accepted common Player baseline is documented in
 `/Users/daizo/Projects/MegaVGMPlayer_Platform_Contract.md` and is pinned to:
 
-- Runtime/Controller source `76cf4abff9eac21a7acc090514385d5c8c534b10`;
+- Runtime authority `f381918ad9c536433effea6158e9d1dc8aa831ae`;
+  accepted Controller source `ffd3336fb60472c82e4ece3133e407d15b671667`;
   `megavgm_playlist` 1,068,308 bytes, SHA-256
-  `29a0fc7ad60d2003757d87f14da831a24b84d517ad51dc6c1e741878092efd25`.
-- Remote/PWA source `fab3f55fa601ddd8e0931615aa3bfe91b8c6b66c`;
-  `megavgm_remote-parent-folder-fab3f55` 10,121,840 bytes, SHA-256
-  `04d5b2e6d6b135de7f919a97c39e07743a414e0cbf33a36f3c9ee54e9645a388`.
+  `18fffb80c4ddaa45435be644d85b874046b30adf842e952ed1048169886565e5`.
+- Remote/PWA source `45a45d8013fbc6292008af5d0269811493d8860e`;
+  `megavgm_remote-same-track-45a45d8` 10,121,840 bytes, SHA-256
+  `c54a121c3c6efea1cb32cec3610495c9fea95924a9914136e0fa8620593ca139`.
 - Embedded PWA `megavgm-ff892105.js`, SHA-256
   `0ea1ba5090707425182ea94b4b2d66c4a8df3f48616e13a0666193c327680ffd`.
 
 These source/artifact identities were verified locally. Their stated Player/UI
 behavior is hardware-PROVEN; this does not promote or mutate public v2.2.
 
-The generated staging tree at
+The final staging destination is
 `/Users/daizo/Projects/MegaVGMPlayer_vNext_4Engine_Staging/MegaVGMPlayer-vNext-4Engine-RC`
-contains these accepted Controller and Remote bytes. Its Supervisor remains the
-previously staged source `27a93571a3b4da7cfc5ab38b35085ff901998d16`, SHA-256
-`7a8b48334f6bf9fa72fde4407cf88c00e1245cb8bb001bbcd56d40f67e8c2fc7`;
-this Platform promotion does not replace or reclassify that component. Its
-A/B/C/D RBF bytes remain the unchanged production authorities.
+and is populated from `release/final_authorities.json` with the accepted
+Controller/Remote above, transparent Main/Supervisor, final A/B/C/D RBFs, and
+the matched importer/classifier. All twelve payload sizes/full hashes are
+recomputed in ARTIFACT_MANIFEST.md and SHA256SUMS. The public predecessor is
+read-only. See FINAL_PROMOTION.md for the generation and release gate.
+
+Supervisor source `8c1b57019a318ec7b96a0ec14674b3cab3cd518d`, SHA256
+`db9d85cb1d2d6e84605ae2a6635070c231bc8a2ae9ef4b495469bfcd80ad4846`
+pins Main SHA256 `bbc83ce23d8fbac365a5011553ee18fa29276cfbbd51ce4d8bb1bf83c52fa646`.
+Importer and classifier are deployed together to `/media/fat/Scripts/`, mode
+0755. Their accepted hashes are respectively
+`65d54baefbd6f24c9698f5a551a30f69f3edf56ec36aa906e7fbb09b972f54b5` and
+`41fa84090099c51147b8bd61b9703e34b732061acd8e025a22ef7be3c49171fb`.
 
 On MiSTer, exit MegaVGMPlayer and verify STOCK before replacement. Upload every
 candidate as a distinct `.new` file, compare its SHA-256 with `SHA256SUMS`, retain

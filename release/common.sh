@@ -18,12 +18,12 @@ targets() {
     '_Custom Cores/Cores/MegaVGMDrive_A.rbf' \
     '_Custom Cores/Cores/MegaVGMDrive_B.rbf' \
     '_Custom Cores/Cores/MegaVGMDrive_C.rbf' \
+    '_Custom Cores/Cores/MegaVGMDrive_D.rbf' \
     'MegaVGMPlayer/MiSTer.megavgm' 'MegaVGMPlayer/megavgm_supervisor' \
     'MegaVGMPlayer/megavgm_playlist-phase2a' 'MegaVGMPlayer/megavgm_remote' \
     'MegaVGMPlayer/megavgm_sid_prepare' \
     'Scripts/megavgm_ctl' 'Scripts/vgm_md_import.sh' \
-    'MegaVGMDrive/C7_2_Hardware_Test/C7_2_Manual_Loop_PAL_6581.sid' \
-    'MegaVGMDrive/C7_2_Hardware_Test/C7_2_Manual_Loop_PAL_6581.sid.loop.json'
+    'Scripts/megavgm_classify'
 }
 paths="$(targets)
 linux/user-startup.sh"
@@ -144,6 +144,7 @@ verify_installed_targets() {
     actual=$(sha "$target") || fail "Cannot hash installed target: $rel"
     [ "$actual" = "$expected" ] ||
       fail "Installed target SHA mismatch: $rel expected=$expected actual=$actual"
+    case "$rel" in *.rbf) ;; *) [ -x "$target" ] || fail "Installed target is not executable: $rel";; esac
   done <<EOF
 $(targets)
 EOF
