@@ -1,0 +1,80 @@
+{
+  "status": "RC_READY",
+  "integration_input_commit": "02ce2d5a95d27ba4019f981a84a3e898d47c3307",
+  "ZIP": "/Users/daizo/Projects/MegaVGMPlayer_vNext_Integrated_RC/out/v2.4.0/MegaVGMPlayer-v2.4.0.zip",
+  "ZIP_bytes": 17985308,
+  "ZIP_sha256": "795caf7d8a6276c3bec840feb27d4a220f090ecd534b52a9009ac3b137044892",
+  "checksum_sidecar": "/Users/daizo/Projects/MegaVGMPlayer_vNext_Integrated_RC/out/v2.4.0/MegaVGMPlayer-v2.4.0.zip.sha256",
+  "fresh_extract": {
+    "package_files": 51,
+    "payloads": 12,
+    "checksum_members": 50,
+    "status": "PASS",
+    "gate": "V240_FRESH_EXTRACT_PASS",
+    "retained_v23_payloads": 9,
+    "exact_source_archives": 4,
+    "ZIP_SHA256": "795caf7d8a6276c3bec840feb27d4a220f090ecd534b52a9009ac3b137044892",
+    "changed_payloads": [
+      "_Custom Cores/Cores/MegaVGMDrive_A.rbf",
+      "_Custom Cores/Cores/MegaVGMDrive_B.rbf",
+      "_Custom Cores/Cores/MegaVGMDrive_D.rbf"
+    ],
+    "installer_changes": "VERSIONED_BACKUP_NAMESPACE_ONLY",
+    "SID_source_unchanged": true,
+    "negative_controls": [
+      "RBF corruption",
+      "missing checksum coverage",
+      "wrong payload mode",
+      "missing payload"
+    ],
+    "isolated_upgrade_idempotence_rollback": "PASS",
+    "user_files_preserved": true,
+    "service_ARM_execution": false,
+    "hardware_lifecycle_test": false
+  },
+  "independent_package_assemblies": 2,
+  "deterministic_ZIP_exact": true,
+  "identity_evidence": {
+    "gate": "V240_IDENTITY_AND_EVIDENCE_PASS",
+    "engines": {
+      "A": {
+        "exact_build_inputs": 195,
+        "common_files": 10,
+        "helper_required": false
+      },
+      "B": {
+        "exact_build_inputs": 161,
+        "common_files": 10,
+        "helper_required": false
+      },
+      "C": {
+        "legacy_source_files": 89,
+        "RBF_unchanged": true
+      },
+      "D": {
+        "exact_build_inputs": 132,
+        "common_files": 10,
+        "helper_required": false
+      }
+    },
+    "RBFs_exact": 4,
+    "canonical_runtime_names": 4,
+    "Common_files_exact_ABD": 10,
+    "Windows_inputs_exact": 488,
+    "Windows_RBFs_exact": 3,
+    "A_B_D_constrained_timing": "PASS_REUSED_WINDOWS_EVIDENCE",
+    "C": "UNCHANGED_LEGACY",
+    "protected_repositories": 12,
+    "protected_files": 17,
+    "Runtime_PWA_payload_changes": 0,
+    "new_Quartus_build": false,
+    "new_hardware_test": false,
+    "deployment": false,
+    "publication": false
+  },
+  "Mac_Quartus": false,
+  "Windows_new_build": false,
+  "new_hardware_test": false,
+  "production_deployment": false,
+  "tag_push_GitHub_publication": false
+}
