@@ -1,0 +1,25 @@
+{
+  "audit_integrity": "PASS",
+  "RBF_identities": 4,
+  "source_ZIPs_checksums": "A/B/D PASS",
+  "C_required_inputs": 89,
+  "common_core_files_exact": 10,
+  "original_repositories": {
+    "MegaVGMPlayer_ParserVNext": "UNCHANGED",
+    "MegaVGMPlayer_EngineB_vNext": "UNCHANGED",
+    "MegaVGMPlayer_EngineC_TransparentInfo": "UNCHANGED",
+    "MegaVGMPlayer_EngineD_vNext": "UNCHANGED",
+    "MegaVGMPlayer_vNext_4Engine_RC": "UNCHANGED",
+    "MegaVGMPlayer_vNext_4Engine_Runtime": "UNCHANGED",
+    "Main_MiSTer-megavgm-bottom-loading": "UNCHANGED"
+  },
+  "original_v2_3_payloads": 12,
+  "original_top_RBFs": 7,
+  "canonical_documents_and_BUILD_TARGETS": "UNCHANGED",
+  "unexpected_audit_hash_drift": 0,
+  "integration_gate": "PHASE1_BLOCKED_A_TIMING",
+  "Quartus_executed": false,
+  "existing_repository_diff_check": "PASS all 7",
+  "functional_regression_execution": "Not rerun: no functional source changed; previous acceptance/evidence preserved",
+  "audit_only": true
+}

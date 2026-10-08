@@ -1,0 +1,24 @@
+{
+  "shared_required_files": 11,
+  "identical_common_parser_reader_scheduler_files": 10,
+  "shared_hashes": {
+    "source/rtl/vgm_parser_vnext/data_decode.sv": "d73c3939439b02ddba77757d7e0d11edd403b7611b346e00ab7545e6beb3c0c1",
+    "source/rtl/vgm_parser_vnext/decoder.sv": "b105c0171f2cbd9a1e909bce559783624fba2363a7f8e1a8824fef0a84d34745",
+    "source/rtl/vgm_parser_vnext/event_pkg.sv": "97137d8fded21ab72c76552342a8721e13dc9506dead4ae6a1f2dae221ead9e7",
+    "source/rtl/vgm_parser_vnext/header_decode.sv": "d542dc41b1f4662a9ed351e04510a9f7cae85c499da1097a19b934518ca569c4",
+    "source/rtl/vgm_reader_vnext/golden_observer.sv": "d84772041439661fa7336f0a8dbd1515c9d84c99874ecbb3ae1fb18b708f53d8",
+    "source/rtl/vgm_reader_vnext/reader_pkg.sv": "63bc69a25ba90e5183ab64439924151bd7f117efcaab9ba8c80cdf52d752f52d",
+    "source/rtl/vgm_reader_vnext/strict_adapter.sv": "6388fcd562f1af84a701f7c7f6e5fabbf6b704a07abbab564054b2908f7b0259",
+    "source/rtl/vgm_scheduler_vnext/normalizer.sv": "e530c9127e835b22f98528962b5726158dbda01d570fc06d133bbcc2a931cf39",
+    "source/rtl/vgm_scheduler_vnext/scheduler.sv": "4299efaf9e36fd6240f259e7b66cb3370e874d297ae554d6545efc3bd511b995",
+    "source/rtl/vgm_scheduler_vnext/scheduler_pkg.sv": "fde04333fb0826faeda6d1f45f154b2998de0696b718a2ce1d29cfbdf2b070a7"
+  },
+  "mismatches": {
+    "source/rtl/transport_v1_3/owner_body.svh": {
+      "A": "79ca0c96ff2e1b59798ac734a706bfa0f80a3f9915b87523e4642e305748b7c4",
+      "B": "79ca0c96ff2e1b59798ac734a706bfa0f80a3f9915b87523e4642e305748b7c4",
+      "D": "48f56052aa0bc07487db3d6887017fa5233d6fd7d911b45d4c9fa19224b9e864"
+    }
+  },
+  "C": "intentional native-cycle independent path; no VGM common parser imposed"
+}

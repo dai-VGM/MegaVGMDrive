@@ -1,0 +1,65 @@
+{
+  "host": "DAI-RYZEN5900X",
+  "execution": "read-only; no compilation",
+  "engines": [
+    {
+      "engine": "C",
+      "root": "C:\\MegaVGMPlayer_Release_C",
+      "exists": true,
+      "root_files": [
+        "a.out",
+        "AGENTS.md",
+        "files.qip",
+        "jt51.raw",
+        "jt51_cmd.txt",
+        "MegaVGMPlayer_v1.0.2_RC_MiSTer.qpf",
+        "MegaVGMPlayer_v1.0.2_RC_MiSTer.qsf",
+        "README.ja.md",
+        "README.md",
+        "RELEASE_NOTES_v2.1.md",
+        "VGM_MD_MiSTer.qpf",
+        "VGM_MD_MiSTer.qsf",
+        "VGM_MD_MiSTer.sdc"
+      ],
+      "inputs": [],
+      "outputs": [
+        {
+          "path": "C:\\MegaVGMPlayer_Release_C\\hw\\engine_c_packed_v2\\output_files_c7_2_osd_visual\\MegaVGMPlayer_EngineC_C7_2_OSD_Visual_MiSTer.asm.rpt",
+          "name": "MegaVGMPlayer_EngineC_C7_2_OSD_Visual_MiSTer.asm.rpt",
+          "bytes": 6836,
+          "sha256": "7e90bee4006948ca6ea5b7f442ab9a08f60adb5f32a9c6a0e250608c8875dba4"
+        },
+        {
+          "path": "C:\\MegaVGMPlayer_Release_C\\hw\\engine_c_packed_v2\\output_files_c7_2_osd_visual\\MegaVGMPlayer_EngineC_C7_2_OSD_Visual_MiSTer.fit.summary",
+          "name": "MegaVGMPlayer_EngineC_C7_2_OSD_Visual_MiSTer.fit.summary",
+          "bytes": 731,
+          "sha256": "97f0d83b695934764c4d91a54d8673254859a4c667bb812c4c5093151597c1dd"
+        },
+        {
+          "path": "C:\\MegaVGMPlayer_Release_C\\hw\\engine_c_packed_v2\\output_files_c7_2_osd_visual\\MegaVGMPlayer_EngineC_C7_2_OSD_Visual_MiSTer.flow.rpt",
+          "name": "MegaVGMPlayer_EngineC_C7_2_OSD_Visual_MiSTer.flow.rpt",
+          "bytes": 17639,
+          "sha256": "160090a41720036da52e50e0041a37da25b3fc9a22d2e987b39233ee9546fa38"
+        },
+        {
+          "path": "C:\\MegaVGMPlayer_Release_C\\hw\\engine_c_packed_v2\\output_files_c7_2_osd_visual\\MegaVGMPlayer_EngineC_C7_2_OSD_Visual_MiSTer.rbf",
+          "name": "MegaVGMPlayer_EngineC_C7_2_OSD_Visual_MiSTer.rbf",
+          "bytes": 2687708,
+          "sha256": "e7fa0a6ca192d8ecac31048ec0497fcfd7f00944dfa8c3f5cfa4a8965e06e0e1"
+        },
+        {
+          "path": "C:\\MegaVGMPlayer_Release_C\\hw\\engine_c_packed_v2\\output_files_c7_2_osd_visual\\MegaVGMPlayer_EngineC_C7_2_OSD_Visual_MiSTer.sof",
+          "name": "MegaVGMPlayer_EngineC_C7_2_OSD_Visual_MiSTer.sof",
+          "bytes": 6690505,
+          "sha256": "6583b3de16623dc61b66e39d03305e131bd396a0dea801cf0f1a736b6a8adecd"
+        },
+        {
+          "path": "C:\\MegaVGMPlayer_Release_C\\hw\\engine_c_packed_v2\\output_files_c7_2_osd_visual\\MegaVGMPlayer_EngineC_C7_2_OSD_Visual_MiSTer.sta.rpt",
+          "name": "MegaVGMPlayer_EngineC_C7_2_OSD_Visual_MiSTer.sta.rpt",
+          "bytes": 226096,
+          "sha256": "f91ea78edd87debf5c9e34ee9db6db6e100926e6079d10b299136328ab55401d"
+        }
+      ]
+    }
+  ]
+}

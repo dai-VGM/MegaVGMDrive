@@ -1,0 +1,141 @@
+{
+  "repositories": {
+    "MegaVGMPlayer_ParserVNext": {
+      "HEAD": "da862eea0d08fbef8c239602df5cbe04a1ed8f6e",
+      "branch": "parser-vnext-infrastructure",
+      "status": " M tools/engine_a_vnext/collect_graph.tcl\n?? docs/evidence/engine_a_vnext/phase10/\n?? docs/evidence/engine_a_vnext/phase10_assembly/\n?? docs/evidence/engine_a_vnext/phase9c/\n?? docs/evidence/engine_a_vnext/pre_quartus_assembly_audit/\n?? tb/engine_a_vnext_phase9c/\n?? tools/engine_a_vnext/check_quartus_handoff.py\n?? tools/engine_a_vnext/test_check_quartus_handoff.py\n",
+      "tracked_diff_sha256": "92d34ea2c0c12a43f71519d20b4b4ab66d4a8f29e46c3016a8e33a8b1d870821"
+    },
+    "MegaVGMPlayer_EngineB_vNext": {
+      "HEAD": "b7a001d822c7f93e54587f137469e70e7022f933",
+      "branch": "codex/engine-b-vnext",
+      "status": "?? docs/evidence/engine_b_vnext/phase2/DariusII.L0.control.trace\n?? docs/evidence/engine_b_vnext/phase2/DariusII.L12.control.trace\n?? docs/evidence/engine_b_vnext/phase2/DariusII.first-audio-difference.trace\n?? docs/evidence/engine_b_vnext/phase2/README.md\n?? docs/evidence/engine_b_vnext/phase2/Stage6.L0.control.trace\n?? docs/evidence/engine_b_vnext/phase2/Stage6.L12.control.trace\n?? docs/evidence/engine_b_vnext/phase2/Stage6.first-audio-difference.trace\n?? docs/evidence/engine_b_vnext/phase2/candidate-source-hashes.json\n?? docs/evidence/engine_b_vnext/phase2/capacity-prefix-results.json\n?? docs/evidence/engine_b_vnext/phase2/common-regression-commands.json\n?? docs/evidence/engine_b_vnext/phase2/common-regression-results.json\n?? docs/evidence/engine_b_vnext/phase2/corpus-density.json\n?? docs/evidence/engine_b_vnext/phase2/diff-check.json\n?? docs/evidence/engine_b_vnext/phase2/historical-prefix-results.json\n?? docs/evidence/engine_b_vnext/phase2/lateness-prefix.json\n?? docs/evidence/engine_b_vnext/phase2/loop-prefix-sizing/\n?? docs/evidence/engine_b_vnext/phase2/physical-lateness-micro-audit.json\n?? docs/evidence/engine_b_vnext/phase2/playback-final-audit/\n?? docs/evidence/engine_b_vnext/phase2/preparation-baseline.md\n?? docs/evidence/engine_b_vnext/phase2/protected-after.json\n?? docs/evidence/engine_b_vnext/phase2/reader-directed-results.json\n?? docs/evidence/engine_b_vnext/phase2/readiness-completion/\n?? docs/evidence/engine_b_vnext/phase2/reference-results.json\n?? docs/evidence/engine_b_vnext/phase2/resource-deadline-binding/\n?? docs/evidence/engine_b_vnext/phase2/resource-readiness/\n?? docs/evidence/engine_b_vnext/phase2/retained-regression-results.json\n?? docs/evidence/engine_b_vnext/phase2/timebase-L12-unapproved.json\n?? docs/evidence/engine_b_vnext/phase2/timebase-negative-controls.json\n?? docs/evidence/engine_b_vnext/phase2/timebase-result.json\n?? docs/evidence/engine_b_vnext/phase2/timing-micro-audit.json\n?? docs/evidence/engine_b_vnext/phase2/timing-window.trace\n?? docs/evidence/engine_b_vnext/phase2/warnings.json\n?? docs/evidence/engine_b_vnext/phase2/word-negative-controls.json\n?? tb/engine_b_vnext/tb_command_word_buffer.sv\n?? tb/engine_b_vnext/tb_playback.sv\n?? tb/engine_b_vnext/tb_prewarm.sv\n?? tb/engine_b_vnext/tb_strict_playback.sv\n?? tools/engine_b_vnext/check_resource_cache_derivation.py\n?? tools/engine_b_vnext/reference_audit.py\n?? tools/engine_b_vnext/run_phase2_repro.py\n?? tools/engine_b_vnext/run_resource_ready_repro.py\n",
+      "tracked_diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "MegaVGMPlayer_EngineC_TransparentInfo": {
+      "HEAD": "82402ec2ecc12fd254eb2457d30473aae89854e4",
+      "branch": "engine-c-transparent-info",
+      "status": "",
+      "tracked_diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "MegaVGMPlayer_EngineD_vNext": {
+      "HEAD": "26d507843a49e6658cf013b25533bdc33fee3818",
+      "branch": "codex/engine-d-vnext",
+      "status": "?? tools/__pycache__/analyze_c140_stage2.cpython-314.pyc\n",
+      "tracked_diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "MegaVGMPlayer_vNext_4Engine_RC": {
+      "HEAD": "bff5b40a9f0b87ddb74e57db6b0979e566837003",
+      "branch": "vnext-four-engine-release-candidate",
+      "status": "",
+      "tracked_diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "MegaVGMPlayer_vNext_4Engine_Runtime": {
+      "HEAD": "f381918ad9c536433effea6158e9d1dc8aa831ae",
+      "branch": "vnext-four-engine-runtime",
+      "status": "",
+      "tracked_diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "Main_MiSTer-megavgm-bottom-loading": {
+      "HEAD": "8a3a44b138fe56cfbcb3787ae5a9cb8fcb0211fb",
+      "branch": "megavgm-bottom-loading-indicator",
+      "status": "",
+      "tracked_diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "v2_3_payloads": [
+    {
+      "path": "/Users/daizo/Projects/MegaVGMPlayer_Transport13FadeOnly_A_MiSTer.rbf",
+      "expected_sha256": "e481ca97fdec3c6724ddaecafd881bc63d50725775a9dedd3c85b93a8f31e683",
+      "actual_sha256": "e481ca97fdec3c6724ddaecafd881bc63d50725775a9dedd3c85b93a8f31e683",
+      "match": true,
+      "exists": true
+    },
+    {
+      "path": "/Users/daizo/Projects/MegaVGMPlayer_Transport13FadeOnly_B_MiSTer.rbf",
+      "expected_sha256": "2008a7e3eba48bf3d6babf5ee72e9c7fc44248228377ba929219f1ff480ba99e",
+      "actual_sha256": "2008a7e3eba48bf3d6babf5ee72e9c7fc44248228377ba929219f1ff480ba99e",
+      "match": true,
+      "exists": true
+    },
+    {
+      "path": "/Users/daizo/Projects/MegaVGMPlayer_EngineC_C7_2_OSD_Visual_MiSTer.rbf",
+      "expected_sha256": "45f63808ca4d9871716af0bbc46f2335cd49d14fceafb537108ef2fa9f3e6110",
+      "actual_sha256": "45f63808ca4d9871716af0bbc46f2335cd49d14fceafb537108ef2fa9f3e6110",
+      "match": true,
+      "exists": true
+    },
+    {
+      "path": "/Users/daizo/Projects/MegaVGMDrive_D7.rbf",
+      "expected_sha256": "fc0bf2bb09b87aff4d34bdf38619de469a04df0f9cab225d0bc5c2cc45cea300",
+      "actual_sha256": "fc0bf2bb09b87aff4d34bdf38619de469a04df0f9cab225d0bc5c2cc45cea300",
+      "match": true,
+      "exists": true
+    },
+    {
+      "path": "/Users/daizo/Projects/Main_MiSTer-megavgm-bottom-loading-artifacts/8a3a44b/MiSTer",
+      "expected_sha256": "bbc83ce23d8fbac365a5011553ee18fa29276cfbbd51ce4d8bb1bf83c52fa646",
+      "actual_sha256": "bbc83ce23d8fbac365a5011553ee18fa29276cfbbd51ce4d8bb1bf83c52fa646",
+      "match": true,
+      "exists": true
+    },
+    {
+      "path": "/Users/daizo/Projects/MegaVGMPlayer_vNext_4Engine_Runtime/out/transparent-main-authority-8c1b570-supervisor/megavgm_supervisor",
+      "expected_sha256": "db9d85cb1d2d6e84605ae2a6635070c231bc8a2ae9ef4b495469bfcd80ad4846",
+      "actual_sha256": "db9d85cb1d2d6e84605ae2a6635070c231bc8a2ae9ef4b495469bfcd80ad4846",
+      "match": true,
+      "exists": true
+    },
+    {
+      "path": "/Users/daizo/Projects/MegaVGMPlayer_vNext_4Engine_Runtime/out/megavgm-same-track-ffd3336/megavgm_playlist",
+      "expected_sha256": "18fffb80c4ddaa45435be644d85b874046b30adf842e952ed1048169886565e5",
+      "actual_sha256": "18fffb80c4ddaa45435be644d85b874046b30adf842e952ed1048169886565e5",
+      "match": true,
+      "exists": true
+    },
+    {
+      "path": "/Users/daizo/Projects/MegaVGMPlayer_vNext_4Engine_RC/artifacts/megavgm_remote-same-track-45a45d8",
+      "expected_sha256": "c54a121c3c6efea1cb32cec3610495c9fea95924a9914136e0fa8620593ca139",
+      "actual_sha256": "c54a121c3c6efea1cb32cec3610495c9fea95924a9914136e0fa8620593ca139",
+      "match": true,
+      "exists": true
+    },
+    {
+      "path": "/Users/daizo/Projects/MegaVGMPlayer_v2.2_Release/MegaVGMPlayer-v2.2/media/fat/MegaVGMPlayer/megavgm_sid_prepare",
+      "expected_sha256": "4c640b2c5946e4b541cfdae11d298ec9d3e5a01c9fa840dae9dab5afe4da3f0f",
+      "actual_sha256": "4c640b2c5946e4b541cfdae11d298ec9d3e5a01c9fa840dae9dab5afe4da3f0f",
+      "match": true,
+      "exists": true
+    },
+    {
+      "path": "/Users/daizo/Projects/MegaVGMPlayer_v2.2_Release/MegaVGMPlayer-v2.2/media/fat/Scripts/megavgm_ctl",
+      "expected_sha256": "378905c80c22f0b072e248d6fdb67238f2727a38287f4407b2596c8c2a9ae45b",
+      "actual_sha256": "378905c80c22f0b072e248d6fdb67238f2727a38287f4407b2596c8c2a9ae45b",
+      "match": true,
+      "exists": true
+    },
+    {
+      "path": "/Users/daizo/Projects/MegaVGMPlayer_vNext_4Engine_Runtime/scripts/vgm_md_import.sh",
+      "expected_sha256": "65d54baefbd6f24c9698f5a551a30f69f3edf56ec36aa906e7fbb09b972f54b5",
+      "actual_sha256": "65d54baefbd6f24c9698f5a551a30f69f3edf56ec36aa906e7fbb09b972f54b5",
+      "match": true,
+      "exists": true
+    },
+    {
+      "path": "/Users/daizo/Projects/MegaVGMPlayer_Runtime_f381918_ARM/megavgm_classify",
+      "expected_sha256": "41fa84090099c51147b8bd61b9703e34b732061acd8e025a22ef7be3c49171fb",
+      "actual_sha256": "41fa84090099c51147b8bd61b9703e34b732061acd8e025a22ef7be3c49171fb",
+      "match": true,
+      "exists": true
+    }
+  ],
+  "top_RBFs": {
+    "/Users/daizo/Projects/MegaVGMPlayer_Transport13FadeOnly_A_MiSTer.rbf": "e481ca97fdec3c6724ddaecafd881bc63d50725775a9dedd3c85b93a8f31e683",
+    "/Users/daizo/Projects/MegaVGMDrive_D7.rbf": "fc0bf2bb09b87aff4d34bdf38619de469a04df0f9cab225d0bc5c2cc45cea300",
+    "/Users/daizo/Projects/MegaVGMDrive_B_vNext_MiSTer.rbf": "9f62876ab573dbffde5abb1b6dc90e92f8afcb0875029d64357a6e51a8c55e7c",
+    "/Users/daizo/Projects/MegaVGMPlayer_EngineC_C7_2_OSD_Visual_MiSTer.rbf": "45f63808ca4d9871716af0bbc46f2335cd49d14fceafb537108ef2fa9f3e6110",
+    "/Users/daizo/Projects/MegaVGMDrive_A_vNext_Measurement_MiSTer.rbf": "01fbfbbc5fcedb40057ec22647f380ba5505badbdb8f590de427c8ce789ce5cb",
+    "/Users/daizo/Projects/MegaVGMPlayer_Transport13FadeOnly_B_MiSTer.rbf": "2008a7e3eba48bf3d6babf5ee72e9c7fc44248228377ba929219f1ff480ba99e",
+    "/Users/daizo/Projects/MegaVGMDrive_A_vNext_Production_MiSTer.rbf": "8c9ef2a084ff21732242b4d090b4e010b463c7f60fc7b461a58215983b5fb44d"
+  }
+}
