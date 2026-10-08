@@ -1,0 +1,83 @@
+{
+  "repositories": {
+    "/Users/daizo/Projects/Main_MiSTer-megavgm-bottom-loading": {
+      "HEAD": "8a3a44b138fe56cfbcb3787ae5a9cb8fcb0211fb",
+      "status": "",
+      "diff": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "/Users/daizo/Projects/MegaVGMPlayer_EngineA_Opt_A1": {
+      "HEAD": "505c0c3db92b223a89b82fd1a8e156eff3bbe3b6",
+      "status": "",
+      "diff": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "/Users/daizo/Projects/MegaVGMPlayer_EngineA_Opt_A2": {
+      "HEAD": "a1fc3cbed5bafa0a093338128675cd666d4ea2e1",
+      "status": "",
+      "diff": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "/Users/daizo/Projects/MegaVGMPlayer_EngineB_FM6_Activity": {
+      "HEAD": "a26c2ccc4cda65506152e8de05bc061d01e23c56",
+      "status": "",
+      "diff": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "/Users/daizo/Projects/MegaVGMPlayer_EngineB_vNext": {
+      "HEAD": "b7a001d822c7f93e54587f137469e70e7022f933",
+      "status": "?? docs/evidence/engine_b_vnext/phase2/DariusII.L0.control.trace\n?? docs/evidence/engine_b_vnext/phase2/DariusII.L12.control.trace\n?? docs/evidence/engine_b_vnext/phase2/DariusII.first-audio-difference.trace\n?? docs/evidence/engine_b_vnext/phase2/README.md\n?? docs/evidence/engine_b_vnext/phase2/Stage6.L0.control.trace\n?? docs/evidence/engine_b_vnext/phase2/Stage6.L12.control.trace\n?? docs/evidence/engine_b_vnext/phase2/Stage6.first-audio-difference.trace\n?? docs/evidence/engine_b_vnext/phase2/candidate-source-hashes.json\n?? docs/evidence/engine_b_vnext/phase2/capacity-prefix-results.json\n?? docs/evidence/engine_b_vnext/phase2/common-regression-commands.json\n?? docs/evidence/engine_b_vnext/phase2/common-regression-results.json\n?? docs/evidence/engine_b_vnext/phase2/corpus-density.json\n?? docs/evidence/engine_b_vnext/phase2/diff-check.json\n?? docs/evidence/engine_b_vnext/phase2/historical-prefix-results.json\n?? docs/evidence/engine_b_vnext/phase2/lateness-prefix.json\n?? docs/evidence/engine_b_vnext/phase2/loop-prefix-sizing/\n?? docs/evidence/engine_b_vnext/phase2/physical-lateness-micro-audit.json\n?? docs/evidence/engine_b_vnext/phase2/playback-final-audit/\n?? docs/evidence/engine_b_vnext/phase2/preparation-baseline.md\n?? docs/evidence/engine_b_vnext/phase2/protected-after.json\n?? docs/evidence/engine_b_vnext/phase2/reader-directed-results.json\n?? docs/evidence/engine_b_vnext/phase2/readiness-completion/\n?? docs/evidence/engine_b_vnext/phase2/reference-results.json\n?? docs/evidence/engine_b_vnext/phase2/resource-deadline-binding/\n?? docs/evidence/engine_b_vnext/phase2/resource-readiness/\n?? docs/evidence/engine_b_vnext/phase2/retained-regression-results.json\n?? docs/evidence/engine_b_vnext/phase2/timebase-L12-unapproved.json\n?? docs/evidence/engine_b_vnext/phase2/timebase-negative-controls.json\n?? docs/evidence/engine_b_vnext/phase2/timebase-result.json\n?? docs/evidence/engine_b_vnext/phase2/timing-micro-audit.json\n?? docs/evidence/engine_b_vnext/phase2/timing-window.trace\n?? docs/evidence/engine_b_vnext/phase2/warnings.json\n?? docs/evidence/engine_b_vnext/phase2/word-negative-controls.json\n?? tb/engine_b_vnext/tb_command_word_buffer.sv\n?? tb/engine_b_vnext/tb_playback.sv\n?? tb/engine_b_vnext/tb_prewarm.sv\n?? tb/engine_b_vnext/tb_strict_playback.sv\n?? tools/engine_b_vnext/check_resource_cache_derivation.py\n?? tools/engine_b_vnext/reference_audit.py\n?? tools/engine_b_vnext/run_phase2_repro.py\n?? tools/engine_b_vnext/run_resource_ready_repro.py\n",
+      "diff": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "/Users/daizo/Projects/MegaVGMPlayer_EngineC_TransparentInfo": {
+      "HEAD": "82402ec2ecc12fd254eb2457d30473aae89854e4",
+      "status": "",
+      "diff": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "/Users/daizo/Projects/MegaVGMPlayer_EngineD_TransparentInfo": {
+      "HEAD": "239b371e7f3341726f62031cc31fa04be0752bde",
+      "status": "",
+      "diff": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "/Users/daizo/Projects/MegaVGMPlayer_EngineD_vNext": {
+      "HEAD": "26d507843a49e6658cf013b25533bdc33fee3818",
+      "status": "?? tools/__pycache__/analyze_c140_stage2.cpython-314.pyc\n",
+      "diff": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "/Users/daizo/Projects/MegaVGMPlayer_ParserVNext": {
+      "HEAD": "da862eea0d08fbef8c239602df5cbe04a1ed8f6e",
+      "status": " M tools/engine_a_vnext/collect_graph.tcl\n?? docs/evidence/engine_a_vnext/phase10/\n?? docs/evidence/engine_a_vnext/phase10_assembly/\n?? docs/evidence/engine_a_vnext/phase9c/\n?? docs/evidence/engine_a_vnext/pre_quartus_assembly_audit/\n?? tb/engine_a_vnext_phase9c/\n?? tools/engine_a_vnext/check_quartus_handoff.py\n?? tools/engine_a_vnext/test_check_quartus_handoff.py\n",
+      "diff": "92d34ea2c0c12a43f71519d20b4b4ab66d4a8f29e46c3016a8e33a8b1d870821"
+    },
+    "/Users/daizo/Projects/MegaVGMPlayer_vNext_4Engine_RC": {
+      "HEAD": "bff5b40a9f0b87ddb74e57db6b0979e566837003",
+      "status": "",
+      "diff": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "/Users/daizo/Projects/MegaVGMPlayer_vNext_4Engine_Runtime": {
+      "HEAD": "f381918ad9c536433effea6158e9d1dc8aa831ae",
+      "status": "",
+      "diff": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "/Users/daizo/Projects/mister-vgm-fade-only-a": {
+      "HEAD": "16b1c6c2ec1404d3eb1223f6a495debc87cc2e65",
+      "status": "",
+      "diff": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "files": {
+    "/Users/daizo/Projects/MegaVGMPlayer_Transport13FadeOnly_A_MiSTer.rbf": "e481ca97fdec3c6724ddaecafd881bc63d50725775a9dedd3c85b93a8f31e683",
+    "/Users/daizo/Projects/MegaVGMPlayer_Transport13FadeOnly_B_MiSTer.rbf": "2008a7e3eba48bf3d6babf5ee72e9c7fc44248228377ba929219f1ff480ba99e",
+    "/Users/daizo/Projects/MegaVGMPlayer_EngineC_C7_2_OSD_Visual_MiSTer.rbf": "45f63808ca4d9871716af0bbc46f2335cd49d14fceafb537108ef2fa9f3e6110",
+    "/Users/daizo/Projects/MegaVGMDrive_D7.rbf": "fc0bf2bb09b87aff4d34bdf38619de469a04df0f9cab225d0bc5c2cc45cea300",
+    "/Users/daizo/Projects/Main_MiSTer-megavgm-bottom-loading-artifacts/8a3a44b/MiSTer": "bbc83ce23d8fbac365a5011553ee18fa29276cfbbd51ce4d8bb1bf83c52fa646",
+    "/Users/daizo/Projects/MegaVGMPlayer_vNext_4Engine_Runtime/out/transparent-main-authority-8c1b570-supervisor/megavgm_supervisor": "db9d85cb1d2d6e84605ae2a6635070c231bc8a2ae9ef4b495469bfcd80ad4846",
+    "/Users/daizo/Projects/MegaVGMPlayer_vNext_4Engine_Runtime/out/megavgm-same-track-ffd3336/megavgm_playlist": "18fffb80c4ddaa45435be644d85b874046b30adf842e952ed1048169886565e5",
+    "/Users/daizo/Projects/MegaVGMPlayer_vNext_4Engine_RC/artifacts/megavgm_remote-same-track-45a45d8": "c54a121c3c6efea1cb32cec3610495c9fea95924a9914136e0fa8620593ca139",
+    "/Users/daizo/Projects/MegaVGMPlayer_v2.2_Release/MegaVGMPlayer-v2.2/media/fat/MegaVGMPlayer/megavgm_sid_prepare": "4c640b2c5946e4b541cfdae11d298ec9d3e5a01c9fa840dae9dab5afe4da3f0f",
+    "/Users/daizo/Projects/MegaVGMPlayer_v2.2_Release/MegaVGMPlayer-v2.2/media/fat/Scripts/megavgm_ctl": "378905c80c22f0b072e248d6fdb67238f2727a38287f4407b2596c8c2a9ae45b",
+    "/Users/daizo/Projects/MegaVGMPlayer_vNext_4Engine_Runtime/scripts/vgm_md_import.sh": "65d54baefbd6f24c9698f5a551a30f69f3edf56ec36aa906e7fbb09b972f54b5",
+    "/Users/daizo/Projects/MegaVGMPlayer_Runtime_f381918_ARM/megavgm_classify": "41fa84090099c51147b8bd61b9703e34b732061acd8e025a22ef7be3c49171fb",
+    "/Users/daizo/Projects/output/EngineA_vNext_Optimization_A2_b4e1b9c_20261009/hardware-test/MegaVGMDrive_A_vNext_Production_MiSTer.rbf": "57b005ae66c586189e153cfe09b4b680e781deaec29bac1f19654e42f5b9b6c3",
+    "/Users/daizo/Projects/MegaVGMPlayer_EngineB_vNext/out/hardware-test/phase2-seed3-2241e0f/MegaVGMDrive_B_vNext_MiSTer.rbf": "70392ce76932c85c21cd5f2ef3a73f1b07026e7573c8e75e753a804660d51507",
+    "/Users/daizo/Documents/Codex/2026-10-08/engine-d-vnext-engine-d-ym2151/outputs/hardware-test-26d5078/MegaVGMDrive_D_vNext_MiSTer.rbf": "064c398c42d7daa729bf5081efba6213ca872d8f7f9b1889f1004a24e0422ed7",
+    "/Users/daizo/Projects/MegaVGMPlayer_v2.3_Final_RC_20261002/MegaVGMPlayer-v2.3.zip": "b33397b2868a11ea83a99614d003429bcde7dfa70a2dcdb6ef712e7fcc34c61b",
+    "/Users/daizo/Projects/MegaVGMPlayer_CURRENT/BUILD_TARGETS.md": "99dcf36381e9a3eef9f663248d79a8fd2f44c670d135559ee19f80849096fc6b"
+  }
+}

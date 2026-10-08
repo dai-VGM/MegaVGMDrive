@@ -1,0 +1,3163 @@
+{
+  "host": "DAI-RYZEN5900X",
+  "execution": "read-only; no compilation",
+  "engines": [
+    {
+      "engine": "A",
+      "root": "C:\\Users\\dai\\Documents\\MegaVGMDrive_A_vNext_Production_RC",
+      "exists": true,
+      "root_files": [
+        "ARTIFACT_MANIFEST.json",
+        "build_id.v",
+        "BUILD_INFO.txt",
+        "c5_pin_model_dump.txt",
+        "HANDOFF.txt",
+        "jtag.cdf",
+        "MegaVGMDrive_A_vNext_Production_MiSTer.qpf",
+        "MegaVGMDrive_A_vNext_Production_MiSTer.qsf",
+        "MegaVGMDrive_A_vNext_Production_MiSTer.qws",
+        "SHA256SUMS.txt"
+      ],
+      "inputs": [
+        {
+          "relative": "ARTIFACT_MANIFEST.json",
+          "expected": "77391d542b1d01a3e7ee3b2481d748183ca9aad1247ed6f908a000afaa977fdb",
+          "actual": "77391d542b1d01a3e7ee3b2481d748183ca9aad1247ed6f908a000afaa977fdb",
+          "match": true
+        },
+        {
+          "relative": "BUILD_INFO.txt",
+          "expected": "60ec12807aec0ed43fc0f89ec67ac9fe51618859569aaa17cb39273e5b4f8e8f",
+          "actual": "60ec12807aec0ed43fc0f89ec67ac9fe51618859569aaa17cb39273e5b4f8e8f",
+          "match": true
+        },
+        {
+          "relative": "HANDOFF.txt",
+          "expected": "f5d7fe7ac9ad4b2cccb86ef2821b5ff40295210cc81a5aae7fb6ef9506dc209f",
+          "actual": "f5d7fe7ac9ad4b2cccb86ef2821b5ff40295210cc81a5aae7fb6ef9506dc209f",
+          "match": true
+        },
+        {
+          "relative": "MegaVGMDrive_A_vNext_Production_MiSTer.qpf",
+          "expected": "675e2ef4390813d761891b3c130d5f82a58a27a78c619aec64c4e8a03becfb20",
+          "actual": "675e2ef4390813d761891b3c130d5f82a58a27a78c619aec64c4e8a03becfb20",
+          "match": true
+        },
+        {
+          "relative": "MegaVGMDrive_A_vNext_Production_MiSTer.qsf",
+          "expected": "10b6ebc78afcbfc9d00d6c2a9e3c952ff3e1e858ffedcad30dabbbafc16d815e",
+          "actual": "9e5ed58e53493d9ec7d9ac5cab3cacad57ee62d49fe7d513cef1fb3a588c541b",
+          "match": false
+        },
+        {
+          "relative": "source/candidate/engine_a_vnext_production/emu.sv",
+          "expected": "e44ba354d07336b5999baf2e9be76b462f470154d7c053155d62d89c20889b8b",
+          "actual": "e44ba354d07336b5999baf2e9be76b462f470154d7c053155d62d89c20889b8b",
+          "match": true
+        },
+        {
+          "relative": "source/candidate/engine_a_vnext_production/functional_engine.sv",
+          "expected": "587ebebc915371e852964aeb8b8f83dfe2fdd8791df923921d3f67ea6f56f34a",
+          "actual": "587ebebc915371e852964aeb8b8f83dfe2fdd8791df923921d3f67ea6f56f34a",
+          "match": true
+        },
+        {
+          "relative": "source/candidate/engine_a_vnext_production/golden_engine_hook.sv",
+          "expected": "40af069d94b575bf5f40db20bdaca124bd57baa6cc8b33683649409228fdc518",
+          "actual": "40af069d94b575bf5f40db20bdaca124bd57baa6cc8b33683649409228fdc518",
+          "match": true
+        },
+        {
+          "relative": "source/common/build_id.tcl",
+          "expected": "de0dceae739a5ffc9420829ac53729ef78d123dfd1303709bee5de9c1be885a8",
+          "actual": "de0dceae739a5ffc9420829ac53729ef78d123dfd1303709bee5de9c1be885a8",
+          "match": true
+        },
+        {
+          "relative": "source/files_engine_a_vnext_production.qip",
+          "expected": "a38229e18b4df53793189c7082cdafe25db5e331d7b5a8f4ec89d47d63953ac0",
+          "actual": "a38229e18b4df53793189c7082cdafe25db5e331d7b5a8f4ec89d47d63953ac0",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/engine_a_vnext_integration/c0_control_queue.sv",
+          "expected": "24bc1bd5d7390614a580f256340c6ed7d73f90b7115d28dd4ddb7c50d8f506c2",
+          "actual": "24bc1bd5d7390614a580f256340c6ed7d73f90b7115d28dd4ddb7c50d8f506c2",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/engine_a_vnext_integration/c0_frame_boundary.sv",
+          "expected": "a8794a30ac9e5525aba599933d6d3ade970e2fb56ab09f3bd23a7d01e678504a",
+          "actual": "a8794a30ac9e5525aba599933d6d3ade970e2fb56ab09f3bd23a7d01e678504a",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/engine_a_vnext_integration/chip_write_adapter.sv",
+          "expected": "e7aa39a46b3b98696855250a646296d3a554599f683ae5df17f9f7e1fc36d6c6",
+          "actual": "e7aa39a46b3b98696855250a646296d3a554599f683ae5df17f9f7e1fc36d6c6",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/engine_a_vnext_integration/command_byte_fifo.sv",
+          "expected": "f6b76229dbb0b74e3ddf612cd99087745dc443a04b7057b7e575705ca2075611",
+          "actual": "f6b76229dbb0b74e3ddf612cd99087745dc443a04b7057b7e575705ca2075611",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/engine_a_vnext_integration/golden_read_accept_bridge.sv",
+          "expected": "d942802cdaf06e3ddf044740385b7a26c8eca2de8d31e3f3007514f8a7b0b89f",
+          "actual": "d942802cdaf06e3ddf044740385b7a26c8eca2de8d31e3f3007514f8a7b0b89f",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/engine_a_vnext_integration/loop_continuation_client.sv",
+          "expected": "6c27529d7a89efefbdb00f3bf4f03402131b6f442caa7fa27ae96fd9b555dd0c",
+          "actual": "6c27529d7a89efefbdb00f3bf4f03402131b6f442caa7fa27ae96fd9b555dd0c",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/engine_a_vnext_integration/native_sample_tick.sv",
+          "expected": "c41cc5c3f75bacc23635f1e1b22de60787fdaba24a55684f612d9c2f157c0669",
+          "actual": "c41cc5c3f75bacc23635f1e1b22de60787fdaba24a55684f612d9c2f157c0669",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/engine_a_vnext_integration/strict_golden_read_binding.sv",
+          "expected": "34ebb2e743e495b9e5d27244ba2e410f6bf693900df46ac7ddeddb74f026908d",
+          "actual": "34ebb2e743e495b9e5d27244ba2e410f6bf693900df46ac7ddeddb74f026908d",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/engine_a_vnext_integration/uploaded_header_observer.sv",
+          "expected": "1ffbe9b9e2f4fd2d4da4733d6037e9ad7b45077242acbab56653dd15178b1327",
+          "actual": "1ffbe9b9e2f4fd2d4da4733d6037e9ad7b45077242acbab56653dd15178b1327",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/engine_a_vnext_integration/ym2612_dac_client.sv",
+          "expected": "56698acdc3dc80dcb44ede15373d3bcca41f2b157cdce51b9161c9f693ff4d51",
+          "actual": "56698acdc3dc80dcb44ede15373d3bcca41f2b157cdce51b9161c9f693ff4d51",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/fixed_region_mode.vh",
+          "expected": "645377a7c7185f331b98be4b1d2d6d3b38e5a723f531d56a2736271c141fc87f",
+          "actual": "645377a7c7185f331b98be4b1d2d6d3b38e5a723f531d56a2736271c141fc87f",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/genesis_audio/filters/audio_iir_filter.v",
+          "expected": "29ba71a0f7ec9e77087b7f3eb110b791ca88814f9cda7f8f59ba4bbe84714083",
+          "actual": "29ba71a0f7ec9e77087b7f3eb110b791ca88814f9cda7f8f59ba4bbe84714083",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/genesis_audio/filters/genesis_lpf.v",
+          "expected": "958d16499e7fee982d3b6a286f6cf0bb590e3385159885f743a0092477ea1dd8",
+          "actual": "958d16499e7fee982d3b6a286f6cf0bb590e3385159885f743a0092477ea1dd8",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/genesis_audio/jt12/adpcm/jt10_adpcm_div.v",
+          "expected": "b8b30c1cae5bb3fadbe4b3fdc68a980a9007cd124a24b7931221a474d32bcd31",
+          "actual": "b8b30c1cae5bb3fadbe4b3fdc68a980a9007cd124a24b7931221a474d32bcd31",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/genesis_audio/jt12/jt03_acc.v",
+          "expected": "930d95634f1dbfd967b80e312138c3ddffa67f2768b29619dfda870a3b05e697",
+          "actual": "930d95634f1dbfd967b80e312138c3ddffa67f2768b29619dfda870a3b05e697",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/genesis_audio/jt12/jt12.v",
+          "expected": "c9fb1da2f5dd5ba055d9211fca22aad37bb3d38e68ed3ac88bffb261ac65d965",
+          "actual": "c9fb1da2f5dd5ba055d9211fca22aad37bb3d38e68ed3ac88bffb261ac65d965",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/genesis_audio/jt12/jt12_acc.v",
+          "expected": "8c4d7406cbef36ae0b0d4d59acc36f1e4115e23ea9b504248c9a47845864a8cc",
+          "actual": "8c4d7406cbef36ae0b0d4d59acc36f1e4115e23ea9b504248c9a47845864a8cc",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/genesis_audio/jt12/jt12_csr.v",
+          "expected": "4aaabf1cdaeaa1e7af133ebd48874c9619738b9f8ff579ed5ef24b7a11e8790d",
+          "actual": "4aaabf1cdaeaa1e7af133ebd48874c9619738b9f8ff579ed5ef24b7a11e8790d",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/genesis_audio/jt12/jt12_div.v",
+          "expected": "7eb947c7d2172211c936b935f8b0855b2dbe571857e9b81d8f3ffae9ede6d130",
+          "actual": "7eb947c7d2172211c936b935f8b0855b2dbe571857e9b81d8f3ffae9ede6d130",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/genesis_audio/jt12/jt12_dout.v",
+          "expected": "cfc26791f2cc21d2f39d600fa5776c2887ffe641071ca7f231a6a8aa92a3dde0",
+          "actual": "cfc26791f2cc21d2f39d600fa5776c2887ffe641071ca7f231a6a8aa92a3dde0",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/genesis_audio/jt12/jt12_eg.v",
+          "expected": "b638ea79c95f40aaecfc357674e3328e7650ad8fdc97f213905c4659ed6ec9ea",
+          "actual": "b638ea79c95f40aaecfc357674e3328e7650ad8fdc97f213905c4659ed6ec9ea",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/genesis_audio/jt12/jt12_eg_cnt.v",
+          "expected": "f659140c6881fc5222da3bb4cc9a532935529b66c624cd3ddd38611b7ec08aec",
+          "actual": "f659140c6881fc5222da3bb4cc9a532935529b66c624cd3ddd38611b7ec08aec",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/genesis_audio/jt12/jt12_eg_comb.v",
+          "expected": "1ca6e221ef0e222d2ea4d6aecff5426901d17b7863bcfa147a9630847b85a76f",
+          "actual": "1ca6e221ef0e222d2ea4d6aecff5426901d17b7863bcfa147a9630847b85a76f",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/genesis_audio/jt12/jt12_eg_ctrl.v",
+          "expected": "f570518cdd0b653bff9e9c03d4fb0c45e74b898a6de0db0420750328dc7dee29",
+          "actual": "f570518cdd0b653bff9e9c03d4fb0c45e74b898a6de0db0420750328dc7dee29",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/genesis_audio/jt12/jt12_eg_final.v",
+          "expected": "100cd049e409adfb47e4fd4f648c16e63d5222f5c8d7baec1e894a22e076f151",
+          "actual": "100cd049e409adfb47e4fd4f648c16e63d5222f5c8d7baec1e894a22e076f151",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/genesis_audio/jt12/jt12_eg_pure.v",
+          "expected": "23a12e8fcc946ae8d967f52566e60c1da1b5d68245d9a80ecae548c9de461cef",
+          "actual": "23a12e8fcc946ae8d967f52566e60c1da1b5d68245d9a80ecae548c9de461cef",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/genesis_audio/jt12/jt12_eg_step.v",
+          "expected": "77af630259cee627739e5bfd2f31fb37d421cf2342323baf109a4d0f8f546569",
+          "actual": "77af630259cee627739e5bfd2f31fb37d421cf2342323baf109a4d0f8f546569",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/genesis_audio/jt12/jt12_exprom.v",
+          "expected": "28b96ad09fb15c86ea90062d2291e03f9282fe79ddb35f8e305c8cbd418e8294",
+          "actual": "28b96ad09fb15c86ea90062d2291e03f9282fe79ddb35f8e305c8cbd418e8294",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/genesis_audio/jt12/jt12_kon.v",
+          "expected": "c31dee8bb2abaa645eb36216877478d87ed454a99c0e8e75fc947012f8455655",
+          "actual": "c31dee8bb2abaa645eb36216877478d87ed454a99c0e8e75fc947012f8455655",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/genesis_audio/jt12/jt12_lfo.v",
+          "expected": "67839ad9271072b535be20e5a7b3fcd5b8b71472897a19e49f8868f27f0d3e27",
+          "actual": "67839ad9271072b535be20e5a7b3fcd5b8b71472897a19e49f8868f27f0d3e27",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/genesis_audio/jt12/jt12_logsin.v",
+          "expected": "20f1a30b3dd824712443ec8af49d21705cdc32c139dc146eb41771d97435bf71",
+          "actual": "20f1a30b3dd824712443ec8af49d21705cdc32c139dc146eb41771d97435bf71",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/genesis_audio/jt12/jt12_mmr.v",
+          "expected": "353ee81c3a8c07a8ef592b7c6fc86c6afa3c57e68e7826706b36d433872d077a",
+          "actual": "353ee81c3a8c07a8ef592b7c6fc86c6afa3c57e68e7826706b36d433872d077a",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/genesis_audio/jt12/jt12_mod.v",
+          "expected": "74d9ccf472bd9ea4d21829caa8a5545cada9200e80a69db7216a22f1cda90079",
+          "actual": "74d9ccf472bd9ea4d21829caa8a5545cada9200e80a69db7216a22f1cda90079",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/genesis_audio/jt12/jt12_op.v",
+          "expected": "d945df0a847c8e23922000da1a47d2bf12f64e56d6b618f2054a2e9c20067466",
+          "actual": "d945df0a847c8e23922000da1a47d2bf12f64e56d6b618f2054a2e9c20067466",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/genesis_audio/jt12/jt12_pcm_interpol.v",
+          "expected": "099cbc155204a22f58e209b3e9c27c419e604a2c742879836de56b8fce1d7d75",
+          "actual": "099cbc155204a22f58e209b3e9c27c419e604a2c742879836de56b8fce1d7d75",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/genesis_audio/jt12/jt12_pg.v",
+          "expected": "b4c794cc6cc3c4a74626e0e8a37ef160cc85093c8592c38fe772474bdbf333c5",
+          "actual": "b4c794cc6cc3c4a74626e0e8a37ef160cc85093c8592c38fe772474bdbf333c5",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/genesis_audio/jt12/jt12_pg_comb.v",
+          "expected": "5aac7ff07533fd1764c6f23efeea653c4c2a0019b177aa6f7fca5676f12000bd",
+          "actual": "5aac7ff07533fd1764c6f23efeea653c4c2a0019b177aa6f7fca5676f12000bd",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/genesis_audio/jt12/jt12_pg_dt.v",
+          "expected": "ea54be76a10628d35263a75140e4f028cbaf54abb9d0721f2d3f18bece90f6e3",
+          "actual": "ea54be76a10628d35263a75140e4f028cbaf54abb9d0721f2d3f18bece90f6e3",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/genesis_audio/jt12/jt12_pg_inc.v",
+          "expected": "5c766037c4138062ce2e2b5a6c9442d6fc9b4c9338739ac9e8ae2ee8be0ded9c",
+          "actual": "5c766037c4138062ce2e2b5a6c9442d6fc9b4c9338739ac9e8ae2ee8be0ded9c",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/genesis_audio/jt12/jt12_pg_sum.v",
+          "expected": "928128558cf56ecdc35d3b7c2de8509ed32ca25e577f001f7aea0d72212fe424",
+          "actual": "928128558cf56ecdc35d3b7c2de8509ed32ca25e577f001f7aea0d72212fe424",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/genesis_audio/jt12/jt12_pm.v",
+          "expected": "1365093deeea115f3ff2c684d94c28a738b446c0223bb95c5b32b6a8f2b7edbc",
+          "actual": "1365093deeea115f3ff2c684d94c28a738b446c0223bb95c5b32b6a8f2b7edbc",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/genesis_audio/jt12/jt12_reg.v",
+          "expected": "2149a4525d07e8adafe4329d65418ff861bc62cb9ea2b398e144b4847340b495",
+          "actual": "2149a4525d07e8adafe4329d65418ff861bc62cb9ea2b398e144b4847340b495",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/genesis_audio/jt12/jt12_rst.v",
+          "expected": "5aadf3d18c8e52f046c89f675b202f5f0571ef715f2a120ca4cb91fcbd86b678",
+          "actual": "5aadf3d18c8e52f046c89f675b202f5f0571ef715f2a120ca4cb91fcbd86b678",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/genesis_audio/jt12/jt12_sh.v",
+          "expected": "a698c891f13593b273d6120dd31eb05bc45119998e4baa4bcc8ea0b8d17432e4",
+          "actual": "a698c891f13593b273d6120dd31eb05bc45119998e4baa4bcc8ea0b8d17432e4",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/genesis_audio/jt12/jt12_sh24.v",
+          "expected": "d15232653c91ecf7ad20f89259b083cd59ee343ed6d909b94d08e509ac98feae",
+          "actual": "d15232653c91ecf7ad20f89259b083cd59ee343ed6d909b94d08e509ac98feae",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/genesis_audio/jt12/jt12_sh_rst.v",
+          "expected": "9c313ef1e013be79ea04195931e97d2b121e999e9f374d8658fde1bc4086ffdf",
+          "actual": "9c313ef1e013be79ea04195931e97d2b121e999e9f374d8658fde1bc4086ffdf",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/genesis_audio/jt12/jt12_single_acc.v",
+          "expected": "5e050122f38c2f82e734198152752b21f256b1f7bd9ac56b037fa0cae65f8010",
+          "actual": "5e050122f38c2f82e734198152752b21f256b1f7bd9ac56b037fa0cae65f8010",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/genesis_audio/jt12/jt12_sumch.v",
+          "expected": "f6b274620e265af8785503d47e4b2035ac253a45677d12976c63bda04efd83ef",
+          "actual": "f6b274620e265af8785503d47e4b2035ac253a45677d12976c63bda04efd83ef",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/genesis_audio/jt12/jt12_timers.v",
+          "expected": "ab1f190e0105414c8ac2cde35a17dc6ae4a402ed4a9706b0cbf0375de8d8b06f",
+          "actual": "ab1f190e0105414c8ac2cde35a17dc6ae4a402ed4a9706b0cbf0375de8d8b06f",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/genesis_audio/jt12/jt12_top.v",
+          "expected": "0c3d37bcaa22355ff9862a86abbcd5ff4b265ae4dc805202bcb6ebdefa45655e",
+          "actual": "0c3d37bcaa22355ff9862a86abbcd5ff4b265ae4dc805202bcb6ebdefa45655e",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/genesis_audio/jt12/mixer/jt12_comb.v",
+          "expected": "7a8478b32dba5667e0959f801b209021f7a91260f41c0157f41830d036f3fbcc",
+          "actual": "7a8478b32dba5667e0959f801b209021f7a91260f41c0157f41830d036f3fbcc",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/genesis_audio/jt12/mixer/jt12_decim.v",
+          "expected": "6a00bae9ab9fe2921c23bb18965d60bc450dc1e6d63b0421e42bf0b39a0af662",
+          "actual": "6a00bae9ab9fe2921c23bb18965d60bc450dc1e6d63b0421e42bf0b39a0af662",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/genesis_audio/jt12/mixer/jt12_fm_uprate.v",
+          "expected": "c3a30f38926c5e15023aa2b829757512802d0e6ec3e0bad6ddf3d837c30d801f",
+          "actual": "c3a30f38926c5e15023aa2b829757512802d0e6ec3e0bad6ddf3d837c30d801f",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/genesis_audio/jt12/mixer/jt12_genmix.v",
+          "expected": "572b551b8fc854010cb00d102ace9adab0a1df6a893e81a5de71ee9df35c7af2",
+          "actual": "572b551b8fc854010cb00d102ace9adab0a1df6a893e81a5de71ee9df35c7af2",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/genesis_audio/jt12/mixer/jt12_interpol.v",
+          "expected": "748f891a9b67d30628ed8e133b25252c30f799df68cb206b10ac7254e10bb66d",
+          "actual": "748f891a9b67d30628ed8e133b25252c30f799df68cb206b10ac7254e10bb66d",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/genesis_audio/jt49/jt49.v",
+          "expected": "9a37803a2b7cb8962134756f4ead7394204f3bda8341e58d8a896768fcae12ca",
+          "actual": "9a37803a2b7cb8962134756f4ead7394204f3bda8341e58d8a896768fcae12ca",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/genesis_audio/jt49/jt49_bus.v",
+          "expected": "afc645e2cb4f1ccc018485f70b61cc7a6304073480f86f36e96b94e0a108aa49",
+          "actual": "afc645e2cb4f1ccc018485f70b61cc7a6304073480f86f36e96b94e0a108aa49",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/genesis_audio/jt49/jt49_cen.v",
+          "expected": "8719a72b2ded607ee3a0117fabb7b99c57cef4422913ae729dd7f20f6bf5c8fa",
+          "actual": "8719a72b2ded607ee3a0117fabb7b99c57cef4422913ae729dd7f20f6bf5c8fa",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/genesis_audio/jt49/jt49_div.v",
+          "expected": "29016ab9648ae14a04d16cf367e04ee479a68b974c1f85a0db476886920774e5",
+          "actual": "29016ab9648ae14a04d16cf367e04ee479a68b974c1f85a0db476886920774e5",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/genesis_audio/jt49/jt49_eg.v",
+          "expected": "44b05e65c51457d98d32857f2341d74c9719955ebc1dce325f439575c9bcf5dc",
+          "actual": "44b05e65c51457d98d32857f2341d74c9719955ebc1dce325f439575c9bcf5dc",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/genesis_audio/jt49/jt49_exp.v",
+          "expected": "10d9ac7203833808f7beb42e6eabc06490a6d909e48ee34f5e4812e6bc4c46cc",
+          "actual": "10d9ac7203833808f7beb42e6eabc06490a6d909e48ee34f5e4812e6bc4c46cc",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/genesis_audio/jt49/jt49_noise.v",
+          "expected": "ce225979d4f8a35179f062e130ac1009ce8c71742ba1d3908f07d3e317f04011",
+          "actual": "ce225979d4f8a35179f062e130ac1009ce8c71742ba1d3908f07d3e317f04011",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/genesis_audio/jt89/jt89.v",
+          "expected": "9b3898d1d4d40cc7260945907e03cdc126bc61b85d8d967be4543aa09442fe7d",
+          "actual": "9b3898d1d4d40cc7260945907e03cdc126bc61b85d8d967be4543aa09442fe7d",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/genesis_audio/jt89/jt89_mixer.v",
+          "expected": "123d8cd0688692c053658f5e3e30be4a9c67e7ddbec6f39abc543add79872f01",
+          "actual": "123d8cd0688692c053658f5e3e30be4a9c67e7ddbec6f39abc543add79872f01",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/genesis_audio/jt89/jt89_noise.v",
+          "expected": "2d569718116660b2d0896a0ff5357dcd46321646198fbedbf382e504ceae6cb7",
+          "actual": "2d569718116660b2d0896a0ff5357dcd46321646198fbedbf382e504ceae6cb7",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/genesis_audio/jt89/jt89_tone.v",
+          "expected": "1ff5ed1e8a97e9376dfdfe00c4dee313f3b38d82c8391971ef767e319d9a7893",
+          "actual": "1ff5ed1e8a97e9376dfdfe00c4dee313f3b38d82c8391971ef767e319d9a7893",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/genesis_audio/jt89/jt89_vol.v",
+          "expected": "8cd408247294b4e0d58898e4185f96ca4367dc15273504831cbb1c447aabb0ca",
+          "actual": "8cd408247294b4e0d58898e4185f96ca4367dc15273504831cbb1c447aabb0ca",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/md_sound_module.sv",
+          "expected": "19e667220bd5d7e8c4b1c272d6781f7c56794905650e78bcd39890cf6b832675",
+          "actual": "19e667220bd5d7e8c4b1c272d6781f7c56794905650e78bcd39890cf6b832675",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/megavgm_font5x7.sv",
+          "expected": "79645adbd743a325cfd36b5f7ee30ef33b48b8fa79c332a90b6e36aa72a556dc",
+          "actual": "79645adbd743a325cfd36b5f7ee30ef33b48b8fa79c332a90b6e36aa72a556dc",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/megavgm_playlist_status_export.sv",
+          "expected": "f9c81037075270b5a7e51d9913cc49f2966a0327ea6c3501456209839ef3d72b",
+          "actual": "f9c81037075270b5a7e51d9913cc49f2966a0327ea6c3501456209839ef3d72b",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/megavgm_source_activity_hold.sv",
+          "expected": "e9932cba304f5660dcdb544bc74a3f8dfa4f6b822d517b13d5b7dd027171c37f",
+          "actual": "e9932cba304f5660dcdb544bc74a3f8dfa4f6b822d517b13d5b7dd027171c37f",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/megavgm_title_receiver.sv",
+          "expected": "999ee41890f5b3f814e59b8e4dbedfd0287a916e234faab471cc5ef5ea7a6567",
+          "actual": "999ee41890f5b3f814e59b8e4dbedfd0287a916e234faab471cc5ef5ea7a6567",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/megavgm_title_renderer.sv",
+          "expected": "f5de3ef37541ea2f8d44bdb35aee2cb803d47587e93808ad6803831762641c3a",
+          "actual": "f5de3ef37541ea2f8d44bdb35aee2cb803d47587e93808ad6803831762641c3a",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/megavgm_video_timing.sv",
+          "expected": "65a682578e2af7f840df426a96776832000b2e908c0ba30139bd15c1155e5d35",
+          "actual": "65a682578e2af7f840df426a96776832000b2e908c0ba30139bd15c1155e5d35",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/mode5_audio_session_lane_gate.sv",
+          "expected": "11f22d4e0b92143451b31fd26708ba40c6cd677acbfdb1d6f80dd7c58ad598ee",
+          "actual": "11f22d4e0b92143451b31fd26708ba40c6cd677acbfdb1d6f80dd7c58ad598ee",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/mode5_ym2203_audio_mixer.sv",
+          "expected": "afacfa4d7d2ea2427a14f77d8ab9bfaa408bb4f12cdb4438fe2d856e524c1260",
+          "actual": "afacfa4d7d2ea2427a14f77d8ab9bfaa408bb4f12cdb4438fe2d856e524c1260",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/pll/pll_0002.qip",
+          "expected": "c93b65dbf76fb810ed41364db696375daf106e7aad7773f7b75d11cbb594252f",
+          "actual": "c93b65dbf76fb810ed41364db696375daf106e7aad7773f7b75d11cbb594252f",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/pll/pll_0002.v",
+          "expected": "8ac785958023eadf517605bc669189d5583af48de2d63dabbddbeca1acda9ffa",
+          "actual": "8ac785958023eadf517605bc669189d5583af48de2d63dabbddbeca1acda9ffa",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/pll.qip",
+          "expected": "bf9d508aa439614d42944ba187e4fed53841e26c06fd4dbe0597a92692853123",
+          "actual": "bf9d508aa439614d42944ba187e4fed53841e26c06fd4dbe0597a92692853123",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/pll.v",
+          "expected": "8e1a58e1539aba4c9c8e9bb66dca68e9beb298beca7402943aceeba932d6bfc0",
+          "actual": "8e1a58e1539aba4c9c8e9bb66dca68e9beb298beca7402943aceeba932d6bfc0",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/segapcm_vnext/c0_adapter.sv",
+          "expected": "52f8130c4932efbbfba04732e86ebaa300da5be484f1fb5fc90bf8d508586cfb",
+          "actual": "52f8130c4932efbbfba04732e86ebaa300da5be484f1fb5fc90bf8d508586cfb",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/segapcm_vnext/core.sv",
+          "expected": "8b8969318ccb318d9698f870d3ad8d879e15dad6ac7eea45a3caf496ebbf7a5a",
+          "actual": "8b8969318ccb318d9698f870d3ad8d879e15dad6ac7eea45a3caf496ebbf7a5a",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/segapcm_vnext/mixer.sv",
+          "expected": "2a50757cad7ead7e7be575ba17670996519d3b51cda0588546e54549934e5093",
+          "actual": "2a50757cad7ead7e7be575ba17670996519d3b51cda0588546e54549934e5093",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/segapcm_vnext/sample_pkg.sv",
+          "expected": "41bcab0c18025314327ddecab037942d92c00b05983d97b1f62efd3c48850bdb",
+          "actual": "41bcab0c18025314327ddecab037942d92c00b05983d97b1f62efd3c48850bdb",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/segapcm_vnext_adapters/adapter_pkg.sv",
+          "expected": "9773d1d986cd2e4b2ac668bb8ee72e8ae38873df119d7ff040ea172959b17634",
+          "actual": "9773d1d986cd2e4b2ac668bb8ee72e8ae38873df119d7ff040ea172959b17634",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/segapcm_vnext_adapters/byte_bridge.sv",
+          "expected": "b50a0a72e36e804cf1399ecdbeb923338854778a6bf479fd39b484490d6e0b1d",
+          "actual": "b50a0a72e36e804cf1399ecdbeb923338854778a6bf479fd39b484490d6e0b1d",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/segapcm_vnext_adapters/output_adapter.sv",
+          "expected": "49c2d4e11fa2e11c97de0c9bc784cd3dbd5a2efa0350f627aeef5a481ef71a5e",
+          "actual": "49c2d4e11fa2e11c97de0c9bc784cd3dbd5a2efa0350f627aeef5a481ef71a5e",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/segapcm_vnext_adapters/reader_arbiter.sv",
+          "expected": "ba76b016723351c7df44dbcccc52f85c02bf9703189ed8eba124d8f6d02c98d0",
+          "actual": "ba76b016723351c7df44dbcccc52f85c02bf9703189ed8eba124d8f6d02c98d0",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/segapcm_vnext_adapters/register_gate.sv",
+          "expected": "9f5ac1ea903f17e629d4f3187cc9ca93a81da1e8ebd84a79b0f1f3243f2114f9",
+          "actual": "9f5ac1ea903f17e629d4f3187cc9ca93a81da1e8ebd84a79b0f1f3243f2114f9",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/segapcm_vnext_adapters/resource_map.sv",
+          "expected": "e6883259242f99bba21302a374fb63c35b28b10dd26bfbc87702504f74c4d788",
+          "actual": "e6883259242f99bba21302a374fb63c35b28b10dd26bfbc87702504f74c4d788",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/segapcm_vnext_adapters/sample_adapter.sv",
+          "expected": "30d27185c60e61919cd9fcc4b11fc65f3ffbb8db1f225e504c854c70b440cbc5",
+          "actual": "30d27185c60e61919cd9fcc4b11fc65f3ffbb8db1f225e504c854c70b440cbc5",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/transport_v1_3/owner_body.svh",
+          "expected": "79ca0c96ff2e1b59798ac734a706bfa0f80a3f9915b87523e4642e305748b7c4",
+          "actual": "79ca0c96ff2e1b59798ac734a706bfa0f80a3f9915b87523e4642e305748b7c4",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/vgm_bram_read_adapter.sv",
+          "expected": "df916472cb1dcdae5901c1203db4396a933e0433302b8f6ec19bfecbc2fe5c09",
+          "actual": "df916472cb1dcdae5901c1203db4396a933e0433302b8f6ec19bfecbc2fe5c09",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/vgm_ddram_backend.sv",
+          "expected": "b4b2ab6f8e70de357c59be01847c73124d3ebe6a9c8b1c1267e8b64b642d1f2b",
+          "actual": "b4b2ab6f8e70de357c59be01847c73124d3ebe6a9c8b1c1267e8b64b642d1f2b",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/vgm_file_loader.sv",
+          "expected": "4376defdc2151a932aec9ce98cee4da1f70d6ea4ac9366cfcdc786d71e1cf7c7",
+          "actual": "4376defdc2151a932aec9ce98cee4da1f70d6ea4ac9366cfcdc786d71e1cf7c7",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/vgm_parser_vnext/data_decode.sv",
+          "expected": "d73c3939439b02ddba77757d7e0d11edd403b7611b346e00ab7545e6beb3c0c1",
+          "actual": "d73c3939439b02ddba77757d7e0d11edd403b7611b346e00ab7545e6beb3c0c1",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/vgm_parser_vnext/decoder.sv",
+          "expected": "b105c0171f2cbd9a1e909bce559783624fba2363a7f8e1a8824fef0a84d34745",
+          "actual": "b105c0171f2cbd9a1e909bce559783624fba2363a7f8e1a8824fef0a84d34745",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/vgm_parser_vnext/event_pkg.sv",
+          "expected": "97137d8fded21ab72c76552342a8721e13dc9506dead4ae6a1f2dae221ead9e7",
+          "actual": "97137d8fded21ab72c76552342a8721e13dc9506dead4ae6a1f2dae221ead9e7",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/vgm_parser_vnext/header_decode.sv",
+          "expected": "d542dc41b1f4662a9ed351e04510a9f7cae85c499da1097a19b934518ca569c4",
+          "actual": "d542dc41b1f4662a9ed351e04510a9f7cae85c499da1097a19b934518ca569c4",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/vgm_reader_vnext/golden_observer.sv",
+          "expected": "d84772041439661fa7336f0a8dbd1515c9d84c99874ecbb3ae1fb18b708f53d8",
+          "actual": "d84772041439661fa7336f0a8dbd1515c9d84c99874ecbb3ae1fb18b708f53d8",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/vgm_reader_vnext/reader_pkg.sv",
+          "expected": "63bc69a25ba90e5183ab64439924151bd7f117efcaab9ba8c80cdf52d752f52d",
+          "actual": "63bc69a25ba90e5183ab64439924151bd7f117efcaab9ba8c80cdf52d752f52d",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/vgm_reader_vnext/strict_adapter.sv",
+          "expected": "6388fcd562f1af84a701f7c7f6e5fabbf6b704a07abbab564054b2908f7b0259",
+          "actual": "6388fcd562f1af84a701f7c7f6e5fabbf6b704a07abbab564054b2908f7b0259",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/vgm_real_phrase_mode3_case.vh",
+          "expected": "599d83e0898f3067a5f0c7c151b48e4056f47b2f847ca37b9ba78edb18608cad",
+          "actual": "599d83e0898f3067a5f0c7c151b48e4056f47b2f847ca37b9ba78edb18608cad",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/vgm_real_snippet_mode2_case.vh",
+          "expected": "92b377cba8b544e3b111057de4d24d1ae18bf2bbf8ba31e58659b5818021ffab",
+          "actual": "92b377cba8b544e3b111057de4d24d1ae18bf2bbf8ba31e58659b5818021ffab",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/vgm_region_player.sv",
+          "expected": "2d3ef73fc01cc7e5bb9e5927bd955d65aff75a0562a9eead293ab1c0e65d6898",
+          "actual": "2d3ef73fc01cc7e5bb9e5927bd955d65aff75a0562a9eead293ab1c0e65d6898",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/vgm_scheduler_vnext/normalizer.sv",
+          "expected": "e530c9127e835b22f98528962b5726158dbda01d570fc06d133bbcc2a931cf39",
+          "actual": "e530c9127e835b22f98528962b5726158dbda01d570fc06d133bbcc2a931cf39",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/vgm_scheduler_vnext/scheduler.sv",
+          "expected": "4299efaf9e36fd6240f259e7b66cb3370e874d297ae554d6545efc3bd511b995",
+          "actual": "4299efaf9e36fd6240f259e7b66cb3370e874d297ae554d6545efc3bd511b995",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/vgm_scheduler_vnext/scheduler_pkg.sv",
+          "expected": "fde04333fb0826faeda6d1f45f154b2998de0696b718a2ce1d29cfbdf2b070a7",
+          "actual": "fde04333fb0826faeda6d1f45f154b2998de0696b718a2ce1d29cfbdf2b070a7",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/vgm_scheduler_vnext/tick_enable.sv",
+          "expected": "895adb7d3534a5e9ea35c968a680c94363d9d42e31581acc8f65dc1addfed4cd",
+          "actual": "895adb7d3534a5e9ea35c968a680c94363d9d42e31581acc8f65dc1addfed4cd",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/ym2151_prewait_audio_gate.sv",
+          "expected": "0f1b908a17c39fa52c2dd3496a974e31b124e1f9686c6f3fda97f30b14dcc8d8",
+          "actual": "0f1b908a17c39fa52c2dd3496a974e31b124e1f9686c6f3fda97f30b14dcc8d8",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/ym2151_sound_module.sv",
+          "expected": "3fe36a56d9a1094a88c7a0d4924f77ef7702b0f902e9c2ef61803afbf26c88f5",
+          "actual": "3fe36a56d9a1094a88c7a0d4924f77ef7702b0f902e9c2ef61803afbf26c88f5",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/ym2203_dynamic_cen.sv",
+          "expected": "0ac5aba33f27a061c62f6a04d0373660d7a1b2b33a8f64f4f85c0adbd5e5b839",
+          "actual": "0ac5aba33f27a061c62f6a04d0373660d7a1b2b33a8f64f4f85c0adbd5e5b839",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/ym2203_sound_module.sv",
+          "expected": "b1f37f460306d4c0918000a8767f11383b972281eabc98e7c7edd03a5908126e",
+          "actual": "b1f37f460306d4c0918000a8767f11383b972281eabc98e7c7edd03a5908126e",
+          "match": true
+        },
+        {
+          "relative": "source/sys/alsa.sv",
+          "expected": "74943b658cd3f4adc5b74c72f225fb42b95122a1c5e453df860a4c6a9bf72fc9",
+          "actual": "74943b658cd3f4adc5b74c72f225fb42b95122a1c5e453df860a4c6a9bf72fc9",
+          "match": true
+        },
+        {
+          "relative": "source/sys/arcade_video.v",
+          "expected": "f02e25a8b608577326caacb89af42727373484285c5e27b09227c832fd7b6d52",
+          "actual": "f02e25a8b608577326caacb89af42727373484285c5e27b09227c832fd7b6d52",
+          "match": true
+        },
+        {
+          "relative": "source/sys/ascal.vhd",
+          "expected": "12e17ef4346101b9a2f7dd091d016d33c84585bf443dfb11da109f83dc690c32",
+          "actual": "12e17ef4346101b9a2f7dd091d016d33c84585bf443dfb11da109f83dc690c32",
+          "match": true
+        },
+        {
+          "relative": "source/sys/audio_out.v",
+          "expected": "565dd9badb00052dbd324e70f7ab66e8c6ecd0c5c2791aebffe477a2c0669363",
+          "actual": "565dd9badb00052dbd324e70f7ab66e8c6ecd0c5c2791aebffe477a2c0669363",
+          "match": true
+        },
+        {
+          "relative": "source/sys/ddr_svc.sv",
+          "expected": "cc67cf6aa9ac17f181498f44f86bf05e80189bb13ce70b3cc16657e035abf794",
+          "actual": "cc67cf6aa9ac17f181498f44f86bf05e80189bb13ce70b3cc16657e035abf794",
+          "match": true
+        },
+        {
+          "relative": "source/sys/f2sdram_safe_terminator.sv",
+          "expected": "605cd81a43eb94eb34b4917455e7a4a2dbd87b2616ab8a026fb24f3cd9664d86",
+          "actual": "605cd81a43eb94eb34b4917455e7a4a2dbd87b2616ab8a026fb24f3cd9664d86",
+          "match": true
+        },
+        {
+          "relative": "source/sys/gamma_corr.sv",
+          "expected": "2754944c6fe05d921374d1fecc26621782520b3bc6fbf600ca561e9f37c7af88",
+          "actual": "2754944c6fe05d921374d1fecc26621782520b3bc6fbf600ca561e9f37c7af88",
+          "match": true
+        },
+        {
+          "relative": "source/sys/hps_io.sv",
+          "expected": "1e96035560400b9b0fe68adcd6801d9836290957cd1fcddcb30c0b11dabe4cc2",
+          "actual": "1e96035560400b9b0fe68adcd6801d9836290957cd1fcddcb30c0b11dabe4cc2",
+          "match": true
+        },
+        {
+          "relative": "source/sys/hq2x.sv",
+          "expected": "2146b69cf63c26a4b41407e9ac1b4462db4d7e3ea6d8a99f31ba12712d68f975",
+          "actual": "2146b69cf63c26a4b41407e9ac1b4462db4d7e3ea6d8a99f31ba12712d68f975",
+          "match": true
+        },
+        {
+          "relative": "source/sys/i2c.v",
+          "expected": "c119d827783a40ba36a8cac53f0663d26fda4a5b081fac5a45ebfb89d072b06b",
+          "actual": "c119d827783a40ba36a8cac53f0663d26fda4a5b081fac5a45ebfb89d072b06b",
+          "match": true
+        },
+        {
+          "relative": "source/sys/i2s.v",
+          "expected": "927d2aea6797fb837f383e5e8a3259609e132ed24883127240ab21601f467efa",
+          "actual": "927d2aea6797fb837f383e5e8a3259609e132ed24883127240ab21601f467efa",
+          "match": true
+        },
+        {
+          "relative": "source/sys/iir_filter.v",
+          "expected": "c860abb26b2e79c9966a4e7edab53f8c6e7fb6e73892257e527611daee5e8b35",
+          "actual": "c860abb26b2e79c9966a4e7edab53f8c6e7fb6e73892257e527611daee5e8b35",
+          "match": true
+        },
+        {
+          "relative": "source/sys/ltc2308.sv",
+          "expected": "825fa1197c8e9f31c19c2fef1b01693133fb7df3cfb2dd831f2848a98fc6899c",
+          "actual": "825fa1197c8e9f31c19c2fef1b01693133fb7df3cfb2dd831f2848a98fc6899c",
+          "match": true
+        },
+        {
+          "relative": "source/sys/math.sv",
+          "expected": "74d7501a41886b0990cae4815b2583867bee1e0af9baebfae09d0581b30f96b3",
+          "actual": "74d7501a41886b0990cae4815b2583867bee1e0af9baebfae09d0581b30f96b3",
+          "match": true
+        },
+        {
+          "relative": "source/sys/mcp23009.sv",
+          "expected": "f168485e0b64c0545060f25b858c9f1c12b57024ce441754bb6a0cb0e9072e3f",
+          "actual": "f168485e0b64c0545060f25b858c9f1c12b57024ce441754bb6a0cb0e9072e3f",
+          "match": true
+        },
+        {
+          "relative": "source/sys/mt32pi.sv",
+          "expected": "298147936fd96f5c80c33c1566d6c807f7937eb6b0205a64ca2e4c77df8c60b0",
+          "actual": "298147936fd96f5c80c33c1566d6c807f7937eb6b0205a64ca2e4c77df8c60b0",
+          "match": true
+        },
+        {
+          "relative": "source/sys/osd.v",
+          "expected": "e18264edfa70b10606c93e02c0f0215cec063d87ab17919326884e6658abacba",
+          "actual": "e18264edfa70b10606c93e02c0f0215cec063d87ab17919326884e6658abacba",
+          "match": true
+        },
+        {
+          "relative": "source/sys/pll_audio/pll_audio_0002.qip",
+          "expected": "f2c4a7cfbb5aed7669094d18c4e40b4cb88554e9c647c32c79a0bb949644c9d0",
+          "actual": "f2c4a7cfbb5aed7669094d18c4e40b4cb88554e9c647c32c79a0bb949644c9d0",
+          "match": true
+        },
+        {
+          "relative": "source/sys/pll_audio/pll_audio_0002.v",
+          "expected": "8625d01bb2581a56358afe4380e539524a1c8bc7661b97a8b1c94216ac19984d",
+          "actual": "8625d01bb2581a56358afe4380e539524a1c8bc7661b97a8b1c94216ac19984d",
+          "match": true
+        },
+        {
+          "relative": "source/sys/pll_audio.qip",
+          "expected": "d509559259832af55ff93aa535704f399d164956d29db6d1a8b04577c2fea8d0",
+          "actual": "d509559259832af55ff93aa535704f399d164956d29db6d1a8b04577c2fea8d0",
+          "match": true
+        },
+        {
+          "relative": "source/sys/pll_audio.v",
+          "expected": "82118b01e3c3ba8bed269b9eed7cf06bf6af69e028e40f2c4c184de0d7b9f227",
+          "actual": "82118b01e3c3ba8bed269b9eed7cf06bf6af69e028e40f2c4c184de0d7b9f227",
+          "match": true
+        },
+        {
+          "relative": "source/sys/pll_cfg/altera_pll_reconfig_core.v",
+          "expected": "ec126715f09d512cae28101ba48f286079e8852d665ac30ce9fd3edbb10607d3",
+          "actual": "ec126715f09d512cae28101ba48f286079e8852d665ac30ce9fd3edbb10607d3",
+          "match": true
+        },
+        {
+          "relative": "source/sys/pll_cfg/altera_pll_reconfig_top.v",
+          "expected": "81134703e17a0e60bc6928dcbb8e5b13491b0293ee401649cdb1c22df01dc1bd",
+          "actual": "81134703e17a0e60bc6928dcbb8e5b13491b0293ee401649cdb1c22df01dc1bd",
+          "match": true
+        },
+        {
+          "relative": "source/sys/pll_cfg/pll_cfg.v",
+          "expected": "89750669762947128e105736d82384587f1cf8ac2f9965090e483c20f7624d59",
+          "actual": "89750669762947128e105736d82384587f1cf8ac2f9965090e483c20f7624d59",
+          "match": true
+        },
+        {
+          "relative": "source/sys/pll_cfg/pll_cfg_hdmi.v",
+          "expected": "d3874dda124af03656054fa1ae1ee70f1a4d3cea6d4670795a5168325bb6760a",
+          "actual": "d3874dda124af03656054fa1ae1ee70f1a4d3cea6d4670795a5168325bb6760a",
+          "match": true
+        },
+        {
+          "relative": "source/sys/pll_cfg.qip",
+          "expected": "4749c08c6d06c1bb55eff0a2d04d6c01c9de347260a221654aefed156bbc0b56",
+          "actual": "4749c08c6d06c1bb55eff0a2d04d6c01c9de347260a221654aefed156bbc0b56",
+          "match": true
+        },
+        {
+          "relative": "source/sys/pll_hdmi/pll_hdmi_0002.qip",
+          "expected": "d5483321ee7c3b7440b4cad87f8f081408573d0fd93d2da0a92d6ed05767a74a",
+          "actual": "d5483321ee7c3b7440b4cad87f8f081408573d0fd93d2da0a92d6ed05767a74a",
+          "match": true
+        },
+        {
+          "relative": "source/sys/pll_hdmi/pll_hdmi_0002.v",
+          "expected": "45ec17829bf7a119136c8a5a9df98b59a87178a6e9ae71658a0e00bca91058b6",
+          "actual": "45ec17829bf7a119136c8a5a9df98b59a87178a6e9ae71658a0e00bca91058b6",
+          "match": true
+        },
+        {
+          "relative": "source/sys/pll_hdmi.qip",
+          "expected": "c700b217aaaa5465fb1558e87e3d0a8f46997a0a73de5b14b5272b4286d7edd4",
+          "actual": "c700b217aaaa5465fb1558e87e3d0a8f46997a0a73de5b14b5272b4286d7edd4",
+          "match": true
+        },
+        {
+          "relative": "source/sys/pll_hdmi.v",
+          "expected": "327d94e5e5d6568bcc4489ee279f752969f18aa62af088649ad27f34fa476617",
+          "actual": "327d94e5e5d6568bcc4489ee279f752969f18aa62af088649ad27f34fa476617",
+          "match": true
+        },
+        {
+          "relative": "source/sys/pll_hdmi_adj.vhd",
+          "expected": "ae18c82eef2f6b9c7783c68ac272d03f570eb1bdaddce14a1908c351da51a71b",
+          "actual": "ae18c82eef2f6b9c7783c68ac272d03f570eb1bdaddce14a1908c351da51a71b",
+          "match": true
+        },
+        {
+          "relative": "source/sys/pll_q17.qip",
+          "expected": "4cc3a202455d2122f05b5eb9a70c172d6679f86cc854a0c2bb75d675d555d500",
+          "actual": "4cc3a202455d2122f05b5eb9a70c172d6679f86cc854a0c2bb75d675d555d500",
+          "match": true
+        },
+        {
+          "relative": "source/sys/scandoubler.v",
+          "expected": "d36181c5fde9df0a504c547e23f60bcf201420052ada2682f081b00fd9485e6b",
+          "actual": "d36181c5fde9df0a504c547e23f60bcf201420052ada2682f081b00fd9485e6b",
+          "match": true
+        },
+        {
+          "relative": "source/sys/scanlines.v",
+          "expected": "1fc7ac5359fd224a3fc06388f7671e07bf57cf6a39f35803a265661c56c564d4",
+          "actual": "1fc7ac5359fd224a3fc06388f7671e07bf57cf6a39f35803a265661c56c564d4",
+          "match": true
+        },
+        {
+          "relative": "source/sys/sd_card.sv",
+          "expected": "65d2645216265955189ab5f7a00d54b7150a3ff2416d977303795b152daa10ce",
+          "actual": "65d2645216265955189ab5f7a00d54b7150a3ff2416d977303795b152daa10ce",
+          "match": true
+        },
+        {
+          "relative": "source/sys/shadowmask.sv",
+          "expected": "88429d137b4ce9f6538a052f03d874604f46decf6d69b3fc824cc795efcf3193",
+          "actual": "88429d137b4ce9f6538a052f03d874604f46decf6d69b3fc824cc795efcf3193",
+          "match": true
+        },
+        {
+          "relative": "source/sys/sigma_delta_dac.v",
+          "expected": "352d31dd185bce14d9d1e8a4999fbb5f2b5b2e42b048bdc9f4b828119cc5127a",
+          "actual": "352d31dd185bce14d9d1e8a4999fbb5f2b5b2e42b048bdc9f4b828119cc5127a",
+          "match": true
+        },
+        {
+          "relative": "source/sys/spdif.v",
+          "expected": "a617bba332c4611caf81ba585b8f6828c7899aec5f81664a870f10419cb9b451",
+          "actual": "a617bba332c4611caf81ba585b8f6828c7899aec5f81664a870f10419cb9b451",
+          "match": true
+        },
+        {
+          "relative": "source/sys/sys.qip",
+          "expected": "641435e572de8020d58d0ac9be3c017f1e36755fefed46810c220c0d1c9c46e6",
+          "actual": "641435e572de8020d58d0ac9be3c017f1e36755fefed46810c220c0d1c9c46e6",
+          "match": true
+        },
+        {
+          "relative": "source/sys/sys.tcl",
+          "expected": "a00892ed7f1a6186aea66f1f6b9ec621684daebe7d045965c48a09118bc4b760",
+          "actual": "a00892ed7f1a6186aea66f1f6b9ec621684daebe7d045965c48a09118bc4b760",
+          "match": true
+        },
+        {
+          "relative": "source/sys/sys_analog.tcl",
+          "expected": "0a993428d2665a340faa3c803294c4ba49502a721bedc1a9de1362e744b351f7",
+          "actual": "0a993428d2665a340faa3c803294c4ba49502a721bedc1a9de1362e744b351f7",
+          "match": true
+        },
+        {
+          "relative": "source/sys/sys_top.sdc",
+          "expected": "36b2e18090244956ae20eba9d23a72e5fdb21166c5dcde8a06eee434fa961835",
+          "actual": "36b2e18090244956ae20eba9d23a72e5fdb21166c5dcde8a06eee434fa961835",
+          "match": true
+        },
+        {
+          "relative": "source/sys/sys_top.v",
+          "expected": "8b4a88bc475574dbaa1274087536a539ac70b2c2ffa9a33480cd76780b91211e",
+          "actual": "8b4a88bc475574dbaa1274087536a539ac70b2c2ffa9a33480cd76780b91211e",
+          "match": true
+        },
+        {
+          "relative": "source/sys/sysmem.sv",
+          "expected": "9f8cf78563cc31beb7dfc6d7048c51ba536ff4f1f9f640b4ff9f8d574456c94e",
+          "actual": "9f8cf78563cc31beb7dfc6d7048c51ba536ff4f1f9f640b4ff9f8d574456c94e",
+          "match": true
+        },
+        {
+          "relative": "source/sys/vga_out.sv",
+          "expected": "02a533c3dfd547afddea2946019ecc79bbe9c27bb6128c0999fa5fc9e78f8108",
+          "actual": "02a533c3dfd547afddea2946019ecc79bbe9c27bb6128c0999fa5fc9e78f8108",
+          "match": true
+        },
+        {
+          "relative": "source/sys/video_cleaner.sv",
+          "expected": "1dc01d4003fa37de57b794cf8ce3660a5137253d165279c94246c6c0de633380",
+          "actual": "1dc01d4003fa37de57b794cf8ce3660a5137253d165279c94246c6c0de633380",
+          "match": true
+        },
+        {
+          "relative": "source/sys/video_freak.sv",
+          "expected": "1c331bd8aee90bd722e8d9e400a8305de73392cb00cae256b8fb710e4fc2d478",
+          "actual": "1c331bd8aee90bd722e8d9e400a8305de73392cb00cae256b8fb710e4fc2d478",
+          "match": true
+        },
+        {
+          "relative": "source/sys/video_freezer.sv",
+          "expected": "f016d25480a8492744265f8da8164d50b01da09477f0101d0a212af65f96072f",
+          "actual": "f016d25480a8492744265f8da8164d50b01da09477f0101d0a212af65f96072f",
+          "match": true
+        },
+        {
+          "relative": "source/sys/video_mixer.sv",
+          "expected": "ca02e63c3e61d8a8c817fa10008a7a9873eb34a40ab89e2e2a596c590f9f0cf9",
+          "actual": "ca02e63c3e61d8a8c817fa10008a7a9873eb34a40ab89e2e2a596c590f9f0cf9",
+          "match": true
+        },
+        {
+          "relative": "source/sys/yc_out.sv",
+          "expected": "c52d7bfcc8dbc5a0cda2b3117172cbba790fb97b7de61722ddac205f6ec8bc20",
+          "actual": "c52d7bfcc8dbc5a0cda2b3117172cbba790fb97b7de61722ddac205f6ec8bc20",
+          "match": true
+        },
+        {
+          "relative": "source/third_party/jt51/hdl/jt51.qip",
+          "expected": "0683603f9731cc03b9041605af8a5d0a120d4c7c9b7cb8f5baf1e4984dd4856b",
+          "actual": "0683603f9731cc03b9041605af8a5d0a120d4c7c9b7cb8f5baf1e4984dd4856b",
+          "match": true
+        },
+        {
+          "relative": "source/third_party/jt51/hdl/jt51.v",
+          "expected": "4c5f80dae49f435686d3f917897df867ba7725a44bd52c5d652658ba178689b0",
+          "actual": "4c5f80dae49f435686d3f917897df867ba7725a44bd52c5d652658ba178689b0",
+          "match": true
+        },
+        {
+          "relative": "source/third_party/jt51/hdl/jt51_acc.v",
+          "expected": "633319a0e89a78d390cba54a24aabf6f1019b705b378b636e246dcf44c8829f8",
+          "actual": "633319a0e89a78d390cba54a24aabf6f1019b705b378b636e246dcf44c8829f8",
+          "match": true
+        },
+        {
+          "relative": "source/third_party/jt51/hdl/jt51_csr_op.v",
+          "expected": "b129bf97cc155bc0e4312287af79b2c7985852ef65c1768f23ffa31badd5b648",
+          "actual": "b129bf97cc155bc0e4312287af79b2c7985852ef65c1768f23ffa31badd5b648",
+          "match": true
+        },
+        {
+          "relative": "source/third_party/jt51/hdl/jt51_eg.v",
+          "expected": "6e7c5f315edc82b70918ea61d6d5c992204d4e8b272e33fb3ce539a9843cac5e",
+          "actual": "6e7c5f315edc82b70918ea61d6d5c992204d4e8b272e33fb3ce539a9843cac5e",
+          "match": true
+        },
+        {
+          "relative": "source/third_party/jt51/hdl/jt51_exp2lin.v",
+          "expected": "cecc44acf6d7c8a81e80638e4a6eeb46f17d6c8d809e7a928338553bb23fb400",
+          "actual": "cecc44acf6d7c8a81e80638e4a6eeb46f17d6c8d809e7a928338553bb23fb400",
+          "match": true
+        },
+        {
+          "relative": "source/third_party/jt51/hdl/jt51_exprom.v",
+          "expected": "c9f33ede4c1c0af6f54ae45620d986a2c5a2f0ef16b453dc7d2eeeac85f8cbb5",
+          "actual": "c9f33ede4c1c0af6f54ae45620d986a2c5a2f0ef16b453dc7d2eeeac85f8cbb5",
+          "match": true
+        },
+        {
+          "relative": "source/third_party/jt51/hdl/jt51_kon.v",
+          "expected": "e1bb08fe65a53d2dc871459cc91e4beeec9efb9e839b3a39a941fa27ac19ba0f",
+          "actual": "e1bb08fe65a53d2dc871459cc91e4beeec9efb9e839b3a39a941fa27ac19ba0f",
+          "match": true
+        },
+        {
+          "relative": "source/third_party/jt51/hdl/jt51_lfo.v",
+          "expected": "2bb0e19b51982f761fd50eb992c90f6dbadf467528ac09fa033b48020cd8d193",
+          "actual": "2bb0e19b51982f761fd50eb992c90f6dbadf467528ac09fa033b48020cd8d193",
+          "match": true
+        },
+        {
+          "relative": "source/third_party/jt51/hdl/jt51_lin2exp.v",
+          "expected": "c4351ea7711364ab394ab510326111dc5047f4e57830bddef15163cbc4dcb98e",
+          "actual": "c4351ea7711364ab394ab510326111dc5047f4e57830bddef15163cbc4dcb98e",
+          "match": true
+        },
+        {
+          "relative": "source/third_party/jt51/hdl/jt51_mmr.v",
+          "expected": "db3a6506091e6ea99a17ad2f5b8b11ecf36d97f74dbf0c1098cf6db601d6fdd6",
+          "actual": "db3a6506091e6ea99a17ad2f5b8b11ecf36d97f74dbf0c1098cf6db601d6fdd6",
+          "match": true
+        },
+        {
+          "relative": "source/third_party/jt51/hdl/jt51_mod.v",
+          "expected": "1a04fe51a56756a98b577547bbd95cf984283288f2da2e4946d75063a69d357c",
+          "actual": "1a04fe51a56756a98b577547bbd95cf984283288f2da2e4946d75063a69d357c",
+          "match": true
+        },
+        {
+          "relative": "source/third_party/jt51/hdl/jt51_noise.v",
+          "expected": "87b70082becc58ece4c223ea5ed01b0c0bc0b05ae95ace9b498768429232f360",
+          "actual": "87b70082becc58ece4c223ea5ed01b0c0bc0b05ae95ace9b498768429232f360",
+          "match": true
+        },
+        {
+          "relative": "source/third_party/jt51/hdl/jt51_noise_lfsr.v",
+          "expected": "6b58949a51dbfe8c96f19eac3aa84aaace7fcc5cc4e1902c084a93d3d1c4da91",
+          "actual": "6b58949a51dbfe8c96f19eac3aa84aaace7fcc5cc4e1902c084a93d3d1c4da91",
+          "match": true
+        },
+        {
+          "relative": "source/third_party/jt51/hdl/jt51_op.v",
+          "expected": "5dbb743c49af67e6dff7e6c65691a66371aaf5a126834525f9501a8af1420bbf",
+          "actual": "5dbb743c49af67e6dff7e6c65691a66371aaf5a126834525f9501a8af1420bbf",
+          "match": true
+        },
+        {
+          "relative": "source/third_party/jt51/hdl/jt51_pg.v",
+          "expected": "d52c369e535196ee260243b2342c6a526a1d95425440512037f3f3b5185f0a8a",
+          "actual": "d52c369e535196ee260243b2342c6a526a1d95425440512037f3f3b5185f0a8a",
+          "match": true
+        },
+        {
+          "relative": "source/third_party/jt51/hdl/jt51_phinc_rom.v",
+          "expected": "41fefe0b9bc9a3b71a036d12d723666e4b588c57625228eee278f9704a6f53b1",
+          "actual": "41fefe0b9bc9a3b71a036d12d723666e4b588c57625228eee278f9704a6f53b1",
+          "match": true
+        },
+        {
+          "relative": "source/third_party/jt51/hdl/jt51_phrom.v",
+          "expected": "b3fb0623737dd22befa0bfa9a130d7b1437e81ff3e1842538251d5cd29a75c89",
+          "actual": "b3fb0623737dd22befa0bfa9a130d7b1437e81ff3e1842538251d5cd29a75c89",
+          "match": true
+        },
+        {
+          "relative": "source/third_party/jt51/hdl/jt51_pm.v",
+          "expected": "9625bda77a523371fc4704ac66cfec95a9d1aff343c2e770ea5aba11eb50c8f3",
+          "actual": "9625bda77a523371fc4704ac66cfec95a9d1aff343c2e770ea5aba11eb50c8f3",
+          "match": true
+        },
+        {
+          "relative": "source/third_party/jt51/hdl/jt51_reg.v",
+          "expected": "a9913cb08f562046c2f9375fd6f7a4a5a0eb4d46266df303875059761f304de7",
+          "actual": "a9913cb08f562046c2f9375fd6f7a4a5a0eb4d46266df303875059761f304de7",
+          "match": true
+        },
+        {
+          "relative": "source/third_party/jt51/hdl/jt51_reg_ch.v",
+          "expected": "2303d898fa49bf67fa8aace6c1a1e00e48d2951f9a221e75058233953f670aad",
+          "actual": "2303d898fa49bf67fa8aace6c1a1e00e48d2951f9a221e75058233953f670aad",
+          "match": true
+        },
+        {
+          "relative": "source/third_party/jt51/hdl/jt51_sh.v",
+          "expected": "71246f6b6989f922220cdd370cee52ecd56c7244e11073ddc618028a4136f0aa",
+          "actual": "71246f6b6989f922220cdd370cee52ecd56c7244e11073ddc618028a4136f0aa",
+          "match": true
+        },
+        {
+          "relative": "source/third_party/jt51/hdl/jt51_timers.v",
+          "expected": "e885ffd11d62c2bf42aafb90eb30e681c3d98ae9c4fe6714b13d72f491347e70",
+          "actual": "e885ffd11d62c2bf42aafb90eb30e681c3d98ae9c4fe6714b13d72f491347e70",
+          "match": true
+        },
+        {
+          "relative": "source/third_party/jt51/ver/common/sep32.v",
+          "expected": "e1f1733d87094bc51a31d39a34c27c71d408541939bfd4c7db00a248a02b85a1",
+          "actual": "e1f1733d87094bc51a31d39a34c27c71d408541939bfd4c7db00a248a02b85a1",
+          "match": true
+        },
+        {
+          "relative": "source/third_party/jt51/ver/common/sep32_cnt.v",
+          "expected": "cc15f156e3bbf72f19956c6fca34c4d17986a576209d1ae890450519692edce7",
+          "actual": "cc15f156e3bbf72f19956c6fca34c4d17986a576209d1ae890450519692edce7",
+          "match": true
+        }
+      ],
+      "outputs": [
+        {
+          "path": "C:\\Users\\dai\\Documents\\MegaVGMDrive_A_vNext_Production_RC\\output\\MegaVGMDrive_A_vNext_Production_MiSTer.asm.rpt",
+          "name": "MegaVGMDrive_A_vNext_Production_MiSTer.asm.rpt",
+          "bytes": 6270,
+          "sha256": "6716b219a492813bd300890438c98e0bde4d5968dd77df0954da86706a7433b0"
+        },
+        {
+          "path": "C:\\Users\\dai\\Documents\\MegaVGMDrive_A_vNext_Production_RC\\output\\MegaVGMDrive_A_vNext_Production_MiSTer.fit.summary",
+          "name": "MegaVGMDrive_A_vNext_Production_MiSTer.fit.summary",
+          "bytes": 725,
+          "sha256": "c7adf5ad43292a60a99d877e0e60c78ca013e63c917800ae038dc2b386e98e73"
+        },
+        {
+          "path": "C:\\Users\\dai\\Documents\\MegaVGMDrive_A_vNext_Production_RC\\output\\MegaVGMDrive_A_vNext_Production_MiSTer.flow.rpt",
+          "name": "MegaVGMDrive_A_vNext_Production_MiSTer.flow.rpt",
+          "bytes": 18027,
+          "sha256": "f4c32c9886c819779e15242d8ee3decca8c09555b0e786bd7e0047bffe6689d3"
+        },
+        {
+          "path": "C:\\Users\\dai\\Documents\\MegaVGMDrive_A_vNext_Production_RC\\output\\MegaVGMDrive_A_vNext_Production_MiSTer.rbf",
+          "name": "MegaVGMDrive_A_vNext_Production_MiSTer.rbf",
+          "bytes": 3380668,
+          "sha256": "8c9ef2a084ff21732242b4d090b4e010b463c7f60fc7b461a58215983b5fb44d"
+        },
+        {
+          "path": "C:\\Users\\dai\\Documents\\MegaVGMDrive_A_vNext_Production_RC\\output\\MegaVGMDrive_A_vNext_Production_MiSTer.sof",
+          "name": "MegaVGMDrive_A_vNext_Production_MiSTer.sof",
+          "bytes": 6690443,
+          "sha256": "db91efad70fef5b4483888ba7e4369ab2ba3b80b01c872bb2f2a6e7d2b240502"
+        },
+        {
+          "path": "C:\\Users\\dai\\Documents\\MegaVGMDrive_A_vNext_Production_RC\\output\\MegaVGMDrive_A_vNext_Production_MiSTer.sta.rpt",
+          "name": "MegaVGMDrive_A_vNext_Production_MiSTer.sta.rpt",
+          "bytes": 225266,
+          "sha256": "6a96afa1d73d8847989a552d4525b717a8c9fa39ccdbdb0a12c83ce2bd1d11ea"
+        }
+      ]
+    },
+    {
+      "engine": "B",
+      "root": "C:\\Users\\dai\\Documents\\MegaVGMDrive_B_vNext_Seed3_2241e0f_Run1",
+      "exists": true,
+      "root_files": [
+        "ARTIFACT_MANIFEST.json",
+        "build_id.v",
+        "BUILD_INFO.txt",
+        "c5_pin_model_dump.txt",
+        "HANDOFF.txt",
+        "jtag.cdf",
+        "MegaVGMDrive_B_vNext_MiSTer.qpf",
+        "MegaVGMDrive_B_vNext_MiSTer.qsf",
+        "SHA256SUMS.txt",
+        "timing-audit.tcl"
+      ],
+      "inputs": [
+        {
+          "relative": "ARTIFACT_MANIFEST.json",
+          "expected": "fafaf94fb1e63cb3beddbdd79fb051f11bd7fad0121c9c26c0e024c99784d18b",
+          "actual": "fafaf94fb1e63cb3beddbdd79fb051f11bd7fad0121c9c26c0e024c99784d18b",
+          "match": true
+        },
+        {
+          "relative": "BUILD_INFO.txt",
+          "expected": "98670ac138e2930adbf000425bd1efafeea379c4640808165de32736fe9cb42f",
+          "actual": "98670ac138e2930adbf000425bd1efafeea379c4640808165de32736fe9cb42f",
+          "match": true
+        },
+        {
+          "relative": "HANDOFF.txt",
+          "expected": "b022054318f2fe00b1af11bf1ae7aeb9938e840ff389bf43bd7322e0648ab057",
+          "actual": "b022054318f2fe00b1af11bf1ae7aeb9938e840ff389bf43bd7322e0648ab057",
+          "match": true
+        },
+        {
+          "relative": "MegaVGMDrive_B_vNext_MiSTer.qpf",
+          "expected": "7f50e1983541c76bb73a64435030d88a7ad02fb13de92a9edce80dfbb70c4bea",
+          "actual": "7f50e1983541c76bb73a64435030d88a7ad02fb13de92a9edce80dfbb70c4bea",
+          "match": true
+        },
+        {
+          "relative": "MegaVGMDrive_B_vNext_MiSTer.qsf",
+          "expected": "bf2776435f0e1b11af0b947034acfe1d8e1b4f7e453e1dcbe5bcc098de651faa",
+          "actual": "bf2776435f0e1b11af0b947034acfe1d8e1b4f7e453e1dcbe5bcc098de651faa",
+          "match": true
+        },
+        {
+          "relative": "source/common/build_id.tcl",
+          "expected": "de0dceae739a5ffc9420829ac53729ef78d123dfd1303709bee5de9c1be885a8",
+          "actual": "de0dceae739a5ffc9420829ac53729ef78d123dfd1303709bee5de9c1be885a8",
+          "match": true
+        },
+        {
+          "relative": "source/engine_b/command_client.sv",
+          "expected": "9ac47dde917a58467728fe1248116a764b87edef00d47f8e2697326b6c8ec263",
+          "actual": "9ac47dde917a58467728fe1248116a764b87edef00d47f8e2697326b6c8ec263",
+          "match": true
+        },
+        {
+          "relative": "source/engine_b/command_word_buffer.sv",
+          "expected": "6c88319763fc28280d84a507d47e266f2f7a9ae6e4063cbf1ee1bd1d05a266ab",
+          "actual": "6c88319763fc28280d84a507d47e266f2f7a9ae6e4063cbf1ee1bd1d05a266ab",
+          "match": true
+        },
+        {
+          "relative": "source/engine_b/functional_top.sv",
+          "expected": "5fab3fedfa793c79ce44da79905d50eb87104da4e022f57cbe7e34fe2f8c2eba",
+          "actual": "5fab3fedfa793c79ce44da79905d50eb87104da4e022f57cbe7e34fe2f8c2eba",
+          "match": true
+        },
+        {
+          "relative": "source/engine_b/playback_adapter.sv",
+          "expected": "0501d2cbc34b922e5503d1bf927cc7d75b30f4f82c95328f9faa7aa0d01b369b",
+          "actual": "0501d2cbc34b922e5503d1bf927cc7d75b30f4f82c95328f9faa7aa0d01b369b",
+          "match": true
+        },
+        {
+          "relative": "source/engine_b/playback_core.sv",
+          "expected": "f37ab3db21f9093f7f6bf153a86b0e90d054d03fb1225260fc682e7ea6ac4b66",
+          "actual": "f37ab3db21f9093f7f6bf153a86b0e90d054d03fb1225260fc682e7ea6ac4b66",
+          "match": true
+        },
+        {
+          "relative": "source/engine_b/prefix_word_prefetch.sv",
+          "expected": "055b159838162a3551d08669a0c0f37cfa005f2c4dceace49db9e1775881a418",
+          "actual": "055b159838162a3551d08669a0c0f37cfa005f2c4dceace49db9e1775881a418",
+          "match": true
+        },
+        {
+          "relative": "source/engine_b/preflight.sv",
+          "expected": "b5d7911399306521e5051eff32452e021e4ca0af123d5bf65bf2dc1843dada4d",
+          "actual": "b5d7911399306521e5051eff32452e021e4ca0af123d5bf65bf2dc1843dada4d",
+          "match": true
+        },
+        {
+          "relative": "source/engine_b/prepared_word_store.sv",
+          "expected": "dd5fa4b68d551673a88f23c79a973f37e09d4f8b5473fc08cf99db06e4cd3146",
+          "actual": "dd5fa4b68d551673a88f23c79a973f37e09d4f8b5473fc08cf99db06e4cd3146",
+          "match": true
+        },
+        {
+          "relative": "source/engine_b/prewarm_client.sv",
+          "expected": "ab6b59727c286a1a1eb467c63709784462b1321d66738a2871a3a6e867b055a6",
+          "actual": "ab6b59727c286a1a1eb467c63709784462b1321d66738a2871a3a6e867b055a6",
+          "match": true
+        },
+        {
+          "relative": "source/engine_b/resource_cache.sv",
+          "expected": "7298a4396aafc2e02a45d6d1f67613995888f3a482c40489169ca103ed71cf7c",
+          "actual": "7298a4396aafc2e02a45d6d1f67613995888f3a482c40489169ca103ed71cf7c",
+          "match": true
+        },
+        {
+          "relative": "source/engine_b/shared_reader_binding.sv",
+          "expected": "f493ada8162282fcba16a41e7baf7d8ea592f4fab902e2cc71052b1b6c11ab5a",
+          "actual": "f493ada8162282fcba16a41e7baf7d8ea592f4fab902e2cc71052b1b6c11ab5a",
+          "match": true
+        },
+        {
+          "relative": "source/engine_b/strict_playback_binding.sv",
+          "expected": "da4e160a2a6b443738a8da82f1702e100156742d44598260c4233f418875e869",
+          "actual": "da4e160a2a6b443738a8da82f1702e100156742d44598260c4233f418875e869",
+          "match": true
+        },
+        {
+          "relative": "source/hw/transport_v1_3/files_vnext.qip",
+          "expected": "f68166ee6bdea659b37b0c4b1669f300c64ae871b6655fcc29965bba18288498",
+          "actual": "f68166ee6bdea659b37b0c4b1669f300c64ae871b6655fcc29965bba18288498",
+          "match": true
+        },
+        {
+          "relative": "source/hw/transport_v1_3/sys_ym2610_hw0.qip",
+          "expected": "ca771756c6b1c62091263c1d9c40be315f1c6b035d87e4bd81d6b2fddec22ff0",
+          "actual": "ca771756c6b1c62091263c1d9c40be315f1c6b035d87e4bd81d6b2fddec22ff0",
+          "match": true
+        },
+        {
+          "relative": "source/hw/ym2610_hw0/sys_ym2610_hw0.tcl",
+          "expected": "b6186b6c5f7ec279c32413298cf2567d57349d3fe1572e4e412b47d3358760f5",
+          "actual": "b6186b6c5f7ec279c32413298cf2567d57349d3fe1572e4e412b47d3358760f5",
+          "match": true
+        },
+        {
+          "relative": "source/hw/ym2610_player/sys_ym2610_hw0.qip",
+          "expected": "6a83d406d73cce8d03b01b5104a7b827803f9c502712c185552a4f402b666404",
+          "actual": "6a83d406d73cce8d03b01b5104a7b827803f9c502712c185552a4f402b666404",
+          "match": true
+        },
+        {
+          "relative": "source/hw/ym2610_player/ym2610_player.sdc",
+          "expected": "ad5a557ae14a19529f46ba53ce26d3ea8fabd85a48e92ed8686ebd254abcb552",
+          "actual": "ad5a557ae14a19529f46ba53ce26d3ea8fabd85a48e92ed8686ebd254abcb552",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/emu.sv",
+          "expected": "da8c92fbbc6b51cad3a8e9774f1dd1c6a2ef218fd7b60b4b89effef98fd7c723",
+          "actual": "da8c92fbbc6b51cad3a8e9774f1dd1c6a2ef218fd7b60b4b89effef98fd7c723",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/engine_a_vnext_integration/golden_read_accept_bridge.sv",
+          "expected": "d942802cdaf06e3ddf044740385b7a26c8eca2de8d31e3f3007514f8a7b0b89f",
+          "actual": "d942802cdaf06e3ddf044740385b7a26c8eca2de8d31e3f3007514f8a7b0b89f",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/engine_a_vnext_integration/loop_continuation_client.sv",
+          "expected": "6c27529d7a89efefbdb00f3bf4f03402131b6f442caa7fa27ae96fd9b555dd0c",
+          "actual": "6c27529d7a89efefbdb00f3bf4f03402131b6f442caa7fa27ae96fd9b555dd0c",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/engine_a_vnext_integration/strict_golden_read_binding.sv",
+          "expected": "34ebb2e743e495b9e5d27244ba2e410f6bf693900df46ac7ddeddb74f026908d",
+          "actual": "34ebb2e743e495b9e5d27244ba2e410f6bf693900df46ac7ddeddb74f026908d",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/fixed_region_mode.vh",
+          "expected": "645377a7c7185f331b98be4b1d2d6d3b38e5a723f531d56a2736271c141fc87f",
+          "actual": "645377a7c7185f331b98be4b1d2d6d3b38e5a723f531d56a2736271c141fc87f",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/genesis_audio/jt10_ym2610/adpcm/jt10_adpcm_div.v",
+          "expected": "ff7ec22d2662b8e837e58e14877fabe62cb8a4a73015736e81e03e9723638856",
+          "actual": "ff7ec22d2662b8e837e58e14877fabe62cb8a4a73015736e81e03e9723638856",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/genesis_audio/jt10_ym2610/adpcm/jt10_adpcm_drvB.v",
+          "expected": "46a707a4ecf2c8de6c41c0cb1f85bef87954a0d2a90bfb953bc6805795ba12f4",
+          "actual": "46a707a4ecf2c8de6c41c0cb1f85bef87954a0d2a90bfb953bc6805795ba12f4",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/genesis_audio/jt10_ym2610/adpcm/jt10_adpcmb_cnt.v",
+          "expected": "34e956261947b1257fdd4a0d151d2b147ed6a6b7d684b3c66866cc64b9c95a75",
+          "actual": "34e956261947b1257fdd4a0d151d2b147ed6a6b7d684b3c66866cc64b9c95a75",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/genesis_audio/jt10_ym2610/adpcm/jt10_adpcmb_gain.v",
+          "expected": "5f5098aacce66460b0918e7a8daa944bd1193840bfad69a796c489dd77e52fee",
+          "actual": "5f5098aacce66460b0918e7a8daa944bd1193840bfad69a796c489dd77e52fee",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/genesis_audio/jt10_ym2610/adpcm/jt10_adpcmb_interpol.v",
+          "expected": "33079ac1bef4782c0e58177e69d12c64d7bebfcfd622065887818b39f1398100",
+          "actual": "33079ac1bef4782c0e58177e69d12c64d7bebfcfd622065887818b39f1398100",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/genesis_audio/jt12/jt12_acc.v",
+          "expected": "8c4d7406cbef36ae0b0d4d59acc36f1e4115e23ea9b504248c9a47845864a8cc",
+          "actual": "8c4d7406cbef36ae0b0d4d59acc36f1e4115e23ea9b504248c9a47845864a8cc",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/genesis_audio/jt12/jt12_csr.v",
+          "expected": "4aaabf1cdaeaa1e7af133ebd48874c9619738b9f8ff579ed5ef24b7a11e8790d",
+          "actual": "4aaabf1cdaeaa1e7af133ebd48874c9619738b9f8ff579ed5ef24b7a11e8790d",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/genesis_audio/jt12/jt12_div.v",
+          "expected": "7eb947c7d2172211c936b935f8b0855b2dbe571857e9b81d8f3ffae9ede6d130",
+          "actual": "7eb947c7d2172211c936b935f8b0855b2dbe571857e9b81d8f3ffae9ede6d130",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/genesis_audio/jt12/jt12_dout.v",
+          "expected": "cfc26791f2cc21d2f39d600fa5776c2887ffe641071ca7f231a6a8aa92a3dde0",
+          "actual": "cfc26791f2cc21d2f39d600fa5776c2887ffe641071ca7f231a6a8aa92a3dde0",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/genesis_audio/jt12/jt12_eg.v",
+          "expected": "b638ea79c95f40aaecfc357674e3328e7650ad8fdc97f213905c4659ed6ec9ea",
+          "actual": "b638ea79c95f40aaecfc357674e3328e7650ad8fdc97f213905c4659ed6ec9ea",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/genesis_audio/jt12/jt12_eg_cnt.v",
+          "expected": "f659140c6881fc5222da3bb4cc9a532935529b66c624cd3ddd38611b7ec08aec",
+          "actual": "f659140c6881fc5222da3bb4cc9a532935529b66c624cd3ddd38611b7ec08aec",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/genesis_audio/jt12/jt12_eg_comb.v",
+          "expected": "1ca6e221ef0e222d2ea4d6aecff5426901d17b7863bcfa147a9630847b85a76f",
+          "actual": "1ca6e221ef0e222d2ea4d6aecff5426901d17b7863bcfa147a9630847b85a76f",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/genesis_audio/jt12/jt12_eg_ctrl.v",
+          "expected": "f570518cdd0b653bff9e9c03d4fb0c45e74b898a6de0db0420750328dc7dee29",
+          "actual": "f570518cdd0b653bff9e9c03d4fb0c45e74b898a6de0db0420750328dc7dee29",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/genesis_audio/jt12/jt12_eg_final.v",
+          "expected": "100cd049e409adfb47e4fd4f648c16e63d5222f5c8d7baec1e894a22e076f151",
+          "actual": "100cd049e409adfb47e4fd4f648c16e63d5222f5c8d7baec1e894a22e076f151",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/genesis_audio/jt12/jt12_eg_pure.v",
+          "expected": "23a12e8fcc946ae8d967f52566e60c1da1b5d68245d9a80ecae548c9de461cef",
+          "actual": "23a12e8fcc946ae8d967f52566e60c1da1b5d68245d9a80ecae548c9de461cef",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/genesis_audio/jt12/jt12_eg_step.v",
+          "expected": "77af630259cee627739e5bfd2f31fb37d421cf2342323baf109a4d0f8f546569",
+          "actual": "77af630259cee627739e5bfd2f31fb37d421cf2342323baf109a4d0f8f546569",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/genesis_audio/jt12/jt12_exprom.v",
+          "expected": "28b96ad09fb15c86ea90062d2291e03f9282fe79ddb35f8e305c8cbd418e8294",
+          "actual": "28b96ad09fb15c86ea90062d2291e03f9282fe79ddb35f8e305c8cbd418e8294",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/genesis_audio/jt12/jt12_kon.v",
+          "expected": "c31dee8bb2abaa645eb36216877478d87ed454a99c0e8e75fc947012f8455655",
+          "actual": "c31dee8bb2abaa645eb36216877478d87ed454a99c0e8e75fc947012f8455655",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/genesis_audio/jt12/jt12_lfo.v",
+          "expected": "67839ad9271072b535be20e5a7b3fcd5b8b71472897a19e49f8868f27f0d3e27",
+          "actual": "67839ad9271072b535be20e5a7b3fcd5b8b71472897a19e49f8868f27f0d3e27",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/genesis_audio/jt12/jt12_logsin.v",
+          "expected": "20f1a30b3dd824712443ec8af49d21705cdc32c139dc146eb41771d97435bf71",
+          "actual": "20f1a30b3dd824712443ec8af49d21705cdc32c139dc146eb41771d97435bf71",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/genesis_audio/jt12/jt12_mod.v",
+          "expected": "74d9ccf472bd9ea4d21829caa8a5545cada9200e80a69db7216a22f1cda90079",
+          "actual": "74d9ccf472bd9ea4d21829caa8a5545cada9200e80a69db7216a22f1cda90079",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/genesis_audio/jt12/jt12_op.v",
+          "expected": "d945df0a847c8e23922000da1a47d2bf12f64e56d6b618f2054a2e9c20067466",
+          "actual": "d945df0a847c8e23922000da1a47d2bf12f64e56d6b618f2054a2e9c20067466",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/genesis_audio/jt12/jt12_pg.v",
+          "expected": "b4c794cc6cc3c4a74626e0e8a37ef160cc85093c8592c38fe772474bdbf333c5",
+          "actual": "b4c794cc6cc3c4a74626e0e8a37ef160cc85093c8592c38fe772474bdbf333c5",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/genesis_audio/jt12/jt12_pg_comb.v",
+          "expected": "5aac7ff07533fd1764c6f23efeea653c4c2a0019b177aa6f7fca5676f12000bd",
+          "actual": "5aac7ff07533fd1764c6f23efeea653c4c2a0019b177aa6f7fca5676f12000bd",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/genesis_audio/jt12/jt12_pg_dt.v",
+          "expected": "ea54be76a10628d35263a75140e4f028cbaf54abb9d0721f2d3f18bece90f6e3",
+          "actual": "ea54be76a10628d35263a75140e4f028cbaf54abb9d0721f2d3f18bece90f6e3",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/genesis_audio/jt12/jt12_pg_inc.v",
+          "expected": "5c766037c4138062ce2e2b5a6c9442d6fc9b4c9338739ac9e8ae2ee8be0ded9c",
+          "actual": "5c766037c4138062ce2e2b5a6c9442d6fc9b4c9338739ac9e8ae2ee8be0ded9c",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/genesis_audio/jt12/jt12_pg_sum.v",
+          "expected": "928128558cf56ecdc35d3b7c2de8509ed32ca25e577f001f7aea0d72212fe424",
+          "actual": "928128558cf56ecdc35d3b7c2de8509ed32ca25e577f001f7aea0d72212fe424",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/genesis_audio/jt12/jt12_pm.v",
+          "expected": "1365093deeea115f3ff2c684d94c28a738b446c0223bb95c5b32b6a8f2b7edbc",
+          "actual": "1365093deeea115f3ff2c684d94c28a738b446c0223bb95c5b32b6a8f2b7edbc",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/genesis_audio/jt12/jt12_rst.v",
+          "expected": "5aadf3d18c8e52f046c89f675b202f5f0571ef715f2a120ca4cb91fcbd86b678",
+          "actual": "5aadf3d18c8e52f046c89f675b202f5f0571ef715f2a120ca4cb91fcbd86b678",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/genesis_audio/jt12/jt12_sh.v",
+          "expected": "a698c891f13593b273d6120dd31eb05bc45119998e4baa4bcc8ea0b8d17432e4",
+          "actual": "a698c891f13593b273d6120dd31eb05bc45119998e4baa4bcc8ea0b8d17432e4",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/genesis_audio/jt12/jt12_sh24.v",
+          "expected": "d15232653c91ecf7ad20f89259b083cd59ee343ed6d909b94d08e509ac98feae",
+          "actual": "d15232653c91ecf7ad20f89259b083cd59ee343ed6d909b94d08e509ac98feae",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/genesis_audio/jt12/jt12_sh_rst.v",
+          "expected": "9c313ef1e013be79ea04195931e97d2b121e999e9f374d8658fde1bc4086ffdf",
+          "actual": "9c313ef1e013be79ea04195931e97d2b121e999e9f374d8658fde1bc4086ffdf",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/genesis_audio/jt12/jt12_single_acc.v",
+          "expected": "5e050122f38c2f82e734198152752b21f256b1f7bd9ac56b037fa0cae65f8010",
+          "actual": "5e050122f38c2f82e734198152752b21f256b1f7bd9ac56b037fa0cae65f8010",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/genesis_audio/jt12/jt12_sumch.v",
+          "expected": "f6b274620e265af8785503d47e4b2035ac253a45677d12976c63bda04efd83ef",
+          "actual": "f6b274620e265af8785503d47e4b2035ac253a45677d12976c63bda04efd83ef",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/genesis_audio/jt12/jt12_timers.v",
+          "expected": "ab1f190e0105414c8ac2cde35a17dc6ae4a402ed4a9706b0cbf0375de8d8b06f",
+          "actual": "ab1f190e0105414c8ac2cde35a17dc6ae4a402ed4a9706b0cbf0375de8d8b06f",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/genesis_audio/jt12/mixer/jt12_comb.v",
+          "expected": "7a8478b32dba5667e0959f801b209021f7a91260f41c0157f41830d036f3fbcc",
+          "actual": "7a8478b32dba5667e0959f801b209021f7a91260f41c0157f41830d036f3fbcc",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/genesis_audio/jt12/mixer/jt12_decim.v",
+          "expected": "6a00bae9ab9fe2921c23bb18965d60bc450dc1e6d63b0421e42bf0b39a0af662",
+          "actual": "6a00bae9ab9fe2921c23bb18965d60bc450dc1e6d63b0421e42bf0b39a0af662",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/genesis_audio/jt12/mixer/jt12_fm_uprate.v",
+          "expected": "c3a30f38926c5e15023aa2b829757512802d0e6ec3e0bad6ddf3d837c30d801f",
+          "actual": "c3a30f38926c5e15023aa2b829757512802d0e6ec3e0bad6ddf3d837c30d801f",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/genesis_audio/jt12/mixer/jt12_genmix.v",
+          "expected": "572b551b8fc854010cb00d102ace9adab0a1df6a893e81a5de71ee9df35c7af2",
+          "actual": "572b551b8fc854010cb00d102ace9adab0a1df6a893e81a5de71ee9df35c7af2",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/genesis_audio/jt12/mixer/jt12_interpol.v",
+          "expected": "748f891a9b67d30628ed8e133b25252c30f799df68cb206b10ac7254e10bb66d",
+          "actual": "748f891a9b67d30628ed8e133b25252c30f799df68cb206b10ac7254e10bb66d",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/genesis_audio/jt49/jt49.v",
+          "expected": "9a37803a2b7cb8962134756f4ead7394204f3bda8341e58d8a896768fcae12ca",
+          "actual": "9a37803a2b7cb8962134756f4ead7394204f3bda8341e58d8a896768fcae12ca",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/genesis_audio/jt49/jt49_cen.v",
+          "expected": "8719a72b2ded607ee3a0117fabb7b99c57cef4422913ae729dd7f20f6bf5c8fa",
+          "actual": "8719a72b2ded607ee3a0117fabb7b99c57cef4422913ae729dd7f20f6bf5c8fa",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/genesis_audio/jt49/jt49_div.v",
+          "expected": "29016ab9648ae14a04d16cf367e04ee479a68b974c1f85a0db476886920774e5",
+          "actual": "29016ab9648ae14a04d16cf367e04ee479a68b974c1f85a0db476886920774e5",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/genesis_audio/jt49/jt49_eg.v",
+          "expected": "44b05e65c51457d98d32857f2341d74c9719955ebc1dce325f439575c9bcf5dc",
+          "actual": "44b05e65c51457d98d32857f2341d74c9719955ebc1dce325f439575c9bcf5dc",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/genesis_audio/jt49/jt49_exp.v",
+          "expected": "10d9ac7203833808f7beb42e6eabc06490a6d909e48ee34f5e4812e6bc4c46cc",
+          "actual": "10d9ac7203833808f7beb42e6eabc06490a6d909e48ee34f5e4812e6bc4c46cc",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/genesis_audio/jt49/jt49_noise.v",
+          "expected": "ce225979d4f8a35179f062e130ac1009ce8c71742ba1d3908f07d3e317f04011",
+          "actual": "ce225979d4f8a35179f062e130ac1009ce8c71742ba1d3908f07d3e317f04011",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/golden_player_shell/golden_player_shell_upload.sv",
+          "expected": "5e793563aef968b8dbb33c4dbcecbac5f5a8a95054f183f64013f875cb8de745",
+          "actual": "5e793563aef968b8dbb33c4dbcecbac5f5a8a95054f183f64013f875cb8de745",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/golden_player_shell_v1_2_compat/transport.sv",
+          "expected": "8b46ebae3be5b2d4d25fc0e87b1ca83bf47a0f9305a29ffce9ec36a4257fa564",
+          "actual": "8b46ebae3be5b2d4d25fc0e87b1ca83bf47a0f9305a29ffce9ec36a4257fa564",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/megavgm_channel_activity_hold.sv",
+          "expected": "26a2e5cc158a18d902dfe025267f33a00304a39d111fee287d76e956a87ddb41",
+          "actual": "26a2e5cc158a18d902dfe025267f33a00304a39d111fee287d76e956a87ddb41",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/megavgm_font5x7.sv",
+          "expected": "79645adbd743a325cfd36b5f7ee30ef33b48b8fa79c332a90b6e36aa72a556dc",
+          "actual": "79645adbd743a325cfd36b5f7ee30ef33b48b8fa79c332a90b6e36aa72a556dc",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/megavgm_playlist_status_export.sv",
+          "expected": "f9c81037075270b5a7e51d9913cc49f2966a0327ea6c3501456209839ef3d72b",
+          "actual": "f9c81037075270b5a7e51d9913cc49f2966a0327ea6c3501456209839ef3d72b",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/megavgm_title_receiver.sv",
+          "expected": "999ee41890f5b3f814e59b8e4dbedfd0287a916e234faab471cc5ef5ea7a6567",
+          "actual": "999ee41890f5b3f814e59b8e4dbedfd0287a916e234faab471cc5ef5ea7a6567",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/megavgm_title_renderer.sv",
+          "expected": "3eef1826a547c3a5d7bc106c919a29d1963dafb2667476ef7737984b0e4e8190",
+          "actual": "3eef1826a547c3a5d7bc106c919a29d1963dafb2667476ef7737984b0e4e8190",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/megavgm_video_timing.sv",
+          "expected": "65a682578e2af7f840df426a96776832000b2e908c0ba30139bd15c1155e5d35",
+          "actual": "65a682578e2af7f840df426a96776832000b2e908c0ba30139bd15c1155e5d35",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/pll/pll_0002.qip",
+          "expected": "7ed1f5a5d0a2ac74019e7b63fe3921f943fe3e2b4d6ef28f2f2f79692a58f510",
+          "actual": "7ed1f5a5d0a2ac74019e7b63fe3921f943fe3e2b4d6ef28f2f2f79692a58f510",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/pll/pll_0002.v",
+          "expected": "8ac785958023eadf517605bc669189d5583af48de2d63dabbddbeca1acda9ffa",
+          "actual": "8ac785958023eadf517605bc669189d5583af48de2d63dabbddbeca1acda9ffa",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/pll.qip",
+          "expected": "78c468b7b88fcaab9d13bd0b9d08a1edaca084ddcc84661662e7f29555b42ab4",
+          "actual": "78c468b7b88fcaab9d13bd0b9d08a1edaca084ddcc84661662e7f29555b42ab4",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/pll.v",
+          "expected": "8e1a58e1539aba4c9c8e9bb66dca68e9beb298beca7402943aceeba932d6bfc0",
+          "actual": "8e1a58e1539aba4c9c8e9bb66dca68e9beb298beca7402943aceeba932d6bfc0",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/transport_v1_3/megavgm_engine_b_activity_source.sv",
+          "expected": "e3f5d2b279559831050b65cfb0f6450459fcf041caaea2de28489148ff0edde2",
+          "actual": "e3f5d2b279559831050b65cfb0f6450459fcf041caaea2de28489148ff0edde2",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/transport_v1_3/megavgm_transport_owner.sv",
+          "expected": "4f441e86e5fa191c592ad40f895510a52b2bbb8d7ddd6af46e99d066bb02bd68",
+          "actual": "4f441e86e5fa191c592ad40f895510a52b2bbb8d7ddd6af46e99d066bb02bd68",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/transport_v1_3/owner_body.svh",
+          "expected": "79ca0c96ff2e1b59798ac734a706bfa0f80a3f9915b87523e4642e305748b7c4",
+          "actual": "79ca0c96ff2e1b59798ac734a706bfa0f80a3f9915b87523e4642e305748b7c4",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/vgm_ddram_backend.sv",
+          "expected": "b4b2ab6f8e70de357c59be01847c73124d3ebe6a9c8b1c1267e8b64b642d1f2b",
+          "actual": "b4b2ab6f8e70de357c59be01847c73124d3ebe6a9c8b1c1267e8b64b642d1f2b",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/vgm_parser_vnext/data_decode.sv",
+          "expected": "d73c3939439b02ddba77757d7e0d11edd403b7611b346e00ab7545e6beb3c0c1",
+          "actual": "d73c3939439b02ddba77757d7e0d11edd403b7611b346e00ab7545e6beb3c0c1",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/vgm_parser_vnext/decoder.sv",
+          "expected": "b105c0171f2cbd9a1e909bce559783624fba2363a7f8e1a8824fef0a84d34745",
+          "actual": "b105c0171f2cbd9a1e909bce559783624fba2363a7f8e1a8824fef0a84d34745",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/vgm_parser_vnext/event_pkg.sv",
+          "expected": "97137d8fded21ab72c76552342a8721e13dc9506dead4ae6a1f2dae221ead9e7",
+          "actual": "97137d8fded21ab72c76552342a8721e13dc9506dead4ae6a1f2dae221ead9e7",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/vgm_parser_vnext/header_decode.sv",
+          "expected": "d542dc41b1f4662a9ed351e04510a9f7cae85c499da1097a19b934518ca569c4",
+          "actual": "d542dc41b1f4662a9ed351e04510a9f7cae85c499da1097a19b934518ca569c4",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/vgm_reader_vnext/golden_observer.sv",
+          "expected": "d84772041439661fa7336f0a8dbd1515c9d84c99874ecbb3ae1fb18b708f53d8",
+          "actual": "d84772041439661fa7336f0a8dbd1515c9d84c99874ecbb3ae1fb18b708f53d8",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/vgm_reader_vnext/reader_pkg.sv",
+          "expected": "63bc69a25ba90e5183ab64439924151bd7f117efcaab9ba8c80cdf52d752f52d",
+          "actual": "63bc69a25ba90e5183ab64439924151bd7f117efcaab9ba8c80cdf52d752f52d",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/vgm_reader_vnext/strict_adapter.sv",
+          "expected": "6388fcd562f1af84a701f7c7f6e5fabbf6b704a07abbab564054b2908f7b0259",
+          "actual": "6388fcd562f1af84a701f7c7f6e5fabbf6b704a07abbab564054b2908f7b0259",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/vgm_scheduler_vnext/normalizer.sv",
+          "expected": "e530c9127e835b22f98528962b5726158dbda01d570fc06d133bbcc2a931cf39",
+          "actual": "e530c9127e835b22f98528962b5726158dbda01d570fc06d133bbcc2a931cf39",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/vgm_scheduler_vnext/scheduler.sv",
+          "expected": "4299efaf9e36fd6240f259e7b66cb3370e874d297ae554d6545efc3bd511b995",
+          "actual": "4299efaf9e36fd6240f259e7b66cb3370e874d297ae554d6545efc3bd511b995",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/vgm_scheduler_vnext/scheduler_pkg.sv",
+          "expected": "fde04333fb0826faeda6d1f45f154b2998de0696b718a2ce1d29cfbdf2b070a7",
+          "actual": "fde04333fb0826faeda6d1f45f154b2998de0696b718a2ce1d29cfbdf2b070a7",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/ym2610_hw0/ym2610_hw0_jt10_acc.v",
+          "expected": "7e0a06d8cb67b6a14c887b15ec7aa6612b8515ad9f3c7f1370116f8fce541bf6",
+          "actual": "7e0a06d8cb67b6a14c887b15ec7aa6612b8515ad9f3c7f1370116f8fce541bf6",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/ym2610_hw0/ym2610_hw0_jt10_adpcm_drvA.v",
+          "expected": "da88375081a6c94515d8697b8cb95a90c1232fc5a66c993bca52e5d9b6b4cf33",
+          "actual": "da88375081a6c94515d8697b8cb95a90c1232fc5a66c993bca52e5d9b6b4cf33",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/ym2610_hw0/ym2610_hw0_jt10_adpcm_gain.v",
+          "expected": "62e8280a074faf76b7d49ade4b4693d85460ec0b71e68fc0f1c413dc9d9cbfc1",
+          "actual": "62e8280a074faf76b7d49ade4b4693d85460ec0b71e68fc0f1c413dc9d9cbfc1",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/ym2610_hw0/ym2610_hw0_jt10_wrapper.sv",
+          "expected": "c489dd01933d24f6d544608f2112452504c648fcf8990661e36f1d5c9983bbd3",
+          "actual": "c489dd01933d24f6d544608f2112452504c648fcf8990661e36f1d5c9983bbd3",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/ym2610_hw0/ym2610_hw0_jt12_mmr.v",
+          "expected": "97bb1d80dfe16a74a14616875f38822a7d64ee87a4db7cc209c7585514d9c219",
+          "actual": "97bb1d80dfe16a74a14616875f38822a7d64ee87a4db7cc209c7585514d9c219",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/ym2610_hw0/ym2610_hw0_jt12_reg.v",
+          "expected": "c4ab289780a9f17834fb149a6886ab975077b305929f9358d1ffe7a846f1ebf8",
+          "actual": "c4ab289780a9f17834fb149a6886ab975077b305929f9358d1ffe7a846f1ebf8",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/ym2610_hw0/ym2610_hw0_jt12_top.v",
+          "expected": "32de6db8995b1348c07f21ecbce7e608561b0337da340b869b795a05d5c19f8a",
+          "actual": "32de6db8995b1348c07f21ecbce7e608561b0337da340b869b795a05d5c19f8a",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/ym2610_player/ym2610_player_bus.sv",
+          "expected": "b73abf5efa50663c12a606589698273fc58107993a212be74a5b27f3e2a7902b",
+          "actual": "b73abf5efa50663c12a606589698273fc58107993a212be74a5b27f3e2a7902b",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/ym2610_player/ym2610_player_compat.sv",
+          "expected": "baed357e146059eb1562e45f331292cf3df857634252fb8e0008abcc389a28ae",
+          "actual": "baed357e146059eb1562e45f331292cf3df857634252fb8e0008abcc389a28ae",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/ym2610_player/ym2610_player_memory_arbiter.sv",
+          "expected": "c8d21800c188aecf00896be2d203a8514f85faf32bc75fa7ac6f6afa3b6717eb",
+          "actual": "c8d21800c188aecf00896be2d203a8514f85faf32bc75fa7ac6f6afa3b6717eb",
+          "match": true
+        },
+        {
+          "relative": "source/sys/alsa.sv",
+          "expected": "74943b658cd3f4adc5b74c72f225fb42b95122a1c5e453df860a4c6a9bf72fc9",
+          "actual": "74943b658cd3f4adc5b74c72f225fb42b95122a1c5e453df860a4c6a9bf72fc9",
+          "match": true
+        },
+        {
+          "relative": "source/sys/arcade_video.v",
+          "expected": "f02e25a8b608577326caacb89af42727373484285c5e27b09227c832fd7b6d52",
+          "actual": "f02e25a8b608577326caacb89af42727373484285c5e27b09227c832fd7b6d52",
+          "match": true
+        },
+        {
+          "relative": "source/sys/ascal.vhd",
+          "expected": "12e17ef4346101b9a2f7dd091d016d33c84585bf443dfb11da109f83dc690c32",
+          "actual": "12e17ef4346101b9a2f7dd091d016d33c84585bf443dfb11da109f83dc690c32",
+          "match": true
+        },
+        {
+          "relative": "source/sys/audio_out.v",
+          "expected": "565dd9badb00052dbd324e70f7ab66e8c6ecd0c5c2791aebffe477a2c0669363",
+          "actual": "565dd9badb00052dbd324e70f7ab66e8c6ecd0c5c2791aebffe477a2c0669363",
+          "match": true
+        },
+        {
+          "relative": "source/sys/ddr_svc.sv",
+          "expected": "cc67cf6aa9ac17f181498f44f86bf05e80189bb13ce70b3cc16657e035abf794",
+          "actual": "cc67cf6aa9ac17f181498f44f86bf05e80189bb13ce70b3cc16657e035abf794",
+          "match": true
+        },
+        {
+          "relative": "source/sys/f2sdram_safe_terminator.sv",
+          "expected": "605cd81a43eb94eb34b4917455e7a4a2dbd87b2616ab8a026fb24f3cd9664d86",
+          "actual": "605cd81a43eb94eb34b4917455e7a4a2dbd87b2616ab8a026fb24f3cd9664d86",
+          "match": true
+        },
+        {
+          "relative": "source/sys/gamma_corr.sv",
+          "expected": "2754944c6fe05d921374d1fecc26621782520b3bc6fbf600ca561e9f37c7af88",
+          "actual": "2754944c6fe05d921374d1fecc26621782520b3bc6fbf600ca561e9f37c7af88",
+          "match": true
+        },
+        {
+          "relative": "source/sys/hps_io.sv",
+          "expected": "1e96035560400b9b0fe68adcd6801d9836290957cd1fcddcb30c0b11dabe4cc2",
+          "actual": "1e96035560400b9b0fe68adcd6801d9836290957cd1fcddcb30c0b11dabe4cc2",
+          "match": true
+        },
+        {
+          "relative": "source/sys/hq2x.sv",
+          "expected": "2146b69cf63c26a4b41407e9ac1b4462db4d7e3ea6d8a99f31ba12712d68f975",
+          "actual": "2146b69cf63c26a4b41407e9ac1b4462db4d7e3ea6d8a99f31ba12712d68f975",
+          "match": true
+        },
+        {
+          "relative": "source/sys/i2c.v",
+          "expected": "c119d827783a40ba36a8cac53f0663d26fda4a5b081fac5a45ebfb89d072b06b",
+          "actual": "c119d827783a40ba36a8cac53f0663d26fda4a5b081fac5a45ebfb89d072b06b",
+          "match": true
+        },
+        {
+          "relative": "source/sys/i2s.v",
+          "expected": "927d2aea6797fb837f383e5e8a3259609e132ed24883127240ab21601f467efa",
+          "actual": "927d2aea6797fb837f383e5e8a3259609e132ed24883127240ab21601f467efa",
+          "match": true
+        },
+        {
+          "relative": "source/sys/iir_filter.v",
+          "expected": "c860abb26b2e79c9966a4e7edab53f8c6e7fb6e73892257e527611daee5e8b35",
+          "actual": "c860abb26b2e79c9966a4e7edab53f8c6e7fb6e73892257e527611daee5e8b35",
+          "match": true
+        },
+        {
+          "relative": "source/sys/ltc2308.sv",
+          "expected": "825fa1197c8e9f31c19c2fef1b01693133fb7df3cfb2dd831f2848a98fc6899c",
+          "actual": "825fa1197c8e9f31c19c2fef1b01693133fb7df3cfb2dd831f2848a98fc6899c",
+          "match": true
+        },
+        {
+          "relative": "source/sys/math.sv",
+          "expected": "74d7501a41886b0990cae4815b2583867bee1e0af9baebfae09d0581b30f96b3",
+          "actual": "74d7501a41886b0990cae4815b2583867bee1e0af9baebfae09d0581b30f96b3",
+          "match": true
+        },
+        {
+          "relative": "source/sys/mcp23009.sv",
+          "expected": "f168485e0b64c0545060f25b858c9f1c12b57024ce441754bb6a0cb0e9072e3f",
+          "actual": "f168485e0b64c0545060f25b858c9f1c12b57024ce441754bb6a0cb0e9072e3f",
+          "match": true
+        },
+        {
+          "relative": "source/sys/mt32pi.sv",
+          "expected": "298147936fd96f5c80c33c1566d6c807f7937eb6b0205a64ca2e4c77df8c60b0",
+          "actual": "298147936fd96f5c80c33c1566d6c807f7937eb6b0205a64ca2e4c77df8c60b0",
+          "match": true
+        },
+        {
+          "relative": "source/sys/osd.v",
+          "expected": "4d57135b8cf65cb18c02ed6b3f673b4641b1592bafe16d43362e364bce966caa",
+          "actual": "4d57135b8cf65cb18c02ed6b3f673b4641b1592bafe16d43362e364bce966caa",
+          "match": true
+        },
+        {
+          "relative": "source/sys/pll_audio/pll_audio_0002.qip",
+          "expected": "4cedd5394006286e0be61acdcbb6455f35cdf5c1488f4eb4a76b60e20eb43fb8",
+          "actual": "4cedd5394006286e0be61acdcbb6455f35cdf5c1488f4eb4a76b60e20eb43fb8",
+          "match": true
+        },
+        {
+          "relative": "source/sys/pll_audio/pll_audio_0002.v",
+          "expected": "8625d01bb2581a56358afe4380e539524a1c8bc7661b97a8b1c94216ac19984d",
+          "actual": "8625d01bb2581a56358afe4380e539524a1c8bc7661b97a8b1c94216ac19984d",
+          "match": true
+        },
+        {
+          "relative": "source/sys/pll_audio.qip",
+          "expected": "0d36d589c2eead6a53cf75294f7f30b14f6d9617904c6be3be11bb83140a2abe",
+          "actual": "0d36d589c2eead6a53cf75294f7f30b14f6d9617904c6be3be11bb83140a2abe",
+          "match": true
+        },
+        {
+          "relative": "source/sys/pll_audio.v",
+          "expected": "82118b01e3c3ba8bed269b9eed7cf06bf6af69e028e40f2c4c184de0d7b9f227",
+          "actual": "82118b01e3c3ba8bed269b9eed7cf06bf6af69e028e40f2c4c184de0d7b9f227",
+          "match": true
+        },
+        {
+          "relative": "source/sys/pll_cfg/altera_pll_reconfig_core.v",
+          "expected": "ec126715f09d512cae28101ba48f286079e8852d665ac30ce9fd3edbb10607d3",
+          "actual": "ec126715f09d512cae28101ba48f286079e8852d665ac30ce9fd3edbb10607d3",
+          "match": true
+        },
+        {
+          "relative": "source/sys/pll_cfg/altera_pll_reconfig_top.v",
+          "expected": "81134703e17a0e60bc6928dcbb8e5b13491b0293ee401649cdb1c22df01dc1bd",
+          "actual": "81134703e17a0e60bc6928dcbb8e5b13491b0293ee401649cdb1c22df01dc1bd",
+          "match": true
+        },
+        {
+          "relative": "source/sys/pll_cfg/pll_cfg.v",
+          "expected": "89750669762947128e105736d82384587f1cf8ac2f9965090e483c20f7624d59",
+          "actual": "89750669762947128e105736d82384587f1cf8ac2f9965090e483c20f7624d59",
+          "match": true
+        },
+        {
+          "relative": "source/sys/pll_cfg/pll_cfg_hdmi.v",
+          "expected": "d3874dda124af03656054fa1ae1ee70f1a4d3cea6d4670795a5168325bb6760a",
+          "actual": "d3874dda124af03656054fa1ae1ee70f1a4d3cea6d4670795a5168325bb6760a",
+          "match": true
+        },
+        {
+          "relative": "source/sys/pll_cfg.qip",
+          "expected": "49c737d97c6c78145085efb40562df94593171b7a87e661e8918ec5310da656a",
+          "actual": "49c737d97c6c78145085efb40562df94593171b7a87e661e8918ec5310da656a",
+          "match": true
+        },
+        {
+          "relative": "source/sys/pll_hdmi/pll_hdmi_0002.qip",
+          "expected": "de648286a832ee72839dd6abb444231a4238d32b2c26f29426399d2221d7bf5b",
+          "actual": "de648286a832ee72839dd6abb444231a4238d32b2c26f29426399d2221d7bf5b",
+          "match": true
+        },
+        {
+          "relative": "source/sys/pll_hdmi/pll_hdmi_0002.v",
+          "expected": "45ec17829bf7a119136c8a5a9df98b59a87178a6e9ae71658a0e00bca91058b6",
+          "actual": "45ec17829bf7a119136c8a5a9df98b59a87178a6e9ae71658a0e00bca91058b6",
+          "match": true
+        },
+        {
+          "relative": "source/sys/pll_hdmi.qip",
+          "expected": "7be20273ad88a522f2a8d68645767541e6777dc4eaa0a9e6ec1ed083a1d7a0d4",
+          "actual": "7be20273ad88a522f2a8d68645767541e6777dc4eaa0a9e6ec1ed083a1d7a0d4",
+          "match": true
+        },
+        {
+          "relative": "source/sys/pll_hdmi.v",
+          "expected": "327d94e5e5d6568bcc4489ee279f752969f18aa62af088649ad27f34fa476617",
+          "actual": "327d94e5e5d6568bcc4489ee279f752969f18aa62af088649ad27f34fa476617",
+          "match": true
+        },
+        {
+          "relative": "source/sys/pll_hdmi_adj.vhd",
+          "expected": "ae18c82eef2f6b9c7783c68ac272d03f570eb1bdaddce14a1908c351da51a71b",
+          "actual": "ae18c82eef2f6b9c7783c68ac272d03f570eb1bdaddce14a1908c351da51a71b",
+          "match": true
+        },
+        {
+          "relative": "source/sys/scandoubler.v",
+          "expected": "d36181c5fde9df0a504c547e23f60bcf201420052ada2682f081b00fd9485e6b",
+          "actual": "d36181c5fde9df0a504c547e23f60bcf201420052ada2682f081b00fd9485e6b",
+          "match": true
+        },
+        {
+          "relative": "source/sys/scanlines.v",
+          "expected": "1fc7ac5359fd224a3fc06388f7671e07bf57cf6a39f35803a265661c56c564d4",
+          "actual": "1fc7ac5359fd224a3fc06388f7671e07bf57cf6a39f35803a265661c56c564d4",
+          "match": true
+        },
+        {
+          "relative": "source/sys/sd_card.sv",
+          "expected": "65d2645216265955189ab5f7a00d54b7150a3ff2416d977303795b152daa10ce",
+          "actual": "65d2645216265955189ab5f7a00d54b7150a3ff2416d977303795b152daa10ce",
+          "match": true
+        },
+        {
+          "relative": "source/sys/shadowmask.sv",
+          "expected": "88429d137b4ce9f6538a052f03d874604f46decf6d69b3fc824cc795efcf3193",
+          "actual": "88429d137b4ce9f6538a052f03d874604f46decf6d69b3fc824cc795efcf3193",
+          "match": true
+        },
+        {
+          "relative": "source/sys/sigma_delta_dac.v",
+          "expected": "352d31dd185bce14d9d1e8a4999fbb5f2b5b2e42b048bdc9f4b828119cc5127a",
+          "actual": "352d31dd185bce14d9d1e8a4999fbb5f2b5b2e42b048bdc9f4b828119cc5127a",
+          "match": true
+        },
+        {
+          "relative": "source/sys/spdif.v",
+          "expected": "a617bba332c4611caf81ba585b8f6828c7899aec5f81664a870f10419cb9b451",
+          "actual": "a617bba332c4611caf81ba585b8f6828c7899aec5f81664a870f10419cb9b451",
+          "match": true
+        },
+        {
+          "relative": "source/sys/sys_analog.tcl",
+          "expected": "c84e6375325bd78299309ac3f31e109611e976b8f1b7999952e96c694fd8b669",
+          "actual": "c84e6375325bd78299309ac3f31e109611e976b8f1b7999952e96c694fd8b669",
+          "match": true
+        },
+        {
+          "relative": "source/sys/sys_top.sdc",
+          "expected": "36b2e18090244956ae20eba9d23a72e5fdb21166c5dcde8a06eee434fa961835",
+          "actual": "36b2e18090244956ae20eba9d23a72e5fdb21166c5dcde8a06eee434fa961835",
+          "match": true
+        },
+        {
+          "relative": "source/sys/sys_top.v",
+          "expected": "c069714229234157785b7114f4f9a1784c2461dc7327f804ca15dd750ce669f7",
+          "actual": "c069714229234157785b7114f4f9a1784c2461dc7327f804ca15dd750ce669f7",
+          "match": true
+        },
+        {
+          "relative": "source/sys/sysmem.sv",
+          "expected": "9f8cf78563cc31beb7dfc6d7048c51ba536ff4f1f9f640b4ff9f8d574456c94e",
+          "actual": "9f8cf78563cc31beb7dfc6d7048c51ba536ff4f1f9f640b4ff9f8d574456c94e",
+          "match": true
+        },
+        {
+          "relative": "source/sys/vga_out.sv",
+          "expected": "02a533c3dfd547afddea2946019ecc79bbe9c27bb6128c0999fa5fc9e78f8108",
+          "actual": "02a533c3dfd547afddea2946019ecc79bbe9c27bb6128c0999fa5fc9e78f8108",
+          "match": true
+        },
+        {
+          "relative": "source/sys/video_cleaner.sv",
+          "expected": "1dc01d4003fa37de57b794cf8ce3660a5137253d165279c94246c6c0de633380",
+          "actual": "1dc01d4003fa37de57b794cf8ce3660a5137253d165279c94246c6c0de633380",
+          "match": true
+        },
+        {
+          "relative": "source/sys/video_freak.sv",
+          "expected": "1c331bd8aee90bd722e8d9e400a8305de73392cb00cae256b8fb710e4fc2d478",
+          "actual": "1c331bd8aee90bd722e8d9e400a8305de73392cb00cae256b8fb710e4fc2d478",
+          "match": true
+        },
+        {
+          "relative": "source/sys/video_freezer.sv",
+          "expected": "f016d25480a8492744265f8da8164d50b01da09477f0101d0a212af65f96072f",
+          "actual": "f016d25480a8492744265f8da8164d50b01da09477f0101d0a212af65f96072f",
+          "match": true
+        },
+        {
+          "relative": "source/sys/video_mixer.sv",
+          "expected": "ca02e63c3e61d8a8c817fa10008a7a9873eb34a40ab89e2e2a596c590f9f0cf9",
+          "actual": "ca02e63c3e61d8a8c817fa10008a7a9873eb34a40ab89e2e2a596c590f9f0cf9",
+          "match": true
+        },
+        {
+          "relative": "source/sys/yc_out.sv",
+          "expected": "c52d7bfcc8dbc5a0cda2b3117172cbba790fb97b7de61722ddac205f6ec8bc20",
+          "actual": "c52d7bfcc8dbc5a0cda2b3117172cbba790fb97b7de61722ddac205f6ec8bc20",
+          "match": true
+        },
+        {
+          "relative": "source/vendor/jt10_pinned/6d51e0b6/adpcm/jt10_adpcm.v",
+          "expected": "bde15367241204f6f7f444f7dd2979f3cb7e3c837df40cd74699f7814650210d",
+          "actual": "bde15367241204f6f7f444f7dd2979f3cb7e3c837df40cd74699f7814650210d",
+          "match": true
+        },
+        {
+          "relative": "source/vendor/jt10_pinned/6d51e0b6/adpcm/jt10_adpcm_acc.v",
+          "expected": "a0c5f404dc28ab4dada70b3feea61476714df84b70f555d3d8dc850efbc0891c",
+          "actual": "a0c5f404dc28ab4dada70b3feea61476714df84b70f555d3d8dc850efbc0891c",
+          "match": true
+        },
+        {
+          "relative": "source/vendor/jt10_pinned/6d51e0b6/adpcm/jt10_adpcm_cnt.v",
+          "expected": "cf4e1ee18151c982d9ba00ac955537fafce2c424fa0c3f2dfb6426a541d62aa4",
+          "actual": "cf4e1ee18151c982d9ba00ac955537fafce2c424fa0c3f2dfb6426a541d62aa4",
+          "match": true
+        },
+        {
+          "relative": "source/vendor/jt10_pinned/6d51e0b6/adpcm/jt10_adpcm_dbrom.v",
+          "expected": "9ec98f60d31c4a6a928db993c967ee80a659d9d77c5658515778c878c735af28",
+          "actual": "9ec98f60d31c4a6a928db993c967ee80a659d9d77c5658515778c878c735af28",
+          "match": true
+        },
+        {
+          "relative": "source/vendor/jt10_pinned/6d51e0b6/adpcm/jt10_adpcma_lut.v",
+          "expected": "0aa5eb92479cc7753f038f9c1715bbe7fa78ba9d413cbd4e987273a753223baf",
+          "actual": "0aa5eb92479cc7753f038f9c1715bbe7fa78ba9d413cbd4e987273a753223baf",
+          "match": true
+        },
+        {
+          "relative": "source/vendor/jt10_pinned/6d51e0b6/adpcm/jt10_adpcmb.v",
+          "expected": "dd257407b107792437bab7f70479a56b7233afd5bf33b7118420800d93f37980",
+          "actual": "dd257407b107792437bab7f70479a56b7233afd5bf33b7118420800d93f37980",
+          "match": true
+        },
+        {
+          "relative": "source/vendor/jt10_pinned/6d51e0b6/adpcm/jt10_cen_burst.v",
+          "expected": "720550af9699db08c17d77707557fd08c031e44ad0310a5befea14772c0ac553",
+          "actual": "720550af9699db08c17d77707557fd08c031e44ad0310a5befea14772c0ac553",
+          "match": true
+        }
+      ],
+      "outputs": [
+        {
+          "path": "C:\\Users\\dai\\Documents\\MegaVGMDrive_B_vNext_Seed3_2241e0f_Run1\\output\\MegaVGMDrive_B_vNext_MiSTer.asm.rpt",
+          "name": "MegaVGMDrive_B_vNext_MiSTer.asm.rpt",
+          "bytes": 10643,
+          "sha256": "546409dc27938975bb26219ec7612de1de53789c935b316d31f097c9b46d7031"
+        },
+        {
+          "path": "C:\\Users\\dai\\Documents\\MegaVGMDrive_B_vNext_Seed3_2241e0f_Run1\\output\\MegaVGMDrive_B_vNext_MiSTer.fit.summary",
+          "name": "MegaVGMDrive_B_vNext_MiSTer.fit.summary",
+          "bytes": 714,
+          "sha256": "ab96641c94ab1256558ddead0541e73550f0a35c369c0dc84342bf0b326138f3"
+        },
+        {
+          "path": "C:\\Users\\dai\\Documents\\MegaVGMDrive_B_vNext_Seed3_2241e0f_Run1\\output\\MegaVGMDrive_B_vNext_MiSTer.flow.rpt",
+          "name": "MegaVGMDrive_B_vNext_MiSTer.flow.rpt",
+          "bytes": 16500,
+          "sha256": "3733a2daad368f7759f6cf0e1b2ce3b6e9397b009482ebc76921f5e9ecd76cab"
+        },
+        {
+          "path": "C:\\Users\\dai\\Documents\\MegaVGMDrive_B_vNext_Seed3_2241e0f_Run1\\output\\MegaVGMDrive_B_vNext_MiSTer.rbf",
+          "name": "MegaVGMDrive_B_vNext_MiSTer.rbf",
+          "bytes": 3329712,
+          "sha256": "70392ce76932c85c21cd5f2ef3a73f1b07026e7573c8e75e753a804660d51507"
+        },
+        {
+          "path": "C:\\Users\\dai\\Documents\\MegaVGMDrive_B_vNext_Seed3_2241e0f_Run1\\output\\MegaVGMDrive_B_vNext_MiSTer.sof",
+          "name": "MegaVGMDrive_B_vNext_MiSTer.sof",
+          "bytes": 6690410,
+          "sha256": "a075121f8f8aa63415d4d6f417cea0fc6cc92f268f595c2d45ba27777b1fce94"
+        },
+        {
+          "path": "C:\\Users\\dai\\Documents\\MegaVGMDrive_B_vNext_Seed3_2241e0f_Run1\\output\\MegaVGMDrive_B_vNext_MiSTer.sta.rpt",
+          "name": "MegaVGMDrive_B_vNext_MiSTer.sta.rpt",
+          "bytes": 819959,
+          "sha256": "1e3480b14af138e4db2baadf65786f72cd49d7a12d8937298a29357d39aa1a36"
+        }
+      ]
+    },
+    {
+      "engine": "D",
+      "root": "C:\\Users\\dai\\Documents\\EngineD_vNext_Builds\\26d5078_20261008\\build-attempt2",
+      "exists": true,
+      "root_files": [
+        "ARTIFACT_MANIFEST.json",
+        "build_id.v",
+        "BUILD_INFO.txt",
+        "c5_pin_model_dump.txt",
+        "HANDOFF.txt",
+        "jtag.cdf",
+        "MegaVGMDrive_D_vNext.qpf",
+        "MegaVGMDrive_D_vNext.qsf",
+        "SHA256SUMS.txt"
+      ],
+      "inputs": [
+        {
+          "relative": "ARTIFACT_MANIFEST.json",
+          "expected": "d705e27afba8f909cfd78fa1b3850b7b341b8624180a458cd62b0f07a5a80865",
+          "actual": "d705e27afba8f909cfd78fa1b3850b7b341b8624180a458cd62b0f07a5a80865",
+          "match": true
+        },
+        {
+          "relative": "BUILD_INFO.txt",
+          "expected": "1bc0c27b4794700aff145ce88091720e830792942ffe3d2dc96724b98b4e92cc",
+          "actual": "1bc0c27b4794700aff145ce88091720e830792942ffe3d2dc96724b98b4e92cc",
+          "match": true
+        },
+        {
+          "relative": "HANDOFF.txt",
+          "expected": "b1e4fd3ec30a63a8d8e6fcabfe127058dee9138654e9b4959ccda6745f53e1fd",
+          "actual": "b1e4fd3ec30a63a8d8e6fcabfe127058dee9138654e9b4959ccda6745f53e1fd",
+          "match": true
+        },
+        {
+          "relative": "MegaVGMDrive_D_vNext.qpf",
+          "expected": "823dfc0eb4f2a87f662eb3689dcb8463fd44b8d2434c75e8acae12f1f0b5c6ca",
+          "actual": "823dfc0eb4f2a87f662eb3689dcb8463fd44b8d2434c75e8acae12f1f0b5c6ca",
+          "match": true
+        },
+        {
+          "relative": "MegaVGMDrive_D_vNext.qsf",
+          "expected": "c6a3bcb42e5eea9412e8c7c5aea1ff1e44b514f322b4f21f976992be5ca8d4d8",
+          "actual": "c6a3bcb42e5eea9412e8c7c5aea1ff1e44b514f322b4f21f976992be5ca8d4d8",
+          "match": true
+        },
+        {
+          "relative": "source/common/build_id.tcl",
+          "expected": "de0dceae739a5ffc9420829ac53729ef78d123dfd1303709bee5de9c1be885a8",
+          "actual": "de0dceae739a5ffc9420829ac53729ef78d123dfd1303709bee5de9c1be885a8",
+          "match": true
+        },
+        {
+          "relative": "source/files_engine_d_vnext.qip",
+          "expected": "0bdfd192e6d00fa7693d708707b22c3fd3052879474d4c9012dc2b06a41f35eb",
+          "actual": "0bdfd192e6d00fa7693d708707b22c3fd3052879474d4c9012dc2b06a41f35eb",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/c140_stage3_24voice_core.sv",
+          "expected": "6dcbd7d9ebfa99cbe86cffb7fa278dd571e65842044fbe9b426cf5d54ca982b6",
+          "actual": "6dcbd7d9ebfa99cbe86cffb7fa278dd571e65842044fbe9b426cf5d54ca982b6",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/c140_stage3_profile_body.svh",
+          "expected": "ba34e8eef41809364443def9212f1efdfebe94f440178b8faacd97a7cc136923",
+          "actual": "ba34e8eef41809364443def9212f1efdfebe94f440178b8faacd97a7cc136923",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/c140_system2_audio_mixer.sv",
+          "expected": "a9c5325f885cd64b4523279cba16bb4a54c37e5253931043f8eb2b0e7a5141e0",
+          "actual": "a9c5325f885cd64b4523279cba16bb4a54c37e5253931043f8eb2b0e7a5141e0",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/c140_system2_source_balance.sv",
+          "expected": "804569532a6f46974360460c754227eda99abea98ad658256739410ea9c9973f",
+          "actual": "804569532a6f46974360460c754227eda99abea98ad658256739410ea9c9973f",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/emu.sv",
+          "expected": "1ccf09c93b856f65a1830ca39cbdfaaf8b0593e098455869936f150869061380",
+          "actual": "1ccf09c93b856f65a1830ca39cbdfaaf8b0593e098455869936f150869061380",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/engine_a_vnext_integration/chip_write_adapter.sv",
+          "expected": "e7aa39a46b3b98696855250a646296d3a554599f683ae5df17f9f7e1fc36d6c6",
+          "actual": "e7aa39a46b3b98696855250a646296d3a554599f683ae5df17f9f7e1fc36d6c6",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/engine_a_vnext_integration/golden_read_accept_bridge.sv",
+          "expected": "d942802cdaf06e3ddf044740385b7a26c8eca2de8d31e3f3007514f8a7b0b89f",
+          "actual": "d942802cdaf06e3ddf044740385b7a26c8eca2de8d31e3f3007514f8a7b0b89f",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/engine_a_vnext_integration/loop_continuation_client.sv",
+          "expected": "6c27529d7a89efefbdb00f3bf4f03402131b6f442caa7fa27ae96fd9b555dd0c",
+          "actual": "6c27529d7a89efefbdb00f3bf4f03402131b6f442caa7fa27ae96fd9b555dd0c",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/engine_a_vnext_integration/strict_golden_read_binding.sv",
+          "expected": "34ebb2e743e495b9e5d27244ba2e410f6bf693900df46ac7ddeddb74f026908d",
+          "actual": "34ebb2e743e495b9e5d27244ba2e410f6bf693900df46ac7ddeddb74f026908d",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/engine_b_vnext/command_word_buffer.sv",
+          "expected": "6c88319763fc28280d84a507d47e266f2f7a9ae6e4063cbf1ee1bd1d05a266ab",
+          "actual": "6c88319763fc28280d84a507d47e266f2f7a9ae6e4063cbf1ee1bd1d05a266ab",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/engine_b_vnext/shared_reader_binding.sv",
+          "expected": "f493ada8162282fcba16a41e7baf7d8ea592f4fab902e2cc71052b1b6c11ab5a",
+          "actual": "f493ada8162282fcba16a41e7baf7d8ea592f4fab902e2cc71052b1b6c11ab5a",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/engine_d_vnext/c140_write_adapter.sv",
+          "expected": "beab19b8694bbec7553eaeb373b29552828a820f9636779eb16b67b2af5c5b2e",
+          "actual": "beab19b8694bbec7553eaeb373b29552828a820f9636779eb16b67b2af5c5b2e",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/engine_d_vnext/command_client.sv",
+          "expected": "62a492740df62ad116387e8d0b4996ce2a0a4be4793037805358a26464c53c3c",
+          "actual": "62a492740df62ad116387e8d0b4996ce2a0a4be4793037805358a26464c53c3c",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/engine_d_vnext/playback_core.sv",
+          "expected": "8102e193b82de590f0499c8bab72798a75f3a743f63605a7f088247e7a8da657",
+          "actual": "8102e193b82de590f0499c8bab72798a75f3a743f63605a7f088247e7a8da657",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/engine_d_vnext/preflight.sv",
+          "expected": "2736bfa52125526e49459f46baecad9def06be1afc17a0c559c3622198e03e0d",
+          "actual": "2736bfa52125526e49459f46baecad9def06be1afc17a0c559c3622198e03e0d",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/engine_d_vnext/profile.sv",
+          "expected": "b8b22e056ab95dcbb41ae239befe4094ff6854c3aebbe043c80060dc2283fece",
+          "actual": "b8b22e056ab95dcbb41ae239befe4094ff6854c3aebbe043c80060dc2283fece",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/engine_d_vnext/reader_mux.sv",
+          "expected": "67da9eff5b0ffcfd8ddc6d830e5ffbe274b1d210879305402f93e1e28e18e974",
+          "actual": "67da9eff5b0ffcfd8ddc6d830e5ffbe274b1d210879305402f93e1e28e18e974",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/engine_d_vnext/resource_map.sv",
+          "expected": "783fb51a8e0462d2edc4d179cd839044419e627b3ae7206778075ee70b50e71d",
+          "actual": "783fb51a8e0462d2edc4d179cd839044419e627b3ae7206778075ee70b50e71d",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/engine_d_vnext/runtime_status_bridge.sv",
+          "expected": "7a3bbbc6193c5ec227ee283d9c5d815538c2496168190fb58d3ecfbf117dbf0c",
+          "actual": "7a3bbbc6193c5ec227ee283d9c5d815538c2496168190fb58d3ecfbf117dbf0c",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/engine_d_vnext/sample_client.sv",
+          "expected": "5a3b40849e456f288b9f36e06473e49fbd8be3d68f0c881118f533f6a66e0a46",
+          "actual": "5a3b40849e456f288b9f36e06473e49fbd8be3d68f0c881118f533f6a66e0a46",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/engine_d_vnext/transport_adapter.sv",
+          "expected": "f8ccab46278a06213f53b96cbd75c8f9c92695adc5fcb20ef2948e336f126c25",
+          "actual": "f8ccab46278a06213f53b96cbd75c8f9c92695adc5fcb20ef2948e336f126c25",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/engine_d_vnext/ym_command_fifo.sv",
+          "expected": "df26a7b0856c2802a5c0d855fc9e14963a0cee0ef3a5d1e30ef1b372913f5fcb",
+          "actual": "df26a7b0856c2802a5c0d855fc9e14963a0cee0ef3a5d1e30ef1b372913f5fcb",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/fixed_region_mode.vh",
+          "expected": "645377a7c7185f331b98be4b1d2d6d3b38e5a723f531d56a2736271c141fc87f",
+          "actual": "645377a7c7185f331b98be4b1d2d6d3b38e5a723f531d56a2736271c141fc87f",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/megavgm_engine_d_activity_source.sv",
+          "expected": "81c81c6d41112dcf2e233d9c5d2524e2f32e8ecbafd4bc9881f4866ca9302ebb",
+          "actual": "81c81c6d41112dcf2e233d9c5d2524e2f32e8ecbafd4bc9881f4866ca9302ebb",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/megavgm_engine_d_output_gain.sv",
+          "expected": "8a2856b08baa968db1698e4b4abaeac047322222ac535e7043265ac5387011d0",
+          "actual": "8a2856b08baa968db1698e4b4abaeac047322222ac535e7043265ac5387011d0",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/megavgm_font5x7.sv",
+          "expected": "79645adbd743a325cfd36b5f7ee30ef33b48b8fa79c332a90b6e36aa72a556dc",
+          "actual": "79645adbd743a325cfd36b5f7ee30ef33b48b8fa79c332a90b6e36aa72a556dc",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/megavgm_playlist_status_export.sv",
+          "expected": "e55d4f247de46c3c8857d689c0caff60dab172095ae6da5d1582389ac92f7427",
+          "actual": "e55d4f247de46c3c8857d689c0caff60dab172095ae6da5d1582389ac92f7427",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/megavgm_source_activity_hold.sv",
+          "expected": "09cc54928d8b047b860dc96e0359782b688c7420054f505f58718a404e2fb403",
+          "actual": "09cc54928d8b047b860dc96e0359782b688c7420054f505f58718a404e2fb403",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/megavgm_title_receiver.sv",
+          "expected": "999ee41890f5b3f814e59b8e4dbedfd0287a916e234faab471cc5ef5ea7a6567",
+          "actual": "999ee41890f5b3f814e59b8e4dbedfd0287a916e234faab471cc5ef5ea7a6567",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/megavgm_title_renderer.sv",
+          "expected": "caf3c6347f27d89a47d6e30f6e5660ee9a9eb540fea6ff659e7d22dbf4c52a9d",
+          "actual": "caf3c6347f27d89a47d6e30f6e5660ee9a9eb540fea6ff659e7d22dbf4c52a9d",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/megavgm_video_timing.sv",
+          "expected": "65a682578e2af7f840df426a96776832000b2e908c0ba30139bd15c1155e5d35",
+          "actual": "65a682578e2af7f840df426a96776832000b2e908c0ba30139bd15c1155e5d35",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/mister_vgm_md_top.sv",
+          "expected": "0322a3563210771b98912b0f7d7bc381d8402602da2efc37e421195ec7d56a26",
+          "actual": "0322a3563210771b98912b0f7d7bc381d8402602da2efc37e421195ec7d56a26",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/pll/pll_0002.qip",
+          "expected": "98c91540a36e672f25f071bfaae965b8c9f60c679db4fbe226578c8c78c5052a",
+          "actual": "98c91540a36e672f25f071bfaae965b8c9f60c679db4fbe226578c8c78c5052a",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/pll/pll_0002.v",
+          "expected": "8ac785958023eadf517605bc669189d5583af48de2d63dabbddbeca1acda9ffa",
+          "actual": "8ac785958023eadf517605bc669189d5583af48de2d63dabbddbeca1acda9ffa",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/pll.qip",
+          "expected": "a43fd54541921f1e309aae0d6125025982a7594552d21af4c2425bdea85c542d",
+          "actual": "a43fd54541921f1e309aae0d6125025982a7594552d21af4c2425bdea85c542d",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/pll.v",
+          "expected": "8e1a58e1539aba4c9c8e9bb66dca68e9beb298beca7402943aceeba932d6bfc0",
+          "actual": "8e1a58e1539aba4c9c8e9bb66dca68e9beb298beca7402943aceeba932d6bfc0",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/transport_v1_3/megavgm_transport_owner.sv",
+          "expected": "223d7c6e4464cd4f320c50e4f7f07ca7c7358e941396b47d9c4f401202ee1f25",
+          "actual": "223d7c6e4464cd4f320c50e4f7f07ca7c7358e941396b47d9c4f401202ee1f25",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/transport_v1_3/owner_body.svh",
+          "expected": "48f56052aa0bc07487db3d6887017fa5233d6fd7d911b45d4c9fa19224b9e864",
+          "actual": "48f56052aa0bc07487db3d6887017fa5233d6fd7d911b45d4c9fa19224b9e864",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/vgm_ddram_backend.sv",
+          "expected": "b4b2ab6f8e70de357c59be01847c73124d3ebe6a9c8b1c1267e8b64b642d1f2b",
+          "actual": "b4b2ab6f8e70de357c59be01847c73124d3ebe6a9c8b1c1267e8b64b642d1f2b",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/vgm_parser_vnext/data_decode.sv",
+          "expected": "d73c3939439b02ddba77757d7e0d11edd403b7611b346e00ab7545e6beb3c0c1",
+          "actual": "d73c3939439b02ddba77757d7e0d11edd403b7611b346e00ab7545e6beb3c0c1",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/vgm_parser_vnext/decoder.sv",
+          "expected": "b105c0171f2cbd9a1e909bce559783624fba2363a7f8e1a8824fef0a84d34745",
+          "actual": "b105c0171f2cbd9a1e909bce559783624fba2363a7f8e1a8824fef0a84d34745",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/vgm_parser_vnext/event_pkg.sv",
+          "expected": "97137d8fded21ab72c76552342a8721e13dc9506dead4ae6a1f2dae221ead9e7",
+          "actual": "97137d8fded21ab72c76552342a8721e13dc9506dead4ae6a1f2dae221ead9e7",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/vgm_parser_vnext/header_decode.sv",
+          "expected": "d542dc41b1f4662a9ed351e04510a9f7cae85c499da1097a19b934518ca569c4",
+          "actual": "d542dc41b1f4662a9ed351e04510a9f7cae85c499da1097a19b934518ca569c4",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/vgm_reader_vnext/golden_observer.sv",
+          "expected": "d84772041439661fa7336f0a8dbd1515c9d84c99874ecbb3ae1fb18b708f53d8",
+          "actual": "d84772041439661fa7336f0a8dbd1515c9d84c99874ecbb3ae1fb18b708f53d8",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/vgm_reader_vnext/reader_pkg.sv",
+          "expected": "63bc69a25ba90e5183ab64439924151bd7f117efcaab9ba8c80cdf52d752f52d",
+          "actual": "63bc69a25ba90e5183ab64439924151bd7f117efcaab9ba8c80cdf52d752f52d",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/vgm_reader_vnext/strict_adapter.sv",
+          "expected": "6388fcd562f1af84a701f7c7f6e5fabbf6b704a07abbab564054b2908f7b0259",
+          "actual": "6388fcd562f1af84a701f7c7f6e5fabbf6b704a07abbab564054b2908f7b0259",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/vgm_scheduler_vnext/normalizer.sv",
+          "expected": "e530c9127e835b22f98528962b5726158dbda01d570fc06d133bbcc2a931cf39",
+          "actual": "e530c9127e835b22f98528962b5726158dbda01d570fc06d133bbcc2a931cf39",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/vgm_scheduler_vnext/scheduler.sv",
+          "expected": "4299efaf9e36fd6240f259e7b66cb3370e874d297ae554d6545efc3bd511b995",
+          "actual": "4299efaf9e36fd6240f259e7b66cb3370e874d297ae554d6545efc3bd511b995",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/vgm_scheduler_vnext/scheduler_pkg.sv",
+          "expected": "fde04333fb0826faeda6d1f45f154b2998de0696b718a2ce1d29cfbdf2b070a7",
+          "actual": "fde04333fb0826faeda6d1f45f154b2998de0696b718a2ce1d29cfbdf2b070a7",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/vgm_scheduler_vnext/tick_enable.sv",
+          "expected": "895adb7d3534a5e9ea35c968a680c94363d9d42e31581acc8f65dc1addfed4cd",
+          "actual": "895adb7d3534a5e9ea35c968a680c94363d9d42e31581acc8f65dc1addfed4cd",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/ym2151_prewait_audio_gate.sv",
+          "expected": "0f1b908a17c39fa52c2dd3496a974e31b124e1f9686c6f3fda97f30b14dcc8d8",
+          "actual": "0f1b908a17c39fa52c2dd3496a974e31b124e1f9686c6f3fda97f30b14dcc8d8",
+          "match": true
+        },
+        {
+          "relative": "source/rtl/ym2151_sound_module.sv",
+          "expected": "3fe36a56d9a1094a88c7a0d4924f77ef7702b0f902e9c2ef61803afbf26c88f5",
+          "actual": "3fe36a56d9a1094a88c7a0d4924f77ef7702b0f902e9c2ef61803afbf26c88f5",
+          "match": true
+        },
+        {
+          "relative": "source/sys/alsa.sv",
+          "expected": "74943b658cd3f4adc5b74c72f225fb42b95122a1c5e453df860a4c6a9bf72fc9",
+          "actual": "74943b658cd3f4adc5b74c72f225fb42b95122a1c5e453df860a4c6a9bf72fc9",
+          "match": true
+        },
+        {
+          "relative": "source/sys/arcade_video.v",
+          "expected": "f02e25a8b608577326caacb89af42727373484285c5e27b09227c832fd7b6d52",
+          "actual": "f02e25a8b608577326caacb89af42727373484285c5e27b09227c832fd7b6d52",
+          "match": true
+        },
+        {
+          "relative": "source/sys/ascal.vhd",
+          "expected": "12e17ef4346101b9a2f7dd091d016d33c84585bf443dfb11da109f83dc690c32",
+          "actual": "12e17ef4346101b9a2f7dd091d016d33c84585bf443dfb11da109f83dc690c32",
+          "match": true
+        },
+        {
+          "relative": "source/sys/audio_out.v",
+          "expected": "565dd9badb00052dbd324e70f7ab66e8c6ecd0c5c2791aebffe477a2c0669363",
+          "actual": "565dd9badb00052dbd324e70f7ab66e8c6ecd0c5c2791aebffe477a2c0669363",
+          "match": true
+        },
+        {
+          "relative": "source/sys/ddr_svc.sv",
+          "expected": "cc67cf6aa9ac17f181498f44f86bf05e80189bb13ce70b3cc16657e035abf794",
+          "actual": "cc67cf6aa9ac17f181498f44f86bf05e80189bb13ce70b3cc16657e035abf794",
+          "match": true
+        },
+        {
+          "relative": "source/sys/f2sdram_safe_terminator.sv",
+          "expected": "605cd81a43eb94eb34b4917455e7a4a2dbd87b2616ab8a026fb24f3cd9664d86",
+          "actual": "605cd81a43eb94eb34b4917455e7a4a2dbd87b2616ab8a026fb24f3cd9664d86",
+          "match": true
+        },
+        {
+          "relative": "source/sys/gamma_corr.sv",
+          "expected": "2754944c6fe05d921374d1fecc26621782520b3bc6fbf600ca561e9f37c7af88",
+          "actual": "2754944c6fe05d921374d1fecc26621782520b3bc6fbf600ca561e9f37c7af88",
+          "match": true
+        },
+        {
+          "relative": "source/sys/hps_io.sv",
+          "expected": "1e96035560400b9b0fe68adcd6801d9836290957cd1fcddcb30c0b11dabe4cc2",
+          "actual": "1e96035560400b9b0fe68adcd6801d9836290957cd1fcddcb30c0b11dabe4cc2",
+          "match": true
+        },
+        {
+          "relative": "source/sys/hq2x.sv",
+          "expected": "2146b69cf63c26a4b41407e9ac1b4462db4d7e3ea6d8a99f31ba12712d68f975",
+          "actual": "2146b69cf63c26a4b41407e9ac1b4462db4d7e3ea6d8a99f31ba12712d68f975",
+          "match": true
+        },
+        {
+          "relative": "source/sys/i2c.v",
+          "expected": "c119d827783a40ba36a8cac53f0663d26fda4a5b081fac5a45ebfb89d072b06b",
+          "actual": "c119d827783a40ba36a8cac53f0663d26fda4a5b081fac5a45ebfb89d072b06b",
+          "match": true
+        },
+        {
+          "relative": "source/sys/i2s.v",
+          "expected": "927d2aea6797fb837f383e5e8a3259609e132ed24883127240ab21601f467efa",
+          "actual": "927d2aea6797fb837f383e5e8a3259609e132ed24883127240ab21601f467efa",
+          "match": true
+        },
+        {
+          "relative": "source/sys/iir_filter.v",
+          "expected": "c860abb26b2e79c9966a4e7edab53f8c6e7fb6e73892257e527611daee5e8b35",
+          "actual": "c860abb26b2e79c9966a4e7edab53f8c6e7fb6e73892257e527611daee5e8b35",
+          "match": true
+        },
+        {
+          "relative": "source/sys/ltc2308.sv",
+          "expected": "825fa1197c8e9f31c19c2fef1b01693133fb7df3cfb2dd831f2848a98fc6899c",
+          "actual": "825fa1197c8e9f31c19c2fef1b01693133fb7df3cfb2dd831f2848a98fc6899c",
+          "match": true
+        },
+        {
+          "relative": "source/sys/math.sv",
+          "expected": "74d7501a41886b0990cae4815b2583867bee1e0af9baebfae09d0581b30f96b3",
+          "actual": "74d7501a41886b0990cae4815b2583867bee1e0af9baebfae09d0581b30f96b3",
+          "match": true
+        },
+        {
+          "relative": "source/sys/mcp23009.sv",
+          "expected": "f168485e0b64c0545060f25b858c9f1c12b57024ce441754bb6a0cb0e9072e3f",
+          "actual": "f168485e0b64c0545060f25b858c9f1c12b57024ce441754bb6a0cb0e9072e3f",
+          "match": true
+        },
+        {
+          "relative": "source/sys/mt32pi.sv",
+          "expected": "298147936fd96f5c80c33c1566d6c807f7937eb6b0205a64ca2e4c77df8c60b0",
+          "actual": "298147936fd96f5c80c33c1566d6c807f7937eb6b0205a64ca2e4c77df8c60b0",
+          "match": true
+        },
+        {
+          "relative": "source/sys/osd.v",
+          "expected": "4d57135b8cf65cb18c02ed6b3f673b4641b1592bafe16d43362e364bce966caa",
+          "actual": "4d57135b8cf65cb18c02ed6b3f673b4641b1592bafe16d43362e364bce966caa",
+          "match": true
+        },
+        {
+          "relative": "source/sys/pll_audio/pll_audio_0002.qip",
+          "expected": "4cedd5394006286e0be61acdcbb6455f35cdf5c1488f4eb4a76b60e20eb43fb8",
+          "actual": "4cedd5394006286e0be61acdcbb6455f35cdf5c1488f4eb4a76b60e20eb43fb8",
+          "match": true
+        },
+        {
+          "relative": "source/sys/pll_audio/pll_audio_0002.v",
+          "expected": "8625d01bb2581a56358afe4380e539524a1c8bc7661b97a8b1c94216ac19984d",
+          "actual": "8625d01bb2581a56358afe4380e539524a1c8bc7661b97a8b1c94216ac19984d",
+          "match": true
+        },
+        {
+          "relative": "source/sys/pll_audio.qip",
+          "expected": "02890ac705f0a2936a84631e9940379fdd3f29d1a874e911c441b62f79cc4cc3",
+          "actual": "02890ac705f0a2936a84631e9940379fdd3f29d1a874e911c441b62f79cc4cc3",
+          "match": true
+        },
+        {
+          "relative": "source/sys/pll_audio.v",
+          "expected": "82118b01e3c3ba8bed269b9eed7cf06bf6af69e028e40f2c4c184de0d7b9f227",
+          "actual": "82118b01e3c3ba8bed269b9eed7cf06bf6af69e028e40f2c4c184de0d7b9f227",
+          "match": true
+        },
+        {
+          "relative": "source/sys/pll_cfg/altera_pll_reconfig_core.v",
+          "expected": "ec126715f09d512cae28101ba48f286079e8852d665ac30ce9fd3edbb10607d3",
+          "actual": "ec126715f09d512cae28101ba48f286079e8852d665ac30ce9fd3edbb10607d3",
+          "match": true
+        },
+        {
+          "relative": "source/sys/pll_cfg/altera_pll_reconfig_top.v",
+          "expected": "81134703e17a0e60bc6928dcbb8e5b13491b0293ee401649cdb1c22df01dc1bd",
+          "actual": "81134703e17a0e60bc6928dcbb8e5b13491b0293ee401649cdb1c22df01dc1bd",
+          "match": true
+        },
+        {
+          "relative": "source/sys/pll_cfg/pll_cfg.v",
+          "expected": "89750669762947128e105736d82384587f1cf8ac2f9965090e483c20f7624d59",
+          "actual": "89750669762947128e105736d82384587f1cf8ac2f9965090e483c20f7624d59",
+          "match": true
+        },
+        {
+          "relative": "source/sys/pll_cfg/pll_cfg_hdmi.v",
+          "expected": "d3874dda124af03656054fa1ae1ee70f1a4d3cea6d4670795a5168325bb6760a",
+          "actual": "d3874dda124af03656054fa1ae1ee70f1a4d3cea6d4670795a5168325bb6760a",
+          "match": true
+        },
+        {
+          "relative": "source/sys/pll_cfg.qip",
+          "expected": "9daaf128d01daf399ecc73b0d9c49dee6a8b8fcb998f445387e565889b069617",
+          "actual": "9daaf128d01daf399ecc73b0d9c49dee6a8b8fcb998f445387e565889b069617",
+          "match": true
+        },
+        {
+          "relative": "source/sys/pll_hdmi/pll_hdmi_0002.qip",
+          "expected": "de648286a832ee72839dd6abb444231a4238d32b2c26f29426399d2221d7bf5b",
+          "actual": "de648286a832ee72839dd6abb444231a4238d32b2c26f29426399d2221d7bf5b",
+          "match": true
+        },
+        {
+          "relative": "source/sys/pll_hdmi/pll_hdmi_0002.v",
+          "expected": "45ec17829bf7a119136c8a5a9df98b59a87178a6e9ae71658a0e00bca91058b6",
+          "actual": "45ec17829bf7a119136c8a5a9df98b59a87178a6e9ae71658a0e00bca91058b6",
+          "match": true
+        },
+        {
+          "relative": "source/sys/pll_hdmi.qip",
+          "expected": "b2bb8805c0ffcbb9020d237bfb9d45498364ad390b70ee5016fc587adf6d4550",
+          "actual": "b2bb8805c0ffcbb9020d237bfb9d45498364ad390b70ee5016fc587adf6d4550",
+          "match": true
+        },
+        {
+          "relative": "source/sys/pll_hdmi.v",
+          "expected": "327d94e5e5d6568bcc4489ee279f752969f18aa62af088649ad27f34fa476617",
+          "actual": "327d94e5e5d6568bcc4489ee279f752969f18aa62af088649ad27f34fa476617",
+          "match": true
+        },
+        {
+          "relative": "source/sys/pll_hdmi_adj.vhd",
+          "expected": "ae18c82eef2f6b9c7783c68ac272d03f570eb1bdaddce14a1908c351da51a71b",
+          "actual": "ae18c82eef2f6b9c7783c68ac272d03f570eb1bdaddce14a1908c351da51a71b",
+          "match": true
+        },
+        {
+          "relative": "source/sys/pll_q17.qip",
+          "expected": "b391e8beabebda2ef6b393cf9386b9d249808e26f927c26088a2cec78b60ad1f",
+          "actual": "b391e8beabebda2ef6b393cf9386b9d249808e26f927c26088a2cec78b60ad1f",
+          "match": true
+        },
+        {
+          "relative": "source/sys/scandoubler.v",
+          "expected": "d36181c5fde9df0a504c547e23f60bcf201420052ada2682f081b00fd9485e6b",
+          "actual": "d36181c5fde9df0a504c547e23f60bcf201420052ada2682f081b00fd9485e6b",
+          "match": true
+        },
+        {
+          "relative": "source/sys/scanlines.v",
+          "expected": "1fc7ac5359fd224a3fc06388f7671e07bf57cf6a39f35803a265661c56c564d4",
+          "actual": "1fc7ac5359fd224a3fc06388f7671e07bf57cf6a39f35803a265661c56c564d4",
+          "match": true
+        },
+        {
+          "relative": "source/sys/sd_card.sv",
+          "expected": "65d2645216265955189ab5f7a00d54b7150a3ff2416d977303795b152daa10ce",
+          "actual": "65d2645216265955189ab5f7a00d54b7150a3ff2416d977303795b152daa10ce",
+          "match": true
+        },
+        {
+          "relative": "source/sys/shadowmask.sv",
+          "expected": "88429d137b4ce9f6538a052f03d874604f46decf6d69b3fc824cc795efcf3193",
+          "actual": "88429d137b4ce9f6538a052f03d874604f46decf6d69b3fc824cc795efcf3193",
+          "match": true
+        },
+        {
+          "relative": "source/sys/sigma_delta_dac.v",
+          "expected": "352d31dd185bce14d9d1e8a4999fbb5f2b5b2e42b048bdc9f4b828119cc5127a",
+          "actual": "352d31dd185bce14d9d1e8a4999fbb5f2b5b2e42b048bdc9f4b828119cc5127a",
+          "match": true
+        },
+        {
+          "relative": "source/sys/spdif.v",
+          "expected": "a617bba332c4611caf81ba585b8f6828c7899aec5f81664a870f10419cb9b451",
+          "actual": "a617bba332c4611caf81ba585b8f6828c7899aec5f81664a870f10419cb9b451",
+          "match": true
+        },
+        {
+          "relative": "source/sys/sys.qip",
+          "expected": "a377a1b4711ef6a2cfa063b01b58d9330391745a231d835e2efb4ec0ed2778e0",
+          "actual": "a377a1b4711ef6a2cfa063b01b58d9330391745a231d835e2efb4ec0ed2778e0",
+          "match": true
+        },
+        {
+          "relative": "source/sys/sys.tcl",
+          "expected": "eaeae7fc8473e85e0dac967c3da987d8bf2eca17ddaa14c3a4d56f0ae91d358e",
+          "actual": "eaeae7fc8473e85e0dac967c3da987d8bf2eca17ddaa14c3a4d56f0ae91d358e",
+          "match": true
+        },
+        {
+          "relative": "source/sys/sys_analog.tcl",
+          "expected": "c84e6375325bd78299309ac3f31e109611e976b8f1b7999952e96c694fd8b669",
+          "actual": "c84e6375325bd78299309ac3f31e109611e976b8f1b7999952e96c694fd8b669",
+          "match": true
+        },
+        {
+          "relative": "source/sys/sys_top.sdc",
+          "expected": "36b2e18090244956ae20eba9d23a72e5fdb21166c5dcde8a06eee434fa961835",
+          "actual": "36b2e18090244956ae20eba9d23a72e5fdb21166c5dcde8a06eee434fa961835",
+          "match": true
+        },
+        {
+          "relative": "source/sys/sys_top.v",
+          "expected": "dcd68a92445479fca729d70792e1a1dd4302a5a7f0711e3618f0626a2a490a2b",
+          "actual": "dcd68a92445479fca729d70792e1a1dd4302a5a7f0711e3618f0626a2a490a2b",
+          "match": true
+        },
+        {
+          "relative": "source/sys/sysmem.sv",
+          "expected": "9f8cf78563cc31beb7dfc6d7048c51ba536ff4f1f9f640b4ff9f8d574456c94e",
+          "actual": "9f8cf78563cc31beb7dfc6d7048c51ba536ff4f1f9f640b4ff9f8d574456c94e",
+          "match": true
+        },
+        {
+          "relative": "source/sys/vga_out.sv",
+          "expected": "02a533c3dfd547afddea2946019ecc79bbe9c27bb6128c0999fa5fc9e78f8108",
+          "actual": "02a533c3dfd547afddea2946019ecc79bbe9c27bb6128c0999fa5fc9e78f8108",
+          "match": true
+        },
+        {
+          "relative": "source/sys/video_cleaner.sv",
+          "expected": "1dc01d4003fa37de57b794cf8ce3660a5137253d165279c94246c6c0de633380",
+          "actual": "1dc01d4003fa37de57b794cf8ce3660a5137253d165279c94246c6c0de633380",
+          "match": true
+        },
+        {
+          "relative": "source/sys/video_freak.sv",
+          "expected": "1c331bd8aee90bd722e8d9e400a8305de73392cb00cae256b8fb710e4fc2d478",
+          "actual": "1c331bd8aee90bd722e8d9e400a8305de73392cb00cae256b8fb710e4fc2d478",
+          "match": true
+        },
+        {
+          "relative": "source/sys/video_freezer.sv",
+          "expected": "f016d25480a8492744265f8da8164d50b01da09477f0101d0a212af65f96072f",
+          "actual": "f016d25480a8492744265f8da8164d50b01da09477f0101d0a212af65f96072f",
+          "match": true
+        },
+        {
+          "relative": "source/sys/video_mixer.sv",
+          "expected": "ca02e63c3e61d8a8c817fa10008a7a9873eb34a40ab89e2e2a596c590f9f0cf9",
+          "actual": "ca02e63c3e61d8a8c817fa10008a7a9873eb34a40ab89e2e2a596c590f9f0cf9",
+          "match": true
+        },
+        {
+          "relative": "source/sys/yc_out.sv",
+          "expected": "c52d7bfcc8dbc5a0cda2b3117172cbba790fb97b7de61722ddac205f6ec8bc20",
+          "actual": "c52d7bfcc8dbc5a0cda2b3117172cbba790fb97b7de61722ddac205f6ec8bc20",
+          "match": true
+        },
+        {
+          "relative": "source/third_party/jt51/LICENSE",
+          "expected": "589ed823e9a84c56feb95ac58e7cf384626b9cbf4fda2a907bc36e103de1bad2",
+          "actual": "589ed823e9a84c56feb95ac58e7cf384626b9cbf4fda2a907bc36e103de1bad2",
+          "match": true
+        },
+        {
+          "relative": "source/third_party/jt51/hdl/jt51.qip",
+          "expected": "4c02883618c9820d133d1f2fc064dc993fe25acda99af8346e87e0eadc7407aa",
+          "actual": "4c02883618c9820d133d1f2fc064dc993fe25acda99af8346e87e0eadc7407aa",
+          "match": true
+        },
+        {
+          "relative": "source/third_party/jt51/hdl/jt51.v",
+          "expected": "4c5f80dae49f435686d3f917897df867ba7725a44bd52c5d652658ba178689b0",
+          "actual": "4c5f80dae49f435686d3f917897df867ba7725a44bd52c5d652658ba178689b0",
+          "match": true
+        },
+        {
+          "relative": "source/third_party/jt51/hdl/jt51_acc.v",
+          "expected": "633319a0e89a78d390cba54a24aabf6f1019b705b378b636e246dcf44c8829f8",
+          "actual": "633319a0e89a78d390cba54a24aabf6f1019b705b378b636e246dcf44c8829f8",
+          "match": true
+        },
+        {
+          "relative": "source/third_party/jt51/hdl/jt51_csr_op.v",
+          "expected": "b129bf97cc155bc0e4312287af79b2c7985852ef65c1768f23ffa31badd5b648",
+          "actual": "b129bf97cc155bc0e4312287af79b2c7985852ef65c1768f23ffa31badd5b648",
+          "match": true
+        },
+        {
+          "relative": "source/third_party/jt51/hdl/jt51_eg.v",
+          "expected": "6e7c5f315edc82b70918ea61d6d5c992204d4e8b272e33fb3ce539a9843cac5e",
+          "actual": "6e7c5f315edc82b70918ea61d6d5c992204d4e8b272e33fb3ce539a9843cac5e",
+          "match": true
+        },
+        {
+          "relative": "source/third_party/jt51/hdl/jt51_exp2lin.v",
+          "expected": "cecc44acf6d7c8a81e80638e4a6eeb46f17d6c8d809e7a928338553bb23fb400",
+          "actual": "cecc44acf6d7c8a81e80638e4a6eeb46f17d6c8d809e7a928338553bb23fb400",
+          "match": true
+        },
+        {
+          "relative": "source/third_party/jt51/hdl/jt51_exprom.v",
+          "expected": "c9f33ede4c1c0af6f54ae45620d986a2c5a2f0ef16b453dc7d2eeeac85f8cbb5",
+          "actual": "c9f33ede4c1c0af6f54ae45620d986a2c5a2f0ef16b453dc7d2eeeac85f8cbb5",
+          "match": true
+        },
+        {
+          "relative": "source/third_party/jt51/hdl/jt51_kon.v",
+          "expected": "e1bb08fe65a53d2dc871459cc91e4beeec9efb9e839b3a39a941fa27ac19ba0f",
+          "actual": "e1bb08fe65a53d2dc871459cc91e4beeec9efb9e839b3a39a941fa27ac19ba0f",
+          "match": true
+        },
+        {
+          "relative": "source/third_party/jt51/hdl/jt51_lfo.v",
+          "expected": "2bb0e19b51982f761fd50eb992c90f6dbadf467528ac09fa033b48020cd8d193",
+          "actual": "2bb0e19b51982f761fd50eb992c90f6dbadf467528ac09fa033b48020cd8d193",
+          "match": true
+        },
+        {
+          "relative": "source/third_party/jt51/hdl/jt51_lin2exp.v",
+          "expected": "c4351ea7711364ab394ab510326111dc5047f4e57830bddef15163cbc4dcb98e",
+          "actual": "c4351ea7711364ab394ab510326111dc5047f4e57830bddef15163cbc4dcb98e",
+          "match": true
+        },
+        {
+          "relative": "source/third_party/jt51/hdl/jt51_mmr.v",
+          "expected": "db3a6506091e6ea99a17ad2f5b8b11ecf36d97f74dbf0c1098cf6db601d6fdd6",
+          "actual": "db3a6506091e6ea99a17ad2f5b8b11ecf36d97f74dbf0c1098cf6db601d6fdd6",
+          "match": true
+        },
+        {
+          "relative": "source/third_party/jt51/hdl/jt51_mod.v",
+          "expected": "1a04fe51a56756a98b577547bbd95cf984283288f2da2e4946d75063a69d357c",
+          "actual": "1a04fe51a56756a98b577547bbd95cf984283288f2da2e4946d75063a69d357c",
+          "match": true
+        },
+        {
+          "relative": "source/third_party/jt51/hdl/jt51_noise.v",
+          "expected": "87b70082becc58ece4c223ea5ed01b0c0bc0b05ae95ace9b498768429232f360",
+          "actual": "87b70082becc58ece4c223ea5ed01b0c0bc0b05ae95ace9b498768429232f360",
+          "match": true
+        },
+        {
+          "relative": "source/third_party/jt51/hdl/jt51_noise_lfsr.v",
+          "expected": "6b58949a51dbfe8c96f19eac3aa84aaace7fcc5cc4e1902c084a93d3d1c4da91",
+          "actual": "6b58949a51dbfe8c96f19eac3aa84aaace7fcc5cc4e1902c084a93d3d1c4da91",
+          "match": true
+        },
+        {
+          "relative": "source/third_party/jt51/hdl/jt51_op.v",
+          "expected": "5dbb743c49af67e6dff7e6c65691a66371aaf5a126834525f9501a8af1420bbf",
+          "actual": "5dbb743c49af67e6dff7e6c65691a66371aaf5a126834525f9501a8af1420bbf",
+          "match": true
+        },
+        {
+          "relative": "source/third_party/jt51/hdl/jt51_pg.v",
+          "expected": "d52c369e535196ee260243b2342c6a526a1d95425440512037f3f3b5185f0a8a",
+          "actual": "d52c369e535196ee260243b2342c6a526a1d95425440512037f3f3b5185f0a8a",
+          "match": true
+        },
+        {
+          "relative": "source/third_party/jt51/hdl/jt51_phinc_rom.v",
+          "expected": "41fefe0b9bc9a3b71a036d12d723666e4b588c57625228eee278f9704a6f53b1",
+          "actual": "41fefe0b9bc9a3b71a036d12d723666e4b588c57625228eee278f9704a6f53b1",
+          "match": true
+        },
+        {
+          "relative": "source/third_party/jt51/hdl/jt51_phrom.v",
+          "expected": "b3fb0623737dd22befa0bfa9a130d7b1437e81ff3e1842538251d5cd29a75c89",
+          "actual": "b3fb0623737dd22befa0bfa9a130d7b1437e81ff3e1842538251d5cd29a75c89",
+          "match": true
+        },
+        {
+          "relative": "source/third_party/jt51/hdl/jt51_pm.v",
+          "expected": "9625bda77a523371fc4704ac66cfec95a9d1aff343c2e770ea5aba11eb50c8f3",
+          "actual": "9625bda77a523371fc4704ac66cfec95a9d1aff343c2e770ea5aba11eb50c8f3",
+          "match": true
+        },
+        {
+          "relative": "source/third_party/jt51/hdl/jt51_reg.v",
+          "expected": "a9913cb08f562046c2f9375fd6f7a4a5a0eb4d46266df303875059761f304de7",
+          "actual": "a9913cb08f562046c2f9375fd6f7a4a5a0eb4d46266df303875059761f304de7",
+          "match": true
+        },
+        {
+          "relative": "source/third_party/jt51/hdl/jt51_reg_ch.v",
+          "expected": "2303d898fa49bf67fa8aace6c1a1e00e48d2951f9a221e75058233953f670aad",
+          "actual": "2303d898fa49bf67fa8aace6c1a1e00e48d2951f9a221e75058233953f670aad",
+          "match": true
+        },
+        {
+          "relative": "source/third_party/jt51/hdl/jt51_sh.v",
+          "expected": "71246f6b6989f922220cdd370cee52ecd56c7244e11073ddc618028a4136f0aa",
+          "actual": "71246f6b6989f922220cdd370cee52ecd56c7244e11073ddc618028a4136f0aa",
+          "match": true
+        },
+        {
+          "relative": "source/third_party/jt51/hdl/jt51_timers.v",
+          "expected": "e885ffd11d62c2bf42aafb90eb30e681c3d98ae9c4fe6714b13d72f491347e70",
+          "actual": "e885ffd11d62c2bf42aafb90eb30e681c3d98ae9c4fe6714b13d72f491347e70",
+          "match": true
+        },
+        {
+          "relative": "source/third_party/jt51/ver/common/sep32.v",
+          "expected": "e1f1733d87094bc51a31d39a34c27c71d408541939bfd4c7db00a248a02b85a1",
+          "actual": "e1f1733d87094bc51a31d39a34c27c71d408541939bfd4c7db00a248a02b85a1",
+          "match": true
+        },
+        {
+          "relative": "source/third_party/jt51/ver/common/sep32_cnt.v",
+          "expected": "cc15f156e3bbf72f19956c6fca34c4d17986a576209d1ae890450519692edce7",
+          "actual": "cc15f156e3bbf72f19956c6fca34c4d17986a576209d1ae890450519692edce7",
+          "match": true
+        }
+      ],
+      "outputs": [
+        {
+          "path": "C:\\Users\\dai\\Documents\\EngineD_vNext_Builds\\26d5078_20261008\\build-attempt2\\output\\MegaVGMDrive_D_vNext.asm.rpt",
+          "name": "MegaVGMDrive_D_vNext.asm.rpt",
+          "bytes": 6207,
+          "sha256": "e6174cc54b3e9a040bafe3accd9d05e190c5fa91ea8f50fea57a0b9be86b9064"
+        },
+        {
+          "path": "C:\\Users\\dai\\Documents\\EngineD_vNext_Builds\\26d5078_20261008\\build-attempt2\\output\\MegaVGMDrive_D_vNext.fit.summary",
+          "name": "MegaVGMDrive_D_vNext.fit.summary",
+          "bytes": 707,
+          "sha256": "9a24a39ccd51fb56839c5174324c464579d5fb514edf2c3c1cfd05f624d7c88c"
+        },
+        {
+          "path": "C:\\Users\\dai\\Documents\\EngineD_vNext_Builds\\26d5078_20261008\\build-attempt2\\output\\MegaVGMDrive_D_vNext.flow.rpt",
+          "name": "MegaVGMDrive_D_vNext.flow.rpt",
+          "bytes": 15548,
+          "sha256": "a7b0e6883765015dcf7cd782c3959f996296fa6c5c22b9c26d920537ff2cad7c"
+        },
+        {
+          "path": "C:\\Users\\dai\\Documents\\EngineD_vNext_Builds\\26d5078_20261008\\build-attempt2\\output\\MegaVGMDrive_D_vNext.rbf",
+          "name": "MegaVGMDrive_D_vNext.rbf",
+          "bytes": 2994688,
+          "sha256": "064c398c42d7daa729bf5081efba6213ca872d8f7f9b1889f1004a24e0422ed7"
+        },
+        {
+          "path": "C:\\Users\\dai\\Documents\\EngineD_vNext_Builds\\26d5078_20261008\\build-attempt2\\output\\MegaVGMDrive_D_vNext.sof",
+          "name": "MegaVGMDrive_D_vNext.sof",
+          "bytes": 6690389,
+          "sha256": "bc7dfa78818a688a14887830ca9a8db610a205009ad227b585aacba65ef10c71"
+        },
+        {
+          "path": "C:\\Users\\dai\\Documents\\EngineD_vNext_Builds\\26d5078_20261008\\build-attempt2\\output\\MegaVGMDrive_D_vNext.sta.rpt",
+          "name": "MegaVGMDrive_D_vNext.sta.rpt",
+          "bytes": 555819,
+          "sha256": "5a8095af1e7595c692687137e5e14e1177988007800292c02875fb6b1f20e18c"
+        }
+      ]
+    },
+    {
+      "engine": "C",
+      "root": "C:\\MegaVGMPlayer_releaseC",
+      "exists": false
+    }
+  ]
+}

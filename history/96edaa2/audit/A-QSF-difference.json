@@ -1,0 +1,9 @@
+{
+  "canonical_sha256": "10b6ebc78afcbfc9d00d6c2a9e3c952ff3e1e858ffedcad30dabbbafc16d815e",
+  "Windows_sha256": "9e5ed58e53493d9ec7d9ac5cab3cacad57ee62d49fe7d513cef1fb3a588c541b",
+  "remaining_nonempty_line_order_exact": true,
+  "partition_statement_exact": true,
+  "observed_delta": "CRLF plus existing root_partition statement moved to file end",
+  "cause_of_rewrite": "NOT_PROVEN; do not attribute to a person or GUI",
+  "source_authority_action": "NONE; preserve both bytes as evidence, no reconciliation"
+}

@@ -1,0 +1,115 @@
+{
+  "package_version": "2.3",
+  "runtime_head": "f381918ad9c536433effea6158e9d1dc8aa831ae",
+  "hardware_acceptance": "User confirmed 2026-10-02: Round Start/Game Over/Lift-Off Profile A playback, Jc-Kal, YM2612-only, A/B/C/D switching, Exit to STOCK, Remote/PWA reconnect PASS",
+  "embedded_pwa": {
+    "path": "cmd/megavgm_remote/web/build/assets/megavgm-ff892105.js",
+    "sha256": "0ea1ba5090707425182ea94b4b2d66c4a8df3f48616e13a0666193c327680ffd"
+  },
+  "payloads": [
+    {
+      "destination": "_Custom Cores/Cores/MegaVGMDrive_A.rbf",
+      "source": "MegaVGMPlayer_Transport13FadeOnly_A_MiSTer.rbf",
+      "bytes": 3336468,
+      "sha256": "e481ca97fdec3c6724ddaecafd881bc63d50725775a9dedd3c85b93a8f31e683",
+      "worktree": "mister-vgm-fade-only-a",
+      "source_head": "16b1c6c2ec1404d3eb1223f6a495debc87cc2e65",
+      "mode": "0644"
+    },
+    {
+      "destination": "_Custom Cores/Cores/MegaVGMDrive_B.rbf",
+      "source": "MegaVGMPlayer_Transport13FadeOnly_B_MiSTer.rbf",
+      "bytes": 3073680,
+      "sha256": "2008a7e3eba48bf3d6babf5ee72e9c7fc44248228377ba929219f1ff480ba99e",
+      "worktree": "MegaVGMPlayer_EngineB_FM6_Activity",
+      "source_head": "a26c2ccc4cda65506152e8de05bc061d01e23c56",
+      "mode": "0644"
+    },
+    {
+      "destination": "_Custom Cores/Cores/MegaVGMDrive_C.rbf",
+      "source": "MegaVGMPlayer_EngineC_C7_2_OSD_Visual_MiSTer.rbf",
+      "bytes": 2700732,
+      "sha256": "45f63808ca4d9871716af0bbc46f2335cd49d14fceafb537108ef2fa9f3e6110",
+      "worktree": "MegaVGMPlayer_EngineC_TransparentInfo",
+      "source_head": "82402ec2ecc12fd254eb2457d30473aae89854e4",
+      "mode": "0644"
+    },
+    {
+      "destination": "_Custom Cores/Cores/MegaVGMDrive_D.rbf",
+      "source": "MegaVGMDrive_D7.rbf",
+      "bytes": 2851200,
+      "sha256": "fc0bf2bb09b87aff4d34bdf38619de469a04df0f9cab225d0bc5c2cc45cea300",
+      "worktree": "MegaVGMPlayer_EngineD_TransparentInfo",
+      "source_head": "239b371e7f3341726f62031cc31fa04be0752bde",
+      "mode": "0644"
+    },
+    {
+      "destination": "MegaVGMPlayer/MiSTer.megavgm",
+      "source": "Main_MiSTer-megavgm-bottom-loading-artifacts/8a3a44b/MiSTer",
+      "bytes": 1075948,
+      "sha256": "bbc83ce23d8fbac365a5011553ee18fa29276cfbbd51ce4d8bb1bf83c52fa646",
+      "worktree": "Main_MiSTer-megavgm-bottom-loading",
+      "source_head": "8a3a44b138fe56cfbcb3787ae5a9cb8fcb0211fb",
+      "mode": "0755"
+    },
+    {
+      "destination": "MegaVGMPlayer/megavgm_supervisor",
+      "source": "MegaVGMPlayer_vNext_4Engine_Runtime/out/transparent-main-authority-8c1b570-supervisor/megavgm_supervisor",
+      "bytes": 1187100,
+      "sha256": "db9d85cb1d2d6e84605ae2a6635070c231bc8a2ae9ef4b495469bfcd80ad4846",
+      "worktree": "MegaVGMPlayer_vNext_4Engine_Runtime",
+      "source_head": "8c1b57019a318ec7b96a0ec14674b3cab3cd518d",
+      "mode": "0755"
+    },
+    {
+      "destination": "MegaVGMPlayer/megavgm_playlist-phase2a",
+      "source": "MegaVGMPlayer_vNext_4Engine_Runtime/out/megavgm-same-track-ffd3336/megavgm_playlist",
+      "bytes": 1068308,
+      "sha256": "18fffb80c4ddaa45435be644d85b874046b30adf842e952ed1048169886565e5",
+      "worktree": "MegaVGMPlayer_vNext_4Engine_Runtime",
+      "source_head": "ffd3336fb60472c82e4ece3133e407d15b671667",
+      "mode": "0755"
+    },
+    {
+      "destination": "MegaVGMPlayer/megavgm_remote",
+      "source": "MegaVGMPlayer_vNext_4Engine_RC/artifacts/megavgm_remote-same-track-45a45d8",
+      "bytes": 10121840,
+      "sha256": "c54a121c3c6efea1cb32cec3610495c9fea95924a9914136e0fa8620593ca139",
+      "worktree": "MegaVGMPlayer_vNext_4Engine_RC",
+      "source_head": "45a45d8013fbc6292008af5d0269811493d8860e",
+      "mode": "0755"
+    },
+    {
+      "destination": "MegaVGMPlayer/megavgm_sid_prepare",
+      "source": "MegaVGMPlayer_v2.2_Release/MegaVGMPlayer-v2.2/media/fat/MegaVGMPlayer/megavgm_sid_prepare",
+      "bytes": 1097884,
+      "sha256": "4c640b2c5946e4b541cfdae11d298ec9d3e5a01c9fa840dae9dab5afe4da3f0f",
+      "mode": "0755"
+    },
+    {
+      "destination": "Scripts/megavgm_ctl",
+      "source": "MegaVGMPlayer_v2.2_Release/MegaVGMPlayer-v2.2/media/fat/Scripts/megavgm_ctl",
+      "bytes": 961808,
+      "sha256": "378905c80c22f0b072e248d6fdb67238f2727a38287f4407b2596c8c2a9ae45b",
+      "mode": "0755"
+    },
+    {
+      "destination": "Scripts/vgm_md_import.sh",
+      "source": "MegaVGMPlayer_vNext_4Engine_Runtime/scripts/vgm_md_import.sh",
+      "bytes": 20606,
+      "sha256": "65d54baefbd6f24c9698f5a551a30f69f3edf56ec36aa906e7fbb09b972f54b5",
+      "worktree": "MegaVGMPlayer_vNext_4Engine_Runtime",
+      "source_head": "f381918ad9c536433effea6158e9d1dc8aa831ae",
+      "mode": "0755"
+    },
+    {
+      "destination": "Scripts/megavgm_classify",
+      "source": "MegaVGMPlayer_Runtime_f381918_ARM/megavgm_classify",
+      "bytes": 961808,
+      "sha256": "41fa84090099c51147b8bd61b9703e34b732061acd8e025a22ef7be3c49171fb",
+      "worktree": "MegaVGMPlayer_vNext_4Engine_Runtime",
+      "source_head": "f381918ad9c536433effea6158e9d1dc8aa831ae",
+      "mode": "0755"
+    }
+  ]
+}

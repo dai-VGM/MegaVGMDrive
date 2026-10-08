@@ -1,0 +1,8 @@
+{
+  "gate": "DETERMINISTIC_PACKAGE_PASS",
+  "independent_assemblies": 2,
+  "bytes": 17985017,
+  "sha256": "9e8d6d081294d16856a45ffd667eb4b1edc746b777430d1523aae74f58ade0d0",
+  "compilation_performed": false,
+  "trial_archive_not_final_commit_bound": true
+}

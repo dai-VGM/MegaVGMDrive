@@ -1,0 +1,564 @@
+{
+  "resources_before": {
+    "ALM": 35665.0,
+    "LAB": 4147.0,
+    "registers": 59537.0,
+    "M10K": 82.0,
+    "DSP": 40.0,
+    "hierarchy": {
+      "engine_a_vnext_functional_engine": {
+        "ALM": 11795.4,
+        "registers": 14820.0,
+        "M10K": 3.0,
+        "DSP": 2.0
+      },
+      "segapcm_vnext_resource_map": {
+        "ALM": 5595.7,
+        "registers": 6037.0,
+        "M10K": 0.0,
+        "DSP": 0.0
+      },
+      "vgm_ddram_backend": {
+        "ALM": 11575.1,
+        "registers": 25103.0,
+        "M10K": 0.0,
+        "DSP": 0.0
+      }
+    }
+  },
+  "resources_A1": {
+    "ALM": 35580.0,
+    "LAB": 4190.0,
+    "registers": 59334.0,
+    "M10K": 82.0,
+    "DSP": 40.0,
+    "hierarchy": {
+      "engine_a_vnext_functional_engine": {
+        "ALM": 11679.4,
+        "registers": 14610.0,
+        "M10K": 3.0,
+        "DSP": 2.0
+      },
+      "segapcm_vnext_resource_map": {
+        "ALM": 5592.7,
+        "registers": 5814.0,
+        "M10K": 0.0,
+        "DSP": 0.0
+      },
+      "vgm_ddram_backend": {
+        "ALM": 11356.8,
+        "registers": 25103.0,
+        "M10K": 0.0,
+        "DSP": 0.0
+      }
+    }
+  },
+  "resources_after": {
+    "ALM": 23503.0,
+    "LAB": 3705.0,
+    "registers": 34963.0,
+    "M10K": 85.0,
+    "DSP": 40.0,
+    "hierarchy": {
+      "engine_a_vnext_functional_engine": {
+        "ALM": 11192.8,
+        "registers": 14711.0,
+        "M10K": 3.0,
+        "DSP": 2.0
+      },
+      "segapcm_vnext_resource_map": {
+        "ALM": 5383.9,
+        "registers": 5893.0,
+        "M10K": 0.0,
+        "DSP": 0.0
+      },
+      "vgm_ddram_backend": {
+        "ALM": 253.4,
+        "registers": 425.0,
+        "M10K": 3.0,
+        "DSP": 0.0
+      }
+    }
+  },
+  "all_corner_timing": [
+    {
+      "model": "slow",
+      "temperature_C": "100",
+      "check": "setup",
+      "worst_slack_ns": 0.088,
+      "violating_endpoints": 0,
+      "endpoint_TNS_ns": 0.0,
+      "worst_from": "ascal:ascal|o_vacc_next[11]",
+      "worst_to": "ascal:ascal|o_state.sDISP"
+    },
+    {
+      "model": "slow",
+      "temperature_C": "100",
+      "check": "hold",
+      "worst_slack_ns": 0.206,
+      "violating_endpoints": 0,
+      "endpoint_TNS_ns": 0.0,
+      "worst_from": "ascal:ascal|o_poly_phase_b.t3[6]",
+      "worst_to": "ascal:ascal|o_poly_phase_b2.t3[6]"
+    },
+    {
+      "model": "slow",
+      "temperature_C": "100",
+      "check": "recovery",
+      "worst_slack_ns": 3.814,
+      "violating_endpoints": 0,
+      "endpoint_TNS_ns": 0.0,
+      "worst_from": "ascal:ascal|o_reset_na",
+      "worst_to": "ascal:ascal|o_readlev[1]"
+    },
+    {
+      "model": "slow",
+      "temperature_C": "100",
+      "check": "removal",
+      "worst_slack_ns": 0.621,
+      "violating_endpoints": 0,
+      "endpoint_TNS_ns": 0.0,
+      "worst_from": "emu:emu|mister_vgm_md_top:md_sound|md_sound_module:loaded_vgm_mode.sound|jt12:fm|jt12_top:u_jt12|jt12_pg:u_pg|jt12_sh_rst:u_pad|altshift_taps:bits_rtl_0|shift_taps_iuv:auto_generated|dffe6",
+      "worst_to": "emu:emu|mister_vgm_md_top:md_sound|md_sound_module:loaded_vgm_mode.sound|jt12:fm|jt12_top:u_jt12|jt12_pg:u_pg|jt12_sh_rst:u_pad|altshift_taps:bits_rtl_0|shift_taps_iuv:auto_generated|altsyncram_tfc1:altsyncram4|ram_block7a11"
+    },
+    {
+      "model": "slow",
+      "temperature_C": "100",
+      "check": "pulse_width",
+      "worst_slack_ns": 1.122,
+      "violating_endpoints": 0,
+      "endpoint_TNS_ns": 0.0,
+      "worst_from": "pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|fpll_0|fpll|vcoph[0]",
+      "worst_to": "pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk"
+    },
+    {
+      "model": "slow",
+      "temperature_C": "-40",
+      "check": "setup",
+      "worst_slack_ns": 0.139,
+      "violating_endpoints": 0,
+      "endpoint_TNS_ns": 0.0,
+      "worst_from": "ascal:ascal|o_div[2][20]",
+      "worst_to": "ascal:ascal|o_hfrac[1][4]"
+    },
+    {
+      "model": "slow",
+      "temperature_C": "-40",
+      "check": "hold",
+      "worst_slack_ns": 0.073,
+      "violating_endpoints": 0,
+      "endpoint_TNS_ns": 0.0,
+      "worst_from": "ascal:ascal|o_vpixq_pre[0].g[4]",
+      "worst_to": "ascal:ascal|o_vpixq[0].g[4]"
+    },
+    {
+      "model": "slow",
+      "temperature_C": "-40",
+      "check": "recovery",
+      "worst_slack_ns": 3.959,
+      "violating_endpoints": 0,
+      "endpoint_TNS_ns": 0.0,
+      "worst_from": "ascal:ascal|o_reset_na",
+      "worst_to": "ascal:ascal|o_readlev[1]"
+    },
+    {
+      "model": "slow",
+      "temperature_C": "-40",
+      "check": "removal",
+      "worst_slack_ns": 0.498,
+      "violating_endpoints": 0,
+      "endpoint_TNS_ns": 0.0,
+      "worst_from": "emu:emu|mister_vgm_md_top:md_sound|md_sound_module:loaded_vgm_mode.sound|jt12_reset",
+      "worst_to": "emu:emu|mister_vgm_md_top:md_sound|md_sound_module:loaded_vgm_mode.sound|jt12:fm|jt12_top:u_jt12|jt12_mmr:u_mmr|jt12_reg:u_reg|jt12_csr:u_csr1|jt12_sh_rst:u_regch|bits[30][11]"
+    },
+    {
+      "model": "slow",
+      "temperature_C": "-40",
+      "check": "pulse_width",
+      "worst_slack_ns": 1.122,
+      "violating_endpoints": 0,
+      "endpoint_TNS_ns": 0.0,
+      "worst_from": "pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|fpll_0|fpll|vcoph[0]",
+      "worst_to": "pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk"
+    },
+    {
+      "model": "fast",
+      "temperature_C": "100",
+      "check": "setup",
+      "worst_slack_ns": 2.986,
+      "violating_endpoints": 0,
+      "endpoint_TNS_ns": 0.0,
+      "worst_from": "shadowmask:HDMI_shadowmask|altshift_taps:vid_rtl_0|shift_taps_0vu:auto_generated|altsyncram_pr91:altsyncram4|ram_block5a0",
+      "worst_to": "osd:hdmi_osd|dsp_width[7]"
+    },
+    {
+      "model": "fast",
+      "temperature_C": "100",
+      "check": "hold",
+      "worst_slack_ns": 0.132,
+      "violating_endpoints": 0,
+      "endpoint_TNS_ns": 0.0,
+      "worst_from": "emu:emu|mister_vgm_md_top:md_sound|engine_a_vnext_functional_engine:loaded_vgm_mode.vnext_engine|segapcm_vnext_core:core|next_id[14]",
+      "worst_to": "emu:emu|mister_vgm_md_top:md_sound|engine_a_vnext_functional_engine:loaded_vgm_mode.vnext_engine|segapcm_vnext_core:core|next_id[14]"
+    },
+    {
+      "model": "fast",
+      "temperature_C": "100",
+      "check": "recovery",
+      "worst_slack_ns": 4.992,
+      "violating_endpoints": 0,
+      "endpoint_TNS_ns": 0.0,
+      "worst_from": "ascal:ascal|o_reset_na",
+      "worst_to": "ascal:ascal|o_readlev[1]"
+    },
+    {
+      "model": "fast",
+      "temperature_C": "100",
+      "check": "removal",
+      "worst_slack_ns": 0.285,
+      "violating_endpoints": 0,
+      "endpoint_TNS_ns": 0.0,
+      "worst_from": "emu:emu|mister_vgm_md_top:md_sound|md_sound_module:loaded_vgm_mode.sound|jt12:fm|jt12_top:u_jt12|jt12_pg:u_pg|jt12_sh_rst:u_pad|altshift_taps:bits_rtl_0|shift_taps_iuv:auto_generated|dffe6",
+      "worst_to": "emu:emu|mister_vgm_md_top:md_sound|md_sound_module:loaded_vgm_mode.sound|jt12:fm|jt12_top:u_jt12|jt12_pg:u_pg|jt12_sh_rst:u_pad|altshift_taps:bits_rtl_0|shift_taps_iuv:auto_generated|altsyncram_tfc1:altsyncram4|ram_block7a11"
+    },
+    {
+      "model": "fast",
+      "temperature_C": "100",
+      "check": "pulse_width",
+      "worst_slack_ns": 1.122,
+      "violating_endpoints": 0,
+      "endpoint_TNS_ns": 0.0,
+      "worst_from": "pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|fpll_0|fpll|vcoph[0]",
+      "worst_to": "pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk"
+    },
+    {
+      "model": "fast",
+      "temperature_C": "-40",
+      "check": "setup",
+      "worst_slack_ns": 3.466,
+      "violating_endpoints": 0,
+      "endpoint_TNS_ns": 0.0,
+      "worst_from": "shadowmask:HDMI_shadowmask|altshift_taps:vid_rtl_0|shift_taps_0vu:auto_generated|altsyncram_pr91:altsyncram4|ram_block5a0",
+      "worst_to": "osd:hdmi_osd|dsp_width[7]"
+    },
+    {
+      "model": "fast",
+      "temperature_C": "-40",
+      "check": "hold",
+      "worst_slack_ns": 0.103,
+      "violating_endpoints": 0,
+      "endpoint_TNS_ns": 0.0,
+      "worst_from": "ascal:ascal|o_poly_lum1[0]",
+      "worst_to": "ascal:ascal|o_poly_lerp_tb[0]~_Duplicate_2"
+    },
+    {
+      "model": "fast",
+      "temperature_C": "-40",
+      "check": "recovery",
+      "worst_slack_ns": 5.277,
+      "violating_endpoints": 0,
+      "endpoint_TNS_ns": 0.0,
+      "worst_from": "ascal:ascal|o_reset_na",
+      "worst_to": "ascal:ascal|o_readlev[1]"
+    },
+    {
+      "model": "fast",
+      "temperature_C": "-40",
+      "check": "removal",
+      "worst_slack_ns": 0.204,
+      "violating_endpoints": 0,
+      "endpoint_TNS_ns": 0.0,
+      "worst_from": "emu:emu|mister_vgm_md_top:md_sound|md_sound_module:loaded_vgm_mode.sound|jt12:fm|jt12_top:u_jt12|jt12_pg:u_pg|jt12_sh_rst:u_pad|altshift_taps:bits_rtl_0|shift_taps_iuv:auto_generated|dffe6",
+      "worst_to": "emu:emu|mister_vgm_md_top:md_sound|md_sound_module:loaded_vgm_mode.sound|jt12:fm|jt12_top:u_jt12|jt12_pg:u_pg|jt12_sh_rst:u_pad|altshift_taps:bits_rtl_0|shift_taps_iuv:auto_generated|altsyncram_tfc1:altsyncram4|ram_block7a11"
+    },
+    {
+      "model": "fast",
+      "temperature_C": "-40",
+      "check": "pulse_width",
+      "worst_slack_ns": 1.122,
+      "violating_endpoints": 0,
+      "endpoint_TNS_ns": 0.0,
+      "worst_from": "pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|fpll_0|fpll|vcoph[0]",
+      "worst_to": "pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk"
+    }
+  ],
+  "timing_all_pass": true,
+  "core_baseline": {
+    "slack_ns": -88.815,
+    "launch": "emu:emu|hps_io:hps_io|ioctl_index[11]",
+    "capture": "emu:emu|mister_vgm_md_top:md_sound|engine_a_vnext_functional_engine:loaded_vgm_mode.vnext_engine|segapcm_vnext_sample_adapter:samples|read_owned.address[2]",
+    "launch_clock": "emu|pll|pll_inst|altera_pll_i|general[0].gpll~PLL_OUTPUT_COUNTER|divclk",
+    "capture_clock": "emu|pll|pll_inst|altera_pll_i|general[0].gpll~PLL_OUTPUT_COUNTER|divclk",
+    "relationship_ns": 50.0,
+    "clock_skew_ns": -0.499,
+    "data_delay_ns": 138.036,
+    "Data Arrival Time": 146.577,
+    "Data Required Time": 57.762,
+    "logic_levels": 127,
+    "routing_ns": 85.947,
+    "cell_ns": 52.089
+  },
+  "HDMI_baseline": {
+    "slack_ns": -0.188,
+    "launch": "ascal:ascal|o_hcpt[1]",
+    "capture": "ascal:ascal|o_vcpt_pre2[10]",
+    "launch_clock": "pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk",
+    "capture_clock": "pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk",
+    "relationship_ns": 6.732,
+    "clock_skew_ns": -0.44,
+    "data_delay_ns": 6.28,
+    "Data Arrival Time": 14.931,
+    "Data Required Time": 14.743,
+    "logic_levels": 4,
+    "routing_ns": 2.836,
+    "cell_ns": 3.444
+  },
+  "core_new": {
+    "slow_100": {
+      "slack_ns": 8.648,
+      "launch": "emu:emu|mister_vgm_md_top:md_sound|engine_a_vnext_functional_engine:loaded_vgm_mode.vnext_engine|segapcm_vnext_core:core|fault_latched",
+      "capture": "emu:emu|mister_vgm_md_top:md_sound|engine_a_vnext_functional_engine:loaded_vgm_mode.vnext_engine|segapcm_vnext_sample_adapter:samples|fatal_latched",
+      "launch_clock": "emu|pll|pll_inst|altera_pll_i|general[0].gpll~PLL_OUTPUT_COUNTER|divclk",
+      "capture_clock": "emu|pll|pll_inst|altera_pll_i|general[0].gpll~PLL_OUTPUT_COUNTER|divclk",
+      "relationship_ns": 50.0,
+      "clock_skew_ns": -0.494,
+      "data_delay_ns": 40.578,
+      "Data Arrival Time": 49.106,
+      "Data Required Time": 57.754,
+      "logic_levels": 32,
+      "routing_ns": 22.7,
+      "cell_ns": 17.878
+    },
+    "slow_-40": {
+      "slack_ns": 7.761,
+      "launch": "emu:emu|mister_vgm_md_top:md_sound|vgm_ddram_backend:loaded_vgm_mode.backend_ddram.ddram_backend|overflow_error",
+      "capture": "emu:emu|mister_vgm_md_top:md_sound|engine_a_vnext_functional_engine:loaded_vgm_mode.vnext_engine|segapcm_vnext_sample_adapter:samples|fatal_latched",
+      "launch_clock": "emu|pll|pll_inst|altera_pll_i|general[0].gpll~PLL_OUTPUT_COUNTER|divclk",
+      "capture_clock": "emu|pll|pll_inst|altera_pll_i|general[0].gpll~PLL_OUTPUT_COUNTER|divclk",
+      "relationship_ns": 50.0,
+      "clock_skew_ns": -0.539,
+      "data_delay_ns": 41.42,
+      "Data Arrival Time": 50.016,
+      "Data Required Time": 57.777,
+      "logic_levels": 31,
+      "routing_ns": 20.462,
+      "cell_ns": 20.958
+    },
+    "fast_100": {
+      "slack_ns": 20.611,
+      "launch": "emu:emu|mister_vgm_md_top:md_sound|ym2203_sound_module:loaded_vgm_mode.ym2203_sound|jt12_top:ym2203_core|jt12_mmr:u_mmr|jt12_div:u_div|clk_en",
+      "capture": "emu:emu|mister_vgm_md_top:md_sound|ym2203_sound_module:loaded_vgm_mode.ym2203_sound|jt12_top:ym2203_core|jt03_acc:gen_2203_acc.u_acc|jt12_single_acc:u_mono|snd[17]",
+      "launch_clock": "emu|pll|pll_inst|altera_pll_i|general[0].gpll~PLL_OUTPUT_COUNTER|divclk",
+      "capture_clock": "emu|pll|pll_inst|altera_pll_i|general[0].gpll~PLL_OUTPUT_COUNTER|divclk",
+      "relationship_ns": 25.0,
+      "clock_skew_ns": 0.039,
+      "data_delay_ns": 4.148,
+      "Data Arrival Time": 33.136,
+      "Data Required Time": 53.747,
+      "logic_levels": 1,
+      "routing_ns": 3.807,
+      "cell_ns": 0.341
+    },
+    "fast_-40": {
+      "slack_ns": 21.43,
+      "launch": "emu:emu|mister_vgm_md_top:md_sound|ym2203_sound_module:loaded_vgm_mode.ym2203_sound|jt12_top:ym2203_core|jt12_mmr:u_mmr|jt12_div:u_div|clk_en",
+      "capture": "emu:emu|mister_vgm_md_top:md_sound|ym2203_sound_module:loaded_vgm_mode.ym2203_sound|jt12_top:ym2203_core|jt03_acc:gen_2203_acc.u_acc|jt12_single_acc:u_mono|snd[6]",
+      "launch_clock": "emu|pll|pll_inst|altera_pll_i|general[0].gpll~PLL_OUTPUT_COUNTER|divclk",
+      "capture_clock": "emu|pll|pll_inst|altera_pll_i|general[0].gpll~PLL_OUTPUT_COUNTER|divclk",
+      "relationship_ns": 25.0,
+      "clock_skew_ns": 0.064,
+      "data_delay_ns": 3.354,
+      "Data Arrival Time": 32.087,
+      "Data Required Time": 53.517,
+      "logic_levels": 1,
+      "routing_ns": 3.053,
+      "cell_ns": 0.301
+    }
+  },
+  "HDMI_new": {
+    "slow_100": {
+      "slack_ns": 0.088,
+      "launch": "ascal:ascal|o_vacc_next[11]",
+      "capture": "ascal:ascal|o_state.sDISP",
+      "launch_clock": "pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk",
+      "capture_clock": "pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk",
+      "relationship_ns": 6.732,
+      "clock_skew_ns": -0.465,
+      "data_delay_ns": 5.979,
+      "Data Arrival Time": 14.666,
+      "Data Required Time": 14.754,
+      "logic_levels": 5,
+      "routing_ns": 3.538,
+      "cell_ns": 2.441
+    },
+    "slow_-40": {
+      "slack_ns": 0.139,
+      "launch": "ascal:ascal|o_div[2][20]",
+      "capture": "ascal:ascal|o_hfrac[1][4]",
+      "launch_clock": "pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk",
+      "capture_clock": "pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk",
+      "relationship_ns": 6.732,
+      "clock_skew_ns": -0.493,
+      "data_delay_ns": 5.9,
+      "Data Arrival Time": 14.622,
+      "Data Required Time": 14.761,
+      "logic_levels": 3,
+      "routing_ns": 1.439,
+      "cell_ns": 4.461
+    },
+    "fast_100": {
+      "slack_ns": 2.986,
+      "launch": "shadowmask:HDMI_shadowmask|altshift_taps:vid_rtl_0|shift_taps_0vu:auto_generated|altsyncram_pr91:altsyncram4|ram_block5a0",
+      "capture": "osd:hdmi_osd|dsp_width[7]",
+      "launch_clock": "pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk",
+      "capture_clock": "pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk",
+      "relationship_ns": 6.732,
+      "clock_skew_ns": -0.423,
+      "data_delay_ns": 3.123,
+      "Data Arrival Time": 7.41,
+      "Data Required Time": 10.396,
+      "logic_levels": 1,
+      "routing_ns": 2.676,
+      "cell_ns": 0.447
+    },
+    "fast_-40": {
+      "slack_ns": 3.466,
+      "launch": "shadowmask:HDMI_shadowmask|altshift_taps:vid_rtl_0|shift_taps_0vu:auto_generated|altsyncram_pr91:altsyncram4|ram_block5a0",
+      "capture": "osd:hdmi_osd|dsp_width[7]",
+      "launch_clock": "pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk",
+      "capture_clock": "pll_hdmi|pll_hdmi_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk",
+      "relationship_ns": 6.732,
+      "clock_skew_ns": -0.445,
+      "data_delay_ns": 2.621,
+      "Data Arrival Time": 6.699,
+      "Data Required Time": 10.165,
+      "logic_levels": 1,
+      "routing_ns": 2.203,
+      "cell_ns": 0.418
+    }
+  },
+  "sample_capture_new": {
+    "slow_100": {
+      "slack_ns": 12.518,
+      "launch": "emu:emu|mister_vgm_md_top:md_sound|engine_a_vnext_functional_engine:loaded_vgm_mode.vnext_engine|segapcm_vnext_core:core|fault_latched",
+      "capture": "emu:emu|mister_vgm_md_top:md_sound|engine_a_vnext_functional_engine:loaded_vgm_mode.vnext_engine|segapcm_vnext_sample_adapter:samples|read_owned.address[31]",
+      "launch_clock": "emu|pll|pll_inst|altera_pll_i|general[0].gpll~PLL_OUTPUT_COUNTER|divclk",
+      "capture_clock": "emu|pll|pll_inst|altera_pll_i|general[0].gpll~PLL_OUTPUT_COUNTER|divclk",
+      "relationship_ns": 50.0,
+      "clock_skew_ns": -0.462,
+      "data_delay_ns": 36.74,
+      "Data Arrival Time": 45.268,
+      "Data Required Time": 57.786,
+      "logic_levels": 27,
+      "routing_ns": 20.415,
+      "cell_ns": 16.325
+    },
+    "slow_-40": {
+      "slack_ns": 11.801,
+      "launch": "emu:emu|mister_vgm_md_top:md_sound|vgm_ddram_backend:loaded_vgm_mode.backend_ddram.ddram_backend|overflow_error",
+      "capture": "emu:emu|mister_vgm_md_top:md_sound|engine_a_vnext_functional_engine:loaded_vgm_mode.vnext_engine|segapcm_vnext_sample_adapter:samples|read_owned.address[31]",
+      "launch_clock": "emu|pll|pll_inst|altera_pll_i|general[0].gpll~PLL_OUTPUT_COUNTER|divclk",
+      "capture_clock": "emu|pll|pll_inst|altera_pll_i|general[0].gpll~PLL_OUTPUT_COUNTER|divclk",
+      "relationship_ns": 50.0,
+      "clock_skew_ns": -0.501,
+      "data_delay_ns": 37.418,
+      "Data Arrival Time": 46.014,
+      "Data Required Time": 57.815,
+      "logic_levels": 27,
+      "routing_ns": 18.281,
+      "cell_ns": 19.137
+    },
+    "fast_100": {
+      "slack_ns": 30.645,
+      "launch": "emu:emu|mister_vgm_md_top:md_sound|vgm_ddram_backend:loaded_vgm_mode.backend_ddram.ddram_backend|overflow_error",
+      "capture": "emu:emu|mister_vgm_md_top:md_sound|engine_a_vnext_functional_engine:loaded_vgm_mode.vnext_engine|segapcm_vnext_sample_adapter:samples|read_owned.address[30]",
+      "launch_clock": "emu|pll|pll_inst|altera_pll_i|general[0].gpll~PLL_OUTPUT_COUNTER|divclk",
+      "capture_clock": "emu|pll|pll_inst|altera_pll_i|general[0].gpll~PLL_OUTPUT_COUNTER|divclk",
+      "relationship_ns": 50.0,
+      "clock_skew_ns": -0.235,
+      "data_delay_ns": 18.84,
+      "Data Arrival Time": 22.912,
+      "Data Required Time": 53.557,
+      "logic_levels": 23,
+      "routing_ns": 13.458,
+      "cell_ns": 5.382
+    },
+    "fast_-40": {
+      "slack_ns": 33.238,
+      "launch": "emu:emu|mister_vgm_md_top:md_sound|vgm_ddram_backend:loaded_vgm_mode.backend_ddram.ddram_backend|overflow_error",
+      "capture": "emu:emu|mister_vgm_md_top:md_sound|engine_a_vnext_functional_engine:loaded_vgm_mode.vnext_engine|segapcm_vnext_sample_adapter:samples|read_owned.address[30]",
+      "launch_clock": "emu|pll|pll_inst|altera_pll_i|general[0].gpll~PLL_OUTPUT_COUNTER|divclk",
+      "capture_clock": "emu|pll|pll_inst|altera_pll_i|general[0].gpll~PLL_OUTPUT_COUNTER|divclk",
+      "relationship_ns": 50.0,
+      "clock_skew_ns": -0.223,
+      "data_delay_ns": 16.259,
+      "Data Arrival Time": 20.093,
+      "Data Required Time": 53.331,
+      "logic_levels": 27,
+      "routing_ns": 9.725,
+      "cell_ns": 6.534
+    }
+  },
+  "voice_map_new": {
+    "slow_100": {
+      "slack_ns": 15.145,
+      "launch": "emu:emu|mister_vgm_md_top:md_sound|engine_a_vnext_functional_engine:loaded_vgm_mode.vnext_engine|segapcm_vnext_core:core|owned.address[9]",
+      "capture": "emu:emu|mister_vgm_md_top:md_sound|engine_a_vnext_functional_engine:loaded_vgm_mode.vnext_engine|segapcm_vnext_sample_adapter:samples|read_owned.address[31]",
+      "launch_clock": "emu|pll|pll_inst|altera_pll_i|general[0].gpll~PLL_OUTPUT_COUNTER|divclk",
+      "capture_clock": "emu|pll|pll_inst|altera_pll_i|general[0].gpll~PLL_OUTPUT_COUNTER|divclk",
+      "relationship_ns": 50.0,
+      "clock_skew_ns": -0.511,
+      "data_delay_ns": 34.064,
+      "Data Arrival Time": 42.641,
+      "Data Required Time": 57.786,
+      "logic_levels": 26,
+      "routing_ns": 18.314,
+      "cell_ns": 15.75
+    },
+    "slow_-40": {
+      "slack_ns": 14.242,
+      "launch": "emu:emu|mister_vgm_md_top:md_sound|engine_a_vnext_functional_engine:loaded_vgm_mode.vnext_engine|segapcm_vnext_core:core|owned.address[9]",
+      "capture": "emu:emu|mister_vgm_md_top:md_sound|engine_a_vnext_functional_engine:loaded_vgm_mode.vnext_engine|segapcm_vnext_sample_adapter:samples|read_owned.address[31]",
+      "launch_clock": "emu|pll|pll_inst|altera_pll_i|general[0].gpll~PLL_OUTPUT_COUNTER|divclk",
+      "capture_clock": "emu|pll|pll_inst|altera_pll_i|general[0].gpll~PLL_OUTPUT_COUNTER|divclk",
+      "relationship_ns": 50.0,
+      "clock_skew_ns": -0.507,
+      "data_delay_ns": 34.971,
+      "Data Arrival Time": 43.573,
+      "Data Required Time": 57.815,
+      "logic_levels": 26,
+      "routing_ns": 16.599,
+      "cell_ns": 18.372
+    },
+    "fast_100": {
+      "slack_ns": 31.932,
+      "launch": "emu:emu|mister_vgm_md_top:md_sound|engine_a_vnext_functional_engine:loaded_vgm_mode.vnext_engine|segapcm_vnext_core:core|owned.address[9]",
+      "capture": "emu:emu|mister_vgm_md_top:md_sound|engine_a_vnext_functional_engine:loaded_vgm_mode.vnext_engine|segapcm_vnext_sample_adapter:samples|read_owned.address[30]",
+      "launch_clock": "emu|pll|pll_inst|altera_pll_i|general[0].gpll~PLL_OUTPUT_COUNTER|divclk",
+      "capture_clock": "emu|pll|pll_inst|altera_pll_i|general[0].gpll~PLL_OUTPUT_COUNTER|divclk",
+      "relationship_ns": 50.0,
+      "clock_skew_ns": -0.234,
+      "data_delay_ns": 17.554,
+      "Data Arrival Time": 21.625,
+      "Data Required Time": 53.557,
+      "logic_levels": 22,
+      "routing_ns": 12.767,
+      "cell_ns": 4.787
+    },
+    "fast_-40": {
+      "slack_ns": 34.491,
+      "launch": "emu:emu|mister_vgm_md_top:md_sound|engine_a_vnext_functional_engine:loaded_vgm_mode.vnext_engine|segapcm_vnext_core:core|owned.address[4]",
+      "capture": "emu:emu|mister_vgm_md_top:md_sound|engine_a_vnext_functional_engine:loaded_vgm_mode.vnext_engine|segapcm_vnext_sample_adapter:samples|read_owned.address[30]",
+      "launch_clock": "emu|pll|pll_inst|altera_pll_i|general[0].gpll~PLL_OUTPUT_COUNTER|divclk",
+      "capture_clock": "emu|pll|pll_inst|altera_pll_i|general[0].gpll~PLL_OUTPUT_COUNTER|divclk",
+      "relationship_ns": 50.0,
+      "clock_skew_ns": -0.226,
+      "data_delay_ns": 15.003,
+      "Data Arrival Time": 18.84,
+      "Data Required Time": 53.331,
+      "logic_levels": 25,
+      "routing_ns": 8.888,
+      "cell_ns": 6.115
+    }
+  }
+}

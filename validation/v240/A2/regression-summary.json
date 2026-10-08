@@ -1,0 +1,74 @@
+{
+  "backend": {
+    "result": "PASS",
+    "simulations": 4,
+    "non_production_preprocessed_RTL": "EXACT_MATCH",
+    "all_outputs_compared": true,
+    "capacity": 256,
+    "UNEXPECTED_DIFFERENCE": 0,
+    "baseline_sha256": "b4b2ab6f8e70de357c59be01847c73124d3ebe6a9c8b1c1267e8b64b642d1f2b",
+    "candidate_sha256": "576e21efdbef8a4e56041f94d0f822f87ed98a02899c490da09859b10c2d7f27"
+  },
+  "negative": {
+    "result": "PASS"
+  },
+  "golden": {
+    "result": "PASS",
+    "new_candidate_simulations": 34,
+    "reused_A1_reference_simulations": 33,
+    "reference_summary_sha256": "2f0757d2f2c3f2eefd386cc6d3dc982bbb582ac3f98cac0529b9609065da4ef8",
+    "clock_ordered_functional_trace": "EXACT_MATCH_TO_A1",
+    "L0_L12_logical_voice_mix": "EXACT_MATCH",
+    "Maximum_Power_111_frame": 15,
+    "UNEXPECTED_DIFFERENCE": 0
+  },
+  "reader": {
+    "base": "f90faca0eabcf5256cd9ac4124850d0817d0617f",
+    "strict_simulations": 111,
+    "marker": "PARSER_VNEXT_STRICT_READER_PASS",
+    "simulation_runs": 370
+  },
+  "scheduler": {
+    "base": "f4ec1cef3e6f2520399e3f184ede428bd281cd5f",
+    "marker": "PARSER_VNEXT_SCHEDULER_PASS",
+    "simulation_runs": 336
+  },
+  "boundary": {
+    "result": "PASS",
+    "simulations": 90
+  },
+  "horizon": {
+    "marker": "ENGINE_A_VNEXT_BOUNDED_HORIZON_PASS",
+    "unit_fixtures": 14,
+    "unit_simulations": 28,
+    "connected_fixtures": 21,
+    "connected_simulations": 42,
+    "logical_boundary": "UNCHANGED_LATCHED_CUTOFF",
+    "total_deadline_cycles": 600,
+    "loop_count_policy": "UNCHANGED_TRANSPORT_ONLY",
+    "UNEXPECTED_DIFFERENCE": 0,
+    "deterministic_rerun": "PASS"
+  },
+  "avalon": {
+    "result": "AVALON_ACCEPT_DIRECTED_PASS",
+    "directed_fixtures": 20,
+    "deterministic_simulations": 40,
+    "deterministic_rerun": "PASS",
+    "fixture_sha256": "e0741f625c5b79b8c7ad6b74731bf3cc20cc3714dca39576bf3344c98933aacc",
+    "physical_response_deadline_from_accept": 1024,
+    "power_reset": "cold bus-quiescent initialization only",
+    "live_reset": "Golden backend_reset; bridge/observer ledger retained",
+    "UNEXPECTED_DIFFERENCE": 0
+  },
+  "segapcm": {
+    "result": "PASS",
+    "simulations": 348,
+    "adapter_checks": 9,
+    "exhaustive_raw_products": 65536,
+    "maximum_valid_frame_cycles": 432,
+    "deadline_response_cycles": 600,
+    "negative_controls": 9,
+    "deterministic_rerun": "PASS",
+    "UNEXPECTED_DIFFERENCE": 0
+  }
+}

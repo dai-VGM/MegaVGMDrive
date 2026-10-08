@@ -1,20 +1,20 @@
-# MegaVGMPlayer vNext integration — Phase 1 audit
+# MegaVGMPlayer v2.4.0 — Architecture Refresh RC
 
-Status: **PHASE1_BLOCKED_A_TIMING**. This directory is an audit repository, **not a completed Release Candidate**. No deployable package or new RBF was produced.
+Status: **RC_READY** — scoped local integration, with disclosed provenance/test limitations. No deployment, GitHub Release, tag or push.
 
-DAI's hardware acceptance of A/B/C/D is received and retained. It does not erase a failing static Timing report. The exact accepted A RBF matches the Windows build whose saved STA report has core setup −88.815 ns / endpoint TNS −3361.116 ns and HDMI setup −0.188 ns / endpoint TNS −2.790 ns. Saved A evidence contains only Slow 1100mV 100°C. The detailed failing endpoints and the physical/constraint cause are not present in this report, so no source fix, timing exception or seed change is proposed as proven.
+Selected A1+A2 A, optimized seed3 B, unchanged stable C and D vNext are frozen as separate RBFs/builds. This refresh adds no chip and does not combine engines. Existing Main/Runtime/PWA/helper bytes and canonical A–D launch names are retained.
 
-The Runbook requires stopping on a concrete failing required gate (§Bring-up sequence; “stop on a new unexplained semantic difference or concrete failing required gate”). DAI also requires reporting mismatches without automatically fixing them. Phase 2–5 formal assembly and canonical promotion therefore remain pending.
+| Engine | Adopted source/config | RBF SHA256 | Windows evidence |
+|---|---|---|---|
+| A | `b4e1b9c` | `57b005ae66c586189e153cfe09b4b680e781deaec29bac1f19654e42f5b9b6c3` | all4corner constrained PASS |
+| B | `2241e0f` / implementation99d4928 / seed3 | `70392ce76932c85c21cd5f2ef3a73f1b07026e7573c8e75e753a804660d51507` | all4corner constrained PASS |
+| C | `82402ec` | `45f63808ca4d9871716af0bbc46f2335cd49d14fceafb537108ef2fa9f3e6110` | retained stable legacy; no new signoff |
+| D | `26d5078` | `064c398c42d7daa729bf5081efba6213ca872d8f7f9b1889f1004a24e0422ed7` | all4corner constrained PASS |
 
-| Engine | Proposed source | Hardware receipt | Source/build audit |
-| --- | --- | --- | --- |
-| A | da862ee | received | RBF Windows binding exact; Timing FAIL; QSF byte variant recorded |
-| B | 99d4928 + seed3 2241e0f; evidence b7a001d | received | optimized RBF 70392ce7…; all4corner PASS; 2 independent builds exact |
-| C | 82402ec, unchanged stable | received | v2.3 registry RBF 45f63808… exact; native-cycle retained; original producing build not recovered |
-| D | 26d5078 | received | Windows source/RBF exact; all4corner constrained PASS; inherited external IO limits retained |
+See [adoption manifest](release/v2.4.0/adoption-manifest.json), [Release Notes](release/v2.4.0/RELEASE_NOTES.md), [build instructions](release/v2.4.0/BUILD.md), [Timing](release/v2.4.0/TIMING.md), [scoped hardware receipts](release/v2.4.0/HARDWARE_ACCEPTANCE.md), [known limits](release/v2.4.0/KNOWN_LIMITATIONS.md) and [publication checklist](release/v2.4.0/GITHUB_RELEASE_PREPARATION.md).
 
-See [proposed identity manifest](proposed-adoption-manifest.json), [audit report](audit/REPORT.md) and [remaining integration work](audit/NEXT_STEPS.md). Full hashes, sizes, paths, source commits and canonical launch names are in the manifest. This records proposed identities only; it does not supersede existing production/release authority.
+The old A Timing blocker is resolved by selecting b4e1b9c, not by changing the old RBF or waiving Timing. The complete [original BLOCKED audit](history/96edaa2/README.md) and its commit/checksums are preserved. Current canonical snapshots are in canonical/current; before snapshots remain in canonical/before. Existing production/v2.3 authorities remain untouched.
 
-Audit replay: `python3 tools/verify_audit.py`. This reads the recorded Mac authorities and artifacts, checks hashes and protected state, and does not run Quartus. Saved Windows evidence is immutable audit material; it is not a new canonical QSF. Original hardware-generation receipts may say NOT_RUN; the newer explicit DAI hardware confirmation is recorded separately in the manifest.
+Validation: `python3 tools/verify_v240.py`. Package assembly: `python3 tools/build_v240.py --base-v23 /path/to/MegaVGMPlayer-v2.3.zip --out /new/isolated/output`. Never use an existing production directory as output. Source ZIPs under artifacts/build are exact copies; C retains the explicitly documented legacy-layout exception. BUILD.bat is optional.
 
-No RTL, C native-cycle source, RBF, Runtime, Main, Controller, Supervisor, PWA, existing release package or canonical document was modified. Existing expensive functional regression evidence is retained; unchanged RTL suites were not unnecessarily recompiled. No claim of a newly completed long-duration/full-admission test is made.
+RC_READY means this scoped local integration/package is prepared. It does not mean public release, deployment, a newly completed full-admission/long-duration/all-track matrix or hardware proof of every software-reference edge case.

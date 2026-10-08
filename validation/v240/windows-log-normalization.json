@@ -1,0 +1,6 @@
+{
+  "reason": "Normalize new SSH collection JSONL CRLF to LF for repository whitespace gate; all recorded path/hash fields unchanged",
+  "original_capture_sha256": "d0bcfe07f36b51dd0f3d73c2cfd2f7fad29dc7f85f64d7353f15bf6a40439576",
+  "LF_sha256": "86c7867e589c74d4c891f23f8db9ccd81abc01c1e7226bf41d6aa155aac8e4e1",
+  "records": 503
+}

@@ -1,0 +1,100 @@
+{
+  "gate": "WINDOWS_QUARTUS17_BUILD_PASS_WITH_INHERITED_IO_CONSTRAINT_LIMIT",
+  "source_commit": "26d507843a49e6658cf013b25533bdc33fee3818",
+  "hardware_status": "NOT_HARDWARE_VALIDATED",
+  "host": "DAI-RYZEN5900X",
+  "Quartus": "17.0.0 Build595 04/25/2017 SJ Lite Edition",
+  "device": "5CSEBA6U23I7",
+  "source_ZIP_sha256": "42420c2af3e6136a5f5327b4281f25768f2602a4925a7e8429b5d63fc4a96b91",
+  "compile_exit": 0,
+  "multicorner_exit": 0,
+  "compile_errors": 0,
+  "compile_warnings": 216,
+  "STA_errors": 0,
+  "STA_warnings": 8,
+  "input_hash_before_exact": 132,
+  "input_hash_after_exact": 132,
+  "source_edits_on_Windows": false,
+  "Fitter": "PASS",
+  "resources": {
+    "ALMs_needed": 22074,
+    "ALMs_available": 41910,
+    "ALMs_percent": 53,
+    "ALMs_final_placement": 27246,
+    "ALMs_final_placement_percent": 65,
+    "LABs_partially_or_completely_used": 3700,
+    "LABs_available": 4191,
+    "LABs_percent": 88,
+    "M10K": 79,
+    "M10K_available": 553,
+    "M10K_percent": 14,
+    "block_memory_bits": 403206,
+    "registers": 33644,
+    "DSP": 38,
+    "DSP_available": 112,
+    "D_added_RAM": {
+      "YM_FIFO_M10K": 1,
+      "descriptor_M10K": 2,
+      "page_M10K": 2,
+      "sum_M10K": 5,
+      "data_bits": 10256
+    },
+    "packing_difficulty": "Low",
+    "scope": "Whole D candidate; hierarchy rows are inclusive, do not add parent and child resource counts"
+  },
+  "timing": {
+    "gate": "PASS_CONSTRAINED_ALL4_CORNERS",
+    "corner_min_slack_ns": {
+      "Fast 1100mV -40C": {
+        "Hold": 0.065,
+        "Minimum Pulse Width": 1.122,
+        "Recovery": 5.233,
+        "Removal": 0.496,
+        "Setup": 3.792
+      },
+      "Fast 1100mV 100C": {
+        "Hold": 0.129,
+        "Minimum Pulse Width": 1.122,
+        "Recovery": 4.972,
+        "Removal": 0.581,
+        "Setup": 3.473
+      },
+      "Slow 1100mV -40C": {
+        "Hold": 0.117,
+        "Minimum Pulse Width": 1.122,
+        "Recovery": 3.776,
+        "Removal": 1.101,
+        "Setup": 0.495
+      },
+      "Slow 1100mV 100C": {
+        "Hold": 0.242,
+        "Minimum Pulse Width": 1.122,
+        "Recovery": 3.626,
+        "Removal": 1.195,
+        "Setup": 0.613
+      }
+    },
+    "TNS_all": 0,
+    "inherited_external_IO_constraint_limit": "3 input / 50 output ports exactly same as accepted A/B snapshots; 0 illegal / unconstrained clocks; D output path count181 vs A89/B115 from implementation fanout. Fully constrained external IO timing is not claimed. All8 STA warnings exactly match accepted B."
+  },
+  "RBF": {
+    "path": "reports/output/MegaVGMDrive_D_vNext.rbf",
+    "bytes": 2994688,
+    "sha256": "064c398c42d7daa729bf5081efba6213ca872d8f7f9b1889f1004a24e0422ed7",
+    "hardware_status": "NOT_HARDWARE_VALIDATED"
+  },
+  "report_bundle": {
+    "path": "EngineD_26d5078_WindowsReports.zip",
+    "bytes": 1795831,
+    "sha256": "7149ac3093c7f4125d21fb034bacf36af9042cd248ba4184bb50b18d48420507"
+  },
+  "cleanup": {
+    "own_one_shot_task_removed": true,
+    "task_last_result": 0,
+    "other_jobs_untouched": true
+  },
+  "UNEXPECTED_DIFFERENCE": 0,
+  "difference_scope": "qualified source/simulation and reviewed Windows build; hardware unrun",
+  "promotion": false,
+  "production_deployment": false
+}

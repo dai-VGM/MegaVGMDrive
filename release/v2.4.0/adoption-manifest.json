@@ -1,0 +1,353 @@
+{
+  "schema": "megavgm-v240-adoption-v1",
+  "date": "2026-10-09",
+  "status": "RC_READY",
+  "release_candidate_complete": true,
+  "engines": {
+    "A": {
+      "selection": "SELECTED_FOR_V2_4_RC_NOT_DEPLOYED",
+      "source_commit": "b4e1b9c4a8ed0719b099389e9c54426fb8418495",
+      "RBF": {
+        "path": "/Users/daizo/Projects/output/EngineA_vNext_Optimization_A2_b4e1b9c_20261009/hardware-test/MegaVGMDrive_A_vNext_Production_MiSTer.rbf",
+        "bytes": 3067028,
+        "sha256": "57b005ae66c586189e153cfe09b4b680e781deaec29bac1f19654e42f5b9b6c3",
+        "integrated_path": "artifacts/rbf/MegaVGMDrive_A.rbf"
+      },
+      "canonical_launch_path": "/media/fat/_Custom Cores/Cores/MegaVGMDrive_A.rbf",
+      "status_profile": "PROFILE_A",
+      "CORENAME": "MegaVGMDrive",
+      "chip_scope": [
+        "SN76489",
+        "YM2612",
+        "YM2151",
+        "YM2203",
+        "SegaPCM"
+      ],
+      "source_graph": {
+        "gate": "BUILD_ARTIFACT_FRESH_EXTRACT_PASS",
+        "root_QPF": "MegaVGMDrive_A_vNext_Production_MiSTer.qpf",
+        "revision": "MegaVGMDrive_A_vNext_Production_MiSTer",
+        "top": "sys_top",
+        "device": "5CSEBA6U23I7",
+        "output": "output",
+        "canonical_workflow": "ROOT_QPF_QUARTUS_GUI_FULL_COMPILATION",
+        "BUILD_bat_required": false,
+        "optional_helpers_present": [],
+        "file_count": 199,
+        "build_inputs": 195,
+        "HDL_sources": 174,
+        "missing": 0,
+        "duplicate_source": 0,
+        "absolute_paths": 0,
+        "parent_dependencies": 0,
+        "stale_lab_sources": 0,
+        "compile_defines_exact": true,
+        "package_source_order_exact": true,
+        "settings_options_pins_exact": true,
+        "canonical_configs_exact_copy": true,
+        "Quartus17_literal_style": {
+          "gate": "QUARTUS17_LITERAL_STYLE_PASS",
+          "configuration_files": 14,
+          "assignment_lines": 1463,
+          "braced_space_values": 0,
+          "braced_QSF_values": 0,
+          "serializer": false
+        },
+        "all_member_checksums_exact": true,
+        "only_root_QPF": true,
+        "extra_wrapper_directory": false,
+        "OSD_path": "source/sys/osd.v",
+        "OSD_SHA256": "e18264edfa70b10606c93e02c0f0215cec063d87ab17919326884e6658abacba",
+        "Loading_hardware": "Measurement Activity user hardware PASS; restored Production profile requires Windows build and exact-artifact hardware confirmation.",
+        "Quartus_executed": false,
+        "source_commit": "b4e1b9c4a8ed0719b099389e9c54426fb8418495",
+        "ZIP": "/private/tmp/engine-a-a2/artifact/MegaVGMDrive_A_vNext_Production_RC.zip",
+        "ZIP_bytes": 514297,
+        "ZIP_SHA256": "5d211e9eeacf09cefae4427f3fab4fa7a2e00ebd26c062f9c36a24b228d5a99b",
+        "deterministic_archive_exact": true
+      },
+      "source_artifact": {
+        "source_artifact_path": "/Users/daizo/Projects/output/EngineA_vNext_Optimization_A2_b4e1b9c_20261009/artifact/MegaVGMDrive_A_vNext_Production_RC.zip",
+        "source_artifact_sha256": "5d211e9eeacf09cefae4427f3fab4fa7a2e00ebd26c062f9c36a24b228d5a99b",
+        "source_artifact_bytes": 514297,
+        "integrated_path": "artifacts/build/A/MegaVGMDrive_A_vNext_Production_RC.zip"
+      },
+      "hardware_acceptance": {
+        "authority": "DAI explicit v2.4.0 Architecture Refresh request; not a fresh test performed by this integration",
+        "status": "USER_CONFIRMED_IN_REPORTED_SCOPE",
+        "scope": [
+          "audio playback",
+          "PWA startup",
+          "transparent bottom Loading",
+          "Activity OSD",
+          "track switching"
+        ],
+        "long_duration": "NOT_RUN_NOT_CLAIMED",
+        "full_asset_compatibility": "NOT_CLAIMED",
+        "full_Stop_Next_Reload_loop_cross_engine_matrix": "NOT_NEWLY_VERIFIED"
+      },
+      "timing_status": "ALL4_CORNER_PASS_CONSTRAINED_CHECKS; TNS=0",
+      "reproducibility": "One measured Full Compilation; exact source/build/result binding; independent Full Compilation NOT_RUN",
+      "resource": {
+        "ALM": 23503,
+        "LAB": 3705,
+        "M10K": 85
+      },
+      "implementation_commit": "b4e1b9c4a8ed0719b099389e9c54426fb8418495",
+      "timing_evidence_commit": "a1fc3cbed5bafa0a093338128675cd666d4ea2e1",
+      "source_worktree": "/Users/daizo/Projects/MegaVGMPlayer_EngineA_Opt_A2",
+      "fitter_seed": 1,
+      "worst_setup_ns": 0.088,
+      "build_artifact_metadata_status": "Historical exact-copy evidence; immutable older NOT_RUN text superseded only by current hardware receipt and build evidence, not rewritten",
+      "IO_constraint_limit": "Inherited external I/O/unmatched arc/arx/ary constraint warnings retained; all-corner PASS is constrained checks, not complete external-I/O certification"
+    },
+    "B": {
+      "selection": "SELECTED_FOR_V2_4_RC_NOT_DEPLOYED",
+      "source_commit": "2241e0f36ec5b57b84032d63a183c38ae6550409",
+      "RBF": {
+        "path": "/Users/daizo/Projects/MegaVGMPlayer_EngineB_vNext/out/hardware-test/phase2-seed3-2241e0f/MegaVGMDrive_B_vNext_MiSTer.rbf",
+        "bytes": 3329712,
+        "sha256": "70392ce76932c85c21cd5f2ef3a73f1b07026e7573c8e75e753a804660d51507",
+        "integrated_path": "artifacts/rbf/MegaVGMDrive_B.rbf"
+      },
+      "canonical_launch_path": "/media/fat/_Custom Cores/Cores/MegaVGMDrive_B.rbf",
+      "status_profile": "PROFILE_B",
+      "CORENAME": "MegaVGMDrive",
+      "chip_scope": [
+        "YM2610",
+        "YM2610B",
+        "FM",
+        "SSG",
+        "ADPCM-A",
+        "ADPCM-B"
+      ],
+      "source_graph": {
+        "gate": "BUILD_ARTIFACT_FRESH_EXTRACT_PASS",
+        "root_QPF": "MegaVGMDrive_B_vNext_MiSTer.qpf",
+        "revision": "MegaVGMDrive_B_vNext_MiSTer",
+        "top": "sys_top",
+        "device": "5CSEBA6U23I7",
+        "output": "output",
+        "canonical_workflow": "ROOT_QPF_QUARTUS_GUI_FULL_COMPILATION",
+        "BUILD_bat_required": false,
+        "optional_helpers_present": [],
+        "file_count": 165,
+        "build_inputs": 161,
+        "HDL_sources": 142,
+        "missing": 0,
+        "duplicate_source": 0,
+        "absolute_paths": 0,
+        "parent_dependencies": 0,
+        "stale_lab_sources": 0,
+        "compile_defines_exact": true,
+        "package_source_order_exact": true,
+        "settings_options_pins_exact": true,
+        "canonical_configs_exact_copy": true,
+        "all_member_checksums_exact": true,
+        "only_root_QPF": true,
+        "extra_wrapper_directory": false,
+        "OSD_path": "source/sys/osd.v",
+        "OSD_SHA256": "4d57135b8cf65cb18c02ed6b3f673b4641b1592bafe16d43362e364bce966caa",
+        "Loading_hardware": "User reports baseline transparent bottom Loading and Activity PASS; new artifact hardware NOT_RUN.",
+        "Quartus_executed": false
+      },
+      "source_artifact": {
+        "source_artifact_path": "/Users/daizo/Projects/MegaVGMPlayer_EngineB_vNext/out/hardware-test/phase2-seed3-2241e0f/MegaVGMDrive_B_vNext_RC.zip",
+        "source_artifact_sha256": "1713b6dda392d9c97acd5e83d62bb140187fbef0e05bb3dafdc62c5decf81da9",
+        "source_artifact_bytes": 419698,
+        "integrated_path": "artifacts/build/B/MegaVGMDrive_B_vNext_RC.zip"
+      },
+      "hardware_acceptance": {
+        "authority": "DAI explicit v2.4.0 Architecture Refresh request; not a fresh test performed by this integration",
+        "status": "USER_CONFIRMED_IN_REPORTED_SCOPE",
+        "scope": [
+          "audio playback",
+          "PWA startup",
+          "track switching"
+        ],
+        "long_duration": "NOT_RUN_NOT_CLAIMED",
+        "full_asset_compatibility": "NOT_CLAIMED",
+        "full_Stop_Next_Reload_loop_cross_engine_matrix": "NOT_NEWLY_VERIFIED"
+      },
+      "implementation_commit": "99d4928c0714b749363903390b710de7720506fd",
+      "timing_evidence_commit": "b7a001d822c7f93e54587f137469e70e7022f933",
+      "fitter_seed": 3,
+      "timing_status": "ALL4_CORNER_PASS_CONSTRAINED_CHECKS; TNS=0",
+      "worst_setup_ns": 0.467,
+      "resource": {
+        "ALM": 31787,
+        "LAB": 3995,
+        "M10K": 84
+      },
+      "reproducibility": "2 independent Full Compilations; resources/timing/RBF exact; reused evidence, no new compile",
+      "old_root_B_RBF": "9f62876ab573dbffde5abb1b6dc90e92f8afcb0875029d64357a6e51a8c55e7c remains protected, not selected",
+      "source_worktree": "/Users/daizo/Projects/MegaVGMPlayer_EngineB_vNext",
+      "build_artifact_metadata_status": "Historical exact-copy evidence; immutable older NOT_RUN text superseded only by current hardware receipt and build evidence, not rewritten"
+    },
+    "C": {
+      "selection": "SELECTED_FOR_V2_4_RC_NOT_DEPLOYED",
+      "source_commit": "82402ec2ecc12fd254eb2457d30473aae89854e4",
+      "RBF": {
+        "path": "/Users/daizo/Projects/MegaVGMPlayer_EngineC_C7_2_OSD_Visual_MiSTer.rbf",
+        "bytes": 2700732,
+        "sha256": "45f63808ca4d9871716af0bbc46f2335cd49d14fceafb537108ef2fa9f3e6110",
+        "integrated_path": "artifacts/rbf/MegaVGMDrive_C.rbf"
+      },
+      "canonical_launch_path": "/media/fat/_Custom Cores/Cores/MegaVGMDrive_C.rbf",
+      "status_profile": "PROFILE_C",
+      "CORENAME": "MegaVGMDrive",
+      "chip_scope": [
+        "SID 6581",
+        "SID 8580; MVGMSID native-cycle"
+      ],
+      "source_graph": {
+        "qpf": "/Users/daizo/Projects/MegaVGMPlayer_EngineC_TransparentInfo/hw/engine_c_packed_v2/MegaVGMPlayer_EngineC_C7_2_OSD_Visual_MiSTer.qpf",
+        "qsf": "/Users/daizo/Projects/MegaVGMPlayer_EngineC_TransparentInfo/hw/engine_c_packed_v2/MegaVGMPlayer_EngineC_C7_2_OSD_Visual_MiSTer.qsf",
+        "registered_HDL_files": 71,
+        "build_inputs_and_includes_verified": 89,
+        "duplicate_source": 0,
+        "missing": 0,
+        "external_dependencies": 0,
+        "editor_only_missing_templates": [
+          "rtl/pll.cmp",
+          "sys/pll_hdmi.cmp",
+          "sys/pll_audio.cmp"
+        ],
+        "generated_build_id": "existing sys/build_id.tcl unchanged; historical date reproducibility not proven"
+      },
+      "source_artifact": {
+        "source_artifact_path": null,
+        "source_artifact_status": "LEGACY_UNCHANGED_GRAPH; no root-layout artifact invented"
+      },
+      "hardware_acceptance": {
+        "authority": "DAI explicit v2.4.0 Architecture Refresh request; not a fresh test performed by this integration",
+        "status": "USER_CONFIRMED_IN_REPORTED_SCOPE",
+        "scope": [
+          "retained stable audio/PWA acceptance; native-cycle path unchanged"
+        ],
+        "long_duration": "NOT_RUN_NOT_CLAIMED",
+        "full_asset_compatibility": "NOT_CLAIMED",
+        "full_Stop_Next_Reload_loop_cross_engine_matrix": "NOT_NEWLY_VERIFIED"
+      },
+      "timing_status": "LEGACY_STABLE_ACCEPTANCE_RETAINED; no new all-corner signoff claim",
+      "reproducibility": "Stable v2.3 registry hash exact; original producing Windows build not recovered",
+      "Windows_old_build_RBF_sha256": "e7fa0a6ca192d8ecac31048ec0497fcfd7f00944dfa8c3f5cfa4a8965e06e0e1",
+      "root_Build_Artifact": "NOT_AVAILABLE; do not rewrite C project to invent one",
+      "native_cycle": "UNCHANGED; intentionally independent of VGM Common Parser/Scheduler",
+      "source_worktree": "/Users/daizo/Projects/MegaVGMPlayer_EngineC_TransparentInfo",
+      "build_artifact_metadata_status": "Historical exact-copy evidence; immutable older NOT_RUN text superseded only by current hardware receipt and build evidence, not rewritten",
+      "legacy_source_snapshot": {
+        "path": "artifacts/build/C/EngineC_82402ec_legacy_source.zip",
+        "sha256": "3f734f319ec7e8b2c19dde7adbfa0347ff9d4af32bf7f66b34f31426f0e0f703",
+        "bytes": 265768,
+        "files": 89,
+        "layout": "EXACT_UNCHANGED_LEGACY_NOT_ROOT_QPF_ARTIFACT"
+      }
+    },
+    "D": {
+      "selection": "SELECTED_FOR_V2_4_RC_NOT_DEPLOYED",
+      "source_commit": "26d507843a49e6658cf013b25533bdc33fee3818",
+      "RBF": {
+        "path": "/Users/daizo/Documents/Codex/2026-10-08/engine-d-vnext-engine-d-ym2151/outputs/hardware-test-26d5078/MegaVGMDrive_D_vNext_MiSTer.rbf",
+        "bytes": 2994688,
+        "sha256": "064c398c42d7daa729bf5081efba6213ca872d8f7f9b1889f1004a24e0422ed7",
+        "integrated_path": "artifacts/rbf/MegaVGMDrive_D.rbf"
+      },
+      "canonical_launch_path": "/media/fat/_Custom Cores/Cores/MegaVGMDrive_D.rbf",
+      "status_profile": "PROFILE_D",
+      "CORENAME": "MegaVGMDrive",
+      "chip_scope": [
+        "C140 System2/System21",
+        "YM2151 optional; ASIC219 unsupported"
+      ],
+      "source_graph": {
+        "gate": "BUILD_ARTIFACT_FRESH_EXTRACT_PASS",
+        "root_QPF": "MegaVGMDrive_D_vNext.qpf",
+        "revision": "MegaVGMDrive_D_vNext",
+        "top": "sys_top",
+        "device": "5CSEBA6U23I7",
+        "output": "output",
+        "canonical_workflow": "ROOT_QPF_QUARTUS_GUI_FULL_COMPILATION",
+        "BUILD_bat_required": false,
+        "optional_helpers_present": [],
+        "file_count": 136,
+        "build_inputs": 132,
+        "HDL_sources": 111,
+        "missing": 0,
+        "duplicate_source": 0,
+        "absolute_paths": 0,
+        "parent_dependencies": 0,
+        "stale_lab_sources": 0,
+        "compile_defines_exact": true,
+        "package_source_order_exact": true,
+        "settings_options_pins_exact": true,
+        "canonical_configs_exact_copy": true,
+        "all_member_checksums_exact": true,
+        "only_root_QPF": true,
+        "extra_wrapper_directory": false,
+        "OSD_path": "source/sys/osd.v",
+        "OSD_SHA256": "4d57135b8cf65cb18c02ed6b3f673b4641b1592bafe16d43362e364bce966caa",
+        "Loading_hardware": "New D vNext artifact hardware NOT_RUN. Standard Main/manual RBF Loading and PWA/modified Main Loading are separate unrun hardware paths.",
+        "Quartus_executed": false
+      },
+      "source_artifact": {
+        "source_artifact_path": "/Users/daizo/Documents/Codex/2026-10-08/engine-d-vnext-engine-d-ym2151/outputs/build-artifact/MegaVGMDrive_D_vNext_RC.zip",
+        "source_artifact_sha256": "42420c2af3e6136a5f5327b4281f25768f2602a4925a7e8429b5d63fc4a96b91",
+        "source_artifact_bytes": 389642,
+        "integrated_path": "artifacts/build/D/MegaVGMDrive_D_vNext_RC.zip"
+      },
+      "hardware_acceptance": {
+        "authority": "DAI explicit v2.4.0 Architecture Refresh request; not a fresh test performed by this integration",
+        "status": "USER_CONFIRMED_IN_REPORTED_SCOPE",
+        "scope": [
+          "YM2151/C140 playback",
+          "PWA startup",
+          "transparent bottom Loading"
+        ],
+        "long_duration": "NOT_RUN_NOT_CLAIMED",
+        "full_asset_compatibility": "NOT_CLAIMED",
+        "full_Stop_Next_Reload_loop_cross_engine_matrix": "NOT_NEWLY_VERIFIED"
+      },
+      "timing_status": "ALL4_CORNER_PASS_CONSTRAINED_CHECKS; TNS=0",
+      "resource": {
+        "ALM": 22074,
+        "LAB": 3700,
+        "M10K": 79
+      },
+      "reproducibility": "Exact source manifest and Windows inputs/RBF binding verified; second independent Full Compilation NOT_PROVEN",
+      "IO_constraint_limit": "3 input / 50 output ports unconstrained; inherited; no fully constrained external IO signoff claim",
+      "transport_owner_difference": "Existing DIRECT_LOAD_REARM changes pinned in 5cf9faea2f2a07ead9c3e54653b27fbff8a0b654; do not merge owner implementations",
+      "source_worktree": "/Users/daizo/Projects/MegaVGMPlayer_EngineD_vNext",
+      "worst_setup_ns": 0.495,
+      "build_artifact_metadata_status": "Historical exact-copy evidence; immutable older NOT_RUN text superseded only by current hardware receipt and build evidence, not rewritten"
+    }
+  },
+  "shared_common_core": "10 Parser/Reader/Scheduler graph files byte-identical A/B/D; Transport D variant retained",
+  "execution": {
+    "Mac_Quartus": false,
+    "Windows_compile": false,
+    "RTL_changes": false,
+    "RBF_changes": false,
+    "deployment": false,
+    "GitHub_publication": false,
+    "tag_or_push": false
+  },
+  "version": "2.4.0",
+  "title": "MegaVGMPlayer v2.4.0 — Architecture Refresh",
+  "previous_audit": {
+    "commit": "96edaa2e5dc02001e8e45d116cf5a7409fbadaec",
+    "status": "PHASE1_BLOCKED_A_TIMING",
+    "preserved_at": "history/96edaa2",
+    "resolution": "A da862ee replaced by approved A1+A2 b4e1b9c; no modification of the failing historical RBF or reports"
+  },
+  "provenance_limits": [
+    "C original producing Windows build not recovered; stable v2.3 accepted RBF retained",
+    "C legacy project layout retained without canonical-config rewrite; source closure snapshot is not a new root-QPF Build Artifact",
+    "A/D independent bit-identical rebuild NOT_RUN; B independent Full Compilation reproduced twice",
+    "Inherited unconstrained I/O / unmatched-filter warnings retained; no claim of complete external-I/O signoff",
+    "Long-duration/full-asset/full admission hardware matrix not newly tested",
+    "A DDR telemetry/cache envelope remains open; B additional resource-cache optimization is out of scope"
+  ],
+  "blocking_issues": [],
+  "readiness_scope": "LOCAL_SCOPED_RC_ASSEMBLY; not deployment, publication or full production admission"
+}

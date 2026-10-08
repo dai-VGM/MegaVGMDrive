@@ -1,0 +1,38 @@
+{
+  "gate": "V240_IDENTITY_AND_EVIDENCE_PASS",
+  "engines": {
+    "A": {
+      "exact_build_inputs": 195,
+      "common_files": 10,
+      "helper_required": false
+    },
+    "B": {
+      "exact_build_inputs": 161,
+      "common_files": 10,
+      "helper_required": false
+    },
+    "C": {
+      "legacy_source_files": 89,
+      "RBF_unchanged": true
+    },
+    "D": {
+      "exact_build_inputs": 132,
+      "common_files": 10,
+      "helper_required": false
+    }
+  },
+  "RBFs_exact": 4,
+  "canonical_runtime_names": 4,
+  "Common_files_exact_ABD": 10,
+  "Windows_inputs_exact": 488,
+  "Windows_RBFs_exact": 3,
+  "A_B_D_constrained_timing": "PASS_REUSED_WINDOWS_EVIDENCE",
+  "C": "UNCHANGED_LEGACY",
+  "protected_repositories": 12,
+  "protected_files": 17,
+  "Runtime_PWA_payload_changes": 0,
+  "new_Quartus_build": false,
+  "new_hardware_test": false,
+  "deployment": false,
+  "publication": false
+}

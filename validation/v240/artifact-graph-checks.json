@@ -1,0 +1,2715 @@
+{
+  "A": {
+    "graph": {
+      "gate": "BUILD_ARTIFACT_FRESH_EXTRACT_PASS",
+      "root_QPF": "MegaVGMDrive_A_vNext_Production_MiSTer.qpf",
+      "revision": "MegaVGMDrive_A_vNext_Production_MiSTer",
+      "top": "sys_top",
+      "device": "5CSEBA6U23I7",
+      "output": "output",
+      "canonical_workflow": "ROOT_QPF_QUARTUS_GUI_FULL_COMPILATION",
+      "BUILD_bat_required": false,
+      "optional_helpers_present": [],
+      "file_count": 199,
+      "build_inputs": 195,
+      "HDL_sources": 174,
+      "missing": 0,
+      "duplicate_source": 0,
+      "absolute_paths": 0,
+      "parent_dependencies": 0,
+      "stale_lab_sources": 0,
+      "compile_defines_exact": true,
+      "package_source_order_exact": true,
+      "settings_options_pins_exact": true,
+      "canonical_configs_exact_copy": true,
+      "Quartus17_literal_style": {
+        "gate": "QUARTUS17_LITERAL_STYLE_PASS",
+        "configuration_files": 14,
+        "assignment_lines": 1463,
+        "braced_space_values": 0,
+        "braced_QSF_values": 0,
+        "serializer": false
+      },
+      "all_member_checksums_exact": true,
+      "only_root_QPF": true,
+      "extra_wrapper_directory": false,
+      "OSD_path": "source/sys/osd.v",
+      "OSD_SHA256": "e18264edfa70b10606c93e02c0f0215cec063d87ab17919326884e6658abacba",
+      "Loading_hardware": "Measurement Activity user hardware PASS; restored Production profile requires Windows build and exact-artifact hardware confirmation.",
+      "Quartus_executed": false
+    },
+    "compatibility": {
+      "HDL": {
+        "result": "PASS",
+        "rtl_files": 176,
+        "scope": "candidate integration gate; frozen/vendor findings are review inventory",
+        "blockers": [],
+        "package_order": [
+          {
+            "path": "source/candidate/engine_a_vnext_production/functional_engine.sv",
+            "package": "segapcm_vnext_pkg",
+            "definition": "source/rtl/segapcm_vnext/sample_pkg.sv",
+            "result": "PASS"
+          },
+          {
+            "path": "source/candidate/engine_a_vnext_production/functional_engine.sv",
+            "package": "vgm_parser_vnext_event_pkg",
+            "definition": "source/rtl/vgm_parser_vnext/event_pkg.sv",
+            "result": "PASS"
+          },
+          {
+            "path": "source/candidate/engine_a_vnext_production/functional_engine.sv",
+            "package": "vgm_scheduler_vnext_pkg",
+            "definition": "source/rtl/vgm_scheduler_vnext/scheduler_pkg.sv",
+            "result": "PASS"
+          },
+          {
+            "path": "source/candidate/engine_a_vnext_production/functional_engine.sv",
+            "package": "segapcm_vnext_adapter_pkg",
+            "definition": "source/rtl/segapcm_vnext_adapters/adapter_pkg.sv",
+            "result": "PASS"
+          },
+          {
+            "path": "source/candidate/engine_a_vnext_production/functional_engine.sv",
+            "package": "segapcm_vnext_pkg",
+            "definition": "source/rtl/segapcm_vnext/sample_pkg.sv",
+            "result": "PASS"
+          },
+          {
+            "path": "source/candidate/engine_a_vnext_production/functional_engine.sv",
+            "package": "vgm_parser_vnext_event_pkg",
+            "definition": "source/rtl/vgm_parser_vnext/event_pkg.sv",
+            "result": "PASS"
+          },
+          {
+            "path": "source/candidate/engine_a_vnext_production/functional_engine.sv",
+            "package": "vgm_reader_vnext_pkg",
+            "definition": "source/rtl/vgm_reader_vnext/reader_pkg.sv",
+            "result": "PASS"
+          },
+          {
+            "path": "source/candidate/engine_a_vnext_production/functional_engine.sv",
+            "package": "vgm_scheduler_vnext_pkg",
+            "definition": "source/rtl/vgm_scheduler_vnext/scheduler_pkg.sv",
+            "result": "PASS"
+          },
+          {
+            "path": "source/rtl/engine_a_vnext_integration/c0_control_queue.sv",
+            "package": "vgm_scheduler_vnext_pkg",
+            "definition": "source/rtl/vgm_scheduler_vnext/scheduler_pkg.sv",
+            "result": "PASS"
+          },
+          {
+            "path": "source/rtl/engine_a_vnext_integration/c0_control_queue.sv",
+            "package": "vgm_scheduler_vnext_pkg",
+            "definition": "source/rtl/vgm_scheduler_vnext/scheduler_pkg.sv",
+            "result": "PASS"
+          },
+          {
+            "path": "source/rtl/engine_a_vnext_integration/chip_write_adapter.sv",
+            "package": "vgm_parser_vnext_event_pkg",
+            "definition": "source/rtl/vgm_parser_vnext/event_pkg.sv",
+            "result": "PASS"
+          },
+          {
+            "path": "source/rtl/engine_a_vnext_integration/chip_write_adapter.sv",
+            "package": "vgm_parser_vnext_event_pkg",
+            "definition": "source/rtl/vgm_parser_vnext/event_pkg.sv",
+            "result": "PASS"
+          },
+          {
+            "path": "source/rtl/engine_a_vnext_integration/command_byte_fifo.sv",
+            "package": "vgm_reader_vnext_pkg",
+            "definition": "source/rtl/vgm_reader_vnext/reader_pkg.sv",
+            "result": "PASS"
+          },
+          {
+            "path": "source/rtl/engine_a_vnext_integration/command_byte_fifo.sv",
+            "package": "vgm_reader_vnext_pkg",
+            "definition": "source/rtl/vgm_reader_vnext/reader_pkg.sv",
+            "result": "PASS"
+          },
+          {
+            "path": "source/rtl/engine_a_vnext_integration/strict_golden_read_binding.sv",
+            "package": "vgm_reader_vnext_pkg",
+            "definition": "source/rtl/vgm_reader_vnext/reader_pkg.sv",
+            "result": "PASS"
+          },
+          {
+            "path": "source/rtl/engine_a_vnext_integration/strict_golden_read_binding.sv",
+            "package": "vgm_reader_vnext_pkg",
+            "definition": "source/rtl/vgm_reader_vnext/reader_pkg.sv",
+            "result": "PASS"
+          },
+          {
+            "path": "source/rtl/engine_a_vnext_integration/ym2612_dac_client.sv",
+            "package": "segapcm_vnext_adapter_pkg",
+            "definition": "source/rtl/segapcm_vnext_adapters/adapter_pkg.sv",
+            "result": "PASS"
+          },
+          {
+            "path": "source/rtl/engine_a_vnext_integration/ym2612_dac_client.sv",
+            "package": "vgm_parser_vnext_event_pkg",
+            "definition": "source/rtl/vgm_parser_vnext/event_pkg.sv",
+            "result": "PASS"
+          },
+          {
+            "path": "source/rtl/engine_a_vnext_integration/ym2612_dac_client.sv",
+            "package": "vgm_reader_vnext_pkg",
+            "definition": "source/rtl/vgm_reader_vnext/reader_pkg.sv",
+            "result": "PASS"
+          },
+          {
+            "path": "source/rtl/engine_a_vnext_integration/ym2612_dac_client.sv",
+            "package": "vgm_scheduler_vnext_pkg",
+            "definition": "source/rtl/vgm_scheduler_vnext/scheduler_pkg.sv",
+            "result": "PASS"
+          },
+          {
+            "path": "source/rtl/engine_a_vnext_integration/ym2612_dac_client.sv",
+            "package": "segapcm_vnext_adapter_pkg",
+            "definition": "source/rtl/segapcm_vnext_adapters/adapter_pkg.sv",
+            "result": "PASS"
+          },
+          {
+            "path": "source/rtl/engine_a_vnext_integration/ym2612_dac_client.sv",
+            "package": "vgm_parser_vnext_event_pkg",
+            "definition": "source/rtl/vgm_parser_vnext/event_pkg.sv",
+            "result": "PASS"
+          },
+          {
+            "path": "source/rtl/engine_a_vnext_integration/ym2612_dac_client.sv",
+            "package": "vgm_reader_vnext_pkg",
+            "definition": "source/rtl/vgm_reader_vnext/reader_pkg.sv",
+            "result": "PASS"
+          },
+          {
+            "path": "source/rtl/engine_a_vnext_integration/ym2612_dac_client.sv",
+            "package": "vgm_scheduler_vnext_pkg",
+            "definition": "source/rtl/vgm_scheduler_vnext/scheduler_pkg.sv",
+            "result": "PASS"
+          }
+        ],
+        "named_nested_member_review": [
+          {
+            "path": "source/candidate/engine_a_vnext_production/functional_engine.sv",
+            "kind": "TYPED_STRUCT_ARRAY_MEMBER_REVIEW",
+            "line": 132,
+            "expression": "if(levels[lane]!=0 && commits[lane].due_time"
+          },
+          {
+            "path": "source/candidate/engine_a_vnext_production/functional_engine.sv",
+            "kind": "TYPED_STRUCT_ARRAY_MEMBER_REVIEW",
+            "line": 153,
+            "expression": "if(lane==1)assign lane_info[lane]=commits[lane].fact"
+          },
+          {
+            "path": "source/candidate/engine_a_vnext_production/functional_engine.sv",
+            "kind": "TYPED_STRUCT_ARRAY_MEMBER_REVIEW",
+            "line": 153,
+            "expression": "if(lane==1)assign lane_info[lane]=commits[lane].fact.kind==S_DAC ? dac_write : commits[lane].fact"
+          },
+          {
+            "path": "source/candidate/engine_a_vnext_production/functional_engine.sv",
+            "kind": "TYPED_STRUCT_ARRAY_MEMBER_REVIEW",
+            "line": 154,
+            "expression": "else assign lane_info[lane]=commits[lane].fact"
+          },
+          {
+            "path": "source/candidate/engine_a_vnext_production/functional_engine.sv",
+            "kind": "TYPED_STRUCT_ARRAY_MEMBER_REVIEW",
+            "line": 160,
+            "expression": ".valid(commit_valid[1] && (commits[1].fact"
+          },
+          {
+            "path": "source/candidate/engine_a_vnext_production/functional_engine.sv",
+            "kind": "TYPED_STRUCT_ARRAY_MEMBER_REVIEW",
+            "line": 166,
+            "expression": "assign dac_write_ready=lane_ready[1] && commit_valid[1] && commits[1].fact"
+          },
+          {
+            "path": "source/candidate/engine_a_vnext_production/functional_engine.sv",
+            "kind": "TYPED_STRUCT_ARRAY_MEMBER_REVIEW",
+            "line": 169,
+            "expression": ".dac_valid(issue_enabled && commit_valid[1] && commits[1].fact"
+          },
+          {
+            "path": "source/candidate/engine_a_vnext_production/functional_engine.sv",
+            "kind": "TYPED_STRUCT_ARRAY_MEMBER_REVIEW",
+            "line": 174,
+            "expression": "assign commit_ready[1]=commits[1].fact"
+          },
+          {
+            "path": "source/candidate/engine_a_vnext_production/functional_engine.sv",
+            "kind": "TYPED_STRUCT_ARRAY_MEMBER_REVIEW",
+            "line": 192,
+            "expression": ".scheduler_due(commits[5].due_time"
+          },
+          {
+            "path": "source/candidate/engine_a_vnext_production/functional_engine.sv",
+            "line": 141,
+            "expression": "barrier.fact.kind"
+          },
+          {
+            "path": "source/candidate/engine_a_vnext_production/functional_engine.sv",
+            "line": 141,
+            "expression": "barrier.fact.payload"
+          },
+          {
+            "path": "source/candidate/engine_a_vnext_production/functional_engine.sv",
+            "line": 143,
+            "expression": "barrier.fact.kind"
+          },
+          {
+            "path": "source/candidate/engine_a_vnext_production/functional_engine.sv",
+            "line": 144,
+            "expression": "barrier.fact.kind"
+          },
+          {
+            "path": "source/candidate/engine_a_vnext_production/functional_engine.sv",
+            "line": 153,
+            "expression": "commits[lane].fact.kind"
+          },
+          {
+            "path": "source/candidate/engine_a_vnext_production/functional_engine.sv",
+            "line": 153,
+            "expression": "commits[lane].fact.payload"
+          },
+          {
+            "path": "source/candidate/engine_a_vnext_production/functional_engine.sv",
+            "line": 154,
+            "expression": "commits[lane].fact.payload"
+          },
+          {
+            "path": "source/candidate/engine_a_vnext_production/functional_engine.sv",
+            "line": 160,
+            "expression": "commits[1].fact.kind"
+          },
+          {
+            "path": "source/candidate/engine_a_vnext_production/functional_engine.sv",
+            "line": 166,
+            "expression": "commits[1].fact.kind"
+          },
+          {
+            "path": "source/candidate/engine_a_vnext_production/functional_engine.sv",
+            "line": 168,
+            "expression": "barrier.fact.kind"
+          },
+          {
+            "path": "source/candidate/engine_a_vnext_production/functional_engine.sv",
+            "line": 169,
+            "expression": "commits[1].fact.kind"
+          },
+          {
+            "path": "source/candidate/engine_a_vnext_production/functional_engine.sv",
+            "line": 174,
+            "expression": "commits[1].fact.kind"
+          },
+          {
+            "path": "source/candidate/engine_a_vnext_production/functional_engine.sv",
+            "line": 181,
+            "expression": "c0_head.fact.payload"
+          },
+          {
+            "path": "source/candidate/engine_a_vnext_production/functional_engine.sv",
+            "line": 181,
+            "expression": "c0_head.fact.payload"
+          },
+          {
+            "path": "source/candidate/engine_a_vnext_production/functional_engine.sv",
+            "line": 208,
+            "expression": "barrier.fact.payload"
+          },
+          {
+            "path": "source/candidate/engine_a_vnext_production/functional_engine.sv",
+            "line": 210,
+            "expression": "barrier.fact.kind"
+          },
+          {
+            "path": "source/candidate/engine_a_vnext_production/functional_engine.sv",
+            "line": 212,
+            "expression": "barrier.fact.kind"
+          },
+          {
+            "path": "source/candidate/engine_a_vnext_production/functional_engine.sv",
+            "line": 252,
+            "expression": "barrier.fact.kind"
+          },
+          {
+            "path": "source/rtl/engine_a_vnext_integration/ym2612_dac_client.sv",
+            "line": 84,
+            "expression": "fault_source.fact.kind"
+          },
+          {
+            "path": "source/rtl/engine_a_vnext_integration/ym2612_dac_client.sv",
+            "line": 85,
+            "expression": "fault_source.fact.payload"
+          },
+          {
+            "path": "source/rtl/engine_a_vnext_integration/ym2612_dac_client.sv",
+            "line": 89,
+            "expression": "fault_source.fact.kind"
+          },
+          {
+            "path": "source/rtl/engine_a_vnext_integration/ym2612_dac_client.sv",
+            "line": 90,
+            "expression": "fault_source.fact.payload"
+          }
+        ],
+        "inherited_review": [
+          {
+            "path": "source/sys/mt32pi.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 88,
+            "expression": "always @(posedge CLK_AUDIO) crossed <= (clk_rate[0].cnt"
+          },
+          {
+            "path": "source/sys/mt32pi.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 88,
+            "expression": "always @(posedge CLK_AUDIO) crossed <= (clk_rate[0].cnt <= clk_rate[1].cnt"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 134,
+            "expression": "phase[0].y"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 154,
+            "expression": "phase[0].u"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 154,
+            "expression": "phase[0].u <= $signed({2'b0 ,(blue_2)}) - $signed({2'b0 ,phase[0].y"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 155,
+            "expression": "phase[0].v"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 155,
+            "expression": "phase[0].v <= $signed({2'b0 , (red_2)}) - $signed({2'b0 ,phase[0].y"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 156,
+            "expression": "phase[1].u"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 156,
+            "expression": "phase[1].u <= 21'($signed({phase[0].u"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 156,
+            "expression": "phase[1].u <= 21'($signed({phase[0].u, 8'd0}) + $signed({phase[0].u"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 156,
+            "expression": "phase[1].u <= 21'($signed({phase[0].u, 8'd0}) + $signed({phase[0].u, 7'd0}) + $signed({phase[0].u"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 156,
+            "expression": "phase[1].u <= 21'($signed({phase[0].u, 8'd0}) + $signed({phase[0].u, 7'd0}) + $signed({phase[0].u, 6'd0}) + $signed({phase[0].u"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 156,
+            "expression": "phase[1].u <= 21'($signed({phase[0].u, 8'd0}) + $signed({phase[0].u, 7'd0}) + $signed({phase[0].u, 6'd0}) + $signed({phase[0].u, 5'd0}) + $signed({phase[0].u"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 156,
+            "expression": "phase[1].u <= 21'($signed({phase[0].u, 8'd0}) + $signed({phase[0].u, 7'd0}) + $signed({phase[0].u, 6'd0}) + $signed({phase[0].u, 5'd0}) + $signed({phase[0].u, 4'd0}) + $signed({phase[0].u"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 157,
+            "expression": "phase[1].v"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 157,
+            "expression": "phase[1].v <= 21'($signed({phase[0].v"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 157,
+            "expression": "phase[1].v <= 21'($signed({phase[0].v, 9'd0}) + $signed({phase[0].v"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 157,
+            "expression": "phase[1].v <= 21'($signed({phase[0].v, 9'd0}) + $signed({phase[0].v, 8'd0}) + $signed({phase[0].v"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 157,
+            "expression": "phase[1].v <= 21'($signed({phase[0].v, 9'd0}) + $signed({phase[0].v, 8'd0}) + $signed({phase[0].v, 7'd0}) + $signed({phase[0].v"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 159,
+            "expression": "phase[0].c"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 160,
+            "expression": "phase[1].c"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 160,
+            "expression": "phase[1].c <= phase[0].c"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 161,
+            "expression": "phase[2].c"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 161,
+            "expression": "phase[2].c <= phase[1].c"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 162,
+            "expression": "phase[3].c"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 162,
+            "expression": "phase[3].c <= phase[2].c"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 166,
+            "expression": "phase[2].u"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 167,
+            "expression": "phase[2].v"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 168,
+            "expression": "phase[4].c"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 168,
+            "expression": "phase[4].c <= phase[3].c"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 178,
+            "expression": "phase[2].u"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 179,
+            "expression": "phase[2].v"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 183,
+            "expression": "phase[3].u"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 183,
+            "expression": "phase[3].u <= $signed(phase[2].u"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 183,
+            "expression": "phase[3].u <= $signed(phase[2].u[20:8]) + $signed(phase[2].u"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 183,
+            "expression": "phase[3].u <= $signed(phase[2].u[20:8]) + $signed(phase[2].u[20:10]) + $signed(phase[2].u"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 185,
+            "expression": "phase[3].u"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 185,
+            "expression": "phase[3].u <= $signed(phase[2].u"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 185,
+            "expression": "phase[3].u <= $signed(phase[2].u[20:8]) + $signed(phase[2].u"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 185,
+            "expression": "phase[3].u <= $signed(phase[2].u[20:8]) + $signed(phase[2].u[20:11]) + $signed(phase[2].u"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 185,
+            "expression": "phase[3].u <= $signed(phase[2].u[20:8]) + $signed(phase[2].u[20:11]) + $signed(phase[2].u[20:12]) + $signed(phase[2].u"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 187,
+            "expression": "phase[3].v"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 187,
+            "expression": "phase[3].v <= phase[2].v"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 193,
+            "expression": "phase[2].u"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 193,
+            "expression": "phase[2].u <= $signed((phase[1].u"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 194,
+            "expression": "phase[2].v"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 194,
+            "expression": "phase[2].v <= $signed((phase[1].v"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 197,
+            "expression": "phase[3].u"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 197,
+            "expression": "phase[3].u <= $signed(phase[2].u"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 197,
+            "expression": "phase[3].u <= $signed(phase[2].u[20:9]) + $signed(phase[2].u"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 197,
+            "expression": "phase[3].u <= $signed(phase[2].u[20:9]) + $signed(phase[2].u[20:10]) + $signed(phase[2].u"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 198,
+            "expression": "phase[3].v"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 198,
+            "expression": "phase[3].v <= $signed(phase[2].v"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 198,
+            "expression": "phase[3].v <= $signed(phase[2].v[20:9]) + $signed(phase[2].v"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 198,
+            "expression": "phase[3].v <= $signed(phase[2].v[20:9]) + $signed(phase[2].v[20:10]) + $signed(phase[2].u"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 208,
+            "expression": "phase[4].c"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 208,
+            "expression": "phase[4].c <= vref + phase[3].u"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 208,
+            "expression": "phase[4].c <= vref + phase[3].u - phase[3].v"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 210,
+            "expression": "phase[4].c"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 210,
+            "expression": "phase[4].c <= vref + phase[3].u"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 210,
+            "expression": "phase[4].c <= vref + phase[3].u + phase[3].v"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 213,
+            "expression": "phase[4].c"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 213,
+            "expression": "phase[4].c <= vref + phase[3].u"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 213,
+            "expression": "phase[4].c <= vref + phase[3].u + phase[3].v"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 217,
+            "expression": "phase[1].hsync"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 217,
+            "expression": "phase[1].vsync"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 217,
+            "expression": "phase[1].csync"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 217,
+            "expression": "phase[1].de"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 218,
+            "expression": "phase[2].hsync"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 218,
+            "expression": "phase[2].hsync <= phase[1].hsync"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 218,
+            "expression": "phase[2].vsync"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 218,
+            "expression": "phase[2].vsync <= phase[1].vsync"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 218,
+            "expression": "phase[2].csync"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 218,
+            "expression": "phase[2].csync <= phase[1].csync"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 218,
+            "expression": "phase[2].de"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 218,
+            "expression": "phase[2].de <= phase[1].de"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 219,
+            "expression": "phase[3].hsync"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 219,
+            "expression": "phase[3].hsync <= phase[2].hsync"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 219,
+            "expression": "phase[3].vsync"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 219,
+            "expression": "phase[3].vsync <= phase[2].vsync"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 219,
+            "expression": "phase[3].csync"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 219,
+            "expression": "phase[3].csync <= phase[2].csync"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 219,
+            "expression": "phase[3].de"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 219,
+            "expression": "phase[3].de <= phase[2].de"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 220,
+            "expression": "phase[4].hsync"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 220,
+            "expression": "phase[4].hsync <= phase[3].hsync"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 220,
+            "expression": "phase[4].vsync"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 220,
+            "expression": "phase[4].vsync <= phase[3].vsync"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 220,
+            "expression": "phase[4].csync"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 220,
+            "expression": "phase[4].csync <= phase[3].csync"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 220,
+            "expression": "phase[4].de"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 220,
+            "expression": "phase[4].de <= phase[3].de"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 221,
+            "expression": "hsync_o <= phase[4].hsync"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 221,
+            "expression": "vsync_o <= phase[4].vsync"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 221,
+            "expression": "csync_o <= phase[4].csync"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 221,
+            "expression": "de_o <= phase[4].de"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 223,
+            "expression": "phase[1].y"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 223,
+            "expression": "phase[1].y <= phase[0].y"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 223,
+            "expression": "phase[2].y"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 223,
+            "expression": "phase[2].y <= phase[1].y"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 223,
+            "expression": "phase[3].y"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 223,
+            "expression": "phase[3].y <= phase[2].y"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 223,
+            "expression": "phase[4].y"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 223,
+            "expression": "phase[4].y <= phase[3].y"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 223,
+            "expression": "phase[5].y"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 223,
+            "expression": "phase[5].y <= phase[4].y"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 226,
+            "expression": "C <= CVBS ? 8'd0 : phase[4].c"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 227,
+            "expression": "Y <= CVBS ? ({1'b0, phase[5].y"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 227,
+            "expression": "Y <= CVBS ? ({1'b0, phase[5].y[17:11]} + {1'b0, phase[4].c"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 227,
+            "expression": "Y <= CVBS ? ({1'b0, phase[5].y[17:11]} + {1'b0, phase[4].c[7:1]}) : phase[5].y"
+          }
+        ],
+        "limitations": "Static pattern screen only; does not establish Quartus synthesis compatibility. Icarus/Verilator elaboration and Windows Quartus remain required."
+      },
+      "duplicate_implementations": {},
+      "Quartus17_literal_style": {
+        "gate": "QUARTUS17_LITERAL_STYLE_PASS",
+        "configuration_files": 14,
+        "assignment_lines": 1463,
+        "braced_space_values": 0,
+        "braced_QSF_values": 0,
+        "serializer": false
+      },
+      "settings": "Exact reviewed baseline options/pins; only root paths and supported output directory differ",
+      "Quartus_executed": false,
+      "scope": "Static risk screen; inherited findings require explicit review. No Quartus or hardware PASS."
+    },
+    "current_source_origin_mismatches": []
+  },
+  "B": {
+    "graph": {
+      "gate": "BUILD_ARTIFACT_FRESH_EXTRACT_PASS",
+      "root_QPF": "MegaVGMDrive_B_vNext_MiSTer.qpf",
+      "revision": "MegaVGMDrive_B_vNext_MiSTer",
+      "top": "sys_top",
+      "device": "5CSEBA6U23I7",
+      "output": "output",
+      "canonical_workflow": "ROOT_QPF_QUARTUS_GUI_FULL_COMPILATION",
+      "BUILD_bat_required": false,
+      "optional_helpers_present": [],
+      "file_count": 165,
+      "build_inputs": 161,
+      "HDL_sources": 142,
+      "missing": 0,
+      "duplicate_source": 0,
+      "absolute_paths": 0,
+      "parent_dependencies": 0,
+      "stale_lab_sources": 0,
+      "compile_defines_exact": true,
+      "package_source_order_exact": true,
+      "settings_options_pins_exact": true,
+      "canonical_configs_exact_copy": true,
+      "all_member_checksums_exact": true,
+      "only_root_QPF": true,
+      "extra_wrapper_directory": false,
+      "OSD_path": "source/sys/osd.v",
+      "OSD_SHA256": "4d57135b8cf65cb18c02ed6b3f673b4641b1592bafe16d43362e364bce966caa",
+      "Loading_hardware": "User reports baseline transparent bottom Loading and Activity PASS; new artifact hardware NOT_RUN.",
+      "Quartus_executed": false
+    },
+    "compatibility": {
+      "HDL": {
+        "result": "PASS",
+        "rtl_files": 142,
+        "scope": "candidate integration gate; frozen/vendor findings are review inventory",
+        "blockers": [],
+        "package_order": [
+          {
+            "path": "source/engine_b/command_client.sv",
+            "package": "vgm_parser_vnext_event_pkg",
+            "definition": "source/rtl/vgm_parser_vnext/event_pkg.sv",
+            "result": "PASS"
+          },
+          {
+            "path": "source/engine_b/command_client.sv",
+            "package": "vgm_scheduler_vnext_pkg",
+            "definition": "source/rtl/vgm_scheduler_vnext/scheduler_pkg.sv",
+            "result": "PASS"
+          },
+          {
+            "path": "source/engine_b/playback_adapter.sv",
+            "package": "vgm_scheduler_vnext_pkg",
+            "definition": "source/rtl/vgm_scheduler_vnext/scheduler_pkg.sv",
+            "result": "PASS"
+          },
+          {
+            "path": "source/engine_b/playback_adapter.sv",
+            "package": "vgm_parser_vnext_event_pkg",
+            "definition": "source/rtl/vgm_parser_vnext/event_pkg.sv",
+            "result": "PASS"
+          },
+          {
+            "path": "source/engine_b/playback_adapter.sv",
+            "package": "vgm_scheduler_vnext_pkg",
+            "definition": "source/rtl/vgm_scheduler_vnext/scheduler_pkg.sv",
+            "result": "PASS"
+          },
+          {
+            "path": "source/engine_b/preflight.sv",
+            "package": "vgm_scheduler_vnext_pkg",
+            "definition": "source/rtl/vgm_scheduler_vnext/scheduler_pkg.sv",
+            "result": "PASS"
+          },
+          {
+            "path": "source/engine_b/preflight.sv",
+            "package": "vgm_parser_vnext_event_pkg",
+            "definition": "source/rtl/vgm_parser_vnext/event_pkg.sv",
+            "result": "PASS"
+          },
+          {
+            "path": "source/engine_b/preflight.sv",
+            "package": "vgm_scheduler_vnext_pkg",
+            "definition": "source/rtl/vgm_scheduler_vnext/scheduler_pkg.sv",
+            "result": "PASS"
+          },
+          {
+            "path": "source/engine_b/prewarm_client.sv",
+            "package": "vgm_scheduler_vnext_pkg",
+            "definition": "source/rtl/vgm_scheduler_vnext/scheduler_pkg.sv",
+            "result": "PASS"
+          },
+          {
+            "path": "source/engine_b/prewarm_client.sv",
+            "package": "vgm_parser_vnext_event_pkg",
+            "definition": "source/rtl/vgm_parser_vnext/event_pkg.sv",
+            "result": "PASS"
+          },
+          {
+            "path": "source/engine_b/prewarm_client.sv",
+            "package": "vgm_scheduler_vnext_pkg",
+            "definition": "source/rtl/vgm_scheduler_vnext/scheduler_pkg.sv",
+            "result": "PASS"
+          },
+          {
+            "path": "source/engine_b/shared_reader_binding.sv",
+            "package": "vgm_reader_vnext_pkg",
+            "definition": "source/rtl/vgm_reader_vnext/reader_pkg.sv",
+            "result": "PASS"
+          },
+          {
+            "path": "source/engine_b/shared_reader_binding.sv",
+            "package": "vgm_reader_vnext_pkg",
+            "definition": "source/rtl/vgm_reader_vnext/reader_pkg.sv",
+            "result": "PASS"
+          },
+          {
+            "path": "source/engine_b/strict_playback_binding.sv",
+            "package": "vgm_reader_vnext_pkg",
+            "definition": "source/rtl/vgm_reader_vnext/reader_pkg.sv",
+            "result": "PASS"
+          },
+          {
+            "path": "source/rtl/engine_a_vnext_integration/strict_golden_read_binding.sv",
+            "package": "vgm_reader_vnext_pkg",
+            "definition": "source/rtl/vgm_reader_vnext/reader_pkg.sv",
+            "result": "PASS"
+          },
+          {
+            "path": "source/rtl/engine_a_vnext_integration/strict_golden_read_binding.sv",
+            "package": "vgm_reader_vnext_pkg",
+            "definition": "source/rtl/vgm_reader_vnext/reader_pkg.sv",
+            "result": "PASS"
+          }
+        ],
+        "named_nested_member_review": [
+          {
+            "path": "source/engine_b/command_client.sv",
+            "line": 70,
+            "expression": "lane_event.fact.payload"
+          },
+          {
+            "path": "source/engine_b/command_client.sv",
+            "line": 76,
+            "expression": "lane_event.fact.kind"
+          },
+          {
+            "path": "source/engine_b/command_client.sv",
+            "line": 143,
+            "expression": "barrier.fact.kind"
+          },
+          {
+            "path": "source/engine_b/command_client.sv",
+            "line": 144,
+            "expression": "barrier.fact.kind"
+          },
+          {
+            "path": "source/engine_b/command_client.sv",
+            "line": 145,
+            "expression": "barrier.fact.kind"
+          },
+          {
+            "path": "source/engine_b/command_client.sv",
+            "line": 294,
+            "expression": "barrier.fact.payload"
+          },
+          {
+            "path": "source/engine_b/playback_adapter.sv",
+            "line": 13,
+            "expression": "event_data.fact.payload"
+          },
+          {
+            "path": "source/engine_b/playback_adapter.sv",
+            "line": 14,
+            "expression": "event_data.fact.kind"
+          }
+        ],
+        "inherited_review": [
+          {
+            "path": "source/sys/mt32pi.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 88,
+            "expression": "always @(posedge CLK_AUDIO) crossed <= (clk_rate[0].cnt"
+          },
+          {
+            "path": "source/sys/mt32pi.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 88,
+            "expression": "always @(posedge CLK_AUDIO) crossed <= (clk_rate[0].cnt <= clk_rate[1].cnt"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 134,
+            "expression": "phase[0].y"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 154,
+            "expression": "phase[0].u"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 154,
+            "expression": "phase[0].u <= $signed({2'b0 ,(blue_2)}) - $signed({2'b0 ,phase[0].y"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 155,
+            "expression": "phase[0].v"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 155,
+            "expression": "phase[0].v <= $signed({2'b0 , (red_2)}) - $signed({2'b0 ,phase[0].y"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 156,
+            "expression": "phase[1].u"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 156,
+            "expression": "phase[1].u <= 21'($signed({phase[0].u"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 156,
+            "expression": "phase[1].u <= 21'($signed({phase[0].u, 8'd0}) + $signed({phase[0].u"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 156,
+            "expression": "phase[1].u <= 21'($signed({phase[0].u, 8'd0}) + $signed({phase[0].u, 7'd0}) + $signed({phase[0].u"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 156,
+            "expression": "phase[1].u <= 21'($signed({phase[0].u, 8'd0}) + $signed({phase[0].u, 7'd0}) + $signed({phase[0].u, 6'd0}) + $signed({phase[0].u"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 156,
+            "expression": "phase[1].u <= 21'($signed({phase[0].u, 8'd0}) + $signed({phase[0].u, 7'd0}) + $signed({phase[0].u, 6'd0}) + $signed({phase[0].u, 5'd0}) + $signed({phase[0].u"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 156,
+            "expression": "phase[1].u <= 21'($signed({phase[0].u, 8'd0}) + $signed({phase[0].u, 7'd0}) + $signed({phase[0].u, 6'd0}) + $signed({phase[0].u, 5'd0}) + $signed({phase[0].u, 4'd0}) + $signed({phase[0].u"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 157,
+            "expression": "phase[1].v"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 157,
+            "expression": "phase[1].v <= 21'($signed({phase[0].v"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 157,
+            "expression": "phase[1].v <= 21'($signed({phase[0].v, 9'd0}) + $signed({phase[0].v"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 157,
+            "expression": "phase[1].v <= 21'($signed({phase[0].v, 9'd0}) + $signed({phase[0].v, 8'd0}) + $signed({phase[0].v"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 157,
+            "expression": "phase[1].v <= 21'($signed({phase[0].v, 9'd0}) + $signed({phase[0].v, 8'd0}) + $signed({phase[0].v, 7'd0}) + $signed({phase[0].v"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 159,
+            "expression": "phase[0].c"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 160,
+            "expression": "phase[1].c"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 160,
+            "expression": "phase[1].c <= phase[0].c"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 161,
+            "expression": "phase[2].c"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 161,
+            "expression": "phase[2].c <= phase[1].c"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 162,
+            "expression": "phase[3].c"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 162,
+            "expression": "phase[3].c <= phase[2].c"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 166,
+            "expression": "phase[2].u"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 167,
+            "expression": "phase[2].v"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 168,
+            "expression": "phase[4].c"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 168,
+            "expression": "phase[4].c <= phase[3].c"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 178,
+            "expression": "phase[2].u"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 179,
+            "expression": "phase[2].v"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 183,
+            "expression": "phase[3].u"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 183,
+            "expression": "phase[3].u <= $signed(phase[2].u"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 183,
+            "expression": "phase[3].u <= $signed(phase[2].u[20:8]) + $signed(phase[2].u"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 183,
+            "expression": "phase[3].u <= $signed(phase[2].u[20:8]) + $signed(phase[2].u[20:10]) + $signed(phase[2].u"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 185,
+            "expression": "phase[3].u"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 185,
+            "expression": "phase[3].u <= $signed(phase[2].u"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 185,
+            "expression": "phase[3].u <= $signed(phase[2].u[20:8]) + $signed(phase[2].u"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 185,
+            "expression": "phase[3].u <= $signed(phase[2].u[20:8]) + $signed(phase[2].u[20:11]) + $signed(phase[2].u"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 185,
+            "expression": "phase[3].u <= $signed(phase[2].u[20:8]) + $signed(phase[2].u[20:11]) + $signed(phase[2].u[20:12]) + $signed(phase[2].u"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 187,
+            "expression": "phase[3].v"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 187,
+            "expression": "phase[3].v <= phase[2].v"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 193,
+            "expression": "phase[2].u"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 193,
+            "expression": "phase[2].u <= $signed((phase[1].u"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 194,
+            "expression": "phase[2].v"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 194,
+            "expression": "phase[2].v <= $signed((phase[1].v"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 197,
+            "expression": "phase[3].u"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 197,
+            "expression": "phase[3].u <= $signed(phase[2].u"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 197,
+            "expression": "phase[3].u <= $signed(phase[2].u[20:9]) + $signed(phase[2].u"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 197,
+            "expression": "phase[3].u <= $signed(phase[2].u[20:9]) + $signed(phase[2].u[20:10]) + $signed(phase[2].u"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 198,
+            "expression": "phase[3].v"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 198,
+            "expression": "phase[3].v <= $signed(phase[2].v"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 198,
+            "expression": "phase[3].v <= $signed(phase[2].v[20:9]) + $signed(phase[2].v"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 198,
+            "expression": "phase[3].v <= $signed(phase[2].v[20:9]) + $signed(phase[2].v[20:10]) + $signed(phase[2].u"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 208,
+            "expression": "phase[4].c"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 208,
+            "expression": "phase[4].c <= vref + phase[3].u"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 208,
+            "expression": "phase[4].c <= vref + phase[3].u - phase[3].v"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 210,
+            "expression": "phase[4].c"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 210,
+            "expression": "phase[4].c <= vref + phase[3].u"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 210,
+            "expression": "phase[4].c <= vref + phase[3].u + phase[3].v"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 213,
+            "expression": "phase[4].c"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 213,
+            "expression": "phase[4].c <= vref + phase[3].u"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 213,
+            "expression": "phase[4].c <= vref + phase[3].u + phase[3].v"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 217,
+            "expression": "phase[1].hsync"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 217,
+            "expression": "phase[1].vsync"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 217,
+            "expression": "phase[1].csync"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 217,
+            "expression": "phase[1].de"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 218,
+            "expression": "phase[2].hsync"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 218,
+            "expression": "phase[2].hsync <= phase[1].hsync"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 218,
+            "expression": "phase[2].vsync"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 218,
+            "expression": "phase[2].vsync <= phase[1].vsync"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 218,
+            "expression": "phase[2].csync"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 218,
+            "expression": "phase[2].csync <= phase[1].csync"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 218,
+            "expression": "phase[2].de"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 218,
+            "expression": "phase[2].de <= phase[1].de"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 219,
+            "expression": "phase[3].hsync"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 219,
+            "expression": "phase[3].hsync <= phase[2].hsync"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 219,
+            "expression": "phase[3].vsync"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 219,
+            "expression": "phase[3].vsync <= phase[2].vsync"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 219,
+            "expression": "phase[3].csync"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 219,
+            "expression": "phase[3].csync <= phase[2].csync"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 219,
+            "expression": "phase[3].de"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 219,
+            "expression": "phase[3].de <= phase[2].de"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 220,
+            "expression": "phase[4].hsync"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 220,
+            "expression": "phase[4].hsync <= phase[3].hsync"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 220,
+            "expression": "phase[4].vsync"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 220,
+            "expression": "phase[4].vsync <= phase[3].vsync"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 220,
+            "expression": "phase[4].csync"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 220,
+            "expression": "phase[4].csync <= phase[3].csync"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 220,
+            "expression": "phase[4].de"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 220,
+            "expression": "phase[4].de <= phase[3].de"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 221,
+            "expression": "hsync_o <= phase[4].hsync"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 221,
+            "expression": "vsync_o <= phase[4].vsync"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 221,
+            "expression": "csync_o <= phase[4].csync"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 221,
+            "expression": "de_o <= phase[4].de"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 223,
+            "expression": "phase[1].y"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 223,
+            "expression": "phase[1].y <= phase[0].y"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 223,
+            "expression": "phase[2].y"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 223,
+            "expression": "phase[2].y <= phase[1].y"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 223,
+            "expression": "phase[3].y"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 223,
+            "expression": "phase[3].y <= phase[2].y"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 223,
+            "expression": "phase[4].y"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 223,
+            "expression": "phase[4].y <= phase[3].y"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 223,
+            "expression": "phase[5].y"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 223,
+            "expression": "phase[5].y <= phase[4].y"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 226,
+            "expression": "C <= CVBS ? 8'd0 : phase[4].c"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 227,
+            "expression": "Y <= CVBS ? ({1'b0, phase[5].y"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 227,
+            "expression": "Y <= CVBS ? ({1'b0, phase[5].y[17:11]} + {1'b0, phase[4].c"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 227,
+            "expression": "Y <= CVBS ? ({1'b0, phase[5].y[17:11]} + {1'b0, phase[4].c[7:1]}) : phase[5].y"
+          }
+        ],
+        "limitations": "Static pattern screen only; does not establish Quartus synthesis compatibility. Icarus/Verilator elaboration and Windows Quartus remain required."
+      },
+      "duplicate_implementations": {},
+      "settings": "Exact reviewed baseline options/pins; only root paths and supported output directory differ",
+      "Quartus_executed": false,
+      "scope": "Static risk screen; inherited findings require explicit review. No Quartus or hardware PASS."
+    },
+    "current_source_origin_mismatches": []
+  },
+  "D": {
+    "graph": {
+      "gate": "BUILD_ARTIFACT_FRESH_EXTRACT_PASS",
+      "root_QPF": "MegaVGMDrive_D_vNext.qpf",
+      "revision": "MegaVGMDrive_D_vNext",
+      "top": "sys_top",
+      "device": "5CSEBA6U23I7",
+      "output": "output",
+      "canonical_workflow": "ROOT_QPF_QUARTUS_GUI_FULL_COMPILATION",
+      "BUILD_bat_required": false,
+      "optional_helpers_present": [],
+      "file_count": 136,
+      "build_inputs": 132,
+      "HDL_sources": 111,
+      "missing": 0,
+      "duplicate_source": 0,
+      "absolute_paths": 0,
+      "parent_dependencies": 0,
+      "stale_lab_sources": 0,
+      "compile_defines_exact": true,
+      "package_source_order_exact": true,
+      "settings_options_pins_exact": true,
+      "canonical_configs_exact_copy": true,
+      "all_member_checksums_exact": true,
+      "only_root_QPF": true,
+      "extra_wrapper_directory": false,
+      "OSD_path": "source/sys/osd.v",
+      "OSD_SHA256": "4d57135b8cf65cb18c02ed6b3f673b4641b1592bafe16d43362e364bce966caa",
+      "Loading_hardware": "New D vNext artifact hardware NOT_RUN. Standard Main/manual RBF Loading and PWA/modified Main Loading are separate unrun hardware paths.",
+      "Quartus_executed": false
+    },
+    "compatibility": {
+      "HDL": {
+        "result": "PASS",
+        "rtl_files": 112,
+        "scope": "candidate integration gate; frozen/vendor findings are review inventory",
+        "blockers": [],
+        "package_order": [
+          {
+            "path": "source/rtl/engine_a_vnext_integration/chip_write_adapter.sv",
+            "package": "vgm_parser_vnext_event_pkg",
+            "definition": "source/rtl/vgm_parser_vnext/event_pkg.sv",
+            "result": "PASS"
+          },
+          {
+            "path": "source/rtl/engine_a_vnext_integration/chip_write_adapter.sv",
+            "package": "vgm_parser_vnext_event_pkg",
+            "definition": "source/rtl/vgm_parser_vnext/event_pkg.sv",
+            "result": "PASS"
+          },
+          {
+            "path": "source/rtl/engine_a_vnext_integration/strict_golden_read_binding.sv",
+            "package": "vgm_reader_vnext_pkg",
+            "definition": "source/rtl/vgm_reader_vnext/reader_pkg.sv",
+            "result": "PASS"
+          },
+          {
+            "path": "source/rtl/engine_a_vnext_integration/strict_golden_read_binding.sv",
+            "package": "vgm_reader_vnext_pkg",
+            "definition": "source/rtl/vgm_reader_vnext/reader_pkg.sv",
+            "result": "PASS"
+          },
+          {
+            "path": "source/rtl/engine_d_vnext/c140_write_adapter.sv",
+            "package": "vgm_parser_vnext_event_pkg",
+            "definition": "source/rtl/vgm_parser_vnext/event_pkg.sv",
+            "result": "PASS"
+          },
+          {
+            "path": "source/rtl/engine_d_vnext/c140_write_adapter.sv",
+            "package": "vgm_parser_vnext_event_pkg",
+            "definition": "source/rtl/vgm_parser_vnext/event_pkg.sv",
+            "result": "PASS"
+          },
+          {
+            "path": "source/rtl/engine_d_vnext/command_client.sv",
+            "package": "vgm_parser_vnext_event_pkg",
+            "definition": "source/rtl/vgm_parser_vnext/event_pkg.sv",
+            "result": "PASS"
+          },
+          {
+            "path": "source/rtl/engine_d_vnext/command_client.sv",
+            "package": "vgm_scheduler_vnext_pkg",
+            "definition": "source/rtl/vgm_scheduler_vnext/scheduler_pkg.sv",
+            "result": "PASS"
+          },
+          {
+            "path": "source/rtl/engine_d_vnext/preflight.sv",
+            "package": "vgm_scheduler_vnext_pkg",
+            "definition": "source/rtl/vgm_scheduler_vnext/scheduler_pkg.sv",
+            "result": "PASS"
+          },
+          {
+            "path": "source/rtl/engine_d_vnext/preflight.sv",
+            "package": "vgm_parser_vnext_event_pkg",
+            "definition": "source/rtl/vgm_parser_vnext/event_pkg.sv",
+            "result": "PASS"
+          },
+          {
+            "path": "source/rtl/engine_d_vnext/preflight.sv",
+            "package": "vgm_scheduler_vnext_pkg",
+            "definition": "source/rtl/vgm_scheduler_vnext/scheduler_pkg.sv",
+            "result": "PASS"
+          },
+          {
+            "path": "source/rtl/engine_d_vnext/profile.sv",
+            "package": "vgm_reader_vnext_pkg",
+            "definition": "source/rtl/vgm_reader_vnext/reader_pkg.sv",
+            "result": "PASS"
+          }
+        ],
+        "named_nested_member_review": [
+          {
+            "path": "source/rtl/engine_d_vnext/command_client.sv",
+            "line": 87,
+            "expression": "ym_commit.fact.payload"
+          },
+          {
+            "path": "source/rtl/engine_d_vnext/command_client.sv",
+            "line": 88,
+            "expression": "c140_commit.fact.payload"
+          },
+          {
+            "path": "source/rtl/engine_d_vnext/command_client.sv",
+            "line": 91,
+            "expression": "barrier.fact.kind"
+          },
+          {
+            "path": "source/rtl/engine_d_vnext/command_client.sv",
+            "line": 91,
+            "expression": "barrier.fact.kind"
+          },
+          {
+            "path": "source/rtl/engine_d_vnext/command_client.sv",
+            "line": 96,
+            "expression": "barrier.fact.kind"
+          },
+          {
+            "path": "source/rtl/engine_d_vnext/command_client.sv",
+            "line": 96,
+            "expression": "barrier.fact.kind"
+          },
+          {
+            "path": "source/rtl/engine_d_vnext/command_client.sv",
+            "line": 98,
+            "expression": "barrier.fact.kind"
+          },
+          {
+            "path": "source/rtl/engine_d_vnext/command_client.sv",
+            "line": 99,
+            "expression": "barrier.fact.kind"
+          },
+          {
+            "path": "source/rtl/engine_d_vnext/command_client.sv",
+            "line": 155,
+            "expression": "barrier.fact.payload"
+          }
+        ],
+        "inherited_review": [
+          {
+            "path": "source/sys/mt32pi.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 88,
+            "expression": "always @(posedge CLK_AUDIO) crossed <= (clk_rate[0].cnt"
+          },
+          {
+            "path": "source/sys/mt32pi.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 88,
+            "expression": "always @(posedge CLK_AUDIO) crossed <= (clk_rate[0].cnt <= clk_rate[1].cnt"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 134,
+            "expression": "phase[0].y"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 154,
+            "expression": "phase[0].u"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 154,
+            "expression": "phase[0].u <= $signed({2'b0 ,(blue_2)}) - $signed({2'b0 ,phase[0].y"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 155,
+            "expression": "phase[0].v"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 155,
+            "expression": "phase[0].v <= $signed({2'b0 , (red_2)}) - $signed({2'b0 ,phase[0].y"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 156,
+            "expression": "phase[1].u"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 156,
+            "expression": "phase[1].u <= 21'($signed({phase[0].u"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 156,
+            "expression": "phase[1].u <= 21'($signed({phase[0].u, 8'd0}) + $signed({phase[0].u"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 156,
+            "expression": "phase[1].u <= 21'($signed({phase[0].u, 8'd0}) + $signed({phase[0].u, 7'd0}) + $signed({phase[0].u"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 156,
+            "expression": "phase[1].u <= 21'($signed({phase[0].u, 8'd0}) + $signed({phase[0].u, 7'd0}) + $signed({phase[0].u, 6'd0}) + $signed({phase[0].u"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 156,
+            "expression": "phase[1].u <= 21'($signed({phase[0].u, 8'd0}) + $signed({phase[0].u, 7'd0}) + $signed({phase[0].u, 6'd0}) + $signed({phase[0].u, 5'd0}) + $signed({phase[0].u"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 156,
+            "expression": "phase[1].u <= 21'($signed({phase[0].u, 8'd0}) + $signed({phase[0].u, 7'd0}) + $signed({phase[0].u, 6'd0}) + $signed({phase[0].u, 5'd0}) + $signed({phase[0].u, 4'd0}) + $signed({phase[0].u"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 157,
+            "expression": "phase[1].v"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 157,
+            "expression": "phase[1].v <= 21'($signed({phase[0].v"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 157,
+            "expression": "phase[1].v <= 21'($signed({phase[0].v, 9'd0}) + $signed({phase[0].v"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 157,
+            "expression": "phase[1].v <= 21'($signed({phase[0].v, 9'd0}) + $signed({phase[0].v, 8'd0}) + $signed({phase[0].v"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 157,
+            "expression": "phase[1].v <= 21'($signed({phase[0].v, 9'd0}) + $signed({phase[0].v, 8'd0}) + $signed({phase[0].v, 7'd0}) + $signed({phase[0].v"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 159,
+            "expression": "phase[0].c"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 160,
+            "expression": "phase[1].c"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 160,
+            "expression": "phase[1].c <= phase[0].c"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 161,
+            "expression": "phase[2].c"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 161,
+            "expression": "phase[2].c <= phase[1].c"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 162,
+            "expression": "phase[3].c"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 162,
+            "expression": "phase[3].c <= phase[2].c"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 166,
+            "expression": "phase[2].u"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 167,
+            "expression": "phase[2].v"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 168,
+            "expression": "phase[4].c"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 168,
+            "expression": "phase[4].c <= phase[3].c"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 178,
+            "expression": "phase[2].u"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 179,
+            "expression": "phase[2].v"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 183,
+            "expression": "phase[3].u"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 183,
+            "expression": "phase[3].u <= $signed(phase[2].u"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 183,
+            "expression": "phase[3].u <= $signed(phase[2].u[20:8]) + $signed(phase[2].u"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 183,
+            "expression": "phase[3].u <= $signed(phase[2].u[20:8]) + $signed(phase[2].u[20:10]) + $signed(phase[2].u"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 185,
+            "expression": "phase[3].u"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 185,
+            "expression": "phase[3].u <= $signed(phase[2].u"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 185,
+            "expression": "phase[3].u <= $signed(phase[2].u[20:8]) + $signed(phase[2].u"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 185,
+            "expression": "phase[3].u <= $signed(phase[2].u[20:8]) + $signed(phase[2].u[20:11]) + $signed(phase[2].u"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 185,
+            "expression": "phase[3].u <= $signed(phase[2].u[20:8]) + $signed(phase[2].u[20:11]) + $signed(phase[2].u[20:12]) + $signed(phase[2].u"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 187,
+            "expression": "phase[3].v"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 187,
+            "expression": "phase[3].v <= phase[2].v"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 193,
+            "expression": "phase[2].u"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 193,
+            "expression": "phase[2].u <= $signed((phase[1].u"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 194,
+            "expression": "phase[2].v"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 194,
+            "expression": "phase[2].v <= $signed((phase[1].v"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 197,
+            "expression": "phase[3].u"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 197,
+            "expression": "phase[3].u <= $signed(phase[2].u"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 197,
+            "expression": "phase[3].u <= $signed(phase[2].u[20:9]) + $signed(phase[2].u"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 197,
+            "expression": "phase[3].u <= $signed(phase[2].u[20:9]) + $signed(phase[2].u[20:10]) + $signed(phase[2].u"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 198,
+            "expression": "phase[3].v"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 198,
+            "expression": "phase[3].v <= $signed(phase[2].v"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 198,
+            "expression": "phase[3].v <= $signed(phase[2].v[20:9]) + $signed(phase[2].v"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 198,
+            "expression": "phase[3].v <= $signed(phase[2].v[20:9]) + $signed(phase[2].v[20:10]) + $signed(phase[2].u"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 208,
+            "expression": "phase[4].c"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 208,
+            "expression": "phase[4].c <= vref + phase[3].u"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 208,
+            "expression": "phase[4].c <= vref + phase[3].u - phase[3].v"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 210,
+            "expression": "phase[4].c"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 210,
+            "expression": "phase[4].c <= vref + phase[3].u"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 210,
+            "expression": "phase[4].c <= vref + phase[3].u + phase[3].v"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 213,
+            "expression": "phase[4].c"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 213,
+            "expression": "phase[4].c <= vref + phase[3].u"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 213,
+            "expression": "phase[4].c <= vref + phase[3].u + phase[3].v"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 217,
+            "expression": "phase[1].hsync"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 217,
+            "expression": "phase[1].vsync"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 217,
+            "expression": "phase[1].csync"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 217,
+            "expression": "phase[1].de"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 218,
+            "expression": "phase[2].hsync"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 218,
+            "expression": "phase[2].hsync <= phase[1].hsync"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 218,
+            "expression": "phase[2].vsync"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 218,
+            "expression": "phase[2].vsync <= phase[1].vsync"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 218,
+            "expression": "phase[2].csync"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 218,
+            "expression": "phase[2].csync <= phase[1].csync"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 218,
+            "expression": "phase[2].de"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 218,
+            "expression": "phase[2].de <= phase[1].de"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 219,
+            "expression": "phase[3].hsync"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 219,
+            "expression": "phase[3].hsync <= phase[2].hsync"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 219,
+            "expression": "phase[3].vsync"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 219,
+            "expression": "phase[3].vsync <= phase[2].vsync"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 219,
+            "expression": "phase[3].csync"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 219,
+            "expression": "phase[3].csync <= phase[2].csync"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 219,
+            "expression": "phase[3].de"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 219,
+            "expression": "phase[3].de <= phase[2].de"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 220,
+            "expression": "phase[4].hsync"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 220,
+            "expression": "phase[4].hsync <= phase[3].hsync"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 220,
+            "expression": "phase[4].vsync"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 220,
+            "expression": "phase[4].vsync <= phase[3].vsync"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 220,
+            "expression": "phase[4].csync"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 220,
+            "expression": "phase[4].csync <= phase[3].csync"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 220,
+            "expression": "phase[4].de"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 220,
+            "expression": "phase[4].de <= phase[3].de"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 221,
+            "expression": "hsync_o <= phase[4].hsync"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 221,
+            "expression": "vsync_o <= phase[4].vsync"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 221,
+            "expression": "csync_o <= phase[4].csync"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 221,
+            "expression": "de_o <= phase[4].de"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 223,
+            "expression": "phase[1].y"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 223,
+            "expression": "phase[1].y <= phase[0].y"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 223,
+            "expression": "phase[2].y"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 223,
+            "expression": "phase[2].y <= phase[1].y"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 223,
+            "expression": "phase[3].y"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 223,
+            "expression": "phase[3].y <= phase[2].y"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 223,
+            "expression": "phase[4].y"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 223,
+            "expression": "phase[4].y <= phase[3].y"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 223,
+            "expression": "phase[5].y"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 223,
+            "expression": "phase[5].y <= phase[4].y"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 226,
+            "expression": "C <= CVBS ? 8'd0 : phase[4].c"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 227,
+            "expression": "Y <= CVBS ? ({1'b0, phase[5].y"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 227,
+            "expression": "Y <= CVBS ? ({1'b0, phase[5].y[17:11]} + {1'b0, phase[4].c"
+          },
+          {
+            "path": "source/sys/yc_out.sv",
+            "kind": "COMPLEX_EXPRESSION_MEMBER",
+            "line": 227,
+            "expression": "Y <= CVBS ? ({1'b0, phase[5].y[17:11]} + {1'b0, phase[4].c[7:1]}) : phase[5].y"
+          }
+        ],
+        "limitations": "Static pattern screen only; does not establish Quartus synthesis compatibility. Icarus/Verilator elaboration and Windows Quartus remain required."
+      },
+      "duplicate_implementations": {},
+      "settings": "Exact reviewed baseline options/pins; only root paths and supported output directory differ",
+      "Quartus_executed": false,
+      "scope": "Static risk screen; inherited findings require explicit review. No Quartus or hardware PASS."
+    },
+    "current_source_origin_mismatches": []
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "windows-audit.json": {
+    "raw_sha256": "18ea696a8c7a7c00cb73da81ff075b9d431b02cd5b8c5fdbfee0f3986487fd89",
+    "raw_compressed_file": "audit/windows-audit.json.gz",
+    "text_representation": "JSON values preserved; UTF-8/LF normalized for Git whitespace checks"
+  },
+  "windows-C.json": {
+    "raw_sha256": "dc3213d951ad9645b908f6d1ffbc26fe242ab12c1e8e9a02d8743345a063a2a9",
+    "raw_compressed_file": "audit/windows-C.json.gz",
+    "text_representation": "JSON values preserved; UTF-8/LF normalized for Git whitespace checks"
+  }
+}

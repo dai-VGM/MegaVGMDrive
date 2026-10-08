@@ -1,0 +1,31 @@
+--- /private/tmp/vnext-integration-20261008/A-owner_body.svh	2026-10-08 21:47:59
++++ /private/tmp/vnext-integration-20261008/D-owner_body.svh	2026-10-08 21:47:59
+@@ -23,13 +23,15 @@
+     ioctl_download &&
+     (ioctl_index == MODE5_TRANSITION_FILE_INDEX);
+ wire mode5_transition_start_load =
+-    mode5_selected_download && !mode5_ioctl_download_d &&
++    !DIRECT_LOAD_REARM && mode5_selected_download &&
++    !mode5_ioctl_download_d &&
+     !mode5_transition_fade_active &&
+     !mode5_transition_released &&
+     mode5_audio_ever_open &&
+     (MODE5_TRACK_FADE_CYCLES != 32'd0);
+ assign mode5_transition_wait =
+-    mode5_transition_fade_active || mode5_transition_start_load;
++    !DIRECT_LOAD_REARM &&
++    (mode5_transition_fade_active || mode5_transition_start_load);
+ assign mode5_ioctl_download =
+     mode5_selected_download && !mode5_transition_wait;
+ assign mode5_ioctl_wr =
+@@ -254,7 +256,9 @@
+ // completion is the second real loop boundary. A load arriving
+ // during a ramp joins it; it cannot start a second transition.
+ always_ff @(posedge clk) begin
+-    if (reset) begin
++    // The direct-upload profile already owns index 1. Re-arm only the old
++    // envelope; the policy recorder above stays live across this boundary.
++    if (reset || (DIRECT_LOAD_REARM && mode5_load_begin_pulse)) begin
+         mode5_host_ioctl_download_d <= 1'b0;
+         mode5_audio_ever_open <= 1'b0;
+         mode5_transition_fade_active <= 1'b0;
