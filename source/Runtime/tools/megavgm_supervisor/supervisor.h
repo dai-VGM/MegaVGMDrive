@@ -1,0 +1,174 @@
+#pragma once
+
+#include <cstdint>
+#include <functional>
+#include <string>
+#include <vector>
+
+namespace megavgm_supervisor {
+
+struct OperationResult {
+	bool ok = false;
+	std::string detail;
+
+	static OperationResult success();
+	static OperationResult failure(const std::string &detail);
+};
+
+struct VerifiedInputs {
+	std::string stock_sha256;
+	std::string modified_sha256;
+	std::string modified_main_path;
+	std::string modified_main_size;
+	std::string modified_main_sha_expected;
+	std::string modified_main_sha_actual;
+	std::string modified_main_sha256_file_success = "NO";
+	std::string modified_main_sha_errno;
+};
+
+struct ControllerDiagnostics {
+	int pid = -1;
+	std::string exec_state = "NOT_STARTED";
+	std::string exit_state = "NOT_OBSERVED";
+	std::string stderr_text;
+	std::string trace_text;
+	std::string main_load_file_text;
+	bool megavgm_status_at_launch = false;
+	bool command_fifo_seen = false;
+	bool status_seen = false;
+	std::string active_main_sha256;
+	std::string active_rbf_argv;
+};
+
+struct TransportObservation {
+	std::string epoch, state = "IDLE", current_profile, required_profile, path;
+	std::uint64_t generation = 0, domain = 1;
+	std::uint32_t baseline = 0;
+	bool changed = false;
+};
+
+struct Snapshot {
+	TransportObservation transport;
+	std::string mode = "STOCK";
+	std::string main = "STOCK";
+	std::string controller = "STOPPED";
+	std::string rbf = "YM2151_SEGAPCM";
+	std::string playlist;
+	std::string stock_sha256;
+	std::string modified_sha256;
+	std::string modified_main_path;
+	std::string modified_main_size;
+	std::string modified_main_sha_expected;
+	std::string modified_main_sha_actual;
+	std::string modified_main_sha256_file_success = "NO";
+	std::string modified_main_sha_errno;
+	std::string controller_pid = "-1";
+	std::string controller_exec = "NOT_STARTED";
+	std::string controller_exit = "NOT_OBSERVED";
+	std::string controller_stderr;
+	std::string controller_trace;
+	std::string main_load_file;
+	std::string megavgm_status_at_controller_launch = "NO";
+	std::string playlist_command_seen = "NO";
+	std::string playlist_status_seen = "NO";
+	std::string active_main_sha256;
+	std::string active_rbf_argv;
+	std::string detail;
+};
+
+class StatusPublisher {
+public:
+	virtual ~StatusPublisher() = default;
+	virtual OperationResult publish(const Snapshot &snapshot) = 0;
+};
+
+class Runtime {
+public:
+	virtual ~Runtime() = default;
+
+	virtual OperationResult verify_inputs(const std::string &playlist,
+		const std::string &start_file,
+		const std::string &playlist_snapshot,
+		VerifiedInputs &inputs) = 0;
+	virtual OperationResult stop_stock_main(const std::string &stock_sha256) = 0;
+	virtual OperationResult bind_modified_main() = 0;
+	virtual OperationResult start_modified_main(int &pid) = 0;
+	virtual OperationResult verify_modified_main(int pid,
+		const std::string &modified_sha256) = 0;
+	virtual OperationResult load_rbf() = 0;
+	virtual OperationResult select_test_rbf(const std::string &, const std::string &) {
+		return OperationResult::failure("runtime does not support test RBF switching");
+	}
+	virtual OperationResult reacquire_modified_main(int previous_pid,
+		const std::string &modified_sha256, int &current_pid) = 0;
+	virtual OperationResult verify_megavgm_core(int &modified_pid,
+		const std::string &modified_sha256) = 0;
+	virtual OperationResult start_playlist(const std::string &directory,
+		const std::string &start_file,
+		const std::string &playlist_snapshot,
+		int &pid) = 0;
+	virtual OperationResult verify_playlist(int pid) = 0;
+	virtual ControllerDiagnostics controller_diagnostics(int controller_pid,
+		int modified_pid) = 0;
+	virtual bool process_alive(int pid) = 0;
+	virtual bool playlist_complete() = 0;
+	virtual OperationResult stop_playlist(int pid) = 0;
+	virtual OperationResult cleanup_playlist_state() = 0;
+	virtual OperationResult stop_modified_main(int pid) = 0;
+	virtual std::vector<int> modified_main_processes(
+		const std::string &modified_sha256) = 0;
+	virtual std::uint64_t monotonic_ms() = 0;
+	virtual void sleep_ms(unsigned int milliseconds) = 0;
+	virtual OperationResult unmount_modified_main() = 0;
+	virtual OperationResult verify_stock_path(const std::string &stock_sha256) = 0;
+	virtual OperationResult start_stock_main(int &pid) = 0;
+	virtual OperationResult verify_stock_main(int pid,
+		const std::string &stock_sha256) = 0;
+	virtual bool exit_requested() = 0;
+};
+
+class Supervisor {
+public:
+	Supervisor(Runtime &runtime, StatusPublisher &publisher,
+		const std::string &rbf_profile = "YM2151_SEGAPCM");
+
+	OperationResult enter(const std::string &playlist,
+		const std::string &start_file = {},
+		const std::string &playlist_snapshot = {});
+	OperationResult exit(const std::string &reason = "explicit exit");
+	OperationResult monitor_once();
+	// Caller must own the cooperative controller park. No controller restart:
+	// snapshot, selected index and shuffle history remain in that process.
+	OperationResult switch_test_rbf(const std::string &path, const std::string &profile);
+	int modified_pid() const { return modified_pid_; }
+	bool active() const { return active_; }
+	const Snapshot &snapshot() const { return snapshot_; }
+	// Best-effort display publication only. A telemetry write cannot abort,
+	// retry or otherwise affect an accepted transport transaction.
+	void observe_transport(const TransportObservation &observation);
+
+private:
+	OperationResult check_exit_request();
+	OperationResult rollback(const std::string &reason,
+		bool orderly_restore = false);
+	OperationResult drain_modified_mains();
+	void refresh_controller_diagnostics();
+	OperationResult publish();
+	void remember_failure(std::vector<std::string> &failures,
+		const std::string &operation, const OperationResult &result);
+
+	Runtime &runtime_;
+	StatusPublisher &publisher_;
+	const std::string rbf_profile_;
+	Snapshot snapshot_;
+	bool stock_stopped_ = false;
+	bool bind_mounted_ = false;
+	bool modified_started_ = false;
+	bool controller_state_touched_ = false;
+	bool controller_started_ = false;
+	bool active_ = false;
+	int modified_pid_ = -1;
+	int controller_pid_ = -1;
+};
+
+} // namespace megavgm_supervisor

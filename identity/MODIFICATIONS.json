@@ -1,0 +1,320 @@
+{
+  "derived_NES_files": [
+    {
+      "file": "third_party/nes_mister_e/rtl/apu.sv",
+      "upstream": "49a0a662e244469ca77b2155746a066df704ffae",
+      "upstream_sha256": "cfacee5f9491821e14600dd503ed97a0f3ac0d7a9602ebf0c61d597b8cc9bdf9",
+      "adopted_sha256": "3cd1a601a1db585f8e71c128520613537e281291848ccb5083b3bb0683c46a33",
+      "history": [
+        {
+          "commit": "205812d5f6be23013ee7f24c8ba7112c56055003",
+          "date": "2026-10-09T16:57:11+09:00",
+          "summary": "fix(engine-e): reset retained DMC silence for native NSF sessions"
+        },
+        {
+          "commit": "c0554edbe31fe62438c2261b3c03722b801d6bdb",
+          "date": "2026-10-09T15:39:23+09:00",
+          "summary": "Engine E: verify DMC timing impact, fix reload clock leak, add Golden preload candidate"
+        },
+        {
+          "commit": "020e230ed810ae9340ca2d090b86803b63ed7729",
+          "date": "2026-10-09T12:13:26+09:00",
+          "summary": "Engine E: integrate scoped native NSF1 execution; retain audio differential gate"
+        },
+        {
+          "commit": "7eb1e297d1f57e379509a80088084989419f79f1",
+          "date": "2026-10-09T11:38:28+09:00",
+          "summary": "Engine E: add scoped native CPU APU VRC6 candidate and resource probe"
+        }
+      ],
+      "diff": "modifications/rtl__apu.sv.diff"
+    },
+    {
+      "file": "third_party/nes_mister_e/rtl/t65/T65.vhd",
+      "upstream": "49a0a662e244469ca77b2155746a066df704ffae",
+      "upstream_sha256": "52395e881ade8e7d99717d5082cdb5131a0711aaa2dea1fcf042014f6758d01b",
+      "adopted_sha256": "c493d1a061f3c9999efba0f0186bb3bd7c0bd2a6b55e2ec464e96a52d9344138",
+      "history": [
+        {
+          "commit": "7eb1e297d1f57e379509a80088084989419f79f1",
+          "date": "2026-10-09T11:38:28+09:00",
+          "summary": "Engine E: add scoped native CPU APU VRC6 candidate and resource probe"
+        }
+      ],
+      "diff": "modifications/rtl__t65__T65.vhd.diff"
+    }
+  ],
+  "local_E_and_bridge_files": [
+    {
+      "file": "rtl/engine_a_vnext_integration/golden_read_accept_bridge.sv",
+      "sha256": "d942802cdaf06e3ddf044740385b7a26c8eca2de8d31e3f3007514f8a7b0b89f",
+      "last_change": "26d507843a49e6658cf013b25533bdc33fee3818 2026-10-08T17:07:33+09:00 Implement Engine D vNext with shared parser and deterministic chip startup",
+      "first_local_add": [
+        "26d507843a49e6658cf013b25533bdc33fee3818 2026-10-08T17:07:33+09:00 Implement Engine D vNext with shared parser and deterministic chip startup"
+      ],
+      "license": "UNKNOWN"
+    },
+    {
+      "file": "rtl/engine_a_vnext_integration/strict_golden_read_binding.sv",
+      "sha256": "34ebb2e743e495b9e5d27244ba2e410f6bf693900df46ac7ddeddb74f026908d",
+      "last_change": "26d507843a49e6658cf013b25533bdc33fee3818 2026-10-08T17:07:33+09:00 Implement Engine D vNext with shared parser and deterministic chip startup",
+      "first_local_add": [
+        "26d507843a49e6658cf013b25533bdc33fee3818 2026-10-08T17:07:33+09:00 Implement Engine D vNext with shared parser and deterministic chip startup"
+      ],
+      "license": "UNKNOWN"
+    },
+    {
+      "file": "rtl/megavgm_font5x7.sv",
+      "sha256": "79645adbd743a325cfd36b5f7ee30ef33b48b8fa79c332a90b6e36aa72a556dc",
+      "last_change": "c7b86a1ca8c5436ed7b991954be02fbe96cbe68e 2026-07-29T10:51:41+09:00 Display prepared VGM names on screen",
+      "first_local_add": [
+        "c7b86a1ca8c5436ed7b991954be02fbe96cbe68e 2026-07-29T10:51:41+09:00 Display prepared VGM names on screen"
+      ],
+      "license": "0BSD"
+    },
+    {
+      "file": "rtl/megavgm_source_activity_hold.sv",
+      "sha256": "09cc54928d8b047b860dc96e0359782b688c7420054f505f58718a404e2fb403",
+      "last_change": "590c6feb6c4c2f52f94912ceed2f3efe8ce98e8a 2026-09-30T12:05:31+09:00 Promote C140 Stage3 to production Engine D",
+      "first_local_add": [
+        "8f4533fe46fd1c53963789939259ce05ba4ef115 2026-09-17T12:40:01+09:00 rtl: add Engine A source activity OSD"
+      ],
+      "license": "GPL-2.0-or-later"
+    },
+    {
+      "file": "rtl/megavgm_title_receiver.sv",
+      "sha256": "999ee41890f5b3f814e59b8e4dbedfd0287a916e234faab471cc5ef5ea7a6567",
+      "last_change": "c7b86a1ca8c5436ed7b991954be02fbe96cbe68e 2026-07-29T10:51:41+09:00 Display prepared VGM names on screen",
+      "first_local_add": [
+        "c7b86a1ca8c5436ed7b991954be02fbe96cbe68e 2026-07-29T10:51:41+09:00 Display prepared VGM names on screen"
+      ],
+      "license": "GPL-2.0-or-later"
+    },
+    {
+      "file": "rtl/megavgm_video_timing.sv",
+      "sha256": "65a682578e2af7f840df426a96776832000b2e908c0ba30139bd15c1155e5d35",
+      "last_change": "88dce4be3ad4129c9e008ec32d9e820230714244 2026-07-29T01:09:12+09:00 Use MiSTer template native video timing",
+      "first_local_add": [
+        "22736770edd416cac1abfaefc37c6ef70e3dc7c5 2026-07-28T15:35:19+09:00 Fix native video timing for MiSTer output paths"
+      ],
+      "license": "UNKNOWN"
+    },
+    {
+      "file": "rtl/transport_v1_3/megavgm_transport_owner.sv",
+      "sha256": "223d7c6e4464cd4f320c50e4f7f07ca7c7358e941396b47d9c4f401202ee1f25",
+      "last_change": "5cf9faea2f2a07ead9c3e54653b27fbff8a0b654 2026-10-01T10:24:37+09:00 Integrate Engine D two-loop transport termination",
+      "first_local_add": [
+        "4488ac0a518f3713cc5b38364aa226e5eded0e27 2026-09-06T20:33:42+09:00 Add versioned Transport v1.3 FADE_ONLY test route for PlaylistLoopLab"
+      ],
+      "license": "GPL-2.0-or-later"
+    },
+    {
+      "file": "rtl/transport_v1_3/owner_body.svh",
+      "sha256": "48f56052aa0bc07487db3d6887017fa5233d6fd7d911b45d4c9fa19224b9e864",
+      "last_change": "5cf9faea2f2a07ead9c3e54653b27fbff8a0b654 2026-10-01T10:24:37+09:00 Integrate Engine D two-loop transport termination",
+      "first_local_add": [
+        "4488ac0a518f3713cc5b38364aa226e5eded0e27 2026-09-06T20:33:42+09:00 Add versioned Transport v1.3 FADE_ONLY test route for PlaylistLoopLab"
+      ],
+      "license": "GPL-2.0-or-later"
+    },
+    {
+      "file": "rtl/vgm_ddram_backend.sv",
+      "sha256": "b4b2ab6f8e70de357c59be01847c73124d3ebe6a9c8b1c1267e8b64b642d1f2b",
+      "last_change": "b9e3e0a91d4a6696bfbc5f4e4f43861233d13e7c 2026-07-21T09:32:42+09:00 Checkpoint regressed normal-DDR SegaPCM runtime",
+      "first_local_add": [
+        "f800ef09feea3c1bbeffcb2e6b3ce009bd630478 2026-06-11T20:36:29+09:00 Add minimal mode5 DDRAM backend"
+      ],
+      "license": "UNKNOWN"
+    },
+    {
+      "file": "rtl/vgm_reader_vnext/golden_observer.sv",
+      "sha256": "d84772041439661fa7336f0a8dbd1515c9d84c99874ecbb3ae1fb18b708f53d8",
+      "last_change": "26d507843a49e6658cf013b25533bdc33fee3818 2026-10-08T17:07:33+09:00 Implement Engine D vNext with shared parser and deterministic chip startup",
+      "first_local_add": [
+        "26d507843a49e6658cf013b25533bdc33fee3818 2026-10-08T17:07:33+09:00 Implement Engine D vNext with shared parser and deterministic chip startup"
+      ],
+      "license": "UNKNOWN"
+    },
+    {
+      "file": "rtl/vgm_reader_vnext/reader_pkg.sv",
+      "sha256": "63bc69a25ba90e5183ab64439924151bd7f117efcaab9ba8c80cdf52d752f52d",
+      "last_change": "26d507843a49e6658cf013b25533bdc33fee3818 2026-10-08T17:07:33+09:00 Implement Engine D vNext with shared parser and deterministic chip startup",
+      "first_local_add": [
+        "26d507843a49e6658cf013b25533bdc33fee3818 2026-10-08T17:07:33+09:00 Implement Engine D vNext with shared parser and deterministic chip startup"
+      ],
+      "license": "UNKNOWN"
+    },
+    {
+      "file": "rtl/vgm_reader_vnext/strict_adapter.sv",
+      "sha256": "6388fcd562f1af84a701f7c7f6e5fabbf6b704a07abbab564054b2908f7b0259",
+      "last_change": "26d507843a49e6658cf013b25533bdc33fee3818 2026-10-08T17:07:33+09:00 Implement Engine D vNext with shared parser and deterministic chip startup",
+      "first_local_add": [
+        "26d507843a49e6658cf013b25533bdc33fee3818 2026-10-08T17:07:33+09:00 Implement Engine D vNext with shared parser and deterministic chip startup"
+      ],
+      "license": "UNKNOWN"
+    },
+    {
+      "file": "rtl/engine_e_native/e_savestate_constant.sv",
+      "sha256": "6267ff02a80b8437f3a37826e8bf6a108dfe2103c404238d2ea5000da4671b27",
+      "last_change": "7eb1e297d1f57e379509a80088084989419f79f1 2026-10-09T11:38:28+09:00 Engine E: add scoped native CPU APU VRC6 candidate and resource probe",
+      "first_local_add": [
+        "7eb1e297d1f57e379509a80088084989419f79f1 2026-10-09T11:38:28+09:00 Engine E: add scoped native CPU APU VRC6 candidate and resource probe"
+      ],
+      "license": "UNKNOWN"
+    },
+    {
+      "file": "rtl/engine_e_native/dmc_dma.sv",
+      "sha256": "f16309c142a45ac4700a49656a58a9e737ba00f2ddfc80dd55192fea7d121adb",
+      "last_change": "7eb1e297d1f57e379509a80088084989419f79f1 2026-10-09T11:38:28+09:00 Engine E: add scoped native CPU APU VRC6 candidate and resource probe",
+      "first_local_add": [
+        "7eb1e297d1f57e379509a80088084989419f79f1 2026-10-09T11:38:28+09:00 Engine E: add scoped native CPU APU VRC6 candidate and resource probe"
+      ],
+      "license": "GPL-3.0-or-later"
+    },
+    {
+      "file": "rtl/engine_e_native/vrc6_audio.sv",
+      "sha256": "63975585b4587ae49eda846bb8356f8e54e8f18becc37ece76adb45cea011728",
+      "last_change": "50688dec5c178c1b123bc890bd9cfa14537aae9b 2026-10-09T11:42:04+09:00 Engine E: correct Quartus17 virtual-pin probe assignments",
+      "first_local_add": [
+        "7eb1e297d1f57e379509a80088084989419f79f1 2026-10-09T11:38:28+09:00 Engine E: add scoped native CPU APU VRC6 candidate and resource probe"
+      ],
+      "license": "GPL-3.0-or-later"
+    },
+    {
+      "file": "rtl/engine_e_native/nsf_loader.sv",
+      "sha256": "4ca075eb8788eb9c6c7f77a73140465dd73ebc63d7ae417295d6d6c21555a908",
+      "last_change": "020e230ed810ae9340ca2d090b86803b63ed7729 2026-10-09T12:13:26+09:00 Engine E: integrate scoped native NSF1 execution; retain audio differential gate",
+      "first_local_add": [
+        "020e230ed810ae9340ca2d090b86803b63ed7729 2026-10-09T12:13:26+09:00 Engine E: integrate scoped native NSF1 execution; retain audio differential gate"
+      ],
+      "license": "GPL-3.0-or-later"
+    },
+    {
+      "file": "rtl/engine_e_native/nsf_memory.sv",
+      "sha256": "d8cee21ab03759139339467884aa92d55e5a24473ad29b6a0dd629dd65166d83",
+      "last_change": "020e230ed810ae9340ca2d090b86803b63ed7729 2026-10-09T12:13:26+09:00 Engine E: integrate scoped native NSF1 execution; retain audio differential gate",
+      "first_local_add": [
+        "020e230ed810ae9340ca2d090b86803b63ed7729 2026-10-09T12:13:26+09:00 Engine E: integrate scoped native NSF1 execution; retain audio differential gate"
+      ],
+      "license": "GPL-3.0-or-later"
+    },
+    {
+      "file": "rtl/engine_e_native/nsf_monitor.sv",
+      "sha256": "4be4662c22747e5cb4a3d75b766313b39b6d3136ccf43f948b5525d367b2f9fd",
+      "last_change": "020e230ed810ae9340ca2d090b86803b63ed7729 2026-10-09T12:13:26+09:00 Engine E: integrate scoped native NSF1 execution; retain audio differential gate",
+      "first_local_add": [
+        "020e230ed810ae9340ca2d090b86803b63ed7729 2026-10-09T12:13:26+09:00 Engine E: integrate scoped native NSF1 execution; retain audio differential gate"
+      ],
+      "license": "GPL-3.0-or-later"
+    },
+    {
+      "file": "rtl/engine_e_native/nsf_execution.sv",
+      "sha256": "28194cfaceb04e3f310e4266153723d3b9c053a288c8a73767ed99c6601291f0",
+      "last_change": "205812d5f6be23013ee7f24c8ba7112c56055003 2026-10-09T16:57:11+09:00 fix(engine-e): reset retained DMC silence for native NSF sessions",
+      "first_local_add": [
+        "020e230ed810ae9340ca2d090b86803b63ed7729 2026-10-09T12:13:26+09:00 Engine E: integrate scoped native NSF1 execution; retain audio differential gate"
+      ],
+      "license": "GPL-3.0-or-later"
+    },
+    {
+      "file": "rtl/engine_e_native/golden_preload.sv",
+      "sha256": "8ed1fc799f6f298f2b602f7ebb35a8de4d94eb86c12ea9fff041c9e03de407d4",
+      "last_change": "c0554edbe31fe62438c2261b3c03722b801d6bdb 2026-10-09T15:39:23+09:00 Engine E: verify DMC timing impact, fix reload clock leak, add Golden preload candidate",
+      "first_local_add": [
+        "c0554edbe31fe62438c2261b3c03722b801d6bdb 2026-10-09T15:39:23+09:00 Engine E: verify DMC timing impact, fix reload clock leak, add Golden preload candidate"
+      ],
+      "license": "GPL-3.0-or-later"
+    },
+    {
+      "file": "rtl/engine_e_native/golden_execution.sv",
+      "sha256": "656968b19e256b2c981a90fee893a9ac6c44ce02108ee781f0f0c66c0390b643",
+      "last_change": "c0554edbe31fe62438c2261b3c03722b801d6bdb 2026-10-09T15:39:23+09:00 Engine E: verify DMC timing impact, fix reload clock leak, add Golden preload candidate",
+      "first_local_add": [
+        "c0554edbe31fe62438c2261b3c03722b801d6bdb 2026-10-09T15:39:23+09:00 Engine E: verify DMC timing impact, fix reload clock leak, add Golden preload candidate"
+      ],
+      "license": "GPL-3.0-or-later"
+    },
+    {
+      "file": "rtl/engine_e_native/platform_profile.sv",
+      "sha256": "5d9b2fef2752b9357ae5d1569686d9953dc80f04669cde20cc241470672a87c4",
+      "last_change": "260b2313d1651b1fd41ab960764f31a2f52623c3 2026-10-09T18:56:17+09:00 Engine E: prioritize new sessions over stale END and freeze Quartus inputs",
+      "first_local_add": [
+        "ee0fac70aee24e4ee18ec092ca1d47cc14a547de 2026-10-09T18:05:27+09:00 Connect Engine E native NSF to isolated Golden DDR and session lifecycle"
+      ],
+      "license": "UNKNOWN"
+    },
+    {
+      "file": "rtl/engine_e_native/runtime_status_bridge.sv",
+      "sha256": "388bddbc3956549f77fe452ad06754f939d949a9a0a5725f65e04f944c07cb13",
+      "last_change": "ee0fac70aee24e4ee18ec092ca1d47cc14a547de 2026-10-09T18:05:27+09:00 Connect Engine E native NSF to isolated Golden DDR and session lifecycle",
+      "first_local_add": [
+        "eee5e16c207de6ce60bf3a57997400ec9d308670 2026-09-30T16:29:12+09:00 Fix Engine D runtime status handoff"
+      ],
+      "license": "UNKNOWN"
+    },
+    {
+      "file": "rtl/engine_e_native/golden_top.sv",
+      "sha256": "117e7b66e9a44d36f6130a6dee7838a48e6c6a081b5edb75252bf648dd281d42",
+      "last_change": "ee0fac70aee24e4ee18ec092ca1d47cc14a547de 2026-10-09T18:05:27+09:00 Connect Engine E native NSF to isolated Golden DDR and session lifecycle",
+      "first_local_add": [
+        "66aeb3009efb3130d69e5d09daed9a75521c938f 2026-06-04T17:09:17+09:00 Add minimal MiSTer MD VGM top"
+      ],
+      "license": "UNKNOWN"
+    },
+    {
+      "file": "rtl/engine_e_native/golden_emu.sv",
+      "sha256": "7703224492db17683fc0e5b3a7c8ca3583ddd8c7b2f00f06267acd45c285fefb",
+      "last_change": "a1eb7655bc9a1524f330664384dbbbfc5b063266 2026-10-12T23:00:29+09:00 Retire legacy Boost menu in isolated Engine E candidate",
+      "first_local_add": [
+        "e01210004393cdc8591069a55731e72a910a3e31 2026-06-04T17:30:57+09:00 Add minimal MiSTer emu wrapper"
+      ],
+      "license": "UNKNOWN"
+    },
+    {
+      "file": "rtl/engine_e_native/title_renderer.sv",
+      "sha256": "8c7174e1d290ddd47e0832350e94d297595c50e1e521ab2e8cf4019906f9d87c",
+      "last_change": "ee0fac70aee24e4ee18ec092ca1d47cc14a547de 2026-10-09T18:05:27+09:00 Connect Engine E native NSF to isolated Golden DDR and session lifecycle",
+      "first_local_add": [
+        "c7b86a1ca8c5436ed7b991954be02fbe96cbe68e 2026-07-29T10:51:41+09:00 Display prepared VGM names on screen"
+      ],
+      "license": "GPL-2.0-or-later"
+    },
+    {
+      "file": "rtl/engine_e_native/t65_cpu.vhd",
+      "sha256": "1f9b2b951c73dfe17343e4e864276d90bee5088bffad1bc678587b18a2a0d77a",
+      "last_change": "7eb1e297d1f57e379509a80088084989419f79f1 2026-10-09T11:38:28+09:00 Engine E: add scoped native CPU APU VRC6 candidate and resource probe",
+      "first_local_add": [
+        "7eb1e297d1f57e379509a80088084989419f79f1 2026-10-09T11:38:28+09:00 Engine E: add scoped native CPU APU VRC6 candidate and resource probe"
+      ],
+      "license": "UNKNOWN"
+    },
+    {
+      "file": "rtl/engine_e_native/golden_body.svh",
+      "sha256": "6becaa0b389ac0548a8144d2b1d8c763f0c9a03c3ef1fa945add082be8ed2221",
+      "last_change": "ee0fac70aee24e4ee18ec092ca1d47cc14a547de 2026-10-09T18:05:27+09:00 Connect Engine E native NSF to isolated Golden DDR and session lifecycle",
+      "first_local_add": [
+        "9e07423ec2ebf34b8b67bab941fe2d8f30d0451d 2026-09-28T14:38:25+09:00 c140: run stage3 profile behind golden shell"
+      ],
+      "license": "UNKNOWN"
+    },
+    {
+      "file": "rtl/engine_e_native/transport_adapter.sv",
+      "sha256": "feb45ae3a5d18997f32a2db319a6e290d538d7ee632132d6bc94923018fac9b3",
+      "last_change": "ee0fac70aee24e4ee18ec092ca1d47cc14a547de 2026-10-09T18:05:27+09:00 Connect Engine E native NSF to isolated Golden DDR and session lifecycle",
+      "first_local_add": [
+        "7482b59afaebe0e7b683dbaea9441ef167ebb084 2026-09-30T23:13:46+09:00 Add Engine D transport exit contract"
+      ],
+      "license": "UNKNOWN"
+    },
+    {
+      "file": "rtl/engine_e_native/candidate_status_export.sv",
+      "sha256": "0a167921d7a13ca8604340e1cdf6a5c66faeceea6f741c81245b34a1e5e78802",
+      "last_change": "ee0fac70aee24e4ee18ec092ca1d47cc14a547de 2026-10-09T18:05:27+09:00 Connect Engine E native NSF to isolated Golden DDR and session lifecycle",
+      "first_local_add": [
+        "5c17181377a9f653d26d61f108404eed5e707944 2026-08-29T21:42:19+09:00 Export MegaVGMPlayer playback status"
+      ],
+      "license": "UNKNOWN"
+    }
+  ],
+  "frozen_E_commit": "a1eb7655bc9a1524f330664384dbbbfc5b063266"
+}

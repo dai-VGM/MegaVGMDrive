@@ -1,0 +1,1864 @@
+QUARTUS(R) PRIME LICENSE AGREEMENT VERSION 17.0 (WEB DOWNLOAD)
+
+
+Copyright (C) 2017 Altera(R) Corporation.  Altera, Quartus, Nios(R) II
+and the Altera logos are trademarks of Intel Corporation or its
+subsidiaries in the US and other countries.  Any other trademarks and
+trade names referenced here are the property of their respective
+owners.
+
+Certain files, programs, or other materials provided in connection
+with the Licensed Software may originate or contain components from
+Third Party Licensors (as defined below) and are licensed to You
+pursuant to the terms of the applicable Third Party License appearing
+upon activation or installation of the Licensed Software, and/or are
+contained or described in associated release notes, header source
+files, or other documentation.  Any such additional terms, conditions,
+or restrictions will also be provided in a separate list following the
+MegaCore Agreement (the "Third Party License"). You agree to
+carefully review and fully comply with the terms of such Third Party
+Licenses.  NOTWITHSTANDING ANYTHING TO THE CONTRARY IN THE AGREEMENT,
+AS BETWEEN YOU AND ALTERA, AND TO THE MAXIMUM EXTENT PERMITTED BY
+APPLICABLE LAW, ALL SUCH THIRD PARTY LICENSES SHALL BE SUBJECT TO
+PARAGRAPH 11 (DISCLAIMER OF WARRANTIES); PARAGRAPH 13 (LIMITATION OF
+LIABILITY); AND PARAGRAPH 14 (GOVERNING LAW).  ALTERA OFFERS NO
+WARRANTIES (WHETHER EXPRESS OR IMPLIED); INDEMNIFICATION; AND/OR
+SUPPORT OF ANY KIND WITH RESPECT TO THIRD PARTY MATERIALS, EXCEPT THAT
+WE WILL PASS THROUGH TO YOU, IF AND TO THE EXTENT AVAILABLE, ANY
+WARRANTIES EXPRESSLY PROVIDED TO US BY THIRD PARTY LICENSORS RELATING
+TO  SUCH THIRD  PARTY MATERIALS.
+
+PLEASE REVIEW THE FOLLOWING TERMS AND CONDITIONS IN THIS QUARTUS PRIME
+VERSION 17.0 STANDARD LICENSE AGREEMENT (THE "QUARTUS
+AGREEMENT" OR
+"AGREEMENT") CAREFULLY BEFORE DOWNLOADING, INSTALLING OR USING THE
+LICENSED SOFTWARE.   BY: (A) DOWNLOADING, INSTALLING OR USING THE
+LICENSED SOFTWARE; OR (B) PAYING A LICENSE FEE OR OTHER FEE TO ALTERA;
+OR (C) PAYING A FEE TO AN AUTHORIZED DISTRIBUTOR, YOU INDICATE YOUR
+ACCEPTANCE OF THIS QUARTUS AGREEMENT OR THE AGREEMENT BETWEEN YOU AND
+THE AUTHORIZED DISTRIBUTOR FROM WHICH YOU HAVE ACQUIRED THE LICENSE.
+IN THE EVENT OF ANY INCONSISTENCY BETWEEN THE TERMS OF THIS QUARTUS
+AGREEMENT AND YOUR AGREEMENT WITH AN AUTHORIZED DISTRIBUTOR, THIS
+QUARTUS AGREEMENT WILL GOVERN AND CONTROL, EXCEPT WITH REGARDS TO
+PAYMENT TERMS.
+
+IF YOU DO NOT AGREE WITH THE TERMS AND CONDITIONS OF THIS QUARTUS
+AGREEMENT OR THE TERMS OF ANY THIRD PARTY LICENSES, DO NOT DOWNLOAD,
+INSTALL, OR USE THE LICENSED SOFTWARE.    IF YOU HAVE ALREADY
+DOWNLOADED THE LICENSED SOFTWARE, PLEASE UNINSTALL IT AND IRREVOCABLY
+DESTROY IT AND ANY COPIES YOU HAVE MADE AS SOON AS POSSIBLE.  IF YOU
+HAVE RECEIVED A COPY OF THE LICENSED SOFTWARE ON A DVD OR OTHER MANNER
+THAN ELECTRONIC DOWNLOAD, PLEASE RETURN THE LICENSED SOFTWARE UNUSED
+TO ALTERA OR THE ALTERA AUTHORIZED DISTRIBUTOR FROM WHICH YOU OBTAINED
+THE LICENSE AS SOON AS POSSIBLE.
+
+1.  Definitions.
+
+"Altera" means Altera Corporation, a Delaware corporation with a place
+of business at 101 Innovation Drive, San Jose, California 95134 U.S.A.
+including its parent company and their respective affiliates, and
+subsidiaries worldwide.
+
+"Authorized Distributor" means a reseller, OEM, ODM, or any
+distributor or reseller that is authorized by Altera to license the
+Licensed Software to end users in a valid agreement entered into
+between Altera and such OEM, ODM, reseller or distributor.
+
+"Checkout License" means a time-limited license granted by Altera
+associated with an existing Floating Node Seat to install and Use the
+Licensed Software on a single fixed standalone computer for use by a
+single user.  This license shall expire after a specified time, as
+designated by Altera.  The total number of Checkout Licenses that may
+be granted in relation to a single Floating Node Seat may not exceed
+the
+total number of individual Seats associated with such Floating
+Node Seat.
+
+"Concurrent Users" means the number of simultaneous Users accessing
+the Licensed Software.  For example, a 20-use concurrent use license
+would allow 20 Users to log in and use the Licensed Software at one
+time, but the 21st User attempting to log in would be blocked and
+unable to do so until one other User logs out.
+
+"Confidential Information" means and includes, but is not limited to:
+(i) the Licensed Software (whether provided in source code or binary
+form, including any modifications, derivatives, updates and upgrades
+thereto) and the algorithms, concepts, techniques, methods, and
+processes embodied therein; (ii) the Licensed Products and all
+information and specifications associated therewith; (iii) any
+business, marketing, technical, scientific or financial information
+disclosed to  You by Altera or an Authorized Distributor; or (iv)  any
+information which, at the time of disclosure, is designated in writing
+as confidential or proprietary, or similar designation, is disclosed
+in circumstances of confidence, or would be reasonably understood by a
+person, exercising business judgment, to be confidential.
+
+"Designated Equipment" means the computer system that is owned or
+leased by You and operated on Your premises, and identified by a
+network interface card ("NIC") or host ID number on which the Licensed
+Software is installed and Used, and which has the configuration,
+capacity, operating system version level, and pre-requisite
+applications described in the Documentation as necessary for the
+operation of the Licensed Software, and is designated by the NIC/host
+ID in the License Key as the computer system on which the License Key
+management software will be installed.
+
+"Devices" means programmable logic devices, including field
+programmable gate arrays ("FPGAs") devices, complex programmable logic
+devices ("CPLDs"), SoC devices, and/or any other semiconductor devices
+designed, developed or manufactured by or on behalf of Altera.
+
+"Documentation" means technical data in human or machine readable form
+furnished by Altera which: (i) provides operating instructions for
+using the Licensed Software, or (ii) explains the capabilities and
+functions of the Licensed Software, and any full or partial copies of
+any such technical data.
+
+"Fixed with Companion License" means a license to install: the
+Licensed Software on a fixed standalone computer for Use by a single
+User, and (ii) the Licensed Software on up to two companion fixed
+standalone computers.  Under this license, only one Seat may be used
+by a single User at any given time.
+
+"Floating Node Seat" is a license that allows the Licensed Software to
+be: (i) installed on and accessed from any number of computers on a
+network environment; (ii) Used by the permitted number of Concurrent
+Users that is equal to the number of Seats licensed as determined by
+the License Key; and (iii) Used for the sole purposes of developing,
+programming, synthesizing, testing and verifying designs for Altera
+Devices.
+
+"Intellectual Property Rights" means all (i) patents, patent
+applications, patent disclosures and inventions (whether patentable or
+not); (ii) trademarks, service marks, trade dress, trade names, logos,
+corporate names, Internet domain names, and registrations and
+applications for the registration for any of them, together with all
+goodwill associated with any of them; (iii) copyrights and
+copyrightable works (including computer programs and mask works) and
+registrations and applications for registration; (iv) trade secrets,
+know-how and other Confidential Information; (v) waivable or
+assignable rights of publicity, waivable or assignable moral rights;
+(vi) unregistered and registered design rights and any applications
+for registration; (vii) database rights and all other forms of
+intellectual property, such as data; and (viii) any and all similar or
+equivalent rights throughout the world.
+
+"Intended Purpose" is defined in Paragraph 5.1 below.
+
+"IP Megafunctions or Components" means one or more design files,
+including encrypted net lists, RTL, test vectors, simulation models
+(such as VHDL, Verilog HDL, Quartus simulation, Matlab, Simulink,
+Verisity Specman, Synopsys Vera, etc.), and other models, which may be
+provided either as unencrypted source code, or in encrypted netlist or
+encrypted source code format, that are designed to implement or
+support the design of at least one logic function into an Altera logic
+device.  "IP Megafunctions or Components" includes any modified
+versions or updates thereto as may be provided by Altera, in its sole
+and absolute discretion, to You under this Agreement.  However, for
+purposes of this Agreement, the term "IP Megafunctions or Components"
+does not include any software or design files for any MegaCore
+functions (including the Nios(R) II embedded processor) which are
+covered by and licensed under a separate MegaCore  Agreement.
+
+"License Key" means a FlexNet license key, license file, license
+manager, dongle or other key, code or information provided by Altera
+that: (i) enables a User to download, install, operate and/or regulate
+User access to the Licensed Software; and (ii) describes the version
+number of the Licensed Software; and (iii) lists the number of
+Concurrent Users authorized to Use the Licensed Software.
+
+"License Period" means the period of time You have Use of the Licensed
+Software as governed by the License Key.
+
+"Licensed Software" means the specific software enabled via the
+License Key, but does not include Unlicensed Software components,
+files, or portions specifically identified as not being included,
+licensed or enabled via the License Key.
+
+"Maintenance Expiration Date" is set as twelve (12) months from the
+latter of date of license/ license renewal or license activation. The
+Maintenance Expiration date for each Seat license is noted in the
+License Key.  Further description is provided in Paragraph 12 below
+(Maintenance and Support Services).
+"Open Source Software" means any software that requires as a condition
+of use, modification and/or distribution of such software that such
+software or other software incorporated into, derived from or
+distributed with such software: (a) be disclosed or distributed in
+Source Code form; (b) be licensed for the purpose of making derivative
+works; and (c) be redistributable at no charge. Open Source Software
+includes, without limitation, software licensed or distributed under
+any of the following licenses or distribution models, or licenses or
+distribution models similar to any of the following: (i) GNU's General
+Public License (GPL) or Lesser/Library GPL (LGPL); (ii) the Artistic
+License (e.g., PERL); (iii) the Mozilla Public License; (iv) the
+Netscape Public License; (v) the Sun Community Source License (SCSL);
+(vi) the Sun Industry Source License (SISL); and (vii) the Common
+Public License (CPL). The Open Source Software components associated
+with the Licensed Software and their corresponding license terms may
+be found in one or more of: (A) text files associated with the
+Licensed Software; (B) within the Source Code of the Licensed
+Software; or (C) within the Source Code of the Open Source Software
+that is provided with the Licensed Software.
+
+"Seat" means the right granted under this Agreement by Altera or under
+a license agreement by an Authorized Distributor, to Use the Licensed
+Software by a single User in accordance with the terms and conditions
+of this Agreement or an Authorized Distributor's license agreement.  A
+Seat is either a Floating Node Seat or a Fixed with Companion License,
+which is enabled via a License Key.
+
+"Maintenance and Support" means any support or maintenance services
+provided to You by Altera, an Authorized Distributor, and/or
+authorized Altera representatives in responding to email, telephone,
+or other inquiries from You for maintenance, technical, or other
+support requests in connection with the Licensed Software.
+
+"Third Party License" is a separate file, header, or release notes
+that contain additional terms, conditions or restrictions imposed by
+Third Party Licensors.  Such Third Party Licenses will be identified
+in a separate list following the MegaCore Agreement.  A hyperlink to
+an Altera
+database containing the text of all Third Party Licenses may be
+accessed by clicking on the applicable line in the Third Party
+Licenses document.
+
+"Third Party Licensors" means and includes any third party that
+licenses or provides Third Party Materials to Altera.
+
+"Third Party Materials" are materials or components included in the
+download that include but are not limited
+to software, code portions or files owned by Third Party Licensors,
+and are provided subject to Third Party Licenses.
+
+"Unlicensed Software" means any Altera computer programs or code in
+any format for which You do not hold an active License Key issued by
+Altera, including but not limited to any non-subscribed or disabled
+features.
+
+"Use" means downloading, installing and copying all or any portion of
+the Licensed Software into the Designated Equipment for processing the
+instructions contained in the Licensed Software, and/or loading data
+into or displaying, viewing or extracting output results from, or
+otherwise operating, any portion of the Licensed Software.
+
+"User" means each individual identified by You as a person authorized
+to Use the Licensed Software on behalf of and for Your benefit,
+including your employees and your contractors.
+
+"You" means an individual, corporation, or any other legal entity to
+which Altera or an Authorized Distributor has issued a Seat, or
+licensed the Licensed Software, as the case may be.
+
+2.  Grant of License and License Key.
+
+        2.1  Grant of License.  Subject to and conditioned upon Your
+compliance with the terms and conditions of this Agreement and any
+Third Party Licenses, Altera hereby grants to You a personal,
+perpetual (but subject to termination as otherwise described in this
+Agreement), worldwide, non-exclusive, non-transferable license with no
+right to sublicense, to Use the Licensed Software (and any updates or
+upgrades thereof for which You have paid a license fee or other
+applicable fee to Altera or an Authorized Distributor) on the terms
+and conditions set forth in this Agreement.  You may: (i) use the
+Licensed Software on a single computer (or, if You have purchased a
+Floating Node Seat, the number of Concurrent Users for which You have
+obtained licenses from Altera may use the Licensed Software on
+networked workstations); (ii) use the Licensed Software for the sole
+purpose of creating, simulating, verifying, placing and routing, and
+programming designs on logic devices manufactured by Altera and sold
+by Altera or its Authorized Distributors (although if You have
+obtained the Licensed Software through Altera's University Program,
+You are only permitted to use the Licensed Software for educational
+and academic purposes and cannot use the Licensed Software for any
+commercial
+purposes); (iii) make one copy of the Licensed Software in any
+computer-readable or printed form for back-up or archival purposes, or
+as otherwise permitted under this Agreement; and (iv) modify the
+Licensed Software, provided that all Intellectual Property Rights
+notices
+(including all copyright and restricted rights notices on the Licensed
+Software) are included on any modified, merged, or combined portions
+of the Licensed Software.  Any copy of the Licensed Software
+or portions thereof that are merged or combined into another program
+will
+continue to be subject to the terms and conditions of this Agreement.
+Your end customers may use Altera Devices that have been
+programmed with the Licensed Software.
+
+        2.2  License Key.  Altera will deliver the License Key to You
+after Altera's receipt of all information required to generate the
+License Key, including the host identification number for the
+designated equipment onto which You will install the License Key
+management software.   In accordance with its distribution method,
+Altera may include with the Licensed Software additional Unlicensed
+Software to which the License Key will not permit access.  Inclusion
+of such Unlicensed Software in no way implies a license from Altera to
+access or use such Unlicensed Software, and You agree not to access or
+Use such Unlicensed Software, unless the License Key specifically
+authorizes such access and Use.
+
+        2.3  Transfer of Licensed Software.  The Licensed Software may
+be transferred to a third party, provided such third party agrees in
+writing to accept the terms and conditions of this Agreement and You
+notify Altera in writing of the identity of such third party.   If You
+transfer the Licensed Software in accordance with the foregoing, You
+must: (i) at the same time either transfer all copies or portions
+thereof, whether in printed or in computer-readable form, to such
+third party; or (ii) destroy any copies not transferred, including all
+portions of the Licensed Software contained or merged into another
+program, and certify the same in writing to Altera.
+
+        2.4  Floating Node Seat.  If You have purchased a Floating
+Node Seat, You may also copy the Licensed Software onto another
+computer (or access it through networked workstations) for use by
+another User, but only internally, with any remote access limited
+solely to such Users; provided however, that all Users agree to accept
+the terms and conditions of this Agreement in writing prior to Using
+the Licensed Software.
+
+        2.5  IP Megafunctions or Components License.   IP
+Megafunctions or Components are provided to You free of charge, in
+source code form, and You may modify, create derivative works of, and
+freely distribute any such IP Megafunctions or Components, and any
+modifications or derivative works thereof, provided that the IP
+Megafunctions or Components may only be used to program Devices.
+
+3.  Delivery of Licensed Software.  The Licensed Software will be
+delivered electronically, and will be accepted upon delivery.
+
+4.  Designated Equipment.  For all License Key accepted orders, You
+will provide Altera with the Designated Equipment's host
+identification number, which Altera will include in the applicable
+License Key.  Any time that the Designated Equipment is inoperative
+due to malfunction, repair, or maintenance, You may submit a request
+to change the Designated Equipment and receive a new License Key from
+Altera at no additional charge.  Except for such temporary transfer,
+You may not transfer or install the License Key on any other server or
+relocate the Designated Equipment without the prior written consent of
+Altera.   Whenever You receive a new License Key in order to effect a
+transfer to new Designated Equipment, You will immediately cease to
+use the Licensed Software under the previously issued License Key.
+You acknowledge and agree that You will not operate more than the
+number of seats of the Licensed Software associated with your License
+Key.
+
+5.   Confidential Information.   Confidential Information constitutes
+trade secrets and confidential and proprietary information of Altera
+and its licensors, and You agree not to access or Use the Licensed
+Software, directly or indirectly, except and to the extent expressly
+permitted under this Agreement or by applicable law.  Altera and its
+licensors retain all rights in and to the Licensed Software and
+Documentation, modifications, derivatives, updates, and upgrades, and
+all Intellectual Property Rights associated with any of the foregoing.
+You agree not to remove,
+alter or obscure any copyright, patent, trademark, or any other
+proprietary notice in the Licensed Software or Documentation.  No
+other rights or licenses are granted by implication, estoppel, or
+otherwise, to You or any third party.
+
+        5.1  With respect to Confidential Information, You agree: (i)
+to use at least the same degree of care to protect the Confidential
+Information as You use with respect to Your own Confidential
+Information of similar nature and importance, but in no event less
+than a reasonable standard of care, to prevent any Confidential
+Information from being disclosed to any third party, except as
+otherwise expressly permitted by this Agreement; (ii) not to use or
+disclose Confidential Information for any purpose except to the extent
+necessary and for the purpose of programming Devices with the Licensed
+Software (the "Intended Purpose"); and (iii) to restrict the
+disclosure and possession of Confidential Information solely to Your
+Users, employees and contractors with a need to know/need to access
+the Licensed Software for the Intended Purpose, who agree to be bound
+by written confidentiality agreements no less strict than those this
+Agreement.  You agree to be liable to Altera for any breaches of this
+Agreement by Your Users, employees and contractors.
+
+        5.2  You  will have no obligation of confidentiality with
+respect to any Confidential Information to the extent that it is: (a)
+already in the public domain or falls into the public domain through
+no breach of this Agreement (or any other obligation to Altera) by
+You, Your Users, employees, and contractors; (b) already rightfully
+known to You, Your Users, employees, and contractors  without any
+obligation of confidentiality; (c) is rightfully obtained by You, Your
+Users, employees, and contractors from a third party; or (d) developed
+independently by Your Users, employees, and contractors  without
+breach of any obligations of confidentiality under this Agreement.
+With respect to a disclosure required by order of a court or an
+authorized government agency, You may disclose  Confidential
+Information, provided: (i) that You give prompt written notice of any
+such required disclosure to Altera; (ii) You disclose the Confidential
+Information only to the extent required by such court or governmental
+agency; and (iii) You provide reasonable assistance to Altera in its
+efforts to protect the confidentiality of the Confidential Information
+required to be disclosed.
+
+        5.3  Notwithstanding anything in this Agreement to the
+contrary, You  acknowledge and agree that Altera may disclose Your
+identity by name and address and other contact information, and
+identify the Licensed Software licensed to You, to the extent required
+by Altera's agreements with its licensors and Authorized Distributors.
+
+6.   Restrictions on Use.   You may not use, copy, modify, distribute,
+or otherwise transfer the Licensed Software or any portions thereof,
+or permit any remote access thereof by any person or entity, except as
+expressly provided for in this Agreement.  You shall not use the
+Licensed Software to program other devices.   If You transfer
+possession the Licensed Software, or any modifications or portions
+thereof to another party (except as expressly permitted herein) this
+license shall automatically terminate.  You may not decompile,
+disassemble, reverse engineer, or otherwise attempt to access the
+source code of the Licensed Software or reduce it to a human readable
+form ("Reverse Engineer") except as otherwise permitted by applicable
+law or any applicable third party software license terms accompanying
+the Licensed Software.  In such case, You may Reverse Engineer, but
+only after giving
+written notice to Altera, and only to the extent permitted by
+applicable law.  You may not publish or disclose the results of any
+benchmarking or testing of the Licensed Software, or use such results
+for Your own software development activities, without the prior
+written permission of Altera.
+
+7.  No Other Licenses or Intellectual Property Rights.  The Licensed
+Software is
+protected by copyright law and international treaties.    Other than
+the rights expressly granted to You under the Agreement,  Altera and
+its licensors retain and own all right, title and interest in and to
+the Licensed Software,  including any modifications, derivatives and
+updates thereof, and all Intellectual Property Rights in all of
+the foregoing.  Nothing in this Agreement shall be construed to: (i)
+transfer any rights of ownership and/or interest in and to the
+Documentation and Licensed Software or portions thereof, or any
+derivative works of the foregoing to You, except as specifically
+provided in the Agreement; or (ii) enable You to exercise the rights
+granted herein with respect to the Licensed Software with: (a)
+products other than Your products; or (b) using the Licensed Software
+to program devices other than a Device.   We expressly reserve
+all other rights in and to the Licensed Software, Documentation, and
+Intellectual Property Rights associated with any of the foregoing not
+expressly granted to You under this Agreement.
+
+ You acknowledge and agree that: (i) this Agreement does not grant You
+any right to practice, or any other rights with respect to any patent
+of Altera or its licensors.  A separate license agreement from Altera
+or its licensors is needed to use or practice any patent of Altera or
+its licensors.  You, on behalf of Your affiliates and subsidiaries,
+agree not to contend in any context that, as a result of this
+Agreement, Altera or its licensors have any obligation to extend to
+You, or  any other third party has obtained any right to, any license,
+whether express or implied, with respect to any patent of Altera or
+its licensors, for any purpose whatsoever.
+
+8.  Third Party Licensors.  The Licensed Software may contain or
+include Third Party Materials licensed or provided to Altera by Third
+Party Licensors, which may be subject to additional terms and
+conditions or restrictions imposed by such Third Party Licensors.
+Such Third Party Licenses are provided in a separate list following
+the MegaCore Agreement.
+
+9.  Term and Termination.  The license set forth in this Agreement is
+effective until terminated
+by either You or Altera, or terminated in accordance with its terms,
+whichever occurs first.   You may terminate it at any time by
+uninstalling and irrevocably destroying the Licensed Software,
+including all modifications, copies,   and all portions of the
+foregoing, and certifying to such destruction in a writing signed by
+an officer of Your company.   Altera may terminate the license if You
+fail to comply with any material term or condition of this Agreement,
+including but not limited to Your breach of the license rights granted
+to You under this Agreement, or breach of Your  obligations of
+confidentiality, and may also terminate the license in accordance with
+the terms of the Agreement.
+
+10.  Limited Warranty and Remedies.
+
+     10.1  Limited Warranty.   For a period of ninety (90) days from
+the date of Your first receipt from Altera or the Authorized
+Distributor of the License Key, as the case may be  (the "Warranty
+Period"), Altera warrants to You that: the Licensed Software will
+perform substantially in accordance with Altera's Documentation, if
+used in full compliance with the terms of this Agreement.
+This warranty is personal in nature, provided only to You, and is not
+transferable to Your end users, customers, or to any
+third party.
+
+     10.2  Exceptions to Warranty.  During the Warranty Period: (i)
+Altera (either directly or through its Authorized Distributor, if
+applicable) will replace any Licensed Software not meeting the
+foregoing warranty which is returned to Altera or the Authorized
+Distributor with adequate proof of purchase; or (ii) if Altera (either
+directly or through the Authorized Distributor) is unable to deliver
+replacement Licensed Software that performs substantially in
+accordance with Altera's Documentation and is free of
+defects in materials or workmanship, You may terminate this Agreement
+by either returning to Altera or irrevocably destroying the Licensed
+Software, and providing the certification described in Paragraph 9
+above.   Any replacement Licensed Software will be warranted
+for the remainder of the original Warranty Period or thirty (30) days,
+whichever is longer.   The foregoing warranty extends only to the
+Licensed Software in the form delivered by Altera to You, and not to
+any: (a) modifications not made by Altera or its Authorized
+Distributor; (b) misuse, abuse, or use of the Licensed Software in a
+manner not contemplated by this Agreement; (c) failure to use
+compatible Devices as set forth in the Documentation; and (d) Third
+Party
+Materials.
+
+11.  Disclaimer of Warranties.  EXCEPT AS EXPRESSLY SET FORTH ABOVE,
+AND NOTWITHSTANDING ANYTHING TO THE CONTRARY IN THIS QUARTUS
+AGREEMENT, NO OTHER WARRANTIES OR CONDITIONS, EITHER EXPRESS OR
+IMPLIED, ARE MADE WITH RESPECT TO THE LICENSED SOFTWARE AND/OR SUPPORT
+PROVIDED BY ALTERA, ITS LICENSORS, OR ANY AUTHORIZED DISTRIBUTOR,
+INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, TITLE AND
+NONINFRINGEMENT.  ALTERA, ITS LICENSORS, AND AUTHORIZED DISTRIBUTORS
+EXPRESSLY DISCLAIM ALL LIABILITY FOR DAMAGES, INCLUDING, BUT NOT
+LIMITED TO, DIRECT, INDIRECT, SPECIAL, INCIDENTAL, AND CONSEQUENTIAL
+DAMAGES, SUCH AS EXPENSES, RECALL COSTS, BUSINESS INTERRUPTION
+DAMAGES, LOSS OF OR DAMAGE TO INFORMATION, LOSS OF GOODWILL, LOST
+PROFITS, LOST SAVINGS, OTHER DAMAGES ARISING OUT OF THE USE OF OR
+INABILITY TO USE THE LICENSED SOFTWARE; THAT THE FUNCTIONS CONTAINED
+IN THE LICENSED SOFTWARE WILL MEET YOUR REQUIREMENTS; OR THAT THE
+OPERATION OF THE LICENSED SOFTWARE WILL BE UNINTERRUPTED OR ERROR-
+FREE.   YOU ALSO ASSUME RESPONSIBILITY FOR THE SELECTION OF THE
+LICENSED SOFTWARE TO ACHIEVE ITS INTENDED RESULTS AND FOR THE
+INSTALLATION, USE, AND RESULTS OBTAINED FROM THE LICENSED SOFTWARE.
+YOUR  SOLE REMEDIES AND ALTERA'S, ITS LICENSORS' AND THE AUTHORIZED
+DISTRIBUTORS' ENTIRE LIABILITY ARE AS SET FORTH ABOVE.  Some
+jurisdictions do not permit the exclusion of implied warranties, so
+the above exclusion may not apply to You, but shall be interpreted to
+apply to the maximum extent permissible under applicable law.
+
+12.  Maintenance and Support Services.  After expiration of the
+Warranty Period, upon payment of the applicable support fee,  Altera
+or its Authorized Distributor, as the case may be, will: (i) be
+obligated to provide support and maintenance for the Licensed Software
+(including bug fixes, error corrections and any other updates) made
+generally available by Altera to licensees that purchase support and
+maintenance for a period of twelve months from the date of the license
+purchase or renewal, or the date of the license activation, whichever
+is later; and (ii) use commercially reasonable efforts to respond by
+telephone or email to Your inquiries for support for the Licensed
+Software.  Any information collected by Altera or the Authorized
+Distributor arising from or relating to Your requests for Support,
+including but not limited to design files compiled using the Licensed
+Software provided by You for purposes of design assistance,
+enhancement, and troubleshooting, may be used internally by Altera for
+the purpose of improving future versions of the Licensed Software and
+developing future products.  Any such information will not be
+disclosed by Altera to any third parties other than its subsidiaries,
+its Authorized Distributors, its authorized sales representatives, and
+to You.
+
+13.  Limitation of Liability.  Under no circumstances shall Altera,
+its licensors, or its Authorized Distributor be liable to You, Your
+end-users, customers, or to any third party in an amount greater than
+One Thousand Dollars ($1,000.00) or the subscription fee paid by You
+to Altera or the Authorized Distributor for the Licensed Software
+covered by this Quartus Agreement, whichever is less.
+
+14.  Choice of Law/Venue.  This Agreement will in all respects be
+governed by, and construed and interpreted under, the
+laws of the United States of America and the State of Delaware,
+without reference to conflict of laws principles.   The parties agree
+that the United Nations Convention on Contracts for the International
+Sale of Goods (1980) is specifically excluded from and will not apply
+to this Agreement. All disputes arising out of or related to this
+Agreement will be subject to the exclusive jurisdiction of the courts
+of the State of Delaware or of the Federal courts sitting in that
+State. Each party submits to the personal jurisdiction of those courts
+and waives all objections to that jurisdiction and venue for those
+disputes.
+
+
+15.  Export Control.  You shall not export, directly or indirectly,
+any Confidential
+Information, the Licensed Software, the Documentation or any any
+product, service or technical data or system incorporating the
+Licensed Software
+without first obtaining any required license or other approval from
+the U.S. Department of Commerce or any other agency or department of
+the U.S. government. In the event of export from the United States or
+re-export from a foreign destination, You will ensure that the
+distribution and export or import of the product is in compliance with
+all laws, regulations, orders, or other restrictions of the U.S.
+Export Administration Regulations and the appropriate foreign
+government.
+
+16.  U.S. Government Restricted Rights.   You acknowledge and agree
+that all software and software-related items licensed to You by Altera
+pursuant to this Agreement are "Commercial Computer Software" or
+"Commercial Computer Software Documentation" as defined in FAR 12.212
+for civilian agencies and  DFARS 227-7202 for military agencies (as
+amended) and in the event You are permitted under this
+Agreement to provide such items to the U.S. government, such items
+shall be provided under terms that are at least as restrictive as the
+provisions of this Agreement.   The contractor/manufacturer is
+Altera Corporation, 101 Innovation Drive, San Jose, CA 95134 and its
+licensors.
+
+17.  No Assignment.  Except as expressly authorized in this Agreement,
+You may not sublicense, assign, or transfer the
+license rights granted herein, or disclose any trade secrets
+associated with the Licensed Software, without Altera's written
+consent.  Any attempt to sublicense, assign, or
+transfer any of the rights, duties, or obligations hereunder, except
+as provided herein, is void
+and shall automatically terminate any licenses and rights granted
+under this Agreement.  For the purposes of this Section, a change in
+the persons or
+entities that directly or indirectly control fifty percent (50%) or
+more of the equity securities or beneficial or voting interest of
+Licensee shall be considered an assignment by Licensee and shall
+require the other Party's prior written consent, which shall not be
+unreasonably withheld.
+
+18.  Access to Information on the ALTERA Cloud Site.  If enabled, all
+users have the ability to view the compile data transmitted by logging
+into the https://cloud.altera.com ALTERA cloud site with the same user
+account specified when enabling the Quartus II notifications feature.
+From this site, any users can browse the compile status data, or
+delete/purge results as they wish.
+
+19.   Problem Reporter Notice, Consent and Opt-Out.
+
+     19.1       Enabling/Disabling Problem Reporter.   The Problem
+Reporter feature of Quartus will collect and provide certain
+information to Altera
+concerning Your Use of the Licensed Software, in the event of a
+software crash.   No logic designs or machine-executable binary form
+of cores used to program an Altera Device that are processed with the
+Licensed Software will be collected or transmitted with Problem
+Reporter. The types of data Problem Reporter transmits to Altera
+include: (i) Licensed Software tools (tools used, and version and
+build of the Licensed Software); (ii) platform data (operating
+system); and (iii) Licensed Software errors log data (previous exit
+status).   By downloading, installing, copying or using the Licensed
+Software, or by paying a subscription fee, You hereby agree that you
+have been fully informed about the purposes for which your information
+will be used, and You give Your consent for Altera to use this
+information both within and outside of the European Union for the
+purposes described in this Problem Reporter disclosure notice.  You
+may disable or enable Problem Reporter at any time by making the
+appropriate setting in the Quartus Premium "Options > Internet
+Connectivity" dialog box in the Quartus Premium software graphical
+user interface.
+20. OPEN SOURCE STATEMENT. The Licensed Software may include Open
+Source Software that is licensed pursuant to the applicable Open
+Source Software license agreement(s) identified in the Open Source
+Software comments in the applicable source code file(s) and/or file
+header(s) provided with or otherwise associated with the Licensed
+Software. Additional detail may be provided (where applicable) in the
+accompanying on-line documentation, or within the user interface of
+the device, if any. With respect to Open Source Software, nothing in
+this Agreement limits any rights under, or grants rights that
+supersede, the terms of any applicable Open Source Software license
+agreement. Neither Licensee nor any OEM, ODM, customer, or
+distributor, will subject the Licensed Software or associated
+Documentation, in whole or in part, to any license obligations
+associated with Open Source Software including combining or
+distributing the Licensed Software and/or Documentation with Open
+Source Software in a manner that subjects Intel or any portion of the
+Licensed Software to any license obligations of such Open Source
+Software.
+
+
+21.  General Terms.  This Agreement is entered into for the
+benefit of Altera, its licensors and Authorized Distributors, and all
+rights granted to You and all obligations owed to Altera, its
+licensors and the Authorized Distributors shall be enforceable by
+Altera, its licensors and the Authorized Distributors.  No
+modification of this Agreement will be binding unless in
+writing and signed by authorized representatives of each party.  If
+any of the provisions of this Agreement are found to be in
+violation of applicable law, void, or unenforceable, then such
+provisions shall be deemed to be deleted from the Agreement,
+but the remaining provisions of the Agreement shall remain in
+full force and effect.  If You have any questions concerning this
+Agreement, including questions relating to software
+maintenance or warranty service, please contact Altera Corporation,
+101
+Innovation Drive, San Jose, CA 95134.
+
+By downloading, installing, copying or using the Licensed Software, or
+by paying a subscription or other applicable fee, You acknowledge that
+You have read this Agreement, understand it, and agree to be
+bound by its terms and conditions.   You further agree that the
+Agreement is the complete and entire agreement between You and
+Altera with respect to the subject matter hereof.  No statements,
+promises or representations have been made by one party to the other,
+or are relied upon by either party when entering into this
+Agreement.  All prior and contemporaneous discussions and
+negotiations, whether verbal or written, are merged into and
+superseded by the Agreement.   No entity or person not a party
+hereto shall have any interest under this Agreement, or be
+deemed to be a third party beneficiary of the Agreement.   If
+the Agreement terminates for any reason, all definitions in this
+Agreement and the rights, obligations, and restrictions under
+Paragraphs 1
+(Definitions); 5 (Confidential Information; 6 (Restrictions on Use); 7
+(No Other Licenses or Intellectual Property Rights); 8 (Third Party
+Licensors); 10 (Limited Warranty and Remedies); 11 (Disclaimer of
+Warranties); 13 (Limitation of Liability); 14 (Choice of Law/Venue);
+15 (Export Control); 16 (U.S. Government Restricted Rights); 17 (No
+Assignment); and 21 (General Terms) shall survive termination of this
+Agreement.
+
+
+END OF QUARTUS PRIME, VERSION 17.0 LICENSE AGREEMENT
+
+**********************************************************************
+***************************************
+
+MEGACORE(R) FUNCTION VERSION 17.0 LICENSE AGREEMENT
+
+
+Copyright (C) 2017 Altera(R) Corporation.   Megacore,
+Altera(R) and the Altera logos are trademarks of Intel
+Corporation or its subsidiaries in the U.S. and other countries.  Any
+other trademarks and
+trade names referenced here are the property of their respective
+owners.
+
+PLEASE REVIEW THE FOLLOWING TERMS AND CONDITIONS IN THIS MEGACORE
+FUNCTION LICENSE AGREEMENT (THE "MEGACORE AGREEMENT" OR "AGREEMENT")
+CAREFULLY BEFORE DOWNLOADING, INSTALLING OR USING THE LICENSED
+SOFTWARE.   BY: (A) DOWNLOADING, INSTALLING, COPYING OR USING THE
+LICENSED SOFTWARE; OR (B) PAYING A LICENSE FEE OR OTHER FEE TO ALTERA;
+OR (C) PAYING A FEE TO AN AUTHORIZED DISTRIBUTOR, YOU INDICATE YOUR
+ACCEPTANCE OF THIS MEGACORE AGREEMENT.  IN THE EVENT OF ANY
+INCONSISTENCY BETWEEN THE TERMS OF THE MEGACORE AGREEMENT AND YOUR
+AGREEMENT WITH AN AUTHORIZED DISTRIBUTOR, THIS MEGACORE AGREEMENT WILL
+GOVERN AND CONTROL, EXCEPT WITH REGARDS TO PAYMENT TERMS.
+
+Certain files, programs, or other materials provided in connection
+with the Licensed Software may originate or contain components from
+Third Party Licensors and are licensed to You pursuant to the terms of
+the applicable Third Party License appearing upon activation or
+installation of the Licensed Software, and/or are contained or
+described in associated release notes, header source files, or other
+documentation.  Any such additional terms, and conditions or
+restrictions will also be listed in a separate list added at the end
+of this MegaCore Agreement (the "Third Party Licenses).  You agree to
+carefully review and fully comply with the terms of such Third Party
+Licenses.  NOTWITHSTANDING ANYTHING TO THE CONTRARY IN THE AGREEMENT,
+AS BETWEEN YOU AND ALTERA, AND TO THE MAXIMUM EXTENT PERMITTED BY
+APPLICABLE LAW, ALL SUCH THIRD PARTY LICENSES SHALL BE SUBJECT TO
+SECTION 5.3 (DISCLAIMER OF WARRANTIES), SECTION 10 (LIMITATION OF
+LIABILITY) AND SECTION 11.6 (GOVERNING LAW/VENUE).  ALTERA OFFERS NO
+WARRANTIES (WHETHER EXPRESS OR IMPLIED); INDEMNIFICATION; AND/OR
+SUPPORT OF ANY KIND WITH RESPECT TO THIRD PARTY MATERIALS, EXCEPT THAT
+WE WILL PASS THROUGH TO YOU, IF AND TO THE EXTENT AVAILABLE, ANY
+WARRANTIES EXPRESSLY PROVIDED TO US BY THIRD PARTY LICENSORS RELATING
+TO SUCH THIRD  PARTY MATERIALS.
+
+IF YOU DO NOT AGREE WITH THE TERMS AND CONDITIONS OF THIS MEGACORE
+AGREEMENT OR THE TERMS OF ANY OF ITS THIRD PARTY LICENSES, DO NOT
+DOWNLOAD, COPY, INSTALL OR USE THE LICENSED SOFTWARE. IF YOU HAVE
+ALREADY DOWNLOADED THE LICENSED SOFTWARE, PLEASE UNINSTALL IT AND
+IRREVOCABLY DESTROY ANY COPIES YOU HAVE MADE AS SOON AS POSSIBLE.  IF
+YOU HAVE RECEIVED A COPY OF THE LICENSED SOFTWARE ON DVD OR OTHER
+MANNER THAN ELECTRONIC DOWNLOAD, PLEASE RETURN THE LICENSED SOFTWARE
+UNUSED TO ALTERA OR THE AUTHORIZED DISTRIBUTOR FROM WHICH YOU OBTAINED
+THE LICENSE AS SOON AS POSSIBLE.
+
+1.  Definitions.
+
+"Altera" means Altera Corporation, including its parent company, and
+their respective affiliates and subsidiaries worldwide.
+
+"Authorized Contractors" means a person, company, or other entity
+that: (i) provides design, testing, or integration services for You,
+provided such integration services shall be performed solely for
+implementation within Devices; and who is (ii) is subject to a written
+confidentiality agreement protecting Altera's Confidential Information
+with restrictions no less restrictive than those contained in this
+MegaCore Agreement, and You will enforce such agreement in the same
+fashion as You would enforce Your own confidentiality agreements of
+similar nature and importance, but in no event will You use less than
+a reasonable standard.  Any access to or use of the Licensed Software
+or the Licensed Products by the Authorized Contractor is subject to
+the following:  (a) such access and/or use shall be for Your sole
+benefit; (b) a breach of the MegaCore Agreement or the terms of any
+other Altera agreement by the Authorized Contractor shall be deemed to
+be a breach of such agreement(s) by You, and You will be liable for
+any acts or omissions of the Authorized Contractor;  (c) You shall
+ensure that in no event will any such Authorized Contractor be a
+competitor of Altera.
+
+"Authorized Distributor(s)" means a reseller, OEM, ODM, or any other
+distributor that is authorized by Altera to license the Licensed
+Software in a valid agreement entered into between Altera and such
+reseller or distributor.
+
+"Checkout License" means a time-limited license granted by Altera
+associated with an existing Floating Node Seat to install and Use the
+Licensed Software on a single fixed standalone computer for use by a
+single User.  This license shall expire after a specified time as
+designated by Altera.  The total number of Checkout Licenses that may
+be granted in relation to a single Floating Node Seat may not exceed
+the
+total number of individual Seats associated with such Floating
+Node Seat.
+
+"Concurrent Users" means the number of simultaneous users accessing
+the Licensed Software.  For example, a 20-seat concurrent use license
+would allow 20 Users to log in and use the Licensed Software at one
+time, but the 21st User attempting to check in would be blocked and
+unable to do so until one other User checks out.
+
+"Confidential Information" means and includes, but is not limited to:
+(i) the Licensed Software (whether provided in source code or binary
+form, including any modifications, derivatives, updates and upgrades
+thereto) and the algorithms, concepts, techniques, methods and
+processes embodied therein; (ii) the Licensed Products and all
+information and specifications associated therewith; (iii) any
+business, marketing, technical, scientific, or financial information
+disclosed to You by Altera or an Authorized Distributor; or (iv)  any
+information which, at the time of disclosure, is designated in writing
+as confidential or proprietary, or similar designation, is disclosed
+in circumstances of confidence, or would be reasonably understood by a
+person, exercising business judgment, to be confidential.
+
+"Designated Equipment" means the computer system that is owned or
+leased by You and operated on Your premises and identified by a
+network interface card ("NIC") or host ID number on which the Licensed
+Software is installed and Used, and which has the configuration,
+capacity, operating system version level, and pre-requisite
+applications described in the Documentation as necessary for the
+operation of the Licensed Software, and is designated by the NIC /host
+ID in the License Key as the computer system on which the License Key
+management software will be installed.
+
+"Derivative Works" means any derivatives or modifications of the
+Licensed Software created by You or by a third party on Your behalf,
+including: (i) for copyrightable or copyrighted material, any
+translation, abridgement, revision or other form in which an existing
+work may be recast, transformed or adapted; (ii) for work protected by
+topography or mask rights, any translation, abridgement, revision or
+other form in which an existing work may be recast, transformed or
+adapted; (iii) for patentable or patented material, any improvements;
+and (iv) for materials  protected by trade secret, any new material
+derived from or employing such trade secret.
+
+"Devices" means programmable logic devices, including field
+programmable gate arrays ("FPGAs") devices or complex programmable
+logic devices ("CPLDs") structured application specific integrated
+circuit devices, and/or any other semiconductor devices designed,
+developed or manufactured by or on behalf of Altera.
+
+ "Fixed with Companion License" means a license to install: (i) the
+Licensed Software on a fixed standalone computer for Use by a single
+User; and (ii) the Licensed Software on up to two companion fixed
+standalone computers.  Under this license, only one Seat may be used
+by a single User at any given time.
+
+ "Floating Node Seat" is a license that allows the Licensed Software
+to be: (i) installed on and accessed from any number of computers on a
+network environment; (ii) Used by the permitted number of Concurrent
+Users that is equal to the number of Seats licensed as determined by
+the License Key; and (iii) Used for the sole purposes of developing,
+programming, synthesizing, testing and verifying designs for Altera
+Devices.
+
+"Intellectual Property Rights" means all: (i) patents, patent
+applications, patent disclosures and inventions (whether patentable or
+not); (ii) trademarks, service marks, trade dress, trade names, logos,
+corporate names, Internet domain names, and registrations and
+applications for the registration for any of them, together with all
+goodwill associated therewith; (iii) copyrights and copyrightable
+works (including computer programs and mask works) and registrations
+and applications for registration; (iv) trade secrets, know-how and
+other such Confidential Information; (v) waivable or assignable rights
+of publicity, waivable or assignable moral rights; (vi) unregistered
+and registered design rights and any applications for registration;
+(vii) database rights and all other forms of intellectual property,
+such as data; and (viii) any and all similar or equivalent rights
+throughout the world.
+
+"License Key" means a FlexNet license key, license file, license
+manager, dongle or other key, code or information provided by Altera
+that: (i) enables a User to download, install, operate and/or regulate
+User access to the Licensed Software; and (ii) describes the version
+number of the Licensed Software and (iii) lists the number of
+Concurrent Users authorized to Use the Licensed Software.
+
+"License Period" means the period of time You have Use of the Licensed
+Software as governed by the License Key.
+
+"Licensed Software" means: (i) the applicable MegaCore Function; (ii)
+any format test benches (if applicable) and/or suite of test vectors
+(if applicable); and (iii) the Specification (if applicable) related
+to the foregoing, that is enabled via the License Key, but Licensed
+Software does not include Unlicensed Software components, files, or
+portions specifically identified as not being included, licensed or
+enabled via the License Key.
+
+"Licensed Products" means any Device(s) in which the Licensed
+Software, in whole or in part (or as modified by You or an Authorized
+Contractor) are incorporated or implemented pursuant to the provisions
+of this MegaCore Agreement.
+
+"Maintenance Expiration Date" is set as 12 months from the latter of
+date of license/ license renewal and license activation.  The
+Maintenance Expiration date for each seat license is noted in the
+License Key.  Further description is provided in Section 8.1 below.
+
+"MegaCore Function" means one or more design files, including
+encrypted netlists, RTL, test vectors, simulation models (such as VHDL
+, Verilog HDL, Quartus simulation, Matlab, Simulink, Verisity,
+Specman, Synopsys, Vera, etc.) and other models, each of which may be
+provided in either as unencrypted source code or object code formats,
+or in encrypted  netlist or encrypted source code formats, and memory
+controllers provided in source code format, where each is designed to
+implement or supports the design of a specific function into a Device,
+together with any updates Altera may provide to You pursuant to this
+MegaCore Agreement, except for components, files, or portions that are
+subject to any license agreement(s) set forth in any Third Party
+Licenses document or file.
+
+"OpenCore Plus Evaluation Mode" means a limited licensing feature
+offered by Altera that permits free evaluation of a MegaCore Function
+upon installation and prior to payment of a licensing fee.
+"Open Source Software" means any software that requires as a condition
+of use, modification and/or distribution of such software that such
+software or other software incorporated into, derived from or
+distributed with such software: (a) be disclosed or distributed in
+Source Code form; (b) be licensed for the purpose of making derivative
+works; and (c) be redistributable at no charge. Open Source Software
+includes, without limitation, software licensed or distributed under
+any of the following licenses or distribution models, or licenses or
+distribution models similar to any of the following: (i) GNU's General
+Public License (GPL) or Lesser/Library GPL (LGPL); (ii) the Artistic
+License (e.g., PERL); (iii) the Mozilla Public License; (iv) the
+Netscape Public License; (v) the Sun Community Source License (SCSL);
+(vi) the Sun Industry Source License (SISL); and (vii) the Common
+Public License (CPL). The Open Source Software components associated
+with the Licensed Software and their corresponding license terms may
+be found in one or more of: (A) text files associated with the
+Licensed Software; (B) within the Source Code of the Licensed
+Software; or (C) within the Source Code of the Open Source Software
+that is provided with the Licensed Software.
+
+
+"Seat" means the right granted under this Agreement by Altera to Use
+the Licensed Software by a single User in accordance with the terms
+and conditions of this Agreement or an Authorized Distributor's
+license agreement.  A Seat is either a Floating Node Seat or a Fixed
+with Companion License, which is enabled via a License Key.
+
+"Specification" means technical data in human or machine readable form
+furnished by Altera which: (i) provides operating instructions for
+using the Licensed Software, or (ii) explains the capabilities and
+functions of such items, and any full or partial copies of any such
+technical data.
+
+"Support" means any support or maintenance services provided to You by
+Altera, an Authorized Distributor, and/or authorized Altera
+representatives in responding to email, telephone, or other inquiries
+from You for maintenance, technical, or other support requests in
+connection with the Licensed Software or the Licensed Products.
+
+"Third Party Licenses" is a separate file, header, or release notes
+that contains additional terms, conditions or restrictions imposed by
+Third Party Licensors.  Such Third Party Licenses will be identified
+in a separate list at the end of this MegaCore Agreement describing
+each Third Party License.   A hyperlink to an Altera database
+containing the text of all Third Party Licenses may be accessed by
+clicking on the applicable line in the Third Party Licenses
+document.
+
+"Third Party Licensors" means and includes any third party that
+licenses or provides Third Party Materials to Altera.
+
+"Third Party Materials" are materials or components included in the
+download that include but are not limited
+to software, code portions or files owned by Third Party Licensors,
+and are provided subject to Third Party Licenses.
+
+"Unlicensed Software" means any Altera computer programs or code in
+any format for which You do not hold an active License Key issued by
+Altera, including but not limited to any non-subscribed or disabled
+features.
+
+"Use" means downloading, installing, using and copying all or any
+portion of the Licensed Software into the Designated Equipment for
+processing the instructions contained in the Licensed Software, and/or
+loading data into or displaying, viewing or extracting output results
+from, or otherwise operating, any portion of the Licensed Software in
+accordance with the rights granted under this MegaCore Agreement.
+
+"User" means an individual identified by You as a person authorized to
+Use the Licensed Software on behalf of and for Your sole benefit.
+
+"You" means an individual, corporation or other legal entity to which
+Altera or an Authorized Distributor has issued a Seat or licensed the
+Licensed Software, as the case may be.
+
+2.   Grant of License, Restrictions and Limitations.
+
+        2.1  Altera License.  Subject to and conditioned upon Your
+compliance with the terms and conditions of this Agreement, including
+payment of the applicable license fee (unless You are using the
+Licensed Software through the OpenCore Plus Evaluation Feature) Altera
+hereby grants to You a personal, worldwide, non-exclusive, non-
+transferable, perpetual (but subject to termination as otherwise
+described in this Agreement), royalty-free  license with no right to
+sublicense under Altera's copyright and trade secret rights embodied
+in and to the Licensed Software to Use the Licensed Software during
+the License Period solely to:
+
+                (a)     design with, parameterize, compile, route, and
+generate programming files and netlists with the Licensed Software,
+solely for implementation in Devices, provided You have: (i) obtained
+from Altera a Fixed with Companion License or Checkout License; or
+(ii) if You have purchased a Floating Node Seat, multiple users on
+networked workstations up to the number of Concurrent Users for which
+You have obtained licenses from Altera;
+
+        (b)    program Devices with the Licensed Software;
+
+                (c)     exercise the rights granted in Sections (a)
+and (b) of this Section 2.1 through Authorized Contractors;
+
+        (d)     install the Licensed Software on one (1) or more
+computers, as specified in the Fixed with Companion License, Floating
+Node Seat, or Checkout License (as applicable) that You have obtained
+from Altera, in accordance with the provisions of this Section 2.1;
+
+        (e)   except as otherwise provided in Section 2.2 (Use
+Restrictions) below, You may manufacture or have manufactured, market,
+offer for sale, sell, or otherwise distribute or have distributed
+Your products containing one or more Licensed Software; and
+
+         (f)   subject to Altera's prior written approval, upon the
+negotiation of a mutually acceptable agreement and your payment to
+Altera of license fees and royalties, You may incorporate the Licensed
+Software within the approved ASIC for a specific project.
+
+        2.2    Use Restrictions.  No right is granted under this
+Agreement to use the Licensed Software or any machine-executable,
+binary form of a core used to design, develop, or program other
+devices.   However, You may port ASIC designs to Devices for the sole
+purposes of prototyping and verification.  Altera specifically
+disclaims any liability for results obtained when using the Licensed
+Software to program other devices.  Additionally, You may not: (i)
+modify or synthesize any simulation model output files generated from
+or resulting from the Licensed Software;  (ii) Use, and You shall
+prevent
+any third parties or Authorized Contractors from using, the Licensed
+Software to program programmable logic devices, field programmable
+gate arrays ("FPGAs") application specific integrated circuits
+(ASICs), application specific standard products, or any other
+integrated circuit products designed or manufactured by any company or
+entity other than Altera or its parent or affiliated companies; and,
+except as otherwise permitted under
+this Agreement, You may not sublicense or transfer the Licensed
+Software and any rights granted to You under this Agreement.   If You
+transfer possession or control of the Licensed Software (including any
+modifications or portions thereof) or transfer any rights granted
+under this Agreement to a third party, this license shall
+automatically terminate without notice. You may not decompile,
+disassemble, reverse engineer, or otherwise attempt to access or
+derive the source code of the Licensed Software, or any algorithms,
+concepts, techniques, methods or processes embodied therein, or reduce
+the source code of the Licensed Software  to a human readable form
+("Reverse Engineer") except as otherwise permitted in this Agreement,
+or as permitted by applicable law and/or any applicable third party
+software license terms accompanying the Licensed Software.   In such
+case, You may Reverse
+Engineer, but only after giving written notice to Altera, and only to
+the extent permitted by the Agreement or applicable law or any
+applicable third party software license terms accompanying the
+Licensed Software.  You may not
+publish or disclose the results of any benchmarking or testing of the
+Licensed Software or portions thereof, or use such results for Your
+own competing software development activities, without the prior
+written permission of Altera.
+
+        2.3.  OpenCore Plus Evaluation License.   Notwithstanding
+anything to the contrary in Section 2.1 above, if You are using the
+Licensed Software through the OpenCore Plus Evaluation Feature, Your
+license is more limited than the license granted by Altera in Section
+2.1 of this MegaCore Agreement.   Altera grants to You a temporary,
+limited, nonexclusive, nontransferable, single Concurrent User right
+and license to: (i) evaluate the logic designs of Devices by
+performing the following functions:  design entry, timing, place and
+route, compilation and verification of logic designs for Devices; and
+(ii) evaluate the hardware in Devices  by programming the MegaCore
+Function into such Devices, but only for so long as the Devices are
+continuously connected via a programming cable to a host development
+computer that is running the Altera development tool programmer
+software.   Otherwise, the Licensed Software will operate for a
+predetermined amount of time, after which the Licensed Software will
+be
+automatically disabled and will be inoperable.  Certain features and
+functions of the Licensed Software may be disabled by Altera during
+the OpenCore Plus evaluation.  In no event will Altera be held liable
+for any damages or losses to You or any third party resulting from the
+automatic disabling of any MegaCore functions obtained through
+Altera's Opencore Plus evaluation license.
+
+       2.4.  Reservation of Rights.  Except for the licenses expressly
+granted to You in this Section 2, no other licenses are granted to
+You by implication, estoppel, or otherwise, and all rights not
+expressly granted to You in this Section 2 are reserved by Altera.
+
+       2.5. Delivery of Licensed Software.  The Licensed Software will
+be delivered electronically, and will be accepted upon delivery.   You
+may copy the Licensed Software solely for back-up or archival
+purposes, and may use the Licensed Software over a network.
+
+       2.6. License Key.  Altera will deliver the License Key to You
+after Altera's receipt of all information required to generate the
+License Key, including the product name and quantity of Seats licensed
+for the designated server or computer onto which You will install the
+License Key management software.   In accordance with its distribution
+method, Altera may include with the Licensed Software additional
+Unlicensed Software to which the License Key will not permit access.
+Inclusion of such Unlicensed Software in no way implies a license from
+Altera to access or use such Unlicensed Software, and You agree not to
+access or use such Unlicensed Software, unless the License Key
+specifically authorizes such access and use.
+
+       2.7  Intellectual Property Rights Notices.  Any copies of the
+Licensed Software made by or for You shall include all intellectual
+Property Rights notices.  You will not, and shall cause Your
+Authorized Contractors and its customers and/or end users not to,
+remove any Altera Intellectual Property Rights notices or other
+proprietary markings from the Licensed Software.  Any copy of the
+Licensed Software or portions thereof, including but not limited to
+any modified versions, Derivative Works, any portion merged into a
+design, and/or any design or product that incorporates all or any
+portion of the Licensed Software, will continue to be subject to the
+terms and conditions of this Agreement.
+
+       2.8  Feedback.  If You provide to Altera any comments or
+suggestions with respect to the modification, correction, improvement,
+or enhancement of: (i) the Licensed Software or portions thereof; (ii)
+any Confidential Information disclosed by Altera to You; or (iii)
+Licensed Products that may embody such Confidential Information
+(collectively, the "Feedback") then You agree to grant and hereby
+grant to Altera a nonexclusive, irrevocable, perpetual, worldwide,
+royalty-free, fully paid up right and license under any Intellectual
+Property Rights You may have in and to the Feedback, including but not
+limited to the following rights: (a) create Derivative Works of the
+Feedback; (b) modify, enhance, and customize the Feedback; (c)
+sublicense the Feedback to Altera licensees and customers; and (d)
+market, perform, copy, have copied, make, have made, Use, offer to
+sell, sell, and otherwise distribute Altera's and Your sublicensees'
+products including or embodying Feedback in any manner and via any
+media Altera chooses.
+
+       2.9. No Other Licenses or Grant of Intellectual Property
+Rights.  Except as provided in this Agreement, neither party grants to
+the other party, either directly or indirectly, by implication, or by
+way of estoppel, any license or any other rights under such party's
+Intellectual Property Rights.   You acknowledge and agree that: (i)
+this Agreement does not grant to You any right to practice, or any
+other right at all with respect to, any patent of Altera or its
+licensors, and a separate license agreement from Altera or its
+licensors is needed to use or practice any patent of Altera or its
+licensors.  You, on behalf of Your Users, affiliates and subsidiaries,
+agree not to contend in any context that, as a result of this
+Agreement, either Altera or its licensors have any obligation to
+extend, or You, Your Users or any other party has obtained any right
+to, any license, whether express or implied, with respect to any
+patent of Altera or its licensors, for any purpose whatsoever.
+
+3.  Ownership and Future Development.
+
+     3.1.  Ownership of Licensed Software.  As between You and Altera,
+You acknowledge and agree that Altera and its licensors have and shall
+have exclusive ownership of all worldwide right, title and interest in
+and to the Licensed Software and all Intellectual Property Rights and
+industrial rights associated therewith, including but not limited to
+enhancements, corrections, improvements, modified versions, or
+Derivative Works of all the foregoing, in whole or in part, whether
+developed or co-developed by Altera, or developed or co-developed by
+You pursuant to this MegaCore Agreement. To assist Altera in
+perfecting its ownership rights in and to the intellectual property
+described in this Section 3.1, You agree to assign and hereby do
+assign to Altera all Intellectual Property Rights that You may
+otherwise have acquired in and to the intellectual property described
+in this Section 3.1,  and You  agree to assist and cooperate with
+Altera in all reasonable respects in: (i) any actions to establish,
+transfer, or maintain such ownership rights, including executing any
+documents associated therewith; and (ii) actions of enforcement of
+such ownership rights.  To the extent that any rights You may have
+acquired cannot be assigned under applicable law (for example, moral
+rights) You agree to waive and hereby waive any and all rights related
+to the Intellectual Property Rights described in this Section 3.1,
+including without limitation any and all rights of identification of
+authorship and any and all rights of approval, restrictions or
+limitation on use, or subsequent modification.
+
+       3.2.  You recognize and acknowledge that Altera is or may be
+independently developing for commercial use products that may be
+complementary to or competitive with Your products and may in future
+independently develop products that may compete with Your products.
+Nothing in this Agreement shall limit Altera's independent development
+and marketing or distribution of any products or systems, provided
+such independent development is accomplished without use of Your
+confidential information.  The existence of this MegaCore Agreement
+shall not prevent Altera from undertaking discussions with third
+parties, including Your competitors.
+
+4.      Confidential Information.  The Confidential Information
+constitutes trade secrets and confidential and proprietary information
+of Altera and its licensors, and You agree not to access or Use the
+Licensed Software or portions thereof, directly or indirectly, except
+and to the extent expressly permitted under this Agreement or by
+applicable law.   Altera and its licensors retain all rights in and to
+the Licensed Software, modifications, derivatives, updates, and
+upgrades, and all Intellectual Property Rights associated with any of
+the foregoing.  No other rights or licenses are granted by
+implication, estoppel or otherwise, to You or any third party.
+
+        4.1  With respect to Confidential Information, You  agree: (i)
+to use at least the same degree of care as You use with respect to
+Your own Confidential Information of similar nature and importance,
+but in no event less than a reasonable standard of care, to prevent
+any Confidential Information from being disclosed to any third party,
+except as otherwise permitted by this Agreement; (ii) not to use or
+disclose Confidential Information for any purpose except to the extent
+necessary and for the purpose of programming Devices with the Licensed
+Software (the "Intended Purpose"); and (iii) to restrict the
+disclosure and possession of Confidential Information solely to those
+of Your Users, employees and Authorized Contractors with a need to
+know/need to access for the Intended Purpose, who agree to be bound by
+written confidentiality agreements no less strict than those contained
+in this Agreement.  You agree to be liable to Altera for any breaches
+by Your Users, employees and Authorized Contractors of the
+confidentiality obligations in this Section 4.1.
+
+        4.2  You will have no obligation of confidentiality with
+respect to any Confidential Information to the extent that it is: (a)
+already in the public domain or falls into the public domain through
+no breach of this Agreement (or any other obligation to Altera) by
+You, Your employees, Your Users, and Authorized Contractors; (b)
+already rightfully known to You, Your employees, Your Users and
+Authorized Contractors  without any obligation of confidentiality; (c)
+is rightfully obtained by You, Your employees, Your Users and
+Authorized Contractors from a third party with no obligation of
+confidentiality; or (d) developed independently by You, Your
+employees, Your Users and Authorized Contractors without breach of
+Your obligation of confidentiality under this Agreement.   With
+respect to a disclosure required by order of a court or an authorized
+government agency, You may disclose  Confidential Information,
+provided that: (i) You give prompt written notice of any such required
+disclosure to Altera; (ii) You disclose the Confidential Information
+only to the extent required by such court or governmental agency; and
+(iii) You provide reasonable assistance to Altera in its efforts to
+protect the confidentiality of the Confidential Information required
+to be disclosed.
+
+        4.3  Notwithstanding anything in this Agreement to the
+contrary, You agree that Altera may disclose Your identity by name and
+address and contact information, and identify the Licensed Software
+licensed to You, to the extent required by Altera's agreement with its
+licensors and Authorized Distributors.
+
+5.   Limited Warranty and Disclaimer of Warranties.
+
+        5.1  Limited Warranty.   Unless You are using the Licensed
+Software through the OpenCore Plus Evaluation Feature (in which case
+the limited warranty described in this Section 5 will not apply, and
+the Licensed Software is provided to You on an "AS-IS", "with all
+faults", and on a "no warranty" basis)  Altera warrants that, until
+the Maintenance Expiration Date (the "Warranty Period"), the Licensed
+Software will conform to the Specifications in all material respects
+if used in compliance with the terms and conditions of this Agreement.
+This warranty is personal to You, and is not transferable to your
+affiliates, subsidiaries, end-user customers or to any third party.
+If the Licensed Software does not materially conform to its
+Specifications, You agree to promptly notify Altera in writing of such
+alleged nonconformance, and provide sufficient details or evidence to
+allow Altera to reproduce the alleged defect or nonconformance.
+Altera shall have no obligation to remedy any nonconformance or defect
+it cannot replicate. During the Warranty Period, Altera may, at
+Altera's sole option: (i) replace any Licensed Software not meeting
+the foregoing warranty (either directly or through its Authorized
+Distributor) provided the Licensed Software is returned to Altera or
+the Authorized Distributor with adequate proof of purchase; or (ii) if
+Altera is unable to remedy the defect or nonconformance after
+reasonable commercial efforts, Altera may elect to refund to You the
+license fee actually paid for the Licensed Software during the
+previous twelve (12) months.  Any replacement Licensed Software will
+be warranted for the remainder of the original Warranty Period or
+thirty (30) days, whichever is longer.   Your sole remedy, and
+Altera's sole obligation for a breach of the warranty in this Section
+5.1 shall be replacement or the refund specified in
+subsections (i) and (ii) above.  If Altera refunds the license fee in
+accordance with subsection (ii) above, Your license and any rights
+granted to You under this Agreement will terminate immediately, and
+You agree to irrevocably destroy the nonconforming Licensed Software
+including any copies thereof and portions thereof incorporated into a
+design or product, and certify in writing of its destruction to
+Altera.
+
+        5.2  The foregoing warranty in Section 5.1 extends only to the
+Licensed Software in the form delivered by Altera and its Authorized
+Distributors to You, and not to any: (a) modifications not made by
+Altera or its Authorized Distributor; (b) misuse, abuse, or use of the
+Licensed Software outside its Intended Purpose; (c) failure to use
+compatible Devices as set forth in the Specifications; or (d) Third
+Party Materials.
+
+        5.3.  Disclaimer of Warranties.  THE FOREGOING WARRANTIES ARE
+IN LIEU OF ALL OTHER WARRANTIES, EXPRESS OR IMPLIED, WITH RESPECT TO
+THE LICENSED SOFTWARE OR SUPPORT SERVICES, INCLUDING BUT NOT LIMITED
+TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+PARTICULAR PURPOSE, TITLE, NON-INFRINGEMENT, AND ANY IMPLIED
+WARRANTIES ARISING FROM STATUTE, COURSE OF DEALING, COURSE OF
+PERFORMANCE OR USAGE OF TRADE.  ALTERA DOES NOT WARRANT THAT THE
+FUNCTIONS IN THE LICENSED SOFTWARE WILL MEET YOUR REQUIREMENTS OR THAT
+THE OPERATION OF THE LICENSED SOFTWARE WILL BE UNINTERRUPTED OR ERROR-
+FREE, AND DOES NOT MAKE ANY REPRESENTATIONS REGARDING THE USE OF THE
+LICENSED SOFTWARE FOR ACCURACY, RELIABILITY, OR OTHERWISE.  ALTERA
+EXPRESSLY DISCLAIMS ALL WARRANTIES NOT EXPRESSLY STATED IN THIS
+AGREEMENT.   EXCEPT AND TO THE EXTENT OTHERWISE PROVIDED UNDER THIS
+AGREEMENT, YOU ASSUME THE ENTIRE RISK AS TO THE QUALITY AND
+PERFORMANCE OF THE LICENSED SOFTWARE AND ANY DESIGN OR PRODUCT IN
+WHICH THE LICENSED SOFTWARE MAY BE USED, INCLUDING, WITHOUT
+LIMITATION, ANY LICENSED PRODUCTS.  No representation or other
+affirmation of fact, including but limited to statements regarding
+capacity, suitability for use or performance of the Licensed Software,
+whether made by Altera employees or otherwise, shall be deemed to be a
+warranty for any purpose or give rise to any liability of Altera
+whatsoever.   Some jurisdictions do not allow the exclusion of implied
+warranties, so the above exclusions may not apply to You but shall be
+interpreted to apply to the maximum extent permissible under
+applicable law.
+
+6.      Third Party Licensors.  The Licensed Software may contain or
+include Third Party Materials licensed or provided to Altera by Third
+Party Licensors which may be subject to additional terms and
+conditions or restrictions imposed by such Third Party Licensors in a
+separate license agreement (the "Third Party Licenses").   Such Third
+Party Licenses will be identified in a separate file, header, or
+release notes.   A hyperlink to an Altera database containing
+the text of all Third Party Licenses may be accessed by clicking on
+the applicable line in the Third Party Licenses document following
+this MegaCore Agreement.  With respect to the Third Party Materials
+that are not governed by a separate Third Party License, the Third
+Party Licensors of such Third Party Materials are intended third party
+beneficiaries of the terms of this Agreement.
+
+7.    Term and Termination.
+
+        7.1  Term.  This Agreement will commence when you download and
+install the Licensed Software, and will remain in effect unless
+terminated by either party, or terminated in accordance with its
+terms, whichever occurs first.
+
+        7.2  Termination.  If the Licensed Software is licensed for
+evaluation purposes as described in Section 2.3 of this MegaCore
+Agreement, then this Agreement and the rights granted hereunder will
+automatically terminate in accordance with Section 2.2 above, or upon
+notice by Altera.  Additionally, Altera may terminate this Agreement
+in accordance with its terms.  You may terminate this MegaCore
+Agreement at any time by uninstalling and irrevocably destroying the
+Licensed Software, including all modifications, copies, and all
+portions of the foregoing, and certifying to such destruction in a
+writing signed by an officer of Your company.   Altera may terminate
+the license immediately if You or an Authorized Contractor fail to
+comply with any material term or condition of this Agreement,
+including but not limited to Your or an Authorized Contractor's breach
+of the license rights granted in this Agreement, breach of Your or an
+Authorized Contractor's obligation of confidentiality, or if You: (i)
+cease to do business or terminates its business operations; or (ii)
+become insolvent or seek protection under any bankruptcy or
+liquidation or similar proceedings, or make an assignment of all or a
+majority of Your assets for the benefit of creditors.
+
+        7.3  Effect of Termination.   Upon termination of this
+Agreement for any reason, the licenses and any rights granted under
+this Agreement shall terminate, and You agree to irrevocably destroy,
+and shall cause any of Your employees and Authorized Contractors to
+irrevocably destroy, the Licensed Software and all portions thereof in
+Your possession or under Your control (including any portions thereof
+merged into a design or Licensed Product not already distributed), and
+certify to such destruction in writing to Altera.   You shall not
+continue to use the Licensed Software or any portion thereof in
+development after termination of the Agreement, but You may keep a
+single copy of the Licensed Software solely for archival purposes, or
+to provide support to end users or customers.
+
+8.   Maintenance and Support.
+
+        8.1  Unless You have licensed the Licensed Software through
+the OpenCore Plus Evaluation Feature, Altera will provide support and
+maintenance for the Licensed Software until the date listed in the
+license file for a particular MegaCore Function in the format
+"YYYY.MM" (the "Maintenance Expiration Date").   After expiration of
+the Warranty Period, upon payment of the applicable support fee Altera
+or its Authorized Distributor, as the case may be, shall: (i) be
+obligated to provide Support for the Licensed Software (including bug
+fixes, error corrections and any other updates made generally
+available by Altera to licensees that purchase support and
+maintenance) for a period of 12 months from the date of the license
+purchase or renewal, or the date of the license activation, whichever
+is later; and (ii)  use commercially reasonable efforts to provide to
+You fixes to defects in the Licensed Software that cause the Licensed
+Software not to conform in all material respects with the
+Specifications that are diagnosed as non-conformances, and are capable
+of replication by Altera; (iii) provide to You fixes and other updates
+to the Licensed Software that Altera, in its sole discretion, chooses
+to make generally available to its licensees without a separate
+charge; and (iv) respond by telephone or email to Your inquiries for
+support.
+
+        8.2   Exclusions.   Altera is not and shall not be obligated
+to provide any maintenance or support for Licensed Software obtained
+through the OpenCore Plus Evaluation Feature.  Except as otherwise
+described in Section 8.1 above, Altera will not have any obligation to
+provide any
+maintenance, support, or training, or to provide any error
+corrections, updates, upgrades, new versions, other modifications, or
+enhancements to the Licensed Software, Devices, or any Licensed
+Products.   You will be responsible, at Your own expense, for
+providing technical support and training to Your customers and any
+other end users of the Licensed Software or Licensed Products, and
+Altera will have no obligation to support any of the foregoing.  You
+will be solely responsible for, and Altera shall have no obligation to
+honor, any warranties that You may provide to Your customers or to any
+other end users of the Licensed Products.
+
+9.   Indemnification.
+
+        9.1  Subject to the provisions of this Agreement, and provided
+You have not acquired the Licensed Software through the OpenCore Plus
+Evaluation License (in which case Altera is not obligated to provide
+any defense or indemnification),  Altera will defend You from and to
+the extent based on a claim by a third party that the Licensed
+Software, in the form delivered by Altera or its Authorized
+Distributor and used by You in accordance with this Agreement,
+infringes a third party's United States or European Union copyright,
+trade secret or trademark, and will pay any damages finally awarded as
+a result of the claim or amount agreed to by Altera as part of a
+settlement, provided that You: (i) notify  Altera promptly in writing
+of any such claim, and (ii) reasonably cooperate, at Altera's
+expense, in the defense or settlement of such claim.  Altera shall
+have sole authority to control the defense and all related settlement
+negotiations, but You will have the right to be represented by your
+own
+attorney, at your sole expense.   The foregoing indemnity  does not
+extend to claims resulting from:  (a) any modifications of the
+Licensed Software by a party other than Altera and its Authorized
+Distributors; (b) use of the Licensed Software outside the scope of
+the licenses granted under this Agreement; (c) the combination or use
+of the Licensed Software with other products, software components or
+systems, to the extent that the claim of infringement results from
+such combination or use; (d) the use of other than the most recent
+version of the Licensed Software, if the infringement claim would have
+been avoided by use of the most recent version of Licensed Software;
+(e) any requirements specified by You; (f) any unauthorized use of the
+Licensed Software, to the extent Altera has indicated in the
+Specifications that third-party licenses may be required to use
+suchLicensed Software; (g) any third party products, software,
+components, systems, or materials; or (h) a Product's alleged
+implementation of some or all of a Standard (for purposes of this
+Agreement, "Standard" is a technology specification created by a
+government sponsored group, an industry sponsored group, or any
+similar group or organization that creates technology specifications
+to be used by others.  Examples of Standards include GSM, LTE, 5G, Wi-
+Fi, CDMA, MPEG, and HTML.  Examples of groups that create Standards
+include IEEE, ITU, 3GPP, and ETSI).
+
+        9.2  Remedies.  If, in Altera's judgment, the Use and/or
+licensing of the Licensed Software is likely to be enjoined by a
+court, Altera shall, at its option and expense (but subject to the
+terms and conditions of this Agreement) either: (i) procure the right
+to allow You the continued rights to use the Licensed Software; or
+(ii) replace or modify the Licensed Software so that it becomes non-
+infringing, provided that the replacement or modified version
+substantially meets the Specifications applicable to the original
+Licensed Software.  If Altera is unable, after exercising reasonable
+commercial efforts, to obtain such license or provide such replacement
+or modification, Altera may in its sole discretion terminate this
+Agreement, in which case You agree to irrevocably destroy the Licensed
+Software, including all copies and portions thereof in any form
+(including any portions thereof merged into a design or a product that
+has not been distributed), and certify the same in writing to Altera.
+Altera will refund the license fee paid during the previous one (1)
+calendar year for such Licensed Software.   Upon performance by Altera
+of the remedies above, the liability of Altera for such alleged
+infringement shall terminate with respect to all damages arising from
+or relating to such alleged infringement after the date of Altera's
+performance.   Sections 9.1 and 9.2 of the Agreement state Altera's
+entire liability, and Your  sole and exclusive remedies, with regards
+to infringement claims.
+
+10.   Limitation of Liability.
+
+        10.1 OpenCore Plus Evaluation License Limitation of Liability.
+YOU UNDERSTAND AND AGREE THAT THE LICENSED SOFTWARE MAY BE FUNCTION-,
+TIME-, OR CLOCK CYCLE LIMITED, AND THEREFORE YOU ACKNOWLEDGE AND AGREE
+THAT IN NO EVENT WILL ALTERA BE HELD LIABLE FOR ANY DAMAGES, LOSSES,
+COSTS, LIABILITIES OR EXPENSES TO YOU OR TO ANY THIRD PARTY ARISING
+FROM OR RELATING TO THE AUTOMATIC DISABLING OF ANY LICENSED SOFTWARE
+FUNCTIONS OBTAINED THROUGH THE OPENCORE PLUS EVALUATION LICENSE.
+
+        10.2 No Indirect Damages.  TO THE MAXIMUM EXTENT PERMITTED BY
+APPLICABLE LAW, UNDER NO CIRCUMSTANCES WILL ALTERA, ITS LICENSORS OR
+AUTHORIZED DISTRIBUTORS BE LIABLE TO YOU OR TO ANY THIRD PARTY FOR ANY
+INDIRECT, CONSEQUENTIAL, INCIDENTAL, PUNITIVE, OR SPECIAL DAMAGES OF
+ANY KIND OR NATURE INCLUDING BUT NOT LIMITED TO LOSS OF PROFITS, LOSS
+OR INACCURACY OF DATA, LOSS OF USE, COSTS OF PROCUREMENT OF SUBSTITUTE
+GOODS OR SERVICES IN CONNECTION WITH THE SUBJECT MATTER OF THIS
+AGREEMENT OR USE OF THE LICENSED SOFTWARE, IN WHOLE OR IN PART, UNDER
+ANY THEORY OF LIABILITY, EVEN IF SUCH LOSSES WERE REASONABLY
+FORESEEABLE OR ALTERA HAS BEEN ADVISED OF THE POSSIBILITY OF
+OCCURRENCE OF SUCH DAMAGES.
+
+        10.3  Damages Cap.  IN NO EVENT SHALL ALTERA'S TOTAL AGGREGATE
+LIABILITY UNDER THIS  AGREEMENT EXCEED THE LICENSE FEE ACTUALLY PAID
+BY  YOU TO ALTERA FOR THE SPECIFIC LICENSE GIVING RISE TO THE CLAIM
+FOR THE PRECEDING ONE (1) YEAR PERIOD.
+
+        10.4  Failure of Essential Purpose.  WITHOUT LIMITING THE
+FOREGOING, IT IS EXPRESSLY UNDERSTOOD AND AGREED BY THE PARTIES HERETO
+THAT EACH AND EVERY PROVISION OF THIS AGREEMENT WHICH PROVIDES FOR A
+LIMITATION OF LIABILITY, DISCLAIMER OF WARRANTY OR EXCLUSION OF
+DAMAGES IS INTENDED BY THE PARTIES TO BE SEVERABLE AND INDEPENDENT OF
+ANY OTHER SUCH PROVISION.   FURTHER, IN THE EVENT THAT ANY REMEDY
+HEREUNDER IS DETERMINED TO HAVE FAILED OF ITS ESSENTIAL PURPOSE, ALL
+LIMITATIONS OF LIABILITY AND EXCLUSIONS OF DAMAGES SHALL REMAIN IN
+EFFECT, TO THE MAXIMUM EFFECT PERMITTED BY APPLICABLE LAW.
+
+        10.5  Hazardous Applications and Uses.  THE LICENSED SOFTWARE
+IS NOT INTENDED OR DESIGNED TO BE FAIL- SAFE FOR USE IN ANY
+APPLICATION REQUIRING FAIL-SAFE PERFORMANCE, SUCH AS LIFE SUPPORT,
+SAFETY OR MEDICAL DEVICE SYSTEMS, NUCLEAR FACILITIES, OR ANY OTHER
+APPLICATIONS THAT COULD LEAD TO DEATH, PERSONAL INJURY, OR SEVERE
+PROPERTY OR ENVIRONMENTAL DAMAGE (COLLECTIVELY, "HAZARDOUS
+APPLICATIONS").  THE LICENSED SOFTWARE IS ALSO NOT DESIGNED OR
+INTENDED FOR USE WITH ANY APPLICATIONS THAT CONTROL VEHICLES OR
+AIRCRAFT.  YOU AGREE THAT PRIOR TO USING OR DISTRIBUTING ANY SYSTEMS
+DEVELOPED BY USE OF THE LICENSED SOFTWARE OR THAT INCORPORATE A
+PORTION OF THE LICENSED SOFTWARE, TO THOROUGHLY TEST SUCH SYSTEMS FOR
+SAFETY PURPOSES.  TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW,
+YOU ASSUME ALL RISK AND LIABILITY FOR ANY HAZARDOUS APPLICATIONS AND
+USES IN APPLICATONS THAT CONTROL VEHICLES OR AIRCRAFT.
+
+        10.6  Altera is willing to enter into this Agreement only in
+consideration of and in reliance of the terms and conditions contained
+herein limiting Altera's exposure to liability.  Such provisions
+constitute an essential part of the bargain underlying this Agreement
+and have been reflected in the consideration hereto.  The parties
+understand and agree that the exclusion of warranties, limitation of
+liability, and the limitation of remedies allocate risks between the
+parties as authorized under applicable law.
+
+        10.7  NOTWITHSTANDING THE FOREGOING, THE LIMITATIONS OF
+LIABILITY IN THIS SECTION 10 WILL NOT APPLY WITH RESPECT TO DEATH,
+SERIOUS BODILY INJURY, OR DAMAGE TO PERSONAL PROPERTY RESULTING FROM A
+PARTY'S GROSS NEGLIGENCE OR FRAUDULENT OR INTENTIONAL MISCONDUCT.
+
+11.   General Terms and Conditions.
+
+        11.1  General Terms.  This Agreement is entered into for the
+benefit of Altera, its licensors, and Authorized Distributors, and all
+rights granted to You, Your Users, and Authorized Contractors, and
+Your obligations owed to Altera and the Authorized Distributors, shall
+be
+enforceable by Altera, its licensors and the Authorized Distributors.
+No modification of this Agreement will be binding unless in writing
+and signed by authorized representatives of each party.   If any of
+the provisions of this Agreement are in violation of applicable law,
+void, or unenforceable, then such provisions shall be deemed to be
+deleted from the Agreement, but the remaining provisions shall remain
+in full force and effect.  If You have any questions concerning this
+Agreement, including questions relating to software maintenance or
+warranty service, please contact Altera Corporation, 101 Innovation
+Drive, San Jose, CA 95134.
+
+        11.2  By downloading, installing, copying or using the
+Licensed Software, or by paying a license or other applicable fee, You
+acknowledge that You have read this Agreement, understand it, and
+agree to be bound by its terms and conditions.   You further agree
+that the Agreement is the complete and entire agreement between You
+and Altera with respect to the subject matter hereof.   No statements,
+promises or representations have been made by one party to the other,
+or are relied upon by either party when entering into this Agreement.
+All prior and contemporaneous discussions and negotiations, whether
+verbal or written, are merged into and superseded by the Agreement.
+No entity or person not a party hereto shall have any interest under
+this Agreement, or be deemed to be a third party beneficiary thereof.
+
+        11.3  Audit Rights.   You agree to keep complete and accurate
+books and records which confirm Your compliance with the terms and
+conditions of this Agreement.  Altera shall have a right to audit Your
+facilities and records, provided that such audit: (i) shall be
+conducted at reasonable times, upon reasonable prior written notice;
+and (ii) shall not unreasonably interfere with Your normal business
+operations.  This Section 11.3 shall survive for three (3) years after
+expiration or termination of this Agreement.
+
+        11.4  No Assignment.  The license and rights granted to You
+hereunder are personal in nature.  You may not sublicense, delegate,
+assign, or otherwise transfer this Agreement or
+any of the rights or obligations contained therein without Altera's
+written consent.  Any attempt to do
+so will be void and shall have no force and effect, and shall
+immediately terminate all licenses and rights granted under this
+Agreement.  For the purposes of this Section, a change in the persons
+or
+entities that directly or indirectly control fifty percent (50%) or
+more of the equity securities or beneficial or voting interest of
+Licensee shall be considered an assignment by Licensee and shall
+require the other Party's prior written consent, which shall not be
+unreasonably withheld.
+
+        11.5  Export Control.   You shall not export, directly or
+indirectly, any Confidential
+Information, the Licensed Software, or any any product, service or
+technical data or system incorporating the Licensed Software
+without first obtaining any required license or other approval from
+the U.S. Department of Commerce or any other agency or department of
+the U.S. government. In the event of export from the United States or
+re-export from a foreign destination, You will ensure that the
+distribution and export or import of the product is in compliance with
+all laws, regulations, orders, or other restrictions of the U.S.
+Export Administration Regulations and the appropriate foreign
+government.
+
+        11.6  Governing Law/Venue.  This Agreement will in all
+respects be governed by, and construed and interpreted under, the
+laws of the United States of America and the State of Delaware,
+without reference to conflict of laws principles.   The parties agree
+that the United Nations Convention on Contracts for the International
+Sale of Goods (1980) is specifically excluded from and will not apply
+to this Agreement. All disputes arising out of or related to this
+Agreement will be subject to the exclusive jurisdiction of the courts
+of the State of Delaware or of the Federal courts sitting in that
+State. Each party submits to the personal jurisdiction of those courts
+and waives all objections to that jurisdiction and venue for those
+disputes.
+
+        11.7  U.S. Government Restricted Rights.   You acknowledge and
+agree that all software and software-related items licensed by Altera
+pursuant to this Agreement are "Commercial Computer Software"  or
+"Commercial Computer Software Documentation" as defined in FAR 12.212
+for civilian agencies and  DFARS 227-7202 for military agencies (as
+amended) and in the event You are permitted under this Agreement to
+provide such items to the U.S. government, such items shall be
+provided under terms that are at least as restrictive as the
+provisions of this Agreement.   The Contractor/manufacturer is Altera
+Corporation, 101 Innovation Drive, San Jose, CA 95134.
+
+        11.8  Survival.  If the Agreement terminates for any reason,
+all definitions in this Agreement and the rights, obligations, and
+restrictions under Sections 1 (Definitions); 2.3 (Reservation of
+Rights) 2.6 (Intellectual Property Rights Notices); 2.9 (No Other
+Licenses or Grant of Intellectual Property Rights); 3 (Ownership and
+Future Development); 4 (Confidential Information); 5.3 (Disclaimer of
+Warranties); 6 (Third Party Licensors); 7.3 (Effect of Termination); 9
+(Indemnification); 10 (Limitation of Liability); and 11 (General Terms
+and Conditions) shall survive termination of the Agreement.
+
+12. OPEN SOURCE STATEMENT. The Licensed Software may include Open
+Source Software that is licensed pursuant to the applicable Open
+Source Software license agreement(s) identified in the Open Source
+Software comments in the applicable source code file(s) and/or file
+header(s) provided with or otherwise associated with the Licensed
+Software. Additional detail may be provided (where applicable) in the
+accompanying on-line documentation, or within the user interface of
+the device, if any. With respect to Open Source Software, nothing in
+this MegaCore Agreement limits any rights under, or grants rights that
+supersede, the terms of any applicable Open Source Software license
+agreement. Neither Licensee nor any OEM, ODM, customer, or
+distributor, will subject the Licensed Software or associated
+Documentation, in whole or in part, to any license obligations
+associated with Open Source Software including combining or
+distributing the Licensed Software and/or Documentation with Open
+Source Software in a manner that subjects Intel or any portion of the
+Licensed Software to any license obligations of such Open Source
+Software.
+
+
+[END OF MEGACORE FUNCTION V. 17.0 LICENSE TERMS AND
+CONDITIONS]
+
+
+===================================================================
+
+THIRD-PARTY LICENSES
+
+NOTE: The following third-party licenses and notices represent each
+third-party contributor's use requirements for Your usage of any third-
+party software incorporated into or provided in conjunction with the
+Intel FPGA product(s) licensed under the Intel FPGA Software License Agreement
+("Agreement").  The provisions contained in each such license apply
+only to the respective Third-Party Components (as such term is defined
+in the Agreement) and not to any Intel FPGA products licensed to You.
+
+Quartus Prime THIRD-PARTY LICENSES
+------------------------------------------------------------------
+1. Liberation Fonts 2.00.1 (SIL Open Font License, Version 1.1)
+2. Alphanum 1.0 (libpng/zlib License)
+3. AngularJS 1.0.8 (MIT License)
+4. AngularJS 1.2.0 (MIT License)
+5. Apache Xerces C++ 2.6 (Apache v. 2.0 license)
+6. autopep8 0.9.7 (MIT License)
+7. Base64 decoder 1.0 (Zlib License)
+8. boost 1.53.0 (MIT-style License)
+9. boost 1.53.0 (MIT-style License)
+10. Bootstrap components for AngularJS 0.10.0 (MIT License)
+11. Bootstrap components for AngularJS 0.6.0 (MIT License)
+12. Bottle 0.12.7 (MIT License)
+13. buddy 2.2 (BSD-style License)
+14. bwidget 1.4.1 (BSD-style License)
+15. Cajun 2.0.1 (3 Clause BSD License)
+16. CherryPy 3.5.0 (3 Clause BSD License)
+17. Cygwin 1.7.32 (GPL v. 3.0)
+18. D3.js: Data-Driven Documents 2.10.3 (3 Clause BSD Licens)
+19. D3.js: Data-Driven Documents 3.0.0 (3 Clause BSD Licens)
+20. Django 1.6 (3 Clause BSD License)
+21. Editline Library (libedit) 0:42:0 (NetBSD License)
+22. Eigen3 3.2.1 (Mozilla Public License Version 2.0)
+23. Flake8 2.1.0 (MIT License)
+24. GD 2.0.34 (BSD-style License)
+25. Google Mock and Google Test 1.7 (BSD 3 Clause License)
+26. gzip 1.3.12 (GPL v. 2.0 License)
+27. HTTP-Parser 2.1 (MIT License)
+28. IBM.ICU 4.4.2 (IBM ICU License and additional Third Party terms)
+29. ICU 3.4 (IBM License and additional third party terms)
+30. INCR TCL 4.0 (BSD-Style License)
+31. javasysmon 0.3.5 (BSD 2 Clause License)
+32. jdbc sqlite 20120209 (Apache v. 2.0 license)
+33. jpeg 6b (Indedendent JPEG Group License)
+34. jQuery 1.11.3 (MIT License)
+35. jQuery 1.9.1 (MIT License)
+36. jQuery UI 1.10.2 (MIT License)
+37. jQuery UI Layout Plug-in 1.3.0.rc30.79 (MIT License, GPL v.3 License)
+38. JRE Java SE 6 (Oracle Binary Code License)
+39. LIBCURL 7.36.0 (MIT/X Derivative License)
+40. Libelf 0.8.10 (LGPL v. 2.1 License)
+41. Liberty Parser 2.6 (SYNOPSYS Open Source License Version 1.0)
+42. libpng 1.2.18 (Libpng License)
+43. lpsolve 5.5.0.10 (LGPL v 2.1 License)
+44. make 3.81 (GPL v. 2.0 License)
+45. McCabe 0.2.1 (MIT License)
+46. metis 4.0.1 (GPL v. 2.0 License)
+47. MINISAT 2 2.2.0 (MIT License)
+48. mongoose 3.8 (MIT License)
+49. Normalize.css 2.1.3 (MIT License)
+50. OpenSSL 1.0.1h (BSD-style License)
+51. OpenSSL 1.0.1m (BSD-style License)
+52. Peewee 2.1.6 (MIT License)
+53. pep8 1.4.6 (MIT License)
+54. Perl 5.8.8 (GPL v. 1.0 or the Artistic License)
+55. PicNet Table Filter  (MIT License)
+56. Protobuf 2.5.0 (BSD 3 Clause License)
+57. psutil 1.2.1 (3 Clause BSD License)
+58. pyflakes 3.2.2 (MIT License)
+59. Python 3.3.0 (PSF License for Python 3.3.0)
+60. pyzeromq 14.0.0 (Modified BSD License)
+61. Requests 2.3.0 (Apache v. 2.0 license)
+62. setuptools 2.0 (PSF or ZPL License)
+63. superlu 2.2.0 (BSD 3 Clause License)
+64. systemc 2.1 (SystemC Open Source License v. 3.3)
+65. Tablelist 5.5 (MIT style license)
+66. TableSorter 2.7.3 (MIT License, GPL v. 3.0 Licenses)
+67. tbb 4.2.2 (GPL v.2.0 License)
+68. TCL-TK 8.6 (BSD-style License)
+69. tcldom 3.0 (BSD Style License)
+70. tcllib 1.11 (BSD 4 Clause License)
+71. tclsoap 1.6.7 (MIT License)
+72. tclxml 3.2 (BSD style License)
+73. TinyXml 2.6.2 (zlib License)
+74. tktable 2.10 (Tcl/Tk license)
+75. TLS 1.6 (BSD License)
+76. Tufao 0.8 (LGPL v. 2.1 License (library) (documentation and examples under MIT License))
+77. Twitter Bootstrap 2.3.1 (Apache v. 2.0 License)
+78. Twitter Bootstrap 2.3.2 (Apache v. 2.0 License)
+79. Twitter Bootstrap version 3.0.3 (Apache v. 2.0 License)
+80. Twitter Bootstrap version 3.3.6 (MIT License)
+81. Underscore.js 1.4.4 (MIT License)
+82. unzip 6.00 (BSD Style Info-Zip License)
+83. xmlgen 1.4 (Apache v. 2.0 license)
+84. ZeroMQ 4.0.3 (LGPL v. 3 License)
+85. ZLIB 1.2.3 (Zlib License)
+
+MegaCore (IP) THIRD-PARTY LICENSES
+------------------------------------------------------------------
+1. antlr 2.7.2 (BSD 4 Clause License)
+2. antlr 4.5.1 (BSD 3 Clause License)
+3. appframework 1.03 (LGPL v. 2.1 License)
+4. asm 3.1 (BSD 3 Clause License)
+5. avi2raw 1.1 (Mozilla Public License v. 1.1)
+6. beansbinding 1.2.1 (LGPL v. 2.1 License)
+7. JGoodies Binding 2.0.6 (BSD 3 Clause License)
+8. binutils 2.25 (GPL v. 2 License)
+9. boost 1.38.0 (MIT-style License)
+10. castor 1.0.3 (Apache v. 2.0 and Intalio BSD-style Licenses)
+11. castor 1.2 (Apache v. 2.0 and Intalio BSD-style Licenses)
+12. checker-framework 1.8.7 (GPL v. 2 License)
+13. checkstyle 4.2 (LGPL v. 2.1 License)
+14. cli 1.1 (Apache v. 2.0 License)
+15. cobertura 1.8 (GPL v. 2 License)
+16. commons-beanutils 1.6 (Apache v. 1.1 License)
+17. commons-collection 3 (Apache v. 2.0 License)
+18. commons-digester 1.5 (Apache v. 1.1 License)
+19. commons-lang 3.1 (Apache v. 2.0 License)
+20. commons-logging 1.1 (Apache v. 2.0 License)
+21. commons-logging 1.2 (Apache v. 2.0 License)
+22. commons-math 3.5 (Apache v. 2.0 License)
+23. commons-pool 1.2 (Apache v. 2.0 License)
+24. DockingFrames 1.1.2p12c (LGPL v. 2.1 License)
+25. eclipse-cpp-kepler-SR2 4.3.2 (Eclipse Public License v 1.0)
+26. expat 2.0.1 (MIT License)
+27. expat 2.1.0 (MIT License)
+28. explicitlayout 3.0 (LGPL v. 2.1 License)
+29. forms_rt 6.0 (Apache v. 2.0 License)
+30. gcc 5.2 (GNU Free Documentation v. 1.3 GPL License)
+31. gdb 7.10 (GPL v. 3 License)
+32. gmp 5.0.5 (LGPL v. 3 License)
+33. gnu 1.2.5 (GPL v. 2 License)
+34. guava-libraries 15.0 (Apache v. 2.0 License)
+35. hamcrest 1.3 (BSD 3 Clause License)
+36. jacl 1.3.2a (Jacl Software License)
+37. jacoco 0.6.3 (Eclipse Public License v 1.0)
+38. jaxb-ri 2.2.7 (CDDL v. 1.1; GPL v. 2 Classpath Exception)
+39. jaxb-xew-plugin 1.4 (LGPL v. 3 License)
+40. jaxb2-basics-annotate 1.0.1 (BSD 2 Clause License)
+41. jaxb2-basics-tools 0.9.0 (BSD 3 Clause License)
+42. jaxen 1.1.1 (BSD 3 Clause License)
+43. jaxen 1.1.6 (BSD 3 Clause License)
+44. jaxen 1.3 (BSD 4 Clause License)
+45. jcommon 1.0.16 (LGPL v. 3 License)
+46. JDOM 1 (BSD-style License)
+47. JFreeChart 1.0.13 (LGPL v. 3 License)
+48. JGraphX 2.2.0.2 (BSD 3 Clause License)
+49. jline 2.12 (BSD 3 Clause License)
+50. jsap 2.0a (LGPL v. 2.1 License)
+51. jsr173 1.0 (Apache v. 2.0 License)
+52. junit 3.8.1 (Common Public License v. 1.0)
+53. junit 4.0 (Common Public License v. 1.0)
+54. junit 4.1 (Common Public License v. 1.0)
+55. l2fprod 7.3 (Apache v. 2.0 License)
+56. libstdc v3 (GPL v. 3 License)
+57. looks 2.0.1 (BSD 2 Clause License)
+58. make 3.81 (GPL v. 2 License)
+59. miglayout15 3.0.3 (BSD 2 Clause License)
+60. miglayout 4.0 (BSD)
+61. mpc 1.0.1 (LGPL v. 3 License)
+62. mpfr 3.1.0 (LGPL v. 3 License)
+63. mpfr 3.1.1 (LGPL v. 3 License)
+64. mpir 2.2.1 (LGPL v. 3 License)
+65. mydoggy 1.4.2 (LGPL v. 3 License)
+66. netbeans-swing-outline 6.9 (LGPL v. 2.1, GPL v. 2.0, and CDDL v. 1 Licenses plus Classpath Exception)
+67. newlib 2.1.0 (Red Hat and BSD 3 Clause Licenses)
+68. OpenCL 1.1 (MIT License)
+69. powermock 1.5 (Apache v. 2.0 license)
+70. quickserver 1.4.7 (LGPL v.2.1 License)
+71. stlport 7.1 (Stlport License)
+72. swingworker 3 (MPL v. 1.1 and LGPL v. 2.1 Licenses)
+73. symphony 5.4.5 (Eclipse Public License v. 1.0)
+74. systemc 2.2.0 (SystemC Open Source License v. 3.3)
+75. velocity 1.4 (Apache v. 2.0 License)
+76. wraplf 0.2 (Apache v. 2.0 License)
+77. xalan 1.2.2 (Apache v. 2.0 License)
+78. xerces 2.3.0 (Apache v. 1.1 License)
+79. xmlbeans 2.2.0 (Apache v. 2.0 License)

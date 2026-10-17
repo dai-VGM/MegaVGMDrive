@@ -1,0 +1,24 @@
+MODIFICATION RECORD — FINAL COMPANION, NOT APPLIED TO RC
+Engine E fixed source: a1eb7655bc9a1524f330664384dbbbfc5b063266
+Upstream NES_MiSTer: 49a0a662e244469ca77b2155746a066df704ffae
+APU: clock/reset and connection adaptation, observation and DMC/session integration.
+T65.vhd: branch/dummy bus addressing adaptation; exact changes are the stored upstream-to-fixed diffs.
+Independent VRC6/DMC paths carry GPL-3.0-or-later notices; no imported NES mapper/VRC.sv is asserted.
+
+File: third_party/nes_mister_e/rtl/apu.sv
+Original SHA256: cfacee5f9491821e14600dd503ed97a0f3ac0d7a9602ebf0c61d597b8cc9bdf9
+Modified SHA256: 3cd1a601a1db585f8e71c128520613537e281291848ccb5083b3bb0683c46a33
+205812d5f6be23013ee7f24c8ba7112c56055003 2026-10-09T16:57:11+09:00 fix(engine-e): reset retained DMC silence for native NSF sessions
+c0554edbe31fe62438c2261b3c03722b801d6bdb 2026-10-09T15:39:23+09:00 Engine E: verify DMC timing impact, fix reload clock leak, add Golden preload candidate
+020e230ed810ae9340ca2d090b86803b63ed7729 2026-10-09T12:13:26+09:00 Engine E: integrate scoped native NSF1 execution; retain audio differential gate
+7eb1e297d1f57e379509a80088084989419f79f1 2026-10-09T11:38:28+09:00 Engine E: add scoped native CPU APU VRC6 candidate and resource probe
+
+File: third_party/nes_mister_e/rtl/t65/T65.vhd
+Original SHA256: 52395e881ade8e7d99717d5082cdb5131a0711aaa2dea1fcf042014f6758d01b
+Modified SHA256: c493d1a061f3c9999efba0f0186bb3bd7c0bd2a6b55e2ec464e96a52d9344138
+7eb1e297d1f57e379509a80088084989419f79f1 2026-10-09T11:38:28+09:00 Engine E: add scoped native CPU APU VRC6 candidate and resource probe
+
+All 30 local RTL path histories: identity/MODIFICATIONS.json.
+Intel HDMI reconfiguration reduction already exists byte-identically in upstream NES; not an E-only alteration.
+Eight of ten Intel inputs are equal after only CRLF-to-LF normalization; the two core PLL inputs differ in configuration.
+2026-10-17 JST: rights holder confirmed GPLv3 provision for owned contributions; see OWNED_CONTRIBUTIONS_LICENSE.txt. No third-party license was changed.

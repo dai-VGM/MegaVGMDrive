@@ -1,0 +1,7 @@
+# Engine A YM2151 clock capability
+
+The selected Engine A RTL must match this explicit build capability. Default OFF admits only 3,579,545 and 4,000,000 Hz for an actually used YM2151. `MEGAVGM_HOST_A_YM2151_4026987=1` additionally admits exactly 4,026,987 Hz with the separately validated new A RTL candidate. The old A source 25b144e251b971f1117d3489942ccc4e5717a3c0 / RBF 8f1b1930327a4288c7b147f3f2d5999fc5baa7ce4cd842798b79a2bb34df17e7 must not use the new capability. No clock rounding, physical PLL, audio gain or generic lifecycle change.
+
+Zero/unsupported/flagged clocks on actual FM WRITE are rejected before upload; unused YM clock does not invent chip presence or initialization. K053260 and non-Konami A use the same selected YM clock set. D C140/MSM6295 and other profiles retain their existing independent rules. Runtime c7c4ed32ff7cc305cc09bb7c770c5a1bc9a6b625 and package 48cca1c1cfacfbb3d2025ac2a33a5492d57756ecd284f37e1feac47f54d52265 remain immutable prior identities.
+
+Host unit tests run with the capability ON and OFF. The normal metadata test fixtures now carry an actual supported YM clock; 1 Hz remains an explicit rejection test. Controller/Supervisor/queue source is unchanged. A later ARM Package must pin compiler inputs, the capability define and exact new A RBF; this source candidate is not a replacement deployed package. Windows/RBF/hardware/production gates remain separate. production HOLD.

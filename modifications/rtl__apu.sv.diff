@@ -1,0 +1,1212 @@
+--- https://github.com/MiSTer-devel/NES_MiSTer/blob/49a0a662e244469ca77b2155746a066df704ffae/rtl/apu.sv
++++ a1eb7655bc9a1524f330664384dbbbfc5b063266:third_party/nes_mister_e/rtl/apu.sv
+@@ -152,8 +152,8 @@
+ 
+ 	logic ValidFreq;
+ 	logic subunit_write;
+-	logic [3:0] Envelope;
+-	logic lc;
++	wire [3:0] Envelope;
++	wire lc;
+ 	logic DutyEnabledUsed;
+ 	logic DutyEnabled;
+ 
+@@ -286,7 +286,7 @@
+ 	logic [6:0] LinCtrPeriod, LinCtrPeriod_1, LinCtr;
+ 	logic LinCtrl, line_reload;
+ 	logic LinCtrZero;
+-	logic lc;
++	wire lc;
+ 
+ 	logic LenCtrZero;
+ 	logic subunit_write;
+@@ -394,9 +394,9 @@
+ 	logic [14:0] Shift;
+ 	logic [3:0] Period;
+ 	logic [11:0] NoisePeriod, TimerCtr;
+-	logic [3:0] Envelope;
++	wire [3:0] Envelope;
+ 	logic subunit_write;
+-	logic lc;
++	wire lc;
+ 
+ 	assign IsNonZero = lc;
+ 	assign subunit_write = (Addr == 0 || Addr == 3) & write;
+@@ -430,22 +430,42 @@
+ 		.envelope       (Envelope)
+ 	);
+ 
+-	logic [10:0] noise_pal_lut[16];
+-	assign noise_pal_lut = '{
+-		11'h200, 11'h280, 11'h550, 11'h5D5,
+-		11'h393, 11'h74F, 11'h61B, 11'h41F,
+-		11'h661, 11'h1C5, 11'h6AE, 11'h093,
+-		11'h4FE, 11'h12D, 11'h679, 11'h392
+-	};
++	logic [10:0] noise_pal_lut[0:15];
++	assign noise_pal_lut[0] = 11'h200;
++assign noise_pal_lut[1] = 11'h280;
++assign noise_pal_lut[2] = 11'h550;
++assign noise_pal_lut[3] = 11'h5D5;
++assign noise_pal_lut[4] = 11'h393;
++assign noise_pal_lut[5] = 11'h74F;
++assign noise_pal_lut[6] = 11'h61B;
++assign noise_pal_lut[7] = 11'h41F;
++assign noise_pal_lut[8] = 11'h661;
++assign noise_pal_lut[9] = 11'h1C5;
++assign noise_pal_lut[10] = 11'h6AE;
++assign noise_pal_lut[11] = 11'h093;
++assign noise_pal_lut[12] = 11'h4FE;
++assign noise_pal_lut[13] = 11'h12D;
++assign noise_pal_lut[14] = 11'h679;
++assign noise_pal_lut[15] = 11'h392;
+ 
+ 	// Values read directly from the netlist
+-	logic [10:0] noise_ntsc_lut[16];
+-	assign noise_ntsc_lut = '{
+-		11'h200, 11'h280, 11'h2A8, 11'h6EA,
+-		11'h4E4, 11'h674, 11'h630, 11'h730,
+-		11'h4AC, 11'h304, 11'h722, 11'h230,
+-		11'h213, 11'h782, 11'h006, 11'h014
+-	};
++	logic [10:0] noise_ntsc_lut[0:15];
++	assign noise_ntsc_lut[0] = 11'h200;
++assign noise_ntsc_lut[1] = 11'h280;
++assign noise_ntsc_lut[2] = 11'h2A8;
++assign noise_ntsc_lut[3] = 11'h6EA;
++assign noise_ntsc_lut[4] = 11'h4E4;
++assign noise_ntsc_lut[5] = 11'h674;
++assign noise_ntsc_lut[6] = 11'h630;
++assign noise_ntsc_lut[7] = 11'h730;
++assign noise_ntsc_lut[8] = 11'h4AC;
++assign noise_ntsc_lut[9] = 11'h304;
++assign noise_ntsc_lut[10] = 11'h722;
++assign noise_ntsc_lut[11] = 11'h230;
++assign noise_ntsc_lut[12] = 11'h213;
++assign noise_ntsc_lut[13] = 11'h782;
++assign noise_ntsc_lut[14] = 11'h006;
++assign noise_ntsc_lut[15] = 11'h014;
+ 
+ 	logic [10:0] noise_timer;
+ 	logic noise_clock;
+@@ -482,7 +502,8 @@
+ 	end
+ endmodule
+ 
+-module DmcChan #(parameter [9:0] SSREG_INDEX_DMC1, parameter [9:0] SSREG_INDEX_DMC2)  (
++module DmcChan #(parameter [9:0] SSREG_INDEX_DMC1, parameter [9:0] SSREG_INDEX_DMC2,
++    parameter E_SESSION_RESET_DMC_SILENCE = 1'b0)  (
+ 	input  logic        MMC5,
+ 	input  logic        clk,
+ 	input  logic        aclk1,
+@@ -517,8 +538,8 @@
+ 	wire [63:0] SS_DMC1_BACK;
+ 	wire [63:0] SS_DMC2;
+ 	wire [63:0] SS_DMC2_BACK;
+-	eReg_SavestateV #(SSREG_INDEX_DMC1, SSREG_DEFAULT_APU_DMC1) iREG_SAVESTATE_APU_DMC1 (clk, SaveStateBus_Din, SaveStateBus_Adr, SaveStateBus_wren, SaveStateBus_rst, SaveStateBus_wired_or[0], SS_DMC1_BACK, SS_DMC1);
+-	eReg_SavestateV #(SSREG_INDEX_DMC2, SSREG_DEFAULT_APU_DMC2) iREG_SAVESTATE_APU_DMC2 (clk, SaveStateBus_Din, SaveStateBus_Adr, SaveStateBus_wren, SaveStateBus_rst, SaveStateBus_wired_or[1], SS_DMC2_BACK, SS_DMC2);
++	e_apu_default #(SSREG_INDEX_DMC1, 64'h0000000000000000) iREG_SAVESTATE_APU_DMC1 (clk, SaveStateBus_Din, SaveStateBus_Adr, SaveStateBus_wren, SaveStateBus_rst, SaveStateBus_wired_or[0], SS_DMC1_BACK, SS_DMC1);
++	e_apu_default #(SSREG_INDEX_DMC2, 64'h0000000000000000) iREG_SAVESTATE_APU_DMC2 (clk, SaveStateBus_Din, SaveStateBus_Adr, SaveStateBus_wren, SaveStateBus_rst, SaveStateBus_wired_or[1], SS_DMC2_BACK, SS_DMC2);
+ 
+ 	logic irq_enable;
+ 	logic loop;                 // Looping enabled
+@@ -536,25 +557,48 @@
+ 	logic [2:0] dmc_bits; // Simply an 8 cycle counter.
+ 	logic enable_1, enable_2, enable_3;
+ 
+-	logic [8:0] pal_pitch_lut[16];
+-	assign pal_pitch_lut = '{
+-		9'h1D7, 9'h067, 9'h0D9, 9'h143,
+-		9'h1E1, 9'h07B, 9'h05C, 9'h132,
+-		9'h04A, 9'h1A3, 9'h1CF, 9'h1CD,
+-		9'h02A, 9'h11C, 9'h11B, 9'h157
+-	};
+-
+-	logic [8:0] ntsc_pitch_lut[16];
+-	assign ntsc_pitch_lut = '{
+-		9'h19D, 9'h0A2, 9'h185, 9'h1B6,
+-		9'h0EF, 9'h1F8, 9'h17C, 9'h117,
+-		9'h120, 9'h076, 9'h11E, 9'h13E,
+-		9'h162, 9'h123, 9'h0E3, 9'h0D5
+-	};
+-
++	logic [8:0] pal_pitch_lut[0:15];
++	assign pal_pitch_lut[0] = 9'h1D7;
++assign pal_pitch_lut[1] = 9'h067;
++assign pal_pitch_lut[2] = 9'h0D9;
++assign pal_pitch_lut[3] = 9'h143;
++assign pal_pitch_lut[4] = 9'h1E1;
++assign pal_pitch_lut[5] = 9'h07B;
++assign pal_pitch_lut[6] = 9'h05C;
++assign pal_pitch_lut[7] = 9'h132;
++assign pal_pitch_lut[8] = 9'h04A;
++assign pal_pitch_lut[9] = 9'h1A3;
++assign pal_pitch_lut[10] = 9'h1CF;
++assign pal_pitch_lut[11] = 9'h1CD;
++assign pal_pitch_lut[12] = 9'h02A;
++assign pal_pitch_lut[13] = 9'h11C;
++assign pal_pitch_lut[14] = 9'h11B;
++assign pal_pitch_lut[15] = 9'h157;
++
++	logic [8:0] ntsc_pitch_lut[0:15];
++	assign ntsc_pitch_lut[0] = 9'h19D;
++assign ntsc_pitch_lut[1] = 9'h0A2;
++assign ntsc_pitch_lut[2] = 9'h185;
++assign ntsc_pitch_lut[3] = 9'h1B6;
++assign ntsc_pitch_lut[4] = 9'h0EF;
++assign ntsc_pitch_lut[5] = 9'h1F8;
++assign ntsc_pitch_lut[6] = 9'h17C;
++assign ntsc_pitch_lut[7] = 9'h117;
++assign ntsc_pitch_lut[8] = 9'h120;
++assign ntsc_pitch_lut[9] = 9'h076;
++assign ntsc_pitch_lut[10] = 9'h11E;
++assign ntsc_pitch_lut[11] = 9'h13E;
++assign ntsc_pitch_lut[12] = 9'h162;
++assign ntsc_pitch_lut[13] = 9'h123;
++assign ntsc_pitch_lut[14] = 9'h0E3;
++assign ntsc_pitch_lut[15] = 9'h0D5;
++
++	logic dmc_clock;
+ 	assign Sample = dmc_volume_next[6:0];
+-	assign dma_req = ~have_buffer & enable_3;
+-	logic dmc_clock;
++	// Engine E: expose the load/reload request at its native closing edge,
++    // not one CPU cycle after enable_3/have_buffer NBA updates.
++    assign dma_req = (~have_buffer & (enable_3 | (aclk1 & enable_2))) |
++                     (aclk1_d & dmc_clock & (&dmc_bits) & enable_3);
+ 
+ 	assign dma_address[15] = 1;
+ 
+@@ -639,7 +683,8 @@
+ 		// Volume adjustment is done on aclk1. Technically, the value written to 4011 is immediately
+ 		// applied, but won't "stick" if it conflicts with a lsfr clocked do-adjust.
+ 		if (aclk1) begin // Get cycle
+-			enable_1 <= enable;
++            // Engine E: sample enable_1 only on put. Sampling on get after
++            // phi2 incorrectly advances get-phase $4015 loads by one APU cycle.
+ 			enable_3 <= enable_2;
+ 
+ 			dmc_volume_next <= dmc_volume;
+@@ -650,6 +695,9 @@
+ 		end
+ 
+ 		if (reset) begin
++            // E-only session policy; default-off preserves upstream reset/cold reset.
++            // Restore the binding's initial flag, not a claimed NES power-on value.
++            if (E_SESSION_RESET_DMC_SILENCE) dmc_silence <= SS_DMC2[47];
+ 			irq                     <= SS_DMC1[    0]; // 0;
+ 			dmc_volume              <= SS_DMC1[ 8: 1]; // {7'h0, dmc_volume[0]};
+ 			dmc_volume_next         <= SS_DMC1[16: 9]; // {7'h0, dmc_volume[0]};
+@@ -678,6 +726,9 @@
+ 		end
+ 
+ 		if (cold_reset) begin
++            // Engine E: discard a pending get-to-put clock on new-track cold reset.
++            // Otherwise reload immediately after get leaks one old DMC tick.
++            dmc_clock <= 0;
+ 			dmc_lsfr <= 0;
+ 			loop <= 0;
+ 			frequency <= 0;
+@@ -746,7 +797,7 @@
+ 	// Savestates
+ 	wire [63:0] SS_FCT;
+ 	wire [63:0] SS_FCT_BACK;
+-	eReg_SavestateV #(SSREG_INDEX_FCT, SSREG_DEFAULT_APU_FCT) iREG_SAVESTATE_APU_FCT (clk, SaveStateBus_Din, SaveStateBus_Adr, SaveStateBus_wren, SaveStateBus_rst, SaveStateBus_Dout, SS_FCT_BACK, SS_FCT);
++	e_apu_default #(SSREG_INDEX_FCT, 64'h0000000000007FFF) iREG_SAVESTATE_APU_FCT (clk, SaveStateBus_Din, SaveStateBus_Adr, SaveStateBus_wren, SaveStateBus_rst, SaveStateBus_Dout, SS_FCT_BACK, SS_FCT);
+ 
+ 	// NTSC -- Confirmed
+ 	// Binary Frame Value         Decimal  Cycle
+@@ -867,7 +918,8 @@
+ 
+ endmodule
+ 
+-module APU #(parameter [9:0] SSREG_INDEX_TOP, parameter [9:0] SSREG_INDEX_DMC1, parameter [9:0] SSREG_INDEX_DMC2, parameter [9:0] SSREG_INDEX_FCT)
++module APU #(parameter [9:0] SSREG_INDEX_TOP, parameter [9:0] SSREG_INDEX_DMC1, parameter [9:0] SSREG_INDEX_DMC2, parameter [9:0] SSREG_INDEX_FCT,
++    parameter E_SESSION_RESET_DMC_SILENCE = 1'b0)
+ (
+ 	input  logic        MMC5,
+ 	input  logic        clk,
+@@ -886,9 +938,11 @@
+ 	input  logic        get_or_put,
+ 	input  logic        DmaAck,         // 1 when DMC byte is on DmcData. DmcDmaRequested should go low.
+ 	output logic  [7:0] DOUT,           // Data from APU
+-	output logic [15:0] Sample,
+-	output logic        DmaReq,         // 1 when DMC wants DMA
+-	output logic [15:0] DmaAddr,        // Address DMC wants to read
++	output wire [15:0] Sample,
++    output wire [4:0] Activity,
++    output wire [22:0] Digital,
++	output wire        DmaReq,         // 1 when DMC wants DMA
++	output wire [15:0] DmaAddr,        // Address DMC wants to read
+ 	output logic        IRQ,            // IRQ asserted high == asserted
+ 	output logic        get_ce,         // Clock enable for a get cycle
+ 	output logic        put_ce,         // Clock enable for a put cycle
+@@ -909,20 +963,42 @@
+ 
+ 	wire [63:0] SS_APU;
+ 	wire [63:0] SS_APU_BACK;
+-	eReg_SavestateV #(SSREG_INDEX_TOP, SSREG_DEFAULT_APU_TOP) iREG_SAVESTATE_APU_TOP (clk, SaveStateBus_Din, SaveStateBus_Adr, SaveStateBus_wren, SaveStateBus_rst, SaveStateBus_wired_or[0], SS_APU_BACK, SS_APU);
+-
+-
+-	logic [7:0] len_counter_lut[32];
+-	assign len_counter_lut = '{
+-		8'h09, 8'hFD, 8'h13, 8'h01,
+-		8'h27, 8'h03, 8'h4F, 8'h05,
+-		8'h9F, 8'h07, 8'h3B, 8'h09,
+-		8'h0D, 8'h0B, 8'h19, 8'h0D,
+-		8'h0B, 8'h0F, 8'h17, 8'h11,
+-		8'h2F, 8'h13, 8'h5F, 8'h15,
+-		8'hBF, 8'h17, 8'h47, 8'h19,
+-		8'h0F, 8'h1B, 8'h1F, 8'h1D
+-	};
++	e_apu_default #(SSREG_INDEX_TOP, 64'h0000000000000000) iREG_SAVESTATE_APU_TOP (clk, SaveStateBus_Din, SaveStateBus_Adr, SaveStateBus_wren, SaveStateBus_rst, SaveStateBus_wired_or[0], SS_APU_BACK, SS_APU);
++
++
++	logic [7:0] len_counter_lut[0:31];
++	assign len_counter_lut[0] = 8'h09;
++assign len_counter_lut[1] = 8'hFD;
++assign len_counter_lut[2] = 8'h13;
++assign len_counter_lut[3] = 8'h01;
++assign len_counter_lut[4] = 8'h27;
++assign len_counter_lut[5] = 8'h03;
++assign len_counter_lut[6] = 8'h4F;
++assign len_counter_lut[7] = 8'h05;
++assign len_counter_lut[8] = 8'h9F;
++assign len_counter_lut[9] = 8'h07;
++assign len_counter_lut[10] = 8'h3B;
++assign len_counter_lut[11] = 8'h09;
++assign len_counter_lut[12] = 8'h0D;
++assign len_counter_lut[13] = 8'h0B;
++assign len_counter_lut[14] = 8'h19;
++assign len_counter_lut[15] = 8'h0D;
++assign len_counter_lut[16] = 8'h0B;
++assign len_counter_lut[17] = 8'h0F;
++assign len_counter_lut[18] = 8'h17;
++assign len_counter_lut[19] = 8'h11;
++assign len_counter_lut[20] = 8'h2F;
++assign len_counter_lut[21] = 8'h13;
++assign len_counter_lut[22] = 8'h5F;
++assign len_counter_lut[23] = 8'h15;
++assign len_counter_lut[24] = 8'hBF;
++assign len_counter_lut[25] = 8'h17;
++assign len_counter_lut[26] = 8'h47;
++assign len_counter_lut[27] = 8'h19;
++assign len_counter_lut[28] = 8'h0F;
++assign len_counter_lut[29] = 8'h1B;
++assign len_counter_lut[30] = 8'h1F;
++assign len_counter_lut[31] = 8'h1D;
+ 
+ 	logic [7:0] lc_load;
+ 	assign lc_load = len_counter_lut[DIN[7:3]];
+@@ -952,13 +1028,15 @@
+ 	assign put_ce = aclk1_delayed;
+ 
+ 	logic [4:0] Enabled;
+-	logic [3:0] Sq1Sample,Sq2Sample,TriSample,NoiSample;
+-	logic [6:0] DmcSample;
+-	logic DmcIrq;
+-	logic IsDmcActive;
+-
+-	logic irq_flag;
+-	logic frame_irq;
++	wire [3:0] Sq1Sample,Sq2Sample,TriSample,NoiSample;
++	wire [6:0] DmcSample;
++    assign Digital={DmcSample,NoiSample,TriSample,Sq2Sample,Sq1Sample};
++    assign Activity={|DmcSample,|NoiSample,|TriSample,|Sq2Sample,|Sq1Sample};
++	wire DmcIrq;
++	wire IsDmcActive;
++
++	wire irq_flag;
++	wire frame_irq;
+ 
+ 	// Generate internal memory write signals
+ 	logic ApuMW0, ApuMW1, ApuMW2, ApuMW3, ApuMW4, ApuMW5;
+@@ -969,7 +1047,7 @@
+ 	assign ApuMW4 = ADDR[4:2]==4 || ADDR[4:0]==5'b10101; // DMC
+ 	assign ApuMW5 = ADDR[4:2]==5; // Control registers
+ 
+-	logic Sq1NonZero, Sq2NonZero, TriNonZero, NoiNonZero;
++	wire Sq1NonZero, Sq2NonZero, TriNonZero, NoiNonZero;
+ 	logic ClkE, ClkL;
+ 
+ 	logic [4:0] enabled_buffer, enabled_buffer_1;
+@@ -998,7 +1076,7 @@
+ 		end
+ 	end
+ 
+-	logic frame_quarter, frame_half;
++	wire frame_quarter, frame_half;
+ 	assign ClkE = (frame_quarter & aclk1_delayed);
+ 	assign ClkL = (frame_half & aclk1_delayed);
+ 
+@@ -1033,6 +1111,7 @@
+ 
+ 	SquareChan Squ2 (
+ 		.MMC5         (MMC5),
++        .allow_us (allow_us),
+ 		.clk          (clk),
+ 		.ce           (ce),
+ 		.aclk1        (aclk1),
+@@ -1090,7 +1169,8 @@
+ 		.IsNonZero    (NoiNonZero)
+ 	);
+ 
+-	DmcChan Dmc (
++	DmcChan #(.SSREG_INDEX_DMC1(SSREG_INDEX_DMC1), .SSREG_INDEX_DMC2(SSREG_INDEX_DMC2),
++        .E_SESSION_RESET_DMC_SILENCE(E_SESSION_RESET_DMC_SILENCE)) Dmc (
+ 		.MMC5        (MMC5),
+ 		.clk         (clk),
+ 		.aclk1       (aclk1),
+@@ -1116,8 +1196,6 @@
+ 		.SaveStateBus_load (SaveStateBus_load ),
+ 		.SaveStateBus_Dout (SaveStateBus_wired_or[1])
+ 	);
+-	defparam Dmc.SSREG_INDEX_DMC1 = SSREG_INDEX_DMC1;
+-	defparam Dmc.SSREG_INDEX_DMC2 = SSREG_INDEX_DMC2;
+ 
+ 	APUMixer mixer (
+ 		.square1      (Sq1Sample),
+@@ -1128,7 +1206,7 @@
+ 		.sample       (Sample)
+ 	);
+ 
+-	FrameCtr frame_counter (
++	FrameCtr #(.SSREG_INDEX_FCT(SSREG_INDEX_FCT)) frame_counter (
+ 		.clk          (clk),
+ 		.aclk1        (aclk1),
+ 		.aclk2        (aclk2),
+@@ -1153,7 +1231,6 @@
+ 		.SaveStateBus_load (SaveStateBus_load ),
+ 		.SaveStateBus_Dout (SaveStateBus_wired_or[2])
+ 	);
+-	defparam frame_counter.SSREG_INDEX_FCT = SSREG_INDEX_FCT;
+ 
+ endmodule
+ 
+@@ -1172,113 +1249,719 @@
+ 	output logic [15:0] sample
+ );
+ 
+-logic [15:0] pulse_lut[32];
+-assign pulse_lut = '{
+-	16'h0000, 16'h0331, 16'h064F, 16'h0959, 16'h0C52, 16'h0F38, 16'h120E, 16'h14D3,
+-	16'h1788, 16'h1A2E, 16'h1CC6, 16'h1F4E, 16'h21C9, 16'h2437, 16'h2697, 16'h28EB,
+-	16'h2B32, 16'h2D6E, 16'h2F9E, 16'h31C3, 16'h33DD, 16'h35EC, 16'h37F2, 16'h39ED,
+-	16'h3BDF, 16'h3DC7, 16'h3FA6, 16'h417D, 16'h434B, 16'h4510, 16'h46CD, 16'h0000
+-};
+-
+-logic [5:0] tri_lut[16];
+-assign tri_lut = '{
+-	6'h00, 6'h04, 6'h08, 6'h0C, 6'h10, 6'h14, 6'h18, 6'h1C,
+-	6'h20, 6'h24, 6'h28, 6'h2C, 6'h30, 6'h34, 6'h38, 6'h3C
+-};
+-
+-logic [5:0] noise_lut[16];
+-assign noise_lut = '{
+-	6'h00, 6'h03, 6'h05, 6'h08, 6'h0B, 6'h0D, 6'h10, 6'h13,
+-	6'h15, 6'h18, 6'h1B, 6'h1D, 6'h20, 6'h23, 6'h25, 6'h28
+-};
+-
+-logic [7:0] dmc_lut[128];
+-assign dmc_lut = '{
+-	8'h00, 8'h01, 8'h03, 8'h04, 8'h06, 8'h07, 8'h09, 8'h0A,
+-	8'h0C, 8'h0D, 8'h0E, 8'h10, 8'h11, 8'h13, 8'h14, 8'h16,
+-	8'h17, 8'h19, 8'h1A, 8'h1C, 8'h1D, 8'h1E, 8'h20, 8'h21,
+-	8'h23, 8'h24, 8'h26, 8'h27, 8'h29, 8'h2A, 8'h2B, 8'h2D,
+-	8'h2E, 8'h30, 8'h31, 8'h33, 8'h34, 8'h36, 8'h37, 8'h38,
+-	8'h3A, 8'h3B, 8'h3D, 8'h3E, 8'h40, 8'h41, 8'h43, 8'h44,
+-	8'h45, 8'h47, 8'h48, 8'h4A, 8'h4B, 8'h4D, 8'h4E, 8'h50,
+-	8'h51, 8'h53, 8'h54, 8'h55, 8'h57, 8'h58, 8'h5A, 8'h5B,
+-	8'h5D, 8'h5E, 8'h60, 8'h61, 8'h62, 8'h64, 8'h65, 8'h67,
+-	8'h68, 8'h6A, 8'h6B, 8'h6D, 8'h6E, 8'h6F, 8'h71, 8'h72,
+-	8'h74, 8'h75, 8'h77, 8'h78, 8'h7A, 8'h7B, 8'h7C, 8'h7E,
+-	8'h7F, 8'h81, 8'h82, 8'h84, 8'h85, 8'h87, 8'h88, 8'h8A,
+-	8'h8B, 8'h8C, 8'h8E, 8'h8F, 8'h91, 8'h92, 8'h94, 8'h95,
+-	8'h97, 8'h98, 8'h99, 8'h9B, 8'h9C, 8'h9E, 8'h9F, 8'hA1,
+-	8'hA2, 8'hA4, 8'hA5, 8'hA6, 8'hA8, 8'hA9, 8'hAB, 8'hAC,
+-	8'hAE, 8'hAF, 8'hB1, 8'hB2, 8'hB3, 8'hB5, 8'hB6, 8'hB8
+-};
+-
+-logic [15:0] mix_lut[512];
+-assign mix_lut = '{
+-	16'h0000, 16'h0128, 16'h024F, 16'h0374, 16'h0497, 16'h05B8, 16'h06D7, 16'h07F5,
+-	16'h0911, 16'h0A2B, 16'h0B44, 16'h0C5B, 16'h0D71, 16'h0E84, 16'h0F96, 16'h10A7,
+-	16'h11B6, 16'h12C3, 16'h13CF, 16'h14DA, 16'h15E2, 16'h16EA, 16'h17EF, 16'h18F4,
+-	16'h19F6, 16'h1AF8, 16'h1BF7, 16'h1CF6, 16'h1DF3, 16'h1EEE, 16'h1FE9, 16'h20E1,
+-	16'h21D9, 16'h22CF, 16'h23C3, 16'h24B7, 16'h25A9, 16'h2699, 16'h2788, 16'h2876,
+-	16'h2963, 16'h2A4F, 16'h2B39, 16'h2C22, 16'h2D09, 16'h2DF0, 16'h2ED5, 16'h2FB9,
+-	16'h309B, 16'h317D, 16'h325D, 16'h333C, 16'h341A, 16'h34F7, 16'h35D3, 16'h36AD,
+-	16'h3787, 16'h385F, 16'h3936, 16'h3A0C, 16'h3AE1, 16'h3BB5, 16'h3C87, 16'h3D59,
+-	16'h3E29, 16'h3EF9, 16'h3FC7, 16'h4095, 16'h4161, 16'h422C, 16'h42F7, 16'h43C0,
+-	16'h4488, 16'h4550, 16'h4616, 16'h46DB, 16'h47A0, 16'h4863, 16'h4925, 16'h49E7,
+-	16'h4AA7, 16'h4B67, 16'h4C25, 16'h4CE3, 16'h4DA0, 16'h4E5C, 16'h4F17, 16'h4FD1,
+-	16'h508A, 16'h5142, 16'h51F9, 16'h52B0, 16'h5365, 16'h541A, 16'h54CE, 16'h5581,
+-	16'h5633, 16'h56E5, 16'h5795, 16'h5845, 16'h58F4, 16'h59A2, 16'h5A4F, 16'h5AFC,
+-	16'h5BA7, 16'h5C52, 16'h5CFC, 16'h5DA5, 16'h5E4E, 16'h5EF6, 16'h5F9D, 16'h6043,
+-	16'h60E8, 16'h618D, 16'h6231, 16'h62D4, 16'h6377, 16'h6418, 16'h64B9, 16'h655A,
+-	16'h65F9, 16'h6698, 16'h6736, 16'h67D4, 16'h6871, 16'h690D, 16'h69A8, 16'h6A43,
+-	16'h6ADD, 16'h6B76, 16'h6C0F, 16'h6CA7, 16'h6D3E, 16'h6DD5, 16'h6E6B, 16'h6F00,
+-	16'h6F95, 16'h7029, 16'h70BD, 16'h7150, 16'h71E2, 16'h7273, 16'h7304, 16'h7395,
+-	16'h7424, 16'h74B4, 16'h7542, 16'h75D0, 16'h765D, 16'h76EA, 16'h7776, 16'h7802,
+-	16'h788D, 16'h7917, 16'h79A1, 16'h7A2A, 16'h7AB3, 16'h7B3B, 16'h7BC3, 16'h7C4A,
+-	16'h7CD0, 16'h7D56, 16'h7DDB, 16'h7E60, 16'h7EE4, 16'h7F68, 16'h7FEB, 16'h806E,
+-	16'h80F0, 16'h8172, 16'h81F3, 16'h8274, 16'h82F4, 16'h8373, 16'h83F2, 16'h8471,
+-	16'h84EF, 16'h856C, 16'h85E9, 16'h8666, 16'h86E2, 16'h875E, 16'h87D9, 16'h8853,
+-	16'h88CD, 16'h8947, 16'h89C0, 16'h8A39, 16'h8AB1, 16'h8B29, 16'h8BA0, 16'h8C17,
+-	16'h8C8E, 16'h8D03, 16'h8D79, 16'h8DEE, 16'h8E63, 16'h8ED7, 16'h8F4A, 16'h8FBE,
+-	16'h9030, 16'h90A3, 16'h9115, 16'h9186, 16'h91F7, 16'h9268, 16'h92D8, 16'h9348,
+-	16'h93B8, 16'h9427, 16'h9495, 16'h9503, 16'h9571, 16'h95DF, 16'h964C, 16'h96B8,
+-	16'h9724, 16'h9790, 16'h97FB, 16'h9866, 16'h98D1, 16'h993B, 16'h99A5, 16'h9A0E,
+-	16'h9A77, 16'h9AE0, 16'h9B48, 16'h9BB0, 16'h9C18, 16'h9C7F, 16'h9CE6, 16'h9D4C,
+-	16'h9DB2, 16'h9E18, 16'h9E7D, 16'h9EE2, 16'h9F47, 16'h9FAB, 16'hA00F, 16'hA073,
+-	16'hA0D6, 16'hA139, 16'hA19B, 16'hA1FD, 16'hA25F, 16'hA2C1, 16'hA322, 16'hA383,
+-	16'hA3E3, 16'hA443, 16'hA4A3, 16'hA502, 16'hA562, 16'hA5C0, 16'hA61F, 16'hA67D,
+-	16'hA6DB, 16'hA738, 16'hA796, 16'hA7F2, 16'hA84F, 16'hA8AB, 16'hA907, 16'hA963,
+-	16'hA9BE, 16'hAA19, 16'hAA74, 16'hAACE, 16'hAB28, 16'hAB82, 16'hABDB, 16'hAC35,
+-	16'hAC8E, 16'hACE6, 16'hAD3E, 16'hAD96, 16'hADEE, 16'hAE46, 16'hAE9D, 16'hAEF4,
+-	16'hAF4A, 16'hAFA0, 16'hAFF6, 16'hB04C, 16'hB0A2, 16'h0000, 16'h0000, 16'h0000,
+-	16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000,
+-	16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000,
+-	16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000,
+-	16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000,
+-	16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000,
+-	16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000,
+-	16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000,
+-	16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000,
+-	16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000,
+-	16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000,
+-	16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000,
+-	16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000,
+-	16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000,
+-	16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000,
+-	16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000,
+-	16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000,
+-	16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000,
+-	16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000,
+-	16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000,
+-	16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000,
+-	16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000,
+-	16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000,
+-	16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000,
+-	16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000,
+-	16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000,
+-	16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000,
+-	16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000,
+-	16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000, 16'h0000
+-};
++logic [15:0] pulse_lut[0:31];
++assign pulse_lut[0] = 16'h0000;
++assign pulse_lut[1] = 16'h0331;
++assign pulse_lut[2] = 16'h064F;
++assign pulse_lut[3] = 16'h0959;
++assign pulse_lut[4] = 16'h0C52;
++assign pulse_lut[5] = 16'h0F38;
++assign pulse_lut[6] = 16'h120E;
++assign pulse_lut[7] = 16'h14D3;
++assign pulse_lut[8] = 16'h1788;
++assign pulse_lut[9] = 16'h1A2E;
++assign pulse_lut[10] = 16'h1CC6;
++assign pulse_lut[11] = 16'h1F4E;
++assign pulse_lut[12] = 16'h21C9;
++assign pulse_lut[13] = 16'h2437;
++assign pulse_lut[14] = 16'h2697;
++assign pulse_lut[15] = 16'h28EB;
++assign pulse_lut[16] = 16'h2B32;
++assign pulse_lut[17] = 16'h2D6E;
++assign pulse_lut[18] = 16'h2F9E;
++assign pulse_lut[19] = 16'h31C3;
++assign pulse_lut[20] = 16'h33DD;
++assign pulse_lut[21] = 16'h35EC;
++assign pulse_lut[22] = 16'h37F2;
++assign pulse_lut[23] = 16'h39ED;
++assign pulse_lut[24] = 16'h3BDF;
++assign pulse_lut[25] = 16'h3DC7;
++assign pulse_lut[26] = 16'h3FA6;
++assign pulse_lut[27] = 16'h417D;
++assign pulse_lut[28] = 16'h434B;
++assign pulse_lut[29] = 16'h4510;
++assign pulse_lut[30] = 16'h46CD;
++assign pulse_lut[31] = 16'h0000;
++
++logic [5:0] tri_lut[0:15];
++assign tri_lut[0] = 6'h00;
++assign tri_lut[1] = 6'h04;
++assign tri_lut[2] = 6'h08;
++assign tri_lut[3] = 6'h0C;
++assign tri_lut[4] = 6'h10;
++assign tri_lut[5] = 6'h14;
++assign tri_lut[6] = 6'h18;
++assign tri_lut[7] = 6'h1C;
++assign tri_lut[8] = 6'h20;
++assign tri_lut[9] = 6'h24;
++assign tri_lut[10] = 6'h28;
++assign tri_lut[11] = 6'h2C;
++assign tri_lut[12] = 6'h30;
++assign tri_lut[13] = 6'h34;
++assign tri_lut[14] = 6'h38;
++assign tri_lut[15] = 6'h3C;
++
++logic [5:0] noise_lut[0:15];
++assign noise_lut[0] = 6'h00;
++assign noise_lut[1] = 6'h03;
++assign noise_lut[2] = 6'h05;
++assign noise_lut[3] = 6'h08;
++assign noise_lut[4] = 6'h0B;
++assign noise_lut[5] = 6'h0D;
++assign noise_lut[6] = 6'h10;
++assign noise_lut[7] = 6'h13;
++assign noise_lut[8] = 6'h15;
++assign noise_lut[9] = 6'h18;
++assign noise_lut[10] = 6'h1B;
++assign noise_lut[11] = 6'h1D;
++assign noise_lut[12] = 6'h20;
++assign noise_lut[13] = 6'h23;
++assign noise_lut[14] = 6'h25;
++assign noise_lut[15] = 6'h28;
++
++logic [7:0] dmc_lut[0:127];
++assign dmc_lut[0] = 8'h00;
++assign dmc_lut[1] = 8'h01;
++assign dmc_lut[2] = 8'h03;
++assign dmc_lut[3] = 8'h04;
++assign dmc_lut[4] = 8'h06;
++assign dmc_lut[5] = 8'h07;
++assign dmc_lut[6] = 8'h09;
++assign dmc_lut[7] = 8'h0A;
++assign dmc_lut[8] = 8'h0C;
++assign dmc_lut[9] = 8'h0D;
++assign dmc_lut[10] = 8'h0E;
++assign dmc_lut[11] = 8'h10;
++assign dmc_lut[12] = 8'h11;
++assign dmc_lut[13] = 8'h13;
++assign dmc_lut[14] = 8'h14;
++assign dmc_lut[15] = 8'h16;
++assign dmc_lut[16] = 8'h17;
++assign dmc_lut[17] = 8'h19;
++assign dmc_lut[18] = 8'h1A;
++assign dmc_lut[19] = 8'h1C;
++assign dmc_lut[20] = 8'h1D;
++assign dmc_lut[21] = 8'h1E;
++assign dmc_lut[22] = 8'h20;
++assign dmc_lut[23] = 8'h21;
++assign dmc_lut[24] = 8'h23;
++assign dmc_lut[25] = 8'h24;
++assign dmc_lut[26] = 8'h26;
++assign dmc_lut[27] = 8'h27;
++assign dmc_lut[28] = 8'h29;
++assign dmc_lut[29] = 8'h2A;
++assign dmc_lut[30] = 8'h2B;
++assign dmc_lut[31] = 8'h2D;
++assign dmc_lut[32] = 8'h2E;
++assign dmc_lut[33] = 8'h30;
++assign dmc_lut[34] = 8'h31;
++assign dmc_lut[35] = 8'h33;
++assign dmc_lut[36] = 8'h34;
++assign dmc_lut[37] = 8'h36;
++assign dmc_lut[38] = 8'h37;
++assign dmc_lut[39] = 8'h38;
++assign dmc_lut[40] = 8'h3A;
++assign dmc_lut[41] = 8'h3B;
++assign dmc_lut[42] = 8'h3D;
++assign dmc_lut[43] = 8'h3E;
++assign dmc_lut[44] = 8'h40;
++assign dmc_lut[45] = 8'h41;
++assign dmc_lut[46] = 8'h43;
++assign dmc_lut[47] = 8'h44;
++assign dmc_lut[48] = 8'h45;
++assign dmc_lut[49] = 8'h47;
++assign dmc_lut[50] = 8'h48;
++assign dmc_lut[51] = 8'h4A;
++assign dmc_lut[52] = 8'h4B;
++assign dmc_lut[53] = 8'h4D;
++assign dmc_lut[54] = 8'h4E;
++assign dmc_lut[55] = 8'h50;
++assign dmc_lut[56] = 8'h51;
++assign dmc_lut[57] = 8'h53;
++assign dmc_lut[58] = 8'h54;
++assign dmc_lut[59] = 8'h55;
++assign dmc_lut[60] = 8'h57;
++assign dmc_lut[61] = 8'h58;
++assign dmc_lut[62] = 8'h5A;
++assign dmc_lut[63] = 8'h5B;
++assign dmc_lut[64] = 8'h5D;
++assign dmc_lut[65] = 8'h5E;
++assign dmc_lut[66] = 8'h60;
++assign dmc_lut[67] = 8'h61;
++assign dmc_lut[68] = 8'h62;
++assign dmc_lut[69] = 8'h64;
++assign dmc_lut[70] = 8'h65;
++assign dmc_lut[71] = 8'h67;
++assign dmc_lut[72] = 8'h68;
++assign dmc_lut[73] = 8'h6A;
++assign dmc_lut[74] = 8'h6B;
++assign dmc_lut[75] = 8'h6D;
++assign dmc_lut[76] = 8'h6E;
++assign dmc_lut[77] = 8'h6F;
++assign dmc_lut[78] = 8'h71;
++assign dmc_lut[79] = 8'h72;
++assign dmc_lut[80] = 8'h74;
++assign dmc_lut[81] = 8'h75;
++assign dmc_lut[82] = 8'h77;
++assign dmc_lut[83] = 8'h78;
++assign dmc_lut[84] = 8'h7A;
++assign dmc_lut[85] = 8'h7B;
++assign dmc_lut[86] = 8'h7C;
++assign dmc_lut[87] = 8'h7E;
++assign dmc_lut[88] = 8'h7F;
++assign dmc_lut[89] = 8'h81;
++assign dmc_lut[90] = 8'h82;
++assign dmc_lut[91] = 8'h84;
++assign dmc_lut[92] = 8'h85;
++assign dmc_lut[93] = 8'h87;
++assign dmc_lut[94] = 8'h88;
++assign dmc_lut[95] = 8'h8A;
++assign dmc_lut[96] = 8'h8B;
++assign dmc_lut[97] = 8'h8C;
++assign dmc_lut[98] = 8'h8E;
++assign dmc_lut[99] = 8'h8F;
++assign dmc_lut[100] = 8'h91;
++assign dmc_lut[101] = 8'h92;
++assign dmc_lut[102] = 8'h94;
++assign dmc_lut[103] = 8'h95;
++assign dmc_lut[104] = 8'h97;
++assign dmc_lut[105] = 8'h98;
++assign dmc_lut[106] = 8'h99;
++assign dmc_lut[107] = 8'h9B;
++assign dmc_lut[108] = 8'h9C;
++assign dmc_lut[109] = 8'h9E;
++assign dmc_lut[110] = 8'h9F;
++assign dmc_lut[111] = 8'hA1;
++assign dmc_lut[112] = 8'hA2;
++assign dmc_lut[113] = 8'hA4;
++assign dmc_lut[114] = 8'hA5;
++assign dmc_lut[115] = 8'hA6;
++assign dmc_lut[116] = 8'hA8;
++assign dmc_lut[117] = 8'hA9;
++assign dmc_lut[118] = 8'hAB;
++assign dmc_lut[119] = 8'hAC;
++assign dmc_lut[120] = 8'hAE;
++assign dmc_lut[121] = 8'hAF;
++assign dmc_lut[122] = 8'hB1;
++assign dmc_lut[123] = 8'hB2;
++assign dmc_lut[124] = 8'hB3;
++assign dmc_lut[125] = 8'hB5;
++assign dmc_lut[126] = 8'hB6;
++assign dmc_lut[127] = 8'hB8;
++
++logic [15:0] mix_lut[0:511];
++assign mix_lut[0] = 16'h0000;
++assign mix_lut[1] = 16'h0128;
++assign mix_lut[2] = 16'h024F;
++assign mix_lut[3] = 16'h0374;
++assign mix_lut[4] = 16'h0497;
++assign mix_lut[5] = 16'h05B8;
++assign mix_lut[6] = 16'h06D7;
++assign mix_lut[7] = 16'h07F5;
++assign mix_lut[8] = 16'h0911;
++assign mix_lut[9] = 16'h0A2B;
++assign mix_lut[10] = 16'h0B44;
++assign mix_lut[11] = 16'h0C5B;
++assign mix_lut[12] = 16'h0D71;
++assign mix_lut[13] = 16'h0E84;
++assign mix_lut[14] = 16'h0F96;
++assign mix_lut[15] = 16'h10A7;
++assign mix_lut[16] = 16'h11B6;
++assign mix_lut[17] = 16'h12C3;
++assign mix_lut[18] = 16'h13CF;
++assign mix_lut[19] = 16'h14DA;
++assign mix_lut[20] = 16'h15E2;
++assign mix_lut[21] = 16'h16EA;
++assign mix_lut[22] = 16'h17EF;
++assign mix_lut[23] = 16'h18F4;
++assign mix_lut[24] = 16'h19F6;
++assign mix_lut[25] = 16'h1AF8;
++assign mix_lut[26] = 16'h1BF7;
++assign mix_lut[27] = 16'h1CF6;
++assign mix_lut[28] = 16'h1DF3;
++assign mix_lut[29] = 16'h1EEE;
++assign mix_lut[30] = 16'h1FE9;
++assign mix_lut[31] = 16'h20E1;
++assign mix_lut[32] = 16'h21D9;
++assign mix_lut[33] = 16'h22CF;
++assign mix_lut[34] = 16'h23C3;
++assign mix_lut[35] = 16'h24B7;
++assign mix_lut[36] = 16'h25A9;
++assign mix_lut[37] = 16'h2699;
++assign mix_lut[38] = 16'h2788;
++assign mix_lut[39] = 16'h2876;
++assign mix_lut[40] = 16'h2963;
++assign mix_lut[41] = 16'h2A4F;
++assign mix_lut[42] = 16'h2B39;
++assign mix_lut[43] = 16'h2C22;
++assign mix_lut[44] = 16'h2D09;
++assign mix_lut[45] = 16'h2DF0;
++assign mix_lut[46] = 16'h2ED5;
++assign mix_lut[47] = 16'h2FB9;
++assign mix_lut[48] = 16'h309B;
++assign mix_lut[49] = 16'h317D;
++assign mix_lut[50] = 16'h325D;
++assign mix_lut[51] = 16'h333C;
++assign mix_lut[52] = 16'h341A;
++assign mix_lut[53] = 16'h34F7;
++assign mix_lut[54] = 16'h35D3;
++assign mix_lut[55] = 16'h36AD;
++assign mix_lut[56] = 16'h3787;
++assign mix_lut[57] = 16'h385F;
++assign mix_lut[58] = 16'h3936;
++assign mix_lut[59] = 16'h3A0C;
++assign mix_lut[60] = 16'h3AE1;
++assign mix_lut[61] = 16'h3BB5;
++assign mix_lut[62] = 16'h3C87;
++assign mix_lut[63] = 16'h3D59;
++assign mix_lut[64] = 16'h3E29;
++assign mix_lut[65] = 16'h3EF9;
++assign mix_lut[66] = 16'h3FC7;
++assign mix_lut[67] = 16'h4095;
++assign mix_lut[68] = 16'h4161;
++assign mix_lut[69] = 16'h422C;
++assign mix_lut[70] = 16'h42F7;
++assign mix_lut[71] = 16'h43C0;
++assign mix_lut[72] = 16'h4488;
++assign mix_lut[73] = 16'h4550;
++assign mix_lut[74] = 16'h4616;
++assign mix_lut[75] = 16'h46DB;
++assign mix_lut[76] = 16'h47A0;
++assign mix_lut[77] = 16'h4863;
++assign mix_lut[78] = 16'h4925;
++assign mix_lut[79] = 16'h49E7;
++assign mix_lut[80] = 16'h4AA7;
++assign mix_lut[81] = 16'h4B67;
++assign mix_lut[82] = 16'h4C25;
++assign mix_lut[83] = 16'h4CE3;
++assign mix_lut[84] = 16'h4DA0;
++assign mix_lut[85] = 16'h4E5C;
++assign mix_lut[86] = 16'h4F17;
++assign mix_lut[87] = 16'h4FD1;
++assign mix_lut[88] = 16'h508A;
++assign mix_lut[89] = 16'h5142;
++assign mix_lut[90] = 16'h51F9;
++assign mix_lut[91] = 16'h52B0;
++assign mix_lut[92] = 16'h5365;
++assign mix_lut[93] = 16'h541A;
++assign mix_lut[94] = 16'h54CE;
++assign mix_lut[95] = 16'h5581;
++assign mix_lut[96] = 16'h5633;
++assign mix_lut[97] = 16'h56E5;
++assign mix_lut[98] = 16'h5795;
++assign mix_lut[99] = 16'h5845;
++assign mix_lut[100] = 16'h58F4;
++assign mix_lut[101] = 16'h59A2;
++assign mix_lut[102] = 16'h5A4F;
++assign mix_lut[103] = 16'h5AFC;
++assign mix_lut[104] = 16'h5BA7;
++assign mix_lut[105] = 16'h5C52;
++assign mix_lut[106] = 16'h5CFC;
++assign mix_lut[107] = 16'h5DA5;
++assign mix_lut[108] = 16'h5E4E;
++assign mix_lut[109] = 16'h5EF6;
++assign mix_lut[110] = 16'h5F9D;
++assign mix_lut[111] = 16'h6043;
++assign mix_lut[112] = 16'h60E8;
++assign mix_lut[113] = 16'h618D;
++assign mix_lut[114] = 16'h6231;
++assign mix_lut[115] = 16'h62D4;
++assign mix_lut[116] = 16'h6377;
++assign mix_lut[117] = 16'h6418;
++assign mix_lut[118] = 16'h64B9;
++assign mix_lut[119] = 16'h655A;
++assign mix_lut[120] = 16'h65F9;
++assign mix_lut[121] = 16'h6698;
++assign mix_lut[122] = 16'h6736;
++assign mix_lut[123] = 16'h67D4;
++assign mix_lut[124] = 16'h6871;
++assign mix_lut[125] = 16'h690D;
++assign mix_lut[126] = 16'h69A8;
++assign mix_lut[127] = 16'h6A43;
++assign mix_lut[128] = 16'h6ADD;
++assign mix_lut[129] = 16'h6B76;
++assign mix_lut[130] = 16'h6C0F;
++assign mix_lut[131] = 16'h6CA7;
++assign mix_lut[132] = 16'h6D3E;
++assign mix_lut[133] = 16'h6DD5;
++assign mix_lut[134] = 16'h6E6B;
++assign mix_lut[135] = 16'h6F00;
++assign mix_lut[136] = 16'h6F95;
++assign mix_lut[137] = 16'h7029;
++assign mix_lut[138] = 16'h70BD;
++assign mix_lut[139] = 16'h7150;
++assign mix_lut[140] = 16'h71E2;
++assign mix_lut[141] = 16'h7273;
++assign mix_lut[142] = 16'h7304;
++assign mix_lut[143] = 16'h7395;
++assign mix_lut[144] = 16'h7424;
++assign mix_lut[145] = 16'h74B4;
++assign mix_lut[146] = 16'h7542;
++assign mix_lut[147] = 16'h75D0;
++assign mix_lut[148] = 16'h765D;
++assign mix_lut[149] = 16'h76EA;
++assign mix_lut[150] = 16'h7776;
++assign mix_lut[151] = 16'h7802;
++assign mix_lut[152] = 16'h788D;
++assign mix_lut[153] = 16'h7917;
++assign mix_lut[154] = 16'h79A1;
++assign mix_lut[155] = 16'h7A2A;
++assign mix_lut[156] = 16'h7AB3;
++assign mix_lut[157] = 16'h7B3B;
++assign mix_lut[158] = 16'h7BC3;
++assign mix_lut[159] = 16'h7C4A;
++assign mix_lut[160] = 16'h7CD0;
++assign mix_lut[161] = 16'h7D56;
++assign mix_lut[162] = 16'h7DDB;
++assign mix_lut[163] = 16'h7E60;
++assign mix_lut[164] = 16'h7EE4;
++assign mix_lut[165] = 16'h7F68;
++assign mix_lut[166] = 16'h7FEB;
++assign mix_lut[167] = 16'h806E;
++assign mix_lut[168] = 16'h80F0;
++assign mix_lut[169] = 16'h8172;
++assign mix_lut[170] = 16'h81F3;
++assign mix_lut[171] = 16'h8274;
++assign mix_lut[172] = 16'h82F4;
++assign mix_lut[173] = 16'h8373;
++assign mix_lut[174] = 16'h83F2;
++assign mix_lut[175] = 16'h8471;
++assign mix_lut[176] = 16'h84EF;
++assign mix_lut[177] = 16'h856C;
++assign mix_lut[178] = 16'h85E9;
++assign mix_lut[179] = 16'h8666;
++assign mix_lut[180] = 16'h86E2;
++assign mix_lut[181] = 16'h875E;
++assign mix_lut[182] = 16'h87D9;
++assign mix_lut[183] = 16'h8853;
++assign mix_lut[184] = 16'h88CD;
++assign mix_lut[185] = 16'h8947;
++assign mix_lut[186] = 16'h89C0;
++assign mix_lut[187] = 16'h8A39;
++assign mix_lut[188] = 16'h8AB1;
++assign mix_lut[189] = 16'h8B29;
++assign mix_lut[190] = 16'h8BA0;
++assign mix_lut[191] = 16'h8C17;
++assign mix_lut[192] = 16'h8C8E;
++assign mix_lut[193] = 16'h8D03;
++assign mix_lut[194] = 16'h8D79;
++assign mix_lut[195] = 16'h8DEE;
++assign mix_lut[196] = 16'h8E63;
++assign mix_lut[197] = 16'h8ED7;
++assign mix_lut[198] = 16'h8F4A;
++assign mix_lut[199] = 16'h8FBE;
++assign mix_lut[200] = 16'h9030;
++assign mix_lut[201] = 16'h90A3;
++assign mix_lut[202] = 16'h9115;
++assign mix_lut[203] = 16'h9186;
++assign mix_lut[204] = 16'h91F7;
++assign mix_lut[205] = 16'h9268;
++assign mix_lut[206] = 16'h92D8;
++assign mix_lut[207] = 16'h9348;
++assign mix_lut[208] = 16'h93B8;
++assign mix_lut[209] = 16'h9427;
++assign mix_lut[210] = 16'h9495;
++assign mix_lut[211] = 16'h9503;
++assign mix_lut[212] = 16'h9571;
++assign mix_lut[213] = 16'h95DF;
++assign mix_lut[214] = 16'h964C;
++assign mix_lut[215] = 16'h96B8;
++assign mix_lut[216] = 16'h9724;
++assign mix_lut[217] = 16'h9790;
++assign mix_lut[218] = 16'h97FB;
++assign mix_lut[219] = 16'h9866;
++assign mix_lut[220] = 16'h98D1;
++assign mix_lut[221] = 16'h993B;
++assign mix_lut[222] = 16'h99A5;
++assign mix_lut[223] = 16'h9A0E;
++assign mix_lut[224] = 16'h9A77;
++assign mix_lut[225] = 16'h9AE0;
++assign mix_lut[226] = 16'h9B48;
++assign mix_lut[227] = 16'h9BB0;
++assign mix_lut[228] = 16'h9C18;
++assign mix_lut[229] = 16'h9C7F;
++assign mix_lut[230] = 16'h9CE6;
++assign mix_lut[231] = 16'h9D4C;
++assign mix_lut[232] = 16'h9DB2;
++assign mix_lut[233] = 16'h9E18;
++assign mix_lut[234] = 16'h9E7D;
++assign mix_lut[235] = 16'h9EE2;
++assign mix_lut[236] = 16'h9F47;
++assign mix_lut[237] = 16'h9FAB;
++assign mix_lut[238] = 16'hA00F;
++assign mix_lut[239] = 16'hA073;
++assign mix_lut[240] = 16'hA0D6;
++assign mix_lut[241] = 16'hA139;
++assign mix_lut[242] = 16'hA19B;
++assign mix_lut[243] = 16'hA1FD;
++assign mix_lut[244] = 16'hA25F;
++assign mix_lut[245] = 16'hA2C1;
++assign mix_lut[246] = 16'hA322;
++assign mix_lut[247] = 16'hA383;
++assign mix_lut[248] = 16'hA3E3;
++assign mix_lut[249] = 16'hA443;
++assign mix_lut[250] = 16'hA4A3;
++assign mix_lut[251] = 16'hA502;
++assign mix_lut[252] = 16'hA562;
++assign mix_lut[253] = 16'hA5C0;
++assign mix_lut[254] = 16'hA61F;
++assign mix_lut[255] = 16'hA67D;
++assign mix_lut[256] = 16'hA6DB;
++assign mix_lut[257] = 16'hA738;
++assign mix_lut[258] = 16'hA796;
++assign mix_lut[259] = 16'hA7F2;
++assign mix_lut[260] = 16'hA84F;
++assign mix_lut[261] = 16'hA8AB;
++assign mix_lut[262] = 16'hA907;
++assign mix_lut[263] = 16'hA963;
++assign mix_lut[264] = 16'hA9BE;
++assign mix_lut[265] = 16'hAA19;
++assign mix_lut[266] = 16'hAA74;
++assign mix_lut[267] = 16'hAACE;
++assign mix_lut[268] = 16'hAB28;
++assign mix_lut[269] = 16'hAB82;
++assign mix_lut[270] = 16'hABDB;
++assign mix_lut[271] = 16'hAC35;
++assign mix_lut[272] = 16'hAC8E;
++assign mix_lut[273] = 16'hACE6;
++assign mix_lut[274] = 16'hAD3E;
++assign mix_lut[275] = 16'hAD96;
++assign mix_lut[276] = 16'hADEE;
++assign mix_lut[277] = 16'hAE46;
++assign mix_lut[278] = 16'hAE9D;
++assign mix_lut[279] = 16'hAEF4;
++assign mix_lut[280] = 16'hAF4A;
++assign mix_lut[281] = 16'hAFA0;
++assign mix_lut[282] = 16'hAFF6;
++assign mix_lut[283] = 16'hB04C;
++assign mix_lut[284] = 16'hB0A2;
++assign mix_lut[285] = 16'h0000;
++assign mix_lut[286] = 16'h0000;
++assign mix_lut[287] = 16'h0000;
++assign mix_lut[288] = 16'h0000;
++assign mix_lut[289] = 16'h0000;
++assign mix_lut[290] = 16'h0000;
++assign mix_lut[291] = 16'h0000;
++assign mix_lut[292] = 16'h0000;
++assign mix_lut[293] = 16'h0000;
++assign mix_lut[294] = 16'h0000;
++assign mix_lut[295] = 16'h0000;
++assign mix_lut[296] = 16'h0000;
++assign mix_lut[297] = 16'h0000;
++assign mix_lut[298] = 16'h0000;
++assign mix_lut[299] = 16'h0000;
++assign mix_lut[300] = 16'h0000;
++assign mix_lut[301] = 16'h0000;
++assign mix_lut[302] = 16'h0000;
++assign mix_lut[303] = 16'h0000;
++assign mix_lut[304] = 16'h0000;
++assign mix_lut[305] = 16'h0000;
++assign mix_lut[306] = 16'h0000;
++assign mix_lut[307] = 16'h0000;
++assign mix_lut[308] = 16'h0000;
++assign mix_lut[309] = 16'h0000;
++assign mix_lut[310] = 16'h0000;
++assign mix_lut[311] = 16'h0000;
++assign mix_lut[312] = 16'h0000;
++assign mix_lut[313] = 16'h0000;
++assign mix_lut[314] = 16'h0000;
++assign mix_lut[315] = 16'h0000;
++assign mix_lut[316] = 16'h0000;
++assign mix_lut[317] = 16'h0000;
++assign mix_lut[318] = 16'h0000;
++assign mix_lut[319] = 16'h0000;
++assign mix_lut[320] = 16'h0000;
++assign mix_lut[321] = 16'h0000;
++assign mix_lut[322] = 16'h0000;
++assign mix_lut[323] = 16'h0000;
++assign mix_lut[324] = 16'h0000;
++assign mix_lut[325] = 16'h0000;
++assign mix_lut[326] = 16'h0000;
++assign mix_lut[327] = 16'h0000;
++assign mix_lut[328] = 16'h0000;
++assign mix_lut[329] = 16'h0000;
++assign mix_lut[330] = 16'h0000;
++assign mix_lut[331] = 16'h0000;
++assign mix_lut[332] = 16'h0000;
++assign mix_lut[333] = 16'h0000;
++assign mix_lut[334] = 16'h0000;
++assign mix_lut[335] = 16'h0000;
++assign mix_lut[336] = 16'h0000;
++assign mix_lut[337] = 16'h0000;
++assign mix_lut[338] = 16'h0000;
++assign mix_lut[339] = 16'h0000;
++assign mix_lut[340] = 16'h0000;
++assign mix_lut[341] = 16'h0000;
++assign mix_lut[342] = 16'h0000;
++assign mix_lut[343] = 16'h0000;
++assign mix_lut[344] = 16'h0000;
++assign mix_lut[345] = 16'h0000;
++assign mix_lut[346] = 16'h0000;
++assign mix_lut[347] = 16'h0000;
++assign mix_lut[348] = 16'h0000;
++assign mix_lut[349] = 16'h0000;
++assign mix_lut[350] = 16'h0000;
++assign mix_lut[351] = 16'h0000;
++assign mix_lut[352] = 16'h0000;
++assign mix_lut[353] = 16'h0000;
++assign mix_lut[354] = 16'h0000;
++assign mix_lut[355] = 16'h0000;
++assign mix_lut[356] = 16'h0000;
++assign mix_lut[357] = 16'h0000;
++assign mix_lut[358] = 16'h0000;
++assign mix_lut[359] = 16'h0000;
++assign mix_lut[360] = 16'h0000;
++assign mix_lut[361] = 16'h0000;
++assign mix_lut[362] = 16'h0000;
++assign mix_lut[363] = 16'h0000;
++assign mix_lut[364] = 16'h0000;
++assign mix_lut[365] = 16'h0000;
++assign mix_lut[366] = 16'h0000;
++assign mix_lut[367] = 16'h0000;
++assign mix_lut[368] = 16'h0000;
++assign mix_lut[369] = 16'h0000;
++assign mix_lut[370] = 16'h0000;
++assign mix_lut[371] = 16'h0000;
++assign mix_lut[372] = 16'h0000;
++assign mix_lut[373] = 16'h0000;
++assign mix_lut[374] = 16'h0000;
++assign mix_lut[375] = 16'h0000;
++assign mix_lut[376] = 16'h0000;
++assign mix_lut[377] = 16'h0000;
++assign mix_lut[378] = 16'h0000;
++assign mix_lut[379] = 16'h0000;
++assign mix_lut[380] = 16'h0000;
++assign mix_lut[381] = 16'h0000;
++assign mix_lut[382] = 16'h0000;
++assign mix_lut[383] = 16'h0000;
++assign mix_lut[384] = 16'h0000;
++assign mix_lut[385] = 16'h0000;
++assign mix_lut[386] = 16'h0000;
++assign mix_lut[387] = 16'h0000;
++assign mix_lut[388] = 16'h0000;
++assign mix_lut[389] = 16'h0000;
++assign mix_lut[390] = 16'h0000;
++assign mix_lut[391] = 16'h0000;
++assign mix_lut[392] = 16'h0000;
++assign mix_lut[393] = 16'h0000;
++assign mix_lut[394] = 16'h0000;
++assign mix_lut[395] = 16'h0000;
++assign mix_lut[396] = 16'h0000;
++assign mix_lut[397] = 16'h0000;
++assign mix_lut[398] = 16'h0000;
++assign mix_lut[399] = 16'h0000;
++assign mix_lut[400] = 16'h0000;
++assign mix_lut[401] = 16'h0000;
++assign mix_lut[402] = 16'h0000;
++assign mix_lut[403] = 16'h0000;
++assign mix_lut[404] = 16'h0000;
++assign mix_lut[405] = 16'h0000;
++assign mix_lut[406] = 16'h0000;
++assign mix_lut[407] = 16'h0000;
++assign mix_lut[408] = 16'h0000;
++assign mix_lut[409] = 16'h0000;
++assign mix_lut[410] = 16'h0000;
++assign mix_lut[411] = 16'h0000;
++assign mix_lut[412] = 16'h0000;
++assign mix_lut[413] = 16'h0000;
++assign mix_lut[414] = 16'h0000;
++assign mix_lut[415] = 16'h0000;
++assign mix_lut[416] = 16'h0000;
++assign mix_lut[417] = 16'h0000;
++assign mix_lut[418] = 16'h0000;
++assign mix_lut[419] = 16'h0000;
++assign mix_lut[420] = 16'h0000;
++assign mix_lut[421] = 16'h0000;
++assign mix_lut[422] = 16'h0000;
++assign mix_lut[423] = 16'h0000;
++assign mix_lut[424] = 16'h0000;
++assign mix_lut[425] = 16'h0000;
++assign mix_lut[426] = 16'h0000;
++assign mix_lut[427] = 16'h0000;
++assign mix_lut[428] = 16'h0000;
++assign mix_lut[429] = 16'h0000;
++assign mix_lut[430] = 16'h0000;
++assign mix_lut[431] = 16'h0000;
++assign mix_lut[432] = 16'h0000;
++assign mix_lut[433] = 16'h0000;
++assign mix_lut[434] = 16'h0000;
++assign mix_lut[435] = 16'h0000;
++assign mix_lut[436] = 16'h0000;
++assign mix_lut[437] = 16'h0000;
++assign mix_lut[438] = 16'h0000;
++assign mix_lut[439] = 16'h0000;
++assign mix_lut[440] = 16'h0000;
++assign mix_lut[441] = 16'h0000;
++assign mix_lut[442] = 16'h0000;
++assign mix_lut[443] = 16'h0000;
++assign mix_lut[444] = 16'h0000;
++assign mix_lut[445] = 16'h0000;
++assign mix_lut[446] = 16'h0000;
++assign mix_lut[447] = 16'h0000;
++assign mix_lut[448] = 16'h0000;
++assign mix_lut[449] = 16'h0000;
++assign mix_lut[450] = 16'h0000;
++assign mix_lut[451] = 16'h0000;
++assign mix_lut[452] = 16'h0000;
++assign mix_lut[453] = 16'h0000;
++assign mix_lut[454] = 16'h0000;
++assign mix_lut[455] = 16'h0000;
++assign mix_lut[456] = 16'h0000;
++assign mix_lut[457] = 16'h0000;
++assign mix_lut[458] = 16'h0000;
++assign mix_lut[459] = 16'h0000;
++assign mix_lut[460] = 16'h0000;
++assign mix_lut[461] = 16'h0000;
++assign mix_lut[462] = 16'h0000;
++assign mix_lut[463] = 16'h0000;
++assign mix_lut[464] = 16'h0000;
++assign mix_lut[465] = 16'h0000;
++assign mix_lut[466] = 16'h0000;
++assign mix_lut[467] = 16'h0000;
++assign mix_lut[468] = 16'h0000;
++assign mix_lut[469] = 16'h0000;
++assign mix_lut[470] = 16'h0000;
++assign mix_lut[471] = 16'h0000;
++assign mix_lut[472] = 16'h0000;
++assign mix_lut[473] = 16'h0000;
++assign mix_lut[474] = 16'h0000;
++assign mix_lut[475] = 16'h0000;
++assign mix_lut[476] = 16'h0000;
++assign mix_lut[477] = 16'h0000;
++assign mix_lut[478] = 16'h0000;
++assign mix_lut[479] = 16'h0000;
++assign mix_lut[480] = 16'h0000;
++assign mix_lut[481] = 16'h0000;
++assign mix_lut[482] = 16'h0000;
++assign mix_lut[483] = 16'h0000;
++assign mix_lut[484] = 16'h0000;
++assign mix_lut[485] = 16'h0000;
++assign mix_lut[486] = 16'h0000;
++assign mix_lut[487] = 16'h0000;
++assign mix_lut[488] = 16'h0000;
++assign mix_lut[489] = 16'h0000;
++assign mix_lut[490] = 16'h0000;
++assign mix_lut[491] = 16'h0000;
++assign mix_lut[492] = 16'h0000;
++assign mix_lut[493] = 16'h0000;
++assign mix_lut[494] = 16'h0000;
++assign mix_lut[495] = 16'h0000;
++assign mix_lut[496] = 16'h0000;
++assign mix_lut[497] = 16'h0000;
++assign mix_lut[498] = 16'h0000;
++assign mix_lut[499] = 16'h0000;
++assign mix_lut[500] = 16'h0000;
++assign mix_lut[501] = 16'h0000;
++assign mix_lut[502] = 16'h0000;
++assign mix_lut[503] = 16'h0000;
++assign mix_lut[504] = 16'h0000;
++assign mix_lut[505] = 16'h0000;
++assign mix_lut[506] = 16'h0000;
++assign mix_lut[507] = 16'h0000;
++assign mix_lut[508] = 16'h0000;
++assign mix_lut[509] = 16'h0000;
++assign mix_lut[510] = 16'h0000;
++assign mix_lut[511] = 16'h0000;
+ 
+ wire [4:0] squares = square1 + square2;
+ wire [15:0] ch1 = pulse_lut[squares];

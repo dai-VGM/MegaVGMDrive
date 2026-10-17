@@ -1,0 +1,4 @@
+MegaVGMPlayer v2.5 licensing status
+
+Original third-party copyright notices and licenses remain in effect. See LICENSE.txt, NOTICE.txt, OWNED_CONTRIBUTIONS_LICENSE.txt, full licenses/, individual source headers and modifications/.
+The Intel PLL reconfiguration soft-RTL/GPLv3 combination permission/scope question remains UNRESOLVED. This source snapshot and public distribution do not assert that it was legally cleared. Existing audit findings and the user's publication decision are preserved in development records; no additional Altera inquiry or legal audit is being performed.

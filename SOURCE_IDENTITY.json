@@ -1,0 +1,71 @@
+{
+  "release": "MegaVGMPlayer v2.5",
+  "Runtime": "3547e23eafdf7d8ac45eda270e7df9046ca7d2a0",
+  "packaging": "19b4f958b91a0d78097ebdeff8a1874ffb61371c",
+  "Remote_software": "568461991f57a0ba48e38f7fad40b9a313be006a",
+  "Remote_original_compiler": "01804de793ec6e5d23893a67c4a3dd17ce2f3b75",
+  "engines": {
+    "A": {
+      "filename": "MegaVGMDrive_A.rbf",
+      "sha256": "00e14105f314d61fc85d475099e194c35e7c2b710b29bc444660e5358bacf93b",
+      "source": "4f638c272d2dc70adad5c64f56496b833ca38fe8",
+      "bytes": 4192080,
+      "source_artifact_sha256": "6c91d2b41ac94b82e6c5720872407b39c89d4d05ec23a08ce743ad387000d4dd",
+      "tool": "Quartus 17.0.0 Build 595 Lite",
+      "seed": 1,
+      "compression": "on"
+    },
+    "B": {
+      "filename": "MegaVGMDrive_B.rbf",
+      "sha256": "dd7b9c741faafc66e2189e627af9c75143c7831d61ea1874eecebd18d68b294f",
+      "source": "39320fa074483f7c8413ae98677c65db7776b1c7",
+      "bytes": 3336488,
+      "source_artifact_sha256": "da5c7701a4648075ea3264d6428fbda56c5df7c6ba11f651ea90e6ef9e4647f9",
+      "tool": "Quartus 17.0.0 Build 595 Lite",
+      "seed": 1,
+      "compression": "on"
+    },
+    "C": {
+      "filename": "MegaVGMDrive_C.rbf",
+      "sha256": "e1dd602b34b28d6d6c2ae957d3a4b0913372d75696bdd01f93480ff21621d8ae",
+      "source": "cfea710bd9338595ce06b85332a937fd9be37ddf",
+      "bytes": 2675952,
+      "source_artifact_sha256": "ea1ee84bd17563b82f644a7665c9a2425e4648edf754ac1ae8b01be715a08178",
+      "tool": "Quartus 17.0.0 Build 595 Lite",
+      "seed": 1,
+      "compression": "on"
+    },
+    "D": {
+      "filename": "MegaVGMDrive_D.rbf",
+      "sha256": "4bfbb597f77f4b9095a61eacf26bb581ef46dbf6e7d048542fa8473a3d10c63a",
+      "source": "2e3689eb28a96abf18a54e1e50f5203b4285cff0",
+      "bytes": 3161160,
+      "source_artifact_sha256": "c65afa1d1b7ef98bd40f861ea0f62dbafae38f9455e5ef6cae1bf06075d09ccf",
+      "tool": "Quartus 17.0.0 Build 595 Lite",
+      "seed": 1,
+      "compression": "on"
+    },
+    "E": {
+      "filename": "MegaVGMDrive_E_vNext_MiSTer.rbf",
+      "sha256": "a9d2fcf9ec4fcb56d7d574a592049ac4ccdfd7c3feb591b1290670f092c9250b",
+      "source": "a1eb7655bc9a1524f330664384dbbbfc5b063266",
+      "bytes": 3306768,
+      "source_artifact_sha256": "7c1c6279f766496a85580e00c4cf501d7530f78814697ef2eeb9bde031f41abe",
+      "tool": "Quartus 17.0.0 Build 595 Lite",
+      "seed": 1,
+      "compression": "on"
+    },
+    "F": {
+      "filename": "MegaVGMDrive_F_vNext_MiSTer.rbf",
+      "sha256": "1865550d6448c3f07315b5c2237edc19b174461df1b299b00bf1105608dd90fa",
+      "source": "0192f83d9da8340ce4207382cc0dc9f896ec85dc",
+      "bytes": 2639412,
+      "source_artifact_sha256": "ac42bf854d4fd65834a67f077c441abae280bc71ddb36992f21f2afa153ced8a",
+      "tool": "Quartus 17.0.0 Build 595 Lite",
+      "seed": 1,
+      "compression": "on"
+    }
+  },
+  "source_originals": "All source/ and source-dependencies/ entries from the frozen RC and license/source companion are retained byte-for-byte. No RTL/Host changes or rebuild.",
+  "original_rc_sha256": "334fce16594ffdb4f07132a8b5cc680f70879796cfb0b570808c54a240b1b203"
+}

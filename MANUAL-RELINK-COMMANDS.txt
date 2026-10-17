@@ -1,0 +1,55 @@
+Manual relink commands — documentation only, NOT EXECUTED
+
+These commands give a source-form route for a recipient replacing glibc.
+They do not modify or rebuild the fixed release in this audit. Use a new private
+output directory. Product tests are not a prerequisite for compiling these targets.
+The target compiler must be compatible with the declared ARMv7 hard-float ABI.
+A modified-library result is not expected to reproduce the fixed binary SHA256.
+
+Run from the extracted License Supplement's source/Runtime directory:
+
+    ARM_CXX=/absolute/path/to/arm-none-linux-gnueabihf-g++
+    ARM_SYSROOT=/absolute/path/to/modified-library/sysroot
+    OUT=/absolute/path/to/new/private/output
+    mkdir "$OUT"
+
+In a Bash shell define the same fixed flags (all five capabilities were enabled):
+
+    flags=(-O2 -std=c++14 -Wall -Wextra -Wpedantic -Werror
+      -DMEGAVGM_PHASE2A
+      -DMEGAVGM_HOST_MSM6295=1
+      -DMEGAVGM_HOST_K053260=1
+      -DMEGAVGM_HOST_K053260_EMPTY_ROM=1
+      -DMEGAVGM_HOST_MSM6295_PCM_ONLY=1
+      -DMEGAVGM_HOST_A_YM2151_4026987=1
+      -march=armv7-a -mfpu=vfpv3 -mfloat-abi=hard -static
+      --sysroot="$ARM_SYSROOT")
+    profile=(tools/megavgm_profile/profile.cpp tools/megavgm_profile/switch.cpp)
+    playlist=(tools/megavgm_playlist/playlist.cpp
+      tools/megavgm_playlist/playlist_control.cpp
+      tools/megavgm_playlist/playback_mode.cpp tools/megavgm_playlist/sid_prepare.cpp
+      tools/megavgm_autoplay2/autoplay2.cpp)
+    supervisor=(tools/megavgm_supervisor/supervisor.cpp
+      tools/megavgm_supervisor/runtime_support.cpp tools/megavgm_supervisor/test_profile.cpp
+      tools/megavgm_supervisor/sha256.cpp)
+
+    "$ARM_CXX" "${flags[@]}" tools/megavgm_playlist/main.cpp       "${profile[@]}" "${playlist[@]}"       -Wl,-Map,"$OUT/controller.map" -o "$OUT/megavgm_playlist"
+    "$ARM_CXX" "${flags[@]}" tools/megavgm_supervisor/main.cpp       tools/megavgm_supervisor/linux_runtime.cpp tools/megavgm_supervisor/phase2a.cpp       "${supervisor[@]}" "${profile[@]}" "${playlist[@]}"       -Wl,-Map,"$OUT/supervisor.map" -o "$OUT/megavgm_supervisor"
+    "$ARM_CXX" "${flags[@]}" tools/megavgm_profile/classify_main.cpp       tools/megavgm_profile/profile.cpp tools/megavgm_supervisor/sha256.cpp       -Wl,-Map,"$OUT/classifier.map" -o "$OUT/megavgm_classify"
+
+These compile the same product source lists, directly instead of passing through
+all tests in the original build_and_test.sh. Include matching startup files,
+headers and libraries in the selected sysroot. If changing compiler-owned
+libstdc++/libgcc too, use the corresponding replacement compiler runtime search
+paths; --sysroot alone does not replace every compiler-owned library directory.
+No particular modified-library build or link output has been verified here.
+
+For Go, run from source/Remote using Go1.21.9, the exact go.mod/go.sum and supplied
+mux source. A CC wrapper or CC command with --sysroot can select the replacement
+ARMv7 hard-float C library. Preserve GOOS=linux GOARCH=arm GOARM=7 CGO_ENABLED=1,
+-trimpath and -ldflags="-s -w -linkmode external -extldflags -static".
+Build cmd/megavgm_remote and cmd/megavgm_nsf_prepare into the private output only.
+For SID use its supplied build_arm.sh, libsidplayfp3.1.1 and observer patch with
+ARM_CC/ARM_CXX or corresponding compiler wrappers targeting the modified library.
+The old CTL source is the byte-identical ctl.cpp already supplied in Runtime;
+its independent old source identity remains in the supplement.

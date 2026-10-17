@@ -1,0 +1,35 @@
+MegaVGMPlayer v2.5 — THIRD-PARTY NOTICE
+
+Fixed RC SHA256: 334fce16594ffdb4f07132a8b5cc680f70879796cfb0b570808c54a240b1b203
+Engine E source: a1eb7655bc9a1524f330664384dbbbfc5b063266
+
+NES_MiSTer: https://github.com/MiSTer-devel/NES_MiSTer
+Adopted source reference: 49a0a662e244469ca77b2155746a066df704ffae
+APU rewritten by Kitrinx, 6/4/2020, original GPLv3 notice retained.
+Savestate support bus retained from NES_MiSTer; see original source and COPYING.
+T65 CPU: Daniel Wallner, Mike Johnson, Wolfgang Scherr and Morten Leikvoll;
+full per-file copyright, redistribution conditions and disclaimers accompany this supplement in
+licenses/T65-SYNTHESIZED-FORM-NOTICES.txt and remain in the source.
+Modified APU/T65 changes are dated and identified in MODIFICATIONS.txt and the exact diff evidence.
+
+Golden/MiSTer components retain their original individual notices, including TEMLIB scaler permission.
+Intel Corporation / Altera Corporation generated PLL and reconfiguration components retain their notices;
+they are not represented as relicensed under the NES root COPYING.
+
+Go 1.21.9: The Go Authors — full Go LICENSE and PATENTS included.
+github.com/gorilla/mux 1.8.0: Gorilla web toolkit authors — full LICENSE included.
+PWA locked dependency notice/source superset: PWA-DEPENDENCY-NOTICES.txt.
+Roboto font binaries: Copyright 2011 Google Inc., Apache License, Version 2.0.
+Font source package: @fontsource/roboto 4.5.8; all 28 shipped font hashes are matched.
+
+GNU runtime libraries: see GCC COPYing.RUNTIME, glibc COPYING.LIB and glibc LICENSES.
+Their source/relink requirements and exact toolchain distinctions are described in the source plan.
+SID preparation includes libsidplayfp 3.1.1 plus the documented write-observer patch under the applicable GPL terms.
+
+This is a finalized companion notice index, not a claim of endorsement by any author and not a publication approval.
+All listed full texts are unmodified copies. Original per-file notices continue to govern.
+
+
+Owner declaration and scoped GPLv3 grant: OWNED_CONTRIBUTIONS_LICENSE.txt.
+GNU library versions: C++ glibc2.31; Go CGO Ubuntu glibc2.43-2ubuntu2cross1.
+Full Ubuntu copyright files are in licenses/Ubuntu-GNU/.

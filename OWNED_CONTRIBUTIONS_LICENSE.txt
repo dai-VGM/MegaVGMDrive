@@ -1,0 +1,14 @@
+MegaVGMPlayer v2.5 — OWNED CONTRIBUTIONS LICENSE NOTICE
+
+By the rights holder's direct declaration on 2026-10-17 (Japan Standard Time),
+the independently owned portions of the 16 Engine E RTL files listed in
+identity/E-CORRESPONDING-SOURCE-SCOPE.json and the independent Runtime
+contributions in the fixed source/Runtime set are provided under GNU GPL
+version 3. The full text is included in licenses/LICENSE-gpl-3.0.txt.
+
+This declaration applies only to rights held by the declaring owner. It does
+not relicense or remove the terms of T65, Intel/Altera, Golden/MiSTer or any
+other third-party material. Existing GPL-3.0-or-later notices remain intact.
+For derived files, upstream copyright notices and applicable grants remain.
+The file hashes identify the unchanged source to which this companion applies.
+Original product source and the immutable RC have not been edited.

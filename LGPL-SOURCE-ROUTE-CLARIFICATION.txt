@@ -1,0 +1,51 @@
+LGPL source-route clarification — 2026-10-17 JST
+
+This addendum is paired with the unchanged RC and unchanged License Supplement.
+It changes no product source, binary, RBF or license text.
+
+Chosen material route: LGPL2.1 section6(a), with equivalent source access next to
+the binary downloads under section6(d) when publication actually occurs.
+The application may be provided in source and/or object form. Do not invent a
+requirement to supply additional application objects when usable complete source
+is supplied. The license does not require a third-party legal certificate or a
+byte-identical rebuild test as a named distribution condition.
+
+The existing supplement supplies preferred application sources, glibc2.31 source
+and SDK configuration, Ubuntuglibc2.43 source+distribution delta+cross build rules,
+full notices and source identity. The application-source option is selected.
+No restriction on private modification or reverse engineering for debugging a
+modified library is introduced. Owned source is offered under the confirmed GPLv3
+grant; third-party grants remain unchanged. GCC runtime exceptions do not apply
+to glibc.
+
+Fixed Runtime feature configuration (all five values are1 in the original receipt):
+MEGAVGM_HOST_MSM6295=1
+MEGAVGM_HOST_K053260=1
+MEGAVGM_HOST_K053260_EMPTY_ROM=1
+MEGAVGM_HOST_MSM6295_PCM_ONLY=1
+MEGAVGM_HOST_A_YM2151_4026987=1
+
+Export those five variables before using the existing
+source/Runtime/tools/megavgm_profile/build_and_test.sh in ARM mode with a fresh
+absolute output directory. That existing script records the GCC10.2.1 ARMv7
+hard-float/static/O2 source lists and commands. Use the matching SDK/sysroot or
+point the compiler/sysroot to the recipient's modified library build.
+The exact29literal compilation source paths and all local quoted includes are
+present in the fixed source set; configuration matches the saved build receipt.
+The script also contains tests, which are not invoked by this audit.
+
+Go Remote/NSFprepare: use the fixed source/Remote tree and Go1.21.9,
+GOOS=linux GOARCH=arm GOARM=7 CGO_ENABLED=1,
+CC=arm-linux-gnueabihf-gcc (or the modified-library compiler/sysroot),
+and -trimpath -ldflags="-s -w -linkmode external -extldflags -static".
+The exact module ZIP and go.sum mapping are in the existing supplement.
+SDK libc2.31 and UbuntuCGO libc2.43 remain different source/configuration sets.
+SID uses its already supplied source, libsidplayfp3.1.1 and observer patch.
+CTL's source blob matches the pinned old CTL source and is included.
+
+No new concrete missing Runtime compilation source/header was found by this
+static check. This is not an executed modified-library relink or an original
+member-level link-map reconstruction, and does not certify unknown facts.
+Do not turn the prohibition on rebuilds into a fictitious failed license clause.
+Any later concrete omission must identify the affected executable, clause and
+missing material, rather than reopen every completed dependency audit.

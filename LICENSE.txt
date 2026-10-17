@@ -1,0 +1,28 @@
+MegaVGMPlayer v2.5 — DISTRIBUTION LICENSE INDEX
+
+This companion is finalized as documentation outside the unchanged RC; publication is not approved.
+Owned contributions are licensed as stated in OWNED_CONTRIBUTIONS_LICENSE.txt. This does not relicense Intel or other third-party materials or certify the complete distribution.
+No single license is asserted to cover every file in the archive.
+
+1. NES-derived APU: GPL version 3 as stated in the source. GPL-3.0-only is the conservative inventory label; the license text alone does not add an "or later" grant.
+   Savestate support bus: repository GPLv3 context; original file has no separate license header.
+   Keep original notices, full GPLv3 text, dated change notices and complete corresponding source for the covered work.
+2. T65: preserve the full individual source AND synthesized-form copyright, conditions and disclaimer.
+   See licenses/T65-SYNTHESIZED-FORM-NOTICES.txt (all four files); do not replace with a short BSD label.
+3. E local VRC6/DMC and other explicitly marked files: GPL-3.0-or-later where their individual headers say so.
+   The listed 16 local/derived files and Runtime owned portions now have the owner grant in OWNED_CONTRIBUTIONS_LICENSE.txt; underlying third-party grants remain.
+4. Golden/Shell: individual GPL/LGPL/custom-permission notices remain in effect. TEMLIB ascal permission is not renamed MIT.
+5. Intel-generated PLL, reconfiguration and compiler library components: retain original Intel notices.
+   Applicable agreement and GPL-covered combined-work scope remain under review (L01/L02).
+   Do not describe these as GPLv3 merely because they appear beside COPYING.
+6. Remote/PWA project licenses: original GPLv3 texts in licenses/Remote-project-GPL-3.0.txt and PWA-project-GPL-3.0.txt.
+   Go 1.21.9 and gorilla/mux 1.8.0 use their individual BSD terms; full texts included.
+7. PWA dependencies: exact original texts and mapping in PWA-DEPENDENCY-NOTICES.txt and the inventory.
+   Roboto font binaries: Copyright 2011 Google Inc.; Apache License 2.0. Package metadata MIT is separate.
+8. GCC/libstdc++/libgcc: applicable source notices and GCC Runtime Library Exception 3.1 where applicable.
+   This exception does not waive the separate terms of glibc or other non-GCC libraries.
+9. glibc: LGPL-2.1-or-later base and additional per-file terms in LICENSES; static redistribution needs the relevant source/relink compliance route, not just this notice.
+10. Legacy SID helper: preserve GPL-2.0-or-later notices, libsidplayfp 3.1.1 and the shipped write-observer patch/source.
+
+Exact file/application scope, source delivery and outstanding conditions are recorded in CORRESPONDING-SOURCE.txt, GNU-STATIC-LINK-COMPLIANCE.txt and identity/.
+The included source and source-dependency directories provide the staged source materials. An eventual public source URL will be fixed with the approved publication destination. No placeholder is represented as an active source offer.
