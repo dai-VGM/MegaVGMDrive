@@ -6,7 +6,7 @@ MiSTerでゲーム音楽を楽しむプレイヤーです。スマホやPCのブ
 
 ## v2.6のインストール
 
-標準MiSTerとSS1 Console Mode（HDMI直結）で動作を確認しています。
+標準MiSTerとSS1 Console Modeで動作を確認しています。
 
 1. [MegaVGMPlayer-v2.6-Full-Install.zip](https://github.com/dai-VGM/MegaVGMDrive/releases/download/v2.6/MegaVGMPlayer-v2.6-Full-Install.zip) をダウンロードして解凍し、中身をSDカードのルートにコピー。
 2. MiSTerの `Scripts → MegaVGMPlayer_Full_Setup` を実行。
@@ -23,6 +23,18 @@ Menuに戻るにはプレイヤーの `Full Exit` を選びます。Setupが途�
 - 一部のNES VGM/VGZは未対応です。
 - SIDは初回再生時にMiSTer上で事前変換します。曲長情報がない場合やCPU負荷が高い環境では、変換が120秒の制限を超えて再生に失敗することがあります。変換済みキャッシュがあれば再利用します。SIDの曲名はHDMIのOSDに表示されません。
 - NAS全般の動作は未検証です。
+
+### 音源エンジン
+
+| Engine | 担当する音源・楽曲 |
+| --- | --- |
+| A | メガドライブやアーケード向け。YM2612、SN76489、YM2151、YM2203、SegaPCM、K053260。 |
+| B | ネオジオやアーケード向け。YM2610／YM2610B。 |
+| C | Commodore 64のSID楽曲。6581／8580、PAL／NTSCに対応。 |
+| D | アーケード向け。ナムコC140やOKI MSM6295のPCM系音源と、YM2151のFM音源。 |
+| E | ファミコン／NESのAPUと、VRC6・VRC7・FDSなどの拡張音源。NSF・NSFeと一部のNES VGM/VGZに対応。 |
+| F | PCエンジン／TurboGrafx-16向け。HuC6280 PSG。 |
+| G | コナミのアーケード向け。YM2151とK053260。 |
 
 ### 画面イメージ
 

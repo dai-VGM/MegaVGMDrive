@@ -6,7 +6,7 @@ Play game music on your MiSTer from a phone, tablet, or computer. MegaVGMPlayer 
 
 ## Install v2.6
 
-Tested on standard MiSTer and SS1 Console Mode with a direct HDMI connection.
+Tested on standard MiSTer and SS1 Console Mode.
 
 1. Download and unzip [MegaVGMPlayer-v2.6-Full-Install.zip](https://github.com/dai-VGM/MegaVGMDrive/releases/download/v2.6/MegaVGMPlayer-v2.6-Full-Install.zip). Copy the extracted contents to the root of your MiSTer SD card.
 2. On MiSTer, run `Scripts → MegaVGMPlayer_Full_Setup`.
@@ -23,6 +23,18 @@ Use `Full Exit` in the player to return to the MiSTer Menu. If setup was interru
 - Some NES VGM/VGZ files are unsupported.
 - SID files are converted on the MiSTer before first playback. If song length information is missing or the CPU is busy, conversion can exceed the 120-second limit and playback may fail. Later plays reuse a valid cached conversion. SID titles aren’t shown on the HDMI OSD.
 - General NAS compatibility is untested.
+
+### Sound engines
+
+| Engine | What it plays |
+| --- | --- |
+| A | Mega Drive and arcade music using YM2612, SN76489, YM2151, YM2203, SegaPCM, and K053260. |
+| B | Arcade and Neo Geo music using YM2610 or YM2610B. |
+| C | Commodore 64 SID music for the 6581 and 8580, with PAL and NTSC timing. |
+| D | Arcade music using Namco C140 or OKI MSM6295, with YM2151 for FM. |
+| E | Famicom/NES APU and expansion audio such as VRC6, VRC7, and FDS. Plays NSF/NSFe and supported NES VGM/VGZ tracks. |
+| F | PC Engine/TurboGrafx-16 music using the HuC6280 PSG. |
+| G | Konami arcade music using YM2151 and K053260. |
 
 ### Gallery
 
