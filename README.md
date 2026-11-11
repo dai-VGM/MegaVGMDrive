@@ -1,24 +1,28 @@
 # MegaVGMPlayer
 
-FPGA Music Player for MiSTer
+Play game music on your MiSTer from a phone, tablet, or computer. MegaVGMPlayer automatically switches between seven FPGA sound engines as you play. Browse your library, save favorites, and build playlists in your browser.
 
-[日本語](README.ja.md) · [MegaVGMPlayer v2.3](https://github.com/dai-VGM/MegaVGMDrive/releases/tag/v2.3) · [ZIP checksum](https://github.com/dai-VGM/MegaVGMDrive/releases/download/v2.3/MegaVGMPlayer-v2.3.zip.sha256)
+[日本語](README.ja.md) · [v2.6 release notes](https://github.com/dai-VGM/MegaVGMDrive/releases/tag/v2.6) · [SHA256 checksums](https://github.com/dai-VGM/MegaVGMDrive/releases/download/v2.6/SHA256SUMS.txt)
 
-MegaVGMDrive is the underlying FPGA/core development project. MegaVGMPlayer is the user-facing player distributed from this repository.
+## Install v2.6
 
-## MegaVGMPlayer v2.3
+Tested on standard MiSTer and SS1 Console Mode with a direct HDMI connection.
 
-MegaVGMPlayer v2.3 is the current production release. It provides a standalone browser/PWA player, four automatically selected FPGA sound engines, playlists, favorites, transport controls, and integrated raw SID preparation.
+1. Download and unzip [MegaVGMPlayer-v2.6-Full-Install.zip](https://github.com/dai-VGM/MegaVGMDrive/releases/download/v2.6/MegaVGMPlayer-v2.6-Full-Install.zip). Copy the extracted contents to the root of your MiSTer SD card.
+2. On MiSTer, run `Scripts → MegaVGMPlayer_Full_Setup`.
+3. Open [http://mister.local:8183/megavgm](http://mister.local:8183/megavgm) in your browser. If it doesn’t connect, replace `mister.local` with your MiSTer’s IP address.
 
-Users normally do not select an A/B/C/D RBF manually. MegaVGMPlayer classifies each track and automatically loads the required FPGA sound engine, including transitions inside mixed-engine playlists.
+**Upgrading from v2.5?** Back up your SD card and return to the regular Menu before running Setup. Close the v2.5 player tab and reopen the same URL after setup.
 
-### What changed in v2.3
+Use `Full Exit` in the player to return to the MiSTer Menu. If setup was interrupted, run `MegaVGMPlayer_Full_Recovery` from Scripts. To remove v2.6 and restore a previous v2.5 installation, run `MegaVGMPlayer_Full_Uninstall`.
 
-- Added Engine D for Namco C140 playback, including C140 + YM2151 tracks, with automatic A/B/C/D switching.
-- Added transparent INFO and loading displays.
-- Fixed Engine B ADPCM-A active-bank handling for Stage 6 playback and expanded its FM activity display to six channels.
-- Selecting the currently playing track restarts it from the beginning.
-- The importer now normalizes a missing SN76489 clock in affected Mega Drive VGM files during preparation, preserving the original files. Re-import affected tracks from their originals with the packaged importer/classifier pair.
+## Playback
+
+- Supports VGM, VGZ, NSF, NSFe, and SID within the supported sound hardware and formats.
+- Favorites, playlists, shuffle, and repeat work from the browser player.
+- Some NES VGM/VGZ files are unsupported.
+- SID files are converted on the MiSTer before first playback. If song length information is missing or the CPU is busy, conversion can exceed the 120-second limit and playback may fail. Later plays reuse a valid cached conversion. SID titles aren’t shown on the HDMI OSD.
+- General NAS compatibility is untested.
 
 ### Gallery
 
@@ -26,198 +30,9 @@ Users normally do not select an A/B/C/D RBF manually. MegaVGMPlayer classifies e
 | --- | --- |
 | ![MegaVGMPlayer v2 Browse view](docs/images/megavgmplayer-v2-browse.png) | ![MegaVGMPlayer v2 Playlists view](docs/images/megavgmplayer-v2-playlists.png) |
 
-## Features
+## Source and older releases
 
-- Remote/PWA player served directly by the standalone `megavgm_remote` daemon
-- Browse the MegaVGMDrive library from a phone, tablet, or desktop browser
-- Playlists and favorites
-- Previous, Next, and Stop controls
-- Repeat One and Repeat Context
-- Shuffle and automatic next-track playback
-- Transition fade between tracks and engines
-- Mixed-engine playlists with automatic A/B/C/D RBF switching
-- Automatic restoration of stock MiSTer after playlist completion or player exit
-- Direct selection of raw `.sid` files with automatic preparation and cache reuse
-- Optional per-track manual SID loop metadata
-- Restart the current track by selecting it again
-- Transparent INFO/loading displays
-- Engine-specific OSD activity views and a common PLAY/LOAD/STOP badge
-
-Pause and seek/progress-bar controls are not currently implemented.
-
-## Sound engines
-
-| Engine | Sound hardware | Production RBF |
-| --- | --- | --- |
-| A | YM2612, SN76489 PSG, YM2151, YM2203, SegaPCM | `MegaVGMDrive_A.rbf` |
-| B | YM2610 and YM2610B | `MegaVGMDrive_B.rbf` |
-| C | SID 6581/8580 with PAL and NTSC timing | `MegaVGMDrive_C.rbf` |
-| D | Namco C140 (System 2/System 21), with optional YM2151 | `MegaVGMDrive_D.rbf` |
-
-All four RBFs publish the `MegaVGMDrive` core identity. The host classifier and Supervisor choose and switch them automatically; the filenames identify deployment profiles, not separate user editions.
-
-## SID playback
-
-Raw `.sid` files can be selected directly in MegaVGMPlayer. The FPGA does **not** execute the original SID program.
-
-During playback, MiSTer-side tooling automatically runs the preparation step, converts the SID register-write stream to Packed MVGMSID v2, validates it, and stores it in the SID cache. Engine C then replays that prepared event stream on the FPGA. A valid cached result is reused on later plays.
-
-- No manual pre-conversion is required.
-- Preparation is integrated into the MegaVGMPlayer playback flow.
-- A standalone SID converter is not currently distributed.
-- SID 6581 and 8580 models are supported with PAL and NTSC timing.
-- Prepared SID data has an 8 MiB production capacity.
-- Optional `MegaVGMPlayer-SID-loop-v1` sidecars can define a trusted per-track manual loop.
-- Loop points are not detected automatically.
-
-SID compatibility depends on the source tune, metadata, selected subtune, timing/model information, and current single-SID preparation support.
-
-## Installation
-
-### Easy installation (SD card copy)
-
-No SSH, root shell, or command-line setup is required for normal use. You can copy the release files using your computer's file manager. For a first installation, also add the included startup block with a text editor as described below; the ZIP does not include a ready-made `linux/user-startup.sh`.
-
-1. Download and extract [MegaVGMPlayer-v2.3.zip](https://github.com/dai-VGM/MegaVGMDrive/releases/download/v2.3/MegaVGMPlayer-v2.3.zip).
-2. When updating, return MegaVGMPlayer to STOCK mode and close open Player browser/PWA tabs. Power off the MiSTer before removing its SD card.
-3. Copy **all contents of `MegaVGMPlayer-v2.3/media/fat/`** to the **root of the MiSTer SD card**, preserving the folder structure. Merge the folders and replace existing MegaVGMPlayer release files when updating. Do not copy the outer `MegaVGMPlayer-v2.3`, `media`, or `fat` directory as a new folder on the SD card.
-4. For a first installation without an existing MegaVGMPlayer startup block, open `linux/user-startup.sh` on the SD card in a text editor and append the entire contents of the extracted package's `startup.block` unchanged. If that file does not exist, create it with `#!/bin/sh` as its first line, followed by the block. Preserve any existing startup entries. When updating an installation that already has this block, keep it and do not add a duplicate.
-5. Reinsert the SD card and boot the MiSTer normally. Open `http://<MiSTer-IP>:8183/megavgm` in a browser, or install it as a PWA, and start playback normally.
-
-The copy destinations are:
-
-| Extracted ZIP folder | MiSTer SD card folder | MiSTer Linux path |
-| --- | --- | --- |
-| `media/fat/_Custom Cores/Cores/` | `_Custom Cores/Cores/` | `/media/fat/_Custom Cores/Cores/` |
-| `media/fat/MegaVGMPlayer/` | `MegaVGMPlayer/` | `/media/fat/MegaVGMPlayer/` |
-| `media/fat/Scripts/` | `Scripts/` | `/media/fat/Scripts/` |
-
-Copy the **complete release set**, not individual RBFs or runtime components. The RBFs, modified Main, runtime binaries and helpers are validated together; mixing components from different releases can break playback or engine switching. Merge folders rather than deleting existing ones, and keep your music, playlists and favorites, legacy rescue RBFs, and `Scripts/remote.sh`.
-
-### Optional checksum verification
-
-Download [MegaVGMPlayer-v2.3.zip.sha256](https://github.com/dai-VGM/MegaVGMDrive/releases/download/v2.3/MegaVGMPlayer-v2.3.zip.sha256) to verify the ZIP before copying it. The final v2.3 ZIP SHA-256 is:
-
-```text
-b33397b2868a11ea83a99614d003429bcde7dfa70a2dcdb6ef712e7fcc34c61b
-```
-
-If you prefer command-line verification on your computer:
-
-```sh
-sha256sum -c MegaVGMPlayer-v2.3.zip.sha256
-# or on macOS
-shasum -a 256 -c MegaVGMPlayer-v2.3.zip.sha256
-```
-
-### Advanced: optional transactional installer
-
-The installer scripts are optional and provide a transactional install/upgrade route with hash verification, backups and rollback. They also merge the startup block while preserving existing entries. To use this route, verify and extract the ZIP, return MegaVGMPlayer to STOCK mode, close open Player browser/PWA tabs, copy the extracted package to the MiSTer, and run `sh install.sh` as `root`. Then reboot and open the Player URL above.
-
-For an existing installation, `upgrade.sh` uses the same transactional installation path. `rollback.sh` restores the captured pre-upgrade files. The installer preserves legacy rescue RBFs and backs up replaced files for rollback. It does not replace `/media/fat/Scripts/remote.sh` or modify playlist/favorites data. Keep the backup path printed by the installer; manual SD-card copying does not create an installer rollback checkpoint.
-
-The standalone player coexists with MiSTer Remote. MiSTer Remote normally remains on port 8182; MegaVGMPlayer uses port 8183.
-
-## Production paths
-
-| Purpose | Path |
-| --- | --- |
-| Engine A RBF | `/media/fat/_Custom Cores/Cores/MegaVGMDrive_A.rbf` |
-| Engine B RBF | `/media/fat/_Custom Cores/Cores/MegaVGMDrive_B.rbf` |
-| Engine C RBF | `/media/fat/_Custom Cores/Cores/MegaVGMDrive_C.rbf` |
-| Engine D RBF | `/media/fat/_Custom Cores/Cores/MegaVGMDrive_D.rbf` |
-| Runtime binaries and assets | `/media/fat/MegaVGMPlayer/` |
-| MegaVGMPlayer Main | `/media/fat/MegaVGMPlayer/MiSTer.megavgm` |
-| Supervisor | `/media/fat/MegaVGMPlayer/megavgm_supervisor` |
-| Controller | `/media/fat/MegaVGMPlayer/megavgm_playlist-phase2a` |
-| SID preparer | `/media/fat/MegaVGMPlayer/megavgm_sid_prepare` |
-| Standalone Remote/PWA daemon | `/media/fat/MegaVGMPlayer/megavgm_remote` |
-| Scripts and importer | `/media/fat/Scripts/` |
-| VGM/SID library root | `/media/fat/MegaVGMDrive/` |
-| Playlists and favorites | `/media/fat/Scripts/.config/megavgm/playlists.json` |
-| Prepared SID cache | `/media/fat/MegaVGMPlayer/cache/sid/` |
-
-The v2.3 player remains compatible with existing libraries under `/media/fat/MegaVGMDrive/`.
-
-## Adding music
-
-### VGM
-
-1. Copy `.vgm`, `.vgz`, or `.zip` files into `/media/fat/MegaVGMDrive/_inbox/`.
-2. Run `Scripts -> vgm_md_import` from the MiSTer Scripts menu.
-
-The importer decompresses supported archives and organizes files below the library root. The FPGA does not decompress `.vgz` or `.zip` files directly.
-
-### SID
-
-Place raw `.sid` files below `/media/fat/MegaVGMDrive/`, for example in a `SID` directory. Select them normally from Browse or a playlist. MegaVGMPlayer prepares and caches the internal Packed MVGMSID v2 stream when needed.
-
-## Player and playlists
-
-Open:
-
-```text
-http://<MiSTer-IP>:8183/megavgm
-```
-
-Browse shows supported VGM and SID content under the library root. Playlists and favorites keep the user-visible source path, including the original raw `.sid` path; internal prepared-cache paths are not exposed as track identity.
-
-Available playback controls include Previous, Next, Stop, Repeat One, Repeat Context, Shuffle, and automatic next. MegaVGMPlayer can switch Engine A, B, C, and D automatically as a playlist crosses sound-hardware families.
-
-## Architecture
-
-```text
-Browser / installed PWA (:8183)
-    -> megavgm_remote
-    -> Supervisor
-    -> Phase2A controller
-    -> MiSTer.megavgm + automatically selected Engine A/B/C/D RBF
-```
-
-MegaVGMPlayer uses multiple FPGA sound-engine RBFs internally. The host classifier selects the required profile, and the Supervisor owns verified Main/core replacement, controller launch, transition policy, and restoration of stock MiSTer. Normal users do not manage those RBF transitions.
-
-MiSTer Remote is a separate service and is not part of this request path.
-
-## OSD activity views
-
-The v2.3 RBFs show lightweight activity indicators derived from existing engine signals. They are activity displays, not audio-level or VU meters.
-
-- **Engine A:** source activity for YM2612, PSG, YM2151, SegaPCM, and YM2203.
-- **Engine B:** 16 activity blocks: FM 1–6, SSG A–C, ADPCM-A 1–6, and ADPCM-B.
-- **Engine C:** SID Voice 1–3 and D418 register-write activity with a six-frame history, plus the active 6581/8580 model and PAL/NTSC timing.
-- **Engine D:** YM2151 channel activity and C140 voice activity.
-- **All engines:** a common right-bottom PLAY/LOAD/STOP badge.
-
-## Limitations
-
-- Pause and seek/progress-bar controls are not implemented.
-- C219 (ASIC219), dual C140, and unknown C140 variants are not supported.
-- Mega CD / RF5C164 and 32X PWM playback are not supported.
-- Engine C currently prepares and replays a single SID stream; tune-specific metadata or unsupported SID arrangements may prevent playback.
-- Manual SID loop metadata is optional and must come from a trusted per-track sidecar.
-- MegaVGMPlayer is a music player, not a complete console, arcade-machine, or C64 implementation.
-
-## Troubleshooting
-
-- If the UI does not open, confirm that `megavgm_remote` is running and that port 8183 is reachable.
-- If a track fails to load, confirm that the required A/B/C/D RBF exists at the exact production path above.
-- If a raw SID needs preparation, the first play can take substantially longer than a cache hit. Later plays reuse a valid prepared cache entry.
-- If installation is interrupted, rerun the installer or use `rollback.sh`; do not manually mix runtime binaries from different releases.
-
-## Older releases
-
-- **[v2.2](https://github.com/dai-VGM/MegaVGMDrive/releases/tag/v2.2)** introduced Engine C and integrated raw SID preparation with automatic A/B/C switching.
-- **v2.1 “Independence Day”** introduced the standalone daemon on port 8183 and automatic A/B switching.
-- **v2.0** used a modified MiSTer Remote integration on port 8182.
-- **v1.x** is retained for historical reference only: [v1.0.2](https://github.com/dai-VGM/MegaVGMDrive/releases/tag/v1.0.2) and the older [YM2610B beta](https://github.com/dai-VGM/MegaVGMDrive/releases/tag/YM2610B_Beta).
-
-Use [v2.3](https://github.com/dai-VGM/MegaVGMDrive/releases/tag/v2.3) for current installations.
-
-## Repository
-
-MegaVGMDrive contains the FPGA/core sources, host tooling, player integration, tests, and release documentation used to build MegaVGMPlayer.
-
-Source-derived licensing and provenance are documented in the repository and the v2.3 release package. See source headers and included provenance documents before redistributing binaries or derived source.
+MegaVGMDrive is the FPGA/core project behind MegaVGMPlayer. The [v2.6 release](https://github.com/dai-VGM/MegaVGMDrive/releases/tag/v2.6) includes the corresponding source, build inputs, and license notices. Earlier versions are in the [release archive](https://github.com/dai-VGM/MegaVGMDrive/releases).
 
 ## Development note
 
