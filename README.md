@@ -26,7 +26,7 @@ Use `Full Exit` in the player to return to the MiSTer Menu. If setup was interru
 
 ### Sound engines
 
-MegaVGMPlayer uses Jotego’s FPGA FM cores, including JT12 for the YM2612 and JT51 for the YM2151, for faithful reproduction of the original chips.
+MegaVGMPlayer uses Jotego’s FPGA FM cores, including JT12 for the YM2612 and JT51 for the YM2151, for faithful reproduction of the original chips. Engine B’s YM2610 and YM2610B support is based on Jotego’s JT10/JT12 design.
 
 | Engine | What it plays |
 | --- | --- |
