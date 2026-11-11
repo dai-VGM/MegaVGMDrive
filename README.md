@@ -9,7 +9,7 @@ Play game music on your MiSTer from a phone, tablet, or computer. MegaVGMPlayer 
 Tested on standard MiSTer and SS1 Console Mode.
 
 1. Download and unzip [MegaVGMPlayer-v2.6-Full-Install.zip](https://github.com/dai-VGM/MegaVGMDrive/releases/download/v2.6/MegaVGMPlayer-v2.6-Full-Install.zip). Copy the extracted contents to the root of your MiSTer SD card.
-2. On MiSTer, run `Scripts → MegaVGMPlayer_Full_Setup`.
+2. On MiSTer, run `Scripts → MegaVGMPlayer_Full_Setup`. Setup takes a little while. When you see `Installing... Please wait.`, wait for `Full ready`.
 3. Open [http://mister.local:8183/megavgm](http://mister.local:8183/megavgm) in your browser. If it doesn’t connect, replace `mister.local` with your MiSTer’s IP address.
 
 **Upgrading from v2.5?** Back up your SD card and return to the regular Menu before running Setup. Close the v2.5 player tab and reopen the same URL after setup.
@@ -25,6 +25,8 @@ Use `Full Exit` in the player to return to the MiSTer Menu. If setup was interru
 - General NAS compatibility is untested.
 
 ### Sound engines
+
+MegaVGMPlayer uses Jotego’s FPGA FM cores, including JT12 for the YM2612 and JT51 for the YM2151, for faithful reproduction of the original chips.
 
 | Engine | What it plays |
 | --- | --- |

@@ -9,7 +9,7 @@ MiSTerでゲーム音楽を楽しむプレイヤーです。スマホやPCのブ
 標準MiSTerとSS1 Console Modeで動作を確認しています。
 
 1. [MegaVGMPlayer-v2.6-Full-Install.zip](https://github.com/dai-VGM/MegaVGMDrive/releases/download/v2.6/MegaVGMPlayer-v2.6-Full-Install.zip) をダウンロードして解凍し、中身をSDカードのルートにコピー。
-2. MiSTerの `Scripts → MegaVGMPlayer_Full_Setup` を実行。
+2. MiSTerの `Scripts → MegaVGMPlayer_Full_Setup` を実行。Setupには少し時間がかかります。`Installing... Please wait.` が出たら、`Full ready` が表示されるまでお待ちください。
 3. ブラウザーで [http://mister.local:8183/megavgm](http://mister.local:8183/megavgm) を開きます。つながらない場合は `mister.local` をMiSTerのIPアドレスに置き換えてください。
 
 **v2.5から更新する場合**は、SDカードをバックアップし、通常Menuに戻ってからSetupを実行してください。v2.5のプレイヤーを開いていた場合は一度閉じ、Setup後に同じURLを開き直してください。
@@ -25,6 +25,8 @@ Menuに戻るにはプレイヤーの `Full Exit` を選びます。Setupが途�
 - NAS全般の動作は未検証です。
 
 ### 音源エンジン
+
+FM音源にはJotego製のFPGAコアを採用しています。YM2612のJT12やYM2151のJT51が、実チップの音を忠実に再現します。
 
 | Engine | 担当する音源・楽曲 |
 | --- | --- |
