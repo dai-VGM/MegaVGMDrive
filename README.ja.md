@@ -28,15 +28,17 @@ Menuに戻るにはプレイヤーの `Full Exit` を選びます。Setupが途�
 
 FM音源にはJotego製のFPGAコアを採用しています。YM2612のJT12やYM2151のJT51が、実チップの音を忠実に再現します。Engine BのYM2610／YM2610Bも、Jotego製のJT10／JT12をベースにしています。
 
-| Engine | 担当する音源・楽曲 |
-| --- | --- |
-| A | メガドライブやアーケード向け。YM2612、SN76489、YM2151、YM2203、SegaPCM、K053260。 |
-| B | ネオジオやアーケード向け。YM2610／YM2610B。 |
-| C | Commodore 64のSID楽曲。6581／8580、PAL／NTSCに対応。 |
-| D | アーケード向け。ナムコC140やOKI MSM6295のPCM系音源と、YM2151のFM音源。 |
-| E | ファミコン／NESのAPUと、VRC6・VRC7・FDSなどの拡張音源。NSF・NSFeと一部のNES VGM/VGZに対応。 |
-| F | PCエンジン／TurboGrafx-16向け。HuC6280 PSG。 |
-| G | コナミのアーケード向け。YM2151とK053260。 |
+| Engine | 担当する音源・楽曲 | 音源RTLの出典 |
+| --- | --- | --- |
+| A | メガドライブやアーケード向け。YM2612、SN76489、YM2151、YM2203、SegaPCM、K053260。 | YM2612／YM2203のFMはJotego製の [JT12／JT03](https://github.com/jotego/jt12)、YM2151は [JT51](https://github.com/jotego/jt51)、SSGは [JT49](https://github.com/jotego/jt49)、SN76489は [JT89](https://github.com/jotego/jt89)。 |
+| B | ネオジオやアーケード向け。YM2610／YM2610B。 | YM2610／YM2610BはJotego製の [JT10／JT12](https://github.com/jotego/jt12) がベース。SSGには [JT49](https://github.com/jotego/jt49) を使用。 |
+| C | Commodore 64のSID楽曲。6581／8580、PAL／NTSCに対応。 | [C64_MiSTer](https://github.com/MiSTer-devel/C64_MiSTer/tree/fe6dfe53c99122e5a088691f2d358d6caba61de1/rtl/sid) のSID RTLを使用。DACとフィルターはDag Lemの [reDIP-SID](https://github.com/daglem/reDIP-SID) がベースで、フィルターはAlexey Melnikovが移植。 |
+| D | アーケード向け。ナムコC140やOKI MSM6295のPCM系音源と、YM2151のFM音源。 | YM2151はJotego製の [JT51](https://github.com/jotego/jt51)。C140とMSM6295はMegaVGMPlayer独自実装。 |
+| E | ファミコン／NESのAPUと、VRC6・VRC7・FDSなどの拡張音源。NSF・NSFeと一部のNES VGM/VGZに対応。 | NES APUとFDSは [NES_MiSTer](https://github.com/MiSTer-devel/NES_MiSTer/tree/49a0a662e244469ca77b2155746a066df704ffae/rtl) 由来（Kitrinx、FDSはLoopyの調査に基づく）。Sunsoft 5BにはNES_MiSTerとJotego製の [JT49](https://github.com/jotego/jt49) の一部を使用。VRC7はRaki（Sehyeon Kim）の [IKAOPLL](https://github.com/ika-musume/IKAOPLL/tree/15b373be57b52b4e3eb9b99653dabc5095f7a644) がベースで、音色データとデジタル出力の設計はNuke.YKTの [Nuked-SMS-FPGA](https://github.com/nukeykt/Nuked-SMS-FPGA/tree/4d52fb01b15bef693ead7b3b787b55f4202877d5) 由来。 |
+| F | PCエンジン／TurboGrafx-16向け。HuC6280 PSG。 | HuC6280 PSGはMegaVGMPlayer独自実装。[MednafenのPCE PSG](https://github.com/libretro/beetle-pce-libretro/blob/b96c11e095b6a40a412d2da02766ae1c3f4fd539/mednafen/hw_sound/pce_psg/pce_psg.cpp) を動作検証に使用。 |
+| G | コナミのアーケード向け。YM2151とK053260。 | YM2151はJotego製の [JT51](https://github.com/jotego/jt51)。K053260はMegaVGMPlayer独自実装。 |
+
+[v2.6の対応ソースZIP](https://github.com/dai-VGM/MegaVGMDrive/releases/download/v2.6/MegaVGMPlayer-v2.6-Corresponding-Source.zip) にビルド入力と出典・ライセンス表示を収録しています。
 
 ### 画面イメージ
 
@@ -56,7 +58,7 @@ MegaVGMDriveはMegaVGMPlayerのFPGAコア開発プロジェクトです。[v2.6�
 
 - [MiSTer-devel/Genesis_MiSTer](https://github.com/MiSTer-devel/Genesis_MiSTer)
 - [Jotego jtcores](https://github.com/jotego/jtcores)
-- [JTOUTRUN](https://github.com/jotego/jtcores/tree/master/cores/outrun) SegaPCM RTL
+- [JTOUTRUN](https://github.com/jotego/jtcores/tree/master/cores/outrun)のSegaPCM実装（旧版と比較試験で使用）
 - MiSTer FPGA community、VGM preservation community
 
 ## License
